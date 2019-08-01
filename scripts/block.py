@@ -28,34 +28,34 @@ class Block(object):
         new_block = cls()
         consensus = ""
         new_block.sequences = {}
-        refpos = aln['ref_start']
-        seqpos = 0
+        ref_pos = aln['ref_start']
+        query_pos = 0
         R = {}
         S = {}
         tmpCigar = Cigar(aln["cigar"])
         for l,t in tmpCigar.items():
             consensus_pos = len(consensus)
             if t in ['S', 'H']:
-                seqpos+=l
+                query_pos+=l
             elif t=='M':
-                ref_block = np.array(list(aln['ref_seq'][refpos:refpos+l]))
-                seq_block = np.array(list(aln['query_seq'][seqpos:seqpos+l]))
-                diff = np.where(np.array(ref_block!=seq_block))[0]
+                ref_block = np.array(list(aln['ref_seq'][ref_pos:ref_pos+l]))
+                query_block = np.array(list(aln['query_seq'][query_pos:query_pos+l]))
+                diff = np.where(np.array(ref_block!=query_block))[0]
                 for i in diff:
-                    S[i+consensus_pos] = seq_block[i]
-                consensus += aln['ref_seq'][refpos:refpos+l]
-                refpos += l
-                seqpos += l
+                    S[i+consensus_pos] = query_block[i]
+                consensus += aln['ref_seq'][ref_pos:ref_pos+l]
+                ref_pos += l
+                query_pos += l
             elif t=='D':
                 for i in range(l):
                     S[i+consensus_pos] = '-'
-                consensus += aln['ref_seq'][refpos:refpos+l]
-                refpos += l
+                consensus += aln['ref_seq'][ref_pos:ref_pos+l]
+                ref_pos += l
             elif t=='I':
                 for i in range(l):
                     R[i+consensus_pos] = '-'
-                consensus += aln['query_seq'][seqpos:seqpos+l]
-                seqpos += l
+                consensus += aln['query_seq'][query_pos:query_pos+l]
+                query_pos += l
 
         new_block.sequences[aln['ref_name']] = R
         new_block.sequences[aln['query_name']] = S
@@ -68,11 +68,11 @@ class Block(object):
         new_block = cls()
         consensus = ""
         new_block.sequences = {}
-        refpos = aln['ref_start']
-        seqpos = 0
+        ref_pos = aln['ref_start']
+        query_pos = 0
         consensus_pos = 0
-        ref_map = [(refpos, 0)]
-        seq_map = [(seqpos, 0)]
+        ref_map = [(ref_pos, 0)]
+        query_map = [(query_pos, 0)]
 
         # additional changes
         R = {}
@@ -81,37 +81,37 @@ class Block(object):
 
         for l,t in tmpCigar.items():
             if t in ['S', 'H']:
-                seqpos+=l
+                query_pos+=l
             elif t=='M':
-                ref_block = np.array(list(aln['ref_seq'][refpos:refpos+l]))
-                seq_block = np.array(list(aln['query_seq'][seqpos:seqpos+l]))
-                diff = np.where(np.array(ref_block!=seq_block))[0]
+                ref_block = np.array(list(aln['ref_seq'][ref_pos:ref_pos+l]))
+                query_block = np.array(list(aln['query_seq'][query_pos:query_pos+l]))
+                diff = np.where(np.array(ref_block!=query_block))[0]
                 for i in diff:
-                    S[i+consensus_pos] = seq_block[i]
-                consensus+=aln['ref_seq'][refpos:refpos+l]
-                refpos += l
-                seqpos += l
+                    S[i+consensus_pos] = query_block[i]
+                consensus+=aln['ref_seq'][ref_pos:ref_pos+l]
+                ref_pos += l
+                query_pos += l
             elif t=='D':
                 for i in range(l):
                     S[i+consensus_pos] = '-'
-                consensus+=aln['ref_seq'][refpos:refpos+l]
-                refpos += l
+                consensus+=aln['ref_seq'][ref_pos:ref_pos+l]
+                ref_pos += l
             elif t=='I':
                 for i in range(l):
                     R[i+consensus_pos] = '-'
-                consensus+=aln['query_seq'][seqpos:seqpos+l]
-                seqpos += l
+                consensus+=aln['query_seq'][query_pos:query_pos+l]
+                query_pos += l
 
             consensus_pos = len(consensus)
 
-            ref_map.append((refpos, consensus_pos-refpos))
-            seq_map.append((seqpos, consensus_pos-seqpos))
+            ref_map.append((ref_pos, consensus_pos-ref_pos))
+            query_map.append((query_pos, consensus_pos-query_pos))
 
         ref_map = np.array(ref_map).T
-        seq_map = np.array(seq_map).T
+        query_map = np.array(query_map).T
 
         for transform, extra_mods, sub_cluster in [(ref_map, R, aln['ref_cluster']),
-                                                   (seq_map, S, aln['query_cluster'])]:
+                                                   (query_map, S, aln['query_cluster'])]:
             for s,muts in sub_cluster.items():
                 old_pos = np.array(list(muts.keys()))
                 new_pos = old_pos + transform[1][np.searchsorted(transform[0], old_pos, side='right')]
