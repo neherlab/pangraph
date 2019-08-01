@@ -75,7 +75,6 @@ class Graph(object):
         seq = ""
         for b,strand in self.sequences[name]:
             tmp_seq = self.blocks[b].extract(name)
-            print(b,strand,tmp_seq)
             if strand==plus_strand:
                 seq += tmp_seq
             else:
@@ -94,3 +93,6 @@ if __name__ == '__main__':
            {'cigar':'6M', 'orientation':minus_strand}]
 
     g.merge_hit(hit)
+
+    print(g.extract('S1'))
+    print(g.extract('S2'))
