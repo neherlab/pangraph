@@ -30,31 +30,32 @@ class Graph(object):
         return new_graph
 
     def merge_hit(self,hit):
-        orig_ref_block = self.blocks[hit[0][0]]
-        orig_seq_block = self.blocks[hit[1][0]]
-        ref_block = orig_ref_block[hit[0][1]:hit[0][2]]
-        seq_block = orig_seq_block[hit[1][1]:hit[1][2]]
-        if hit[2]["orientation"]==minus_strand:
+        orig_ref_block = self.blocks[hit['ref']['name']]
+        orig_seq_block = self.blocks[hit['query']['name']]
+        ref_block = orig_ref_block[hit['ref']['start']:hit['ref']['end']]
+        seq_block = orig_seq_block[hit['query']['start']:hit['query']['end']]
+
+        if hit["orientation"]==minus_strand:
             seq_block = seq_block.reverse_complement()
 
-        aln = {"refseq":"".join(ref_block.consensus),
-               "seq":"".join(seq_block.consensus),
-               "cigar":hit[2]["cigar"], "ref_cluster":ref_block.sequences,
-               "seq_cluster":seq_block.sequences, 'ref_start':0}
+        aln = {"ref_seq":"".join(ref_block.consensus),
+               "query_seq":"".join(seq_block.consensus),
+               "cigar":hit["cigar"], "ref_cluster":ref_block.sequences,
+               "query_cluster":seq_block.sequences, 'ref_start':0}
 
         merged_block = Block.from_cluster_alignment(aln)
         self.blocks[merged_block.name] = merged_block
 
-        for tmp_block, subhit, strand in [(orig_ref_block, hit[0], plus_strand),
-                                          (orig_seq_block, hit[1], hit[2]["orientation"])]:
+        for tmp_block, subhit, strand in [(orig_ref_block, hit['ref'], plus_strand),
+                                          (orig_seq_block, hit['query'], hit["orientation"])]:
             new_blocks = []
-            if subhit[1]:
-                left = tmp_block[0:subhit[1]]
+            if subhit['start']:
+                left = tmp_block[0:subhit['start']]
                 new_blocks.append((left.name, plus_strand))
                 self.blocks[left.name] = left
             new_blocks.append((merged_block.name, strand))
-            if subhit[2]<len(tmp_block):
-                right = tmp_block[subhit[2]:]
+            if subhit['end']<len(tmp_block):
+                right = tmp_block[subhit['end']:]
                 new_blocks.append((right.name, plus_strand))
                 self.blocks[right.name] = right
 
@@ -88,9 +89,10 @@ if __name__ == '__main__':
 
     g = Graph.fuse(g1,g2)
 
-    hit = [(g.sequences['S1'][0][0], 6, 12),
-           (g.sequences['S2'][0][0], 3, 9),
-           {'cigar':'6M', 'orientation':minus_strand}]
+    # this defines the homology hit format, meant to be parsed from paf
+    hit = {'ref': {'name':g.sequences['S1'][0][0], 'start':6, 'end':12},
+           'query': {'name':g.sequences['S2'][0][0], 'start':3, 'end':9},
+           'cigar':'6M', 'orientation':minus_strand}
 
     g.merge_hit(hit)
 
