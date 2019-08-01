@@ -1,12 +1,19 @@
 import numpy as np
 from cigar import Cigar
 
+ref_complement = {'A':'T', 'T':'A', 'C':'G', 'G':'C'}
+
+def generate_block_name():
+    alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    return "".join([alphabet[i] for i in np.random.randint(0,len(alphabet), 10)])
+
 class Block(object):
     """docstring for Block"""
     def __init__(self):
         super(Block, self).__init__()
         self.sequences = {}
         self.consensus = None
+        self.name = generate_block_name()
 
     @classmethod
     def from_sequence(cls, name, seq):
@@ -123,6 +130,23 @@ class Block(object):
 
         return "".join(tmp[tmp!='-'])
 
+    def copy(self):
+        b = Block()
+        b.consensus = np.copy(self.consensus)
+        b.sequences = {s:{p:c for p.c in self.sequences[s].items()}
+                       for s in self.sequences}
+        return b
+
+    def reverse_complement(self):
+        from Bio import Seq
+        new_block = Block()
+        new_block.consensus = np.array(list(Seq.reverse_complement("".join(self.consensus))))
+        n = len(self.consensus)
+        for s in self.sequences:
+            new_block.sequences[s] = {n-p: reverse_complement.get(c,c)
+                                      for p,c in self.sequences[s].items()}
+        return new_block
+
 
     def __getitem__(self, val):
         if isinstance(val, slice):
@@ -134,6 +158,10 @@ class Block(object):
             return b
         else:
             raise ValueError("item access not supported")
+
+    def __len__(self):
+        return len(self.consensus)
+
 
 if __name__ == '__main__':
     seqs={'R1':"___ABCdEF123GHiJ", 'S1':'xxxABCD6789EFGHIJ',
@@ -149,7 +177,8 @@ if __name__ == '__main__':
     c = Block.from_alignment(aln)
 
     caln = {"refseq":"".join(b.consensus), "seq":"".join(c.consensus),
-            "ref_cluster":b.sequences, "seq_cluster":c.sequences, "ref_start":0, "cigar":"4M4D2M3I7M"}
+            "ref_cluster":b.sequences, "seq_cluster":c.sequences,
+            "ref_start":0, "cigar":"4M4D2M3I7M"}
 
     d  = Block.from_cluster_alignment(caln)
 
