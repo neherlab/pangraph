@@ -188,6 +188,5 @@ if __name__ == '__main__':
     for s in c.sequences:
         print(s, c.extract(s), seqs[s], c.extract(s)==seqs[s].strip('_x'))
 
-
     for s in d.sequences:
         print(s, d.extract(s), seqs[s], d.extract(s)==seqs[s].strip('_x'))

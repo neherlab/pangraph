@@ -1,5 +1,5 @@
 import numpy as np
-from Bio import Seq
+from Bio import Seq, SeqIO, SeqRecord
 from block import Block
 
 plus_strand = 1
@@ -68,8 +68,10 @@ class Graph(object):
                         break
                 self.sequences[s] = new_block_sequence
 
-        ## replace block in original sequences by new blocks
-        # ideally do recursively in that every block can be a reconstructed from its constituents
+        remaining_blocks = set()
+        for s in self.sequences:
+            remaining_blocks.update([s[0] for s in self.sequences[s]])
+        self.blocks = {b:self.blocks[b] for b in remaining_blocks}
 
 
     def extract(self, name):
@@ -82,6 +84,12 @@ class Graph(object):
                 seq += Seq.reverse_complement(tmp_seq)
 
         return seq
+
+
+    def to_fasta(self, fname):
+        SeqIO.write([SeqRecord.SeqRecord(seq=Seq.Seq("".join(c.consensus)), id=c.name, description='')
+                    for c in self.blocks.values()], fname, format='fasta')
+
 
 if __name__ == '__main__':
     g1 = Graph.from_sequence("S1", "xxxxxxACACACyyyy")
