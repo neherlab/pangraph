@@ -4,7 +4,9 @@ from graph import Graph
 from util import parse_paf
 from betatree import betatree
 
-cluster = 'cluster_065_n_12' #'cluster_093_n_5'
+#cluster = 'cluster_065_n_12' #'cluster_093_n_5'
+#cluster = 'cluster_000_n_157' #'cluster_093_n_5'
+cluster = 'cluster_022_n_19'
 working_dir = cluster+'_dir'
 if not os.path.isdir(working_dir):
 	os.mkdir(working_dir)
@@ -22,8 +24,9 @@ for (n,seq) in zip(T.get_terminals(), seqs):
 	n.fasta_fname = os.path.join(*[working_dir, n.name+'.fasta'])
 	n.graph.to_fasta(n.fasta_fname)
 
+node_count = 0
 for n in T.get_nonterminals(order='postorder'):
-	n.name = '_'.join([c.name for c in n])
+	n.name = f'NODE_{node_count:07d}'
 	n.graph = Graph.fuse(n.clades[0].graph, n.clades[1].graph)
 	os.system(f"minimap2 -x asm5 -D -c  {n.clades[0].fasta_fname} {n.clades[1].fasta_fname} > {working_dir}/{n.name}.paf")
 	paf = parse_paf(f'{working_dir}/{n.name}.paf')
@@ -31,7 +34,8 @@ for n in T.get_nonterminals(order='postorder'):
 	merged_blocks = set()
 	for hit in paf:
 		if hit['query']['name'] in merged_blocks \
-		   or hit['ref']['name'] in merged_blocks:
+		   or hit['ref']['name'] in merged_blocks \
+		   or hit['ref']['name']==hit['query']['name']:
 			continue
 		n.graph.merge_hit(hit)
 		merged_blocks.add(hit['ref']['name'])
@@ -57,3 +61,5 @@ for (n,seq) in zip(T.get_terminals(), seqs):
 				print(i,rec[i*100:(i+1)*100])
 		import ipdb; ipdb.set_trace()
 	print(len(T.root.graph.extract(n.name)))
+
+T.root.graph.to_json(os.path.join(working_dir, 'graph.json'))

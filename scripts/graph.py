@@ -71,6 +71,8 @@ class Graph(object):
                         new_block_sequence = self.sequences[s][:bi] + tmp_new_blocks + self.sequences[s][bi+1:]
                         print(b[0], bi, len(new_block_sequence), len(self.sequences[s]))
                         break
+                if not len(new_block_sequence):
+                    import ipdb; ipdb.set_trace()
                 self.sequences[s] = new_block_sequence
 
         print('before', self.blocks.keys())
@@ -96,6 +98,39 @@ class Graph(object):
     def to_fasta(self, fname):
         SeqIO.write([SeqRecord.SeqRecord(seq=Seq.Seq("".join(c.consensus)), id=c.name, description='')
                     for c in self.blocks.values()], fname, format='fasta')
+
+
+    def to_json(self, fname):
+        J = {}
+        J['Isolate_names'] = list(self.sequences.keys())
+        J['Plasmids'] = [[x[0] for x in self.sequences[s]] for s in J['Isolate_names']]
+        nodes = {}
+        for b in self.blocks:
+            nodes[b] = {"ID":b,
+                        "Genomes":{"Consensus":''.join(self.blocks[b].consensus),
+                        "Alignment":{J["Isolate_names"].index(s):self.blocks[b].extract(s) for s in self.blocks[b].sequences}},
+                        "Out_Edges":[], "In_Edges":[]}
+
+        edges = {}
+        for pname, p in zip(range(len(J["Isolate_names"])), J['Plasmids']):
+            for i in range(len(p)-1):
+                e = (p[i],p[i+1])
+                if e in edges:
+                    edges[e]["Isolates"].append(pname)
+                else:
+                    edges[e] = {"Source":e[0], "Target":e[1], "Isolates":[pname]}
+            e = (p[-1],p[0])
+            if e in edges:
+                edges[e]["Isolates"].append(pname)
+            else:
+                edges[e] = {"Source":e[0], "Target":e[1], "Isolates":[pname]}
+        for e in edges:
+            nodes[e[0]]["Out_Edges"].append(edges[e])
+            nodes[e[1]]["In_Edges"].append(edges[e])
+        J["Nodes"] = nodes
+        import json
+        with open(fname, 'w') as fh:
+            json.dump(J, fh)
 
 
 if __name__ == '__main__':
