@@ -64,14 +64,21 @@ class Graph(object):
                 for bi,b in enumerate(self.sequences[s]):
                     if b[0]==tmp_block.name:
                         orig_strand = b[1]
-                        new_block_sequence = self.sequences[s][:bi] + [(x, orig_strand*y) for x,y in new_blocks] + self.sequences[s][bi+1:]
+                        if orig_strand==plus_strand:
+                            tmp_new_blocks = [(x, orig_strand*y) for x,y in new_blocks]
+                        else:
+                            tmp_new_blocks = [(x, orig_strand*y) for x,y in new_blocks][::-1]
+                        new_block_sequence = self.sequences[s][:bi] + tmp_new_blocks + self.sequences[s][bi+1:]
+                        print(b[0], bi, len(new_block_sequence), len(self.sequences[s]))
                         break
                 self.sequences[s] = new_block_sequence
 
+        print('before', self.blocks.keys())
         remaining_blocks = set()
         for s in self.sequences:
             remaining_blocks.update([s[0] for s in self.sequences[s]])
         self.blocks = {b:self.blocks[b] for b in remaining_blocks}
+        print('after', self.blocks.keys())
 
 
     def extract(self, name):
@@ -93,7 +100,7 @@ class Graph(object):
 
 if __name__ == '__main__':
     g1 = Graph.from_sequence("S1", "xxxxxxACACACyyyy")
-    g2 = Graph.from_sequence("S2", "zzzGTGTGTqqq")
+    g2 = Graph.from_sequence("S2", "zzzGTCTGTqqq")
 
     g = Graph.fuse(g1,g2)
 

@@ -1,7 +1,7 @@
 import numpy as np
 from cigar import Cigar
 
-ref_complement = {'A':'T', 'T':'A', 'C':'G', 'G':'C'}
+reverse_complement = {'A':'T', 'T':'A', 'C':'G', 'G':'C'}
 
 def generate_block_name():
     alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
@@ -116,7 +116,14 @@ class Block(object):
                 old_pos = np.array(list(muts.keys()))
                 new_pos = old_pos + transform[1][np.searchsorted(transform[0], old_pos, side='right')]
                 tmp_seq = {newp:muts[oldp] for newp,oldp in zip(new_pos, old_pos)}
-                tmp_seq.update(extra_mods)
+                for p,c in extra_mods.items():
+                    if p in tmp_seq:
+                        # if agrees with new consensus, remove as modification
+                        if tmp_seq[p]==consensus[p]:
+                            tmp_seq.pop(p)
+                        #otherwise, don't do anything
+                    else:
+                        tmp_seq[p]=c
                 new_block.sequences[s] = tmp_seq
 
         new_block.consensus = np.array(list(consensus))
@@ -141,7 +148,7 @@ class Block(object):
         from Bio import Seq
         new_block = Block()
         new_block.consensus = np.array(list(Seq.reverse_complement("".join(self.consensus))))
-        n = len(self.consensus)
+        n = len(self.consensus)-1
         for s in self.sequences:
             new_block.sequences[s] = {n-p: reverse_complement.get(c,c)
                                       for p,c in self.sequences[s].items()}
@@ -151,10 +158,12 @@ class Block(object):
     def __getitem__(self, val):
         if isinstance(val, slice):
             b = Block()
-            b.consensus = self.consensus[val.start:val.stop]
+            start = val.start or 0
+            stop = val.stop or len(self.consensus)
+            b.consensus = self.consensus[start:stop]
             for s, mods in self.sequences.items():
-                b.sequences[s] = {p-val.start:c for p,c in self.sequences[s].items()
-                                  if p>=val.start and p<val.stop}
+                b.sequences[s] = {p-start:c for p,c in self.sequences[s].items()
+                                  if p>=start and p<stop}
             return b
         else:
             raise ValueError("item access not supported")
