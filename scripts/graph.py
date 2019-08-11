@@ -61,6 +61,7 @@ class Graph(object):
 
             for s in tmp_block.sequences:
                 new_block_sequence = []
+                last_block = 0
                 for bi,b in enumerate(self.sequences[s]):
                     if b[0]==tmp_block.name:
                         orig_strand = b[1]
@@ -68,12 +69,14 @@ class Graph(object):
                             tmp_new_blocks = [(x, orig_strand*y) for x,y in new_blocks]
                         else:
                             tmp_new_blocks = [(x, orig_strand*y) for x,y in new_blocks][::-1]
-                        new_block_sequence = self.sequences[s][:bi] + tmp_new_blocks + self.sequences[s][bi+1:]
+                        new_block_sequence = self.sequences[s][last_block:bi] + tmp_new_blocks
+                        last_block = bi+1
                         print(b[0], bi, len(new_block_sequence), len(self.sequences[s]))
                         break
-                if not len(new_block_sequence):
-                    import ipdb; ipdb.set_trace()
-                self.sequences[s] = new_block_sequence
+                new_block_sequence += self.sequences[s][last_block:]
+                if len(new_block_sequence):
+                    self.sequences[s] = new_block_sequence
+                    # import ipdb; ipdb.set_trace()
 
         print('before', self.blocks.keys())
         remaining_blocks = set()
