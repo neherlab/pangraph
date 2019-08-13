@@ -140,6 +140,7 @@ class Graph(object):
                     self.sequences[seq] = [(concat.name, strand)] + p[1:-1]
                     self.sequence_start[seq] = len(self.blocks[b1]) if strand==plus_strand else len(self.blocks[b2])
                 else:
+                    strand = plus_strand
                     pi = p.index((b1,plus_strand)) if strand==plus_strand else p.index((b2,plus_strand))
                     if pi>=0:
                         self.sequences[seq] = p[:pi] + [(concat.name, strand)] + p[pi+2:]

@@ -13,7 +13,7 @@ working_dir = os.path.basename(cluster)+'_dir'
 if not os.path.isdir(working_dir):
 	os.mkdir(working_dir)
 
-self_maps = 1
+self_maps = 0
 
 def map_and_merge(graph, fname1, fname2, out):
 	os.system(f"minimap2 -x asm5 -D -c  {fname1} {fname2} 1> {out}.paf 2>log")
@@ -35,19 +35,20 @@ def map_and_merge(graph, fname1, fname2, out):
 	graph.prune_empty()
 
 
-seqs = list(SeqIO.parse(f'{cluster}.fasta','fasta'))
+seqs = {seq.id:seq for seq in SeqIO.parse(f'{cluster}.fasta','fasta')}
 T = Phylo.read(f'{cluster}.nwk','newick')
 
 print("kmer tree")
 Phylo.draw_ascii(T)
 
-ni = 0
-for seq in seqs:
-	seq.id += f"_{ni:03d}"
-	ni+=1
+# ni = 0
+# for seq in seqs:
+# 	seq.id += f"_{ni:03d}"
+# 	ni+=1
 
 print("Initializing the terminal nodes")
-for (n,seq) in zip(T.get_terminals(), seqs):
+for n in T.get_terminals():
+	seq = seqs[n.name]
 	n.graph = Graph.from_sequence(seq.id, str(seq.seq).upper())
 	n.name = seq.id
 	n.fasta_fname = os.path.join(*[working_dir, n.name+'.fasta'])
@@ -75,7 +76,8 @@ uncompressed_length = 0
 G = T.root.graph
 G.prune_transitive_edges()
 
-for (n,seq) in zip(T.get_terminals(), seqs):
+for n in T.get_terminals():
+	seq = seqs[n.name]
 	orig = str(seq.seq).upper()
 	rec = G.extract(n.name)
 	uncompressed_length += len(orig)
