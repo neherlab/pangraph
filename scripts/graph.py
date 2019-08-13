@@ -1,5 +1,6 @@
 import numpy as np
 from Bio import Seq, SeqIO, SeqRecord
+from collections import defaultdict
 from block import Block
 
 plus_strand = 1
@@ -11,6 +12,7 @@ class Graph(object):
         super(Graph, self).__init__()
         self.blocks = {}
         self.sequences = {}
+        self.sequence_start = {}
 
     @classmethod
     def from_sequence(cls, sequence_name, sequence):
@@ -18,6 +20,7 @@ class Graph(object):
         b = Block.from_sequence(sequence_name, sequence)
         new_graph.blocks = {b.name:b}
         new_graph.sequences = {sequence_name: [(b.name, plus_strand)]}
+        new_graph.sequence_start = {sequence_name:0}
         return new_graph
 
     @classmethod
@@ -27,6 +30,7 @@ class Graph(object):
         new_graph.blocks.update(graph1.blocks)
         new_graph.blocks.update(graph2.blocks)
         new_graph.sequences = {s:list(b) for s,b in list(graph1.sequences.items())+list(graph2.sequences.items())}
+        new_graph.sequence_start = {s:b for s,b in list(graph1.sequence_start.items())+list(graph2.sequence_start.items())}
         return new_graph
 
     def merge_hit(self,hit):
@@ -86,11 +90,18 @@ class Graph(object):
     def extract(self, name, strip_gaps=True):
         seq = ""
         for b,strand in self.sequences[name]:
-            tmp_seq = self.blocks[b].extract(name, strip_gaps=strip_gaps)
+            tmp_seq = self.blocks[b].extract(name, strip_gaps=False)
             if strand==plus_strand:
                 seq += tmp_seq
             else:
                 seq += Seq.reverse_complement(tmp_seq)
+        start_pos = self.sequence_start[name]
+        if start_pos:
+            # import ipdb; ipdb.set_trace()
+            seq = seq[start_pos:] + seq[:start_pos]
+
+        if strip_gaps:
+            seq = seq.replace('-', '')
 
         return seq
 
@@ -105,6 +116,39 @@ class Graph(object):
                     self.blocks[b].sequences.pop(seq)
                     print("Pop", seq, b)
             self.sequences[seq] = [self.sequences[seq][bi] for bi in good_blocks]
+
+
+    def prune_transitive_edges(self):
+        self.edges = defaultdict(list)
+        for seq, p in self.sequences.items():
+            for bi,b in enumerate(p):
+                label = (p[bi-1][0], b[0]) if (p[bi-1][1]==b[1]) else (b[0],p[bi-1][0])
+                self.edges[label].append(seq)
+
+        transitive = []
+        for b1,b2 in self.edges:
+            if self.blocks[b1].sequences.keys()==self.blocks[b2].sequences.keys() \
+                and set(self.edges[(b1,b2)])==self.blocks[b1].sequences.keys():
+                transitive.append((b1,b2))
+
+        for b1,b2 in transitive:
+            concat = Block.concatenate(self.blocks[b1], self.blocks[b2])
+            for seq in self.edges[(b1,b2)]:
+                p = self.sequences[seq]
+                if (b1==p[0][0] and b2==p[-1][0]) or (b1==p[-1][0] and b2==p[0][0]):
+                    strand = p[0][1]
+                    self.sequences[seq] = [(concat.name, strand)] + p[1:-1]
+                    self.sequence_start[seq] = len(self.blocks[b1]) if strand==plus_strand else len(self.blocks[b2])
+                else:
+                    pi = p.index((b1,plus_strand)) if strand==plus_strand else p.index((b2,plus_strand))
+                    if pi>=0:
+                        self.sequences[seq] = p[:pi] + [(concat.name, strand)] + p[pi+2:]
+
+            self.blocks[concat.name] = concat
+            self.blocks.pop(b1)
+            self.blocks.pop(b2)
+
+        return transitive
 
 
     def to_fasta(self, fname):

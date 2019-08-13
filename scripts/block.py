@@ -64,6 +64,19 @@ class Block(object):
         return new_block
 
     @classmethod
+    def concatenate(cls, b1, b2):
+        new_block = cls()
+        assert b1.sequences.keys()==b2.sequences.keys()
+        l1 = len(b1)
+        new_block.consensus = np.concatenate((b1.consensus, b2.consensus))
+        new_block.sequences = {s:dict(x) for s,x in b1.sequences.items()}
+        for s in new_block.sequences:
+            new_block.sequences[s].update({p+l1:c for p,c in b2.sequences[s].items()})
+
+        return new_block
+
+
+    @classmethod
     def from_cluster_alignment(cls, aln):
         new_block = cls()
         consensus = ""
