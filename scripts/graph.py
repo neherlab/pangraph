@@ -117,23 +117,26 @@ class Graph(object):
                     print("Pop", seq, b)
             self.sequences[seq] = [self.sequences[seq][bi] for bi in good_blocks]
 
-
-    def prune_transitive_edges(self):
-        self.edges = defaultdict(list)
+    def get_edges(self):
+        edges = defaultdict(list)
         for seq, p in self.sequences.items():
             for bi,b in enumerate(p):
                 label = (p[bi-1][0], b[0]) if (p[bi-1][1]==b[1]) else (b[0],p[bi-1][0])
-                self.edges[label].append(seq)
+                edges[label].append(seq)
+        return edges
 
+
+    def prune_transitive_edges(self):
+        edges = self.get_edges()
         transitive = []
-        for b1,b2 in self.edges:
+        for b1,b2 in edges:
             if self.blocks[b1].sequences.keys()==self.blocks[b2].sequences.keys() \
-                and set(self.edges[(b1,b2)])==self.blocks[b1].sequences.keys():
+                and set(edges[(b1,b2)])==self.blocks[b1].sequences.keys():
                 transitive.append((b1,b2))
 
         for b1,b2 in transitive:
             concat = Block.concatenate(self.blocks[b1], self.blocks[b2])
-            for seq in self.edges[(b1,b2)]:
+            for seq in edges[(b1,b2)]:
                 p = self.sequences[seq]
                 if (b1==p[0][0] and b2==p[-1][0]) or (b1==p[-1][0] and b2==p[0][0]):
                     strand = p[0][1]
@@ -143,6 +146,7 @@ class Graph(object):
                     pi = p.index((b1,plus_strand))
                     if pi==-1:
                         pi = p.index((b2,minus_strand))
+                    strand = p[pi][1]
                     if pi>=0:
                         self.sequences[seq] = p[:pi] + [(concat.name, strand)] + p[pi+2:]
 

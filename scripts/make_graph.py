@@ -13,7 +13,7 @@ working_dir = os.path.basename(cluster)+'_dir'
 if not os.path.isdir(working_dir):
 	os.mkdir(working_dir)
 
-self_maps = 0
+self_maps = 1
 
 def map_and_merge(graph, fname1, fname2, out):
 	os.system(f"minimap2 -x asm5 -D -c  {fname1} {fname2} 1> {out}.paf 2>log")
@@ -38,7 +38,7 @@ def map_and_merge(graph, fname1, fname2, out):
 seqs = {seq.id:seq for seq in SeqIO.parse(f'{cluster}.fasta','fasta')}
 T = Phylo.read(f'{cluster}.nwk','newick')
 
-print("kmer tree")
+print("kmer tree, total length:", T.total_branch_length())
 Phylo.draw_ascii(T)
 
 # ni = 0
@@ -68,7 +68,9 @@ for n in T.get_nonterminals(order='postorder'):
 		print(f"   --- self map")
 		n.graph.to_fasta(n.fasta_fname+f'_iter_{i}')
 		map_and_merge(n.graph, n.fasta_fname+f'_iter_{i}', n.fasta_fname+f'_iter_{i}', f"{working_dir}/{n.name}_iter_{i}")
+		print(f"   --- Blocks: {len(n.graph.blocks)}, length: {np.sum([len(b) for b in n.graph.blocks.values()])}")
 
+	print(f"  --- Blocks: {len(n.graph.blocks)}, length: {np.sum([len(b) for b in n.graph.blocks.values()])}")
 	n.graph.to_fasta(n.fasta_fname)
 
 nerror = 0
