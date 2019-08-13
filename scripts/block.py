@@ -130,12 +130,17 @@ class Block(object):
 
         return new_block
 
-    def extract(self, seqname):
+
+    def extract(self, seqname, strip_gaps=True):
         tmp = np.copy(self.consensus)
         for p,s in self.sequences[seqname].items():
             tmp[p]=s
 
-        return "".join(tmp[tmp!='-'])
+        if strip_gaps:
+            return "".join(tmp[tmp!='-'])
+        else:
+            return "".join(tmp)
+
 
     def copy(self):
         b = Block()
@@ -143,6 +148,7 @@ class Block(object):
         b.sequences = {s:{p:c for p.c in self.sequences[s].items()}
                        for s in self.sequences}
         return b
+
 
     def reverse_complement(self):
         from Bio import Seq

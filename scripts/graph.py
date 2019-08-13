@@ -71,31 +71,40 @@ class Graph(object):
                             tmp_new_blocks = [(x, orig_strand*y) for x,y in new_blocks][::-1]
                         new_block_sequence = self.sequences[s][last_block:bi] + tmp_new_blocks
                         last_block = bi+1
-                        print(b[0], bi, len(new_block_sequence), len(self.sequences[s]))
+                        # print(b[0], bi, len(new_block_sequence), len(self.sequences[s]))
                         break
                 new_block_sequence += self.sequences[s][last_block:]
                 if len(new_block_sequence):
                     self.sequences[s] = new_block_sequence
-                    # import ipdb; ipdb.set_trace()
 
-        print('before', self.blocks.keys())
         remaining_blocks = set()
         for s in self.sequences:
             remaining_blocks.update([s[0] for s in self.sequences[s]])
         self.blocks = {b:self.blocks[b] for b in remaining_blocks}
-        print('after', self.blocks.keys())
 
 
-    def extract(self, name):
+    def extract(self, name, strip_gaps=True):
         seq = ""
         for b,strand in self.sequences[name]:
-            tmp_seq = self.blocks[b].extract(name)
+            tmp_seq = self.blocks[b].extract(name, strip_gaps=strip_gaps)
             if strand==plus_strand:
                 seq += tmp_seq
             else:
                 seq += Seq.reverse_complement(tmp_seq)
 
         return seq
+
+    def prune_empty(self):
+        for seq in self.sequences:
+            good_blocks = []
+            for bi, (b,s) in enumerate(self.sequences[seq]):
+                bseq = self.blocks[b].extract(seq)
+                if bseq:
+                    good_blocks.append(bi)
+                else:
+                    self.blocks[b].sequences.pop(seq)
+                    print("Pop", seq, b)
+            self.sequences[seq] = [self.sequences[seq][bi] for bi in good_blocks]
 
 
     def to_fasta(self, fname):
@@ -111,7 +120,8 @@ class Graph(object):
         for b in self.blocks:
             nodes[b] = {"ID":b,
                         "Genomes":{"Consensus":''.join(self.blocks[b].consensus),
-                        "Alignment":{J["Isolate_names"].index(s):self.blocks[b].extract(s) for s in self.blocks[b].sequences}},
+                        "Alignment":{J["Isolate_names"].index(s):self.blocks[b].extract(s, strip_gaps=False)
+                                                                 for s in self.blocks[b].sequences}},
                         "Out_Edges":[], "In_Edges":[]}
 
         edges = {}
