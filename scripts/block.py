@@ -64,14 +64,17 @@ class Block(object):
         return new_block
 
     @classmethod
-    def concatenate(cls, b1, b2):
+    def concatenate(cls, blocks):
         new_block = cls()
-        assert b1.sequences.keys()==b2.sequences.keys()
-        l1 = len(b1)
-        new_block.consensus = np.concatenate((b1.consensus, b2.consensus))
-        new_block.sequences = {s:dict(x) for s,x in b1.sequences.items()}
-        for s in new_block.sequences:
-            new_block.sequences[s].update({p+l1:c for p,c in b2.sequences[s].items()})
+        assert all([blocks[0].sequences.keys()==b2.sequences.keys() for b2 in blocks[1:]])
+
+        new_block.consensus = np.concatenate([b.consensus for b in blocks])
+        new_block.sequences = {s:dict(x) for s,x in blocks[0].sequences.items()}
+        offset = len(blocks[0])
+        for b in blocks[1:]:
+            for s in new_block.sequences:
+                new_block.sequences[s].update({p+offset:c for p,c in b.sequences[s].items()})
+            offset += len(b)
 
         return new_block
 
@@ -155,10 +158,12 @@ class Block(object):
             return "".join(tmp)
 
 
-    def copy(self):
+    def copy(self, keep_name=False):
         b = Block()
+        if keep_name:
+            b.name = self.name
         b.consensus = np.copy(self.consensus)
-        b.sequences = {s:{p:c for p.c in self.sequences[s].items()}
+        b.sequences = {s:dict(self.sequences[s])
                        for s in self.sequences}
         return b
 

@@ -16,7 +16,7 @@ def parse_paf(fname):
             entries = line.strip().split()
             hit = {'query':{'name':entries[0], 'start':int(entries[2]), 'end':int(entries[3])},
                    'ref':  {'name':entries[5], 'start':int(entries[7]), 'end':int(entries[8])},
-                   'aligned_bases':int(entries[9]), 'aligned_length':entries[10],
+                   'aligned_bases':int(entries[9]), 'aligned_length':int(entries[10]),
                    'orientation':1 if entries[4]=='+' else -1, 'mapping_quality':int(entries[11])}
             for extra in entries[12:]:
                 if extra.startswith('cg:'):

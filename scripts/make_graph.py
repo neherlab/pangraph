@@ -3,6 +3,7 @@ from Bio import SeqIO, Phylo
 from graph import Graph
 from util import parse_paf
 import numpy as np
+from cigar import Cigar
 
 cluster_id = int(sys.argv[1]) or 1
 
@@ -25,7 +26,13 @@ def map_and_merge(graph, fname1, fname2, out):
 		   or hit['ref']['name'] in merged_blocks \
 		   or hit['ref']['name']==hit['query']['name']:
 			continue
+
 		if set(graph.blocks[hit['query']['name']].sequences.keys()).intersection(graph.blocks[hit['ref']['name']].sequences.keys()):
+			continue
+
+		cigar_items = list(Cigar(hit['cigar']).items())
+		if np.sum([x[0] for x in cigar_items if x[1]=='M'])<0.95*hit['aligned_length']:
+			print("poor match", hit["cigar"])
 			continue
 
 		# print('merging', fname1, fname2, hit)

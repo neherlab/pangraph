@@ -81,6 +81,9 @@ class Graph(object):
                 if len(new_block_sequence):
                     self.sequences[s] = new_block_sequence
 
+        self.prune_blocks()
+
+    def prune_blocks(self):
         remaining_blocks = set()
         for s in self.sequences:
             remaining_blocks.update([s[0] for s in self.sequences[s]])
@@ -121,7 +124,11 @@ class Graph(object):
         edges = defaultdict(list)
         for seq, p in self.sequences.items():
             for bi,b in enumerate(p):
-                label = (p[bi-1][0], b[0]) if (p[bi-1][1]==b[1]) else (b[0],p[bi-1][0])
+                if p[bi-1][0]<b[0]:
+                    label = (p[bi-1], b)
+                else:
+                    label = ((b[0], minus_strand*b[1]), (p[bi-1][0], minus_strand*p[bi-1][1]))
+
                 edges[label].append(seq)
         return edges
 
@@ -129,30 +136,60 @@ class Graph(object):
     def prune_transitive_edges(self):
         edges = self.get_edges()
         transitive = []
-        for b1,b2 in edges:
+        for (b1,s1),(b2,s2) in edges:
             if self.blocks[b1].sequences.keys()==self.blocks[b2].sequences.keys() \
-                and set(edges[(b1,b2)])==self.blocks[b1].sequences.keys():
-                transitive.append((b1,b2))
-
+                and set(edges[((b1,s1),(b2,s2))])==self.blocks[b1].sequences.keys():
+                transitive.append([(b1,s1),(b2,s2)])
+        chains = {}
         for b1,b2 in transitive:
-            concat = Block.concatenate(self.blocks[b1], self.blocks[b2])
-            for seq in edges[(b1,b2)]:
+            if b1 in chains:
+                if b1==chains[b1][-1]:
+                    chains[b1].append(b2)
+                elif b1==chains[b1][0]:
+                    chains[b1].insert(0,b2)
+                else:
+                    raise ValueError("chains should be unbranched")
+                chains[b2] = chains[b1]
+            elif b2 in chains:
+                if b2==chains[b2][-1]:
+                    chains[b2].append(b1)
+                elif b2==chains[b2][0]:
+                    chains[b2].insert(0,b1)
+                else:
+                    raise ValueError("chains should be unbranched")
+                chains[b1] = chains[b2]
+            else:
+                chains[b1] = [b1,b2]
+                chains[b2] = chains[b1]
+        print(chains)
+
+        unique_chains = {id(x):x for x in chains.values()}.values()
+        for c in unique_chains:
+            b1,b2 = c[0],c[1]
+            if len(c)>3:
+                import ipdb; ipdb.set_trace()
+
+            concat = Block.concatenate([self.blocks[b[0]] if b[1]==plus_strand
+                                        else self.blocks[b[0]].reverse_complement()
+                                        for b in c])
+            for seq in edges[(c[0],c[1])]:
                 p = self.sequences[seq]
                 if (b1==p[0][0] and b2==p[-1][0]) or (b1==p[-1][0] and b2==p[0][0]):
                     strand = p[0][1]
                     self.sequences[seq] = [(concat.name, strand)] + p[1:-1]
                     self.sequence_start[seq] = len(self.blocks[b1]) if strand==plus_strand else len(self.blocks[b2])
                 else:
-                    pi = p.index((b1,plus_strand))
-                    if pi==-1:
+                    try:
+                        pi = p.index((b1,plus_strand))
+                    except:
                         pi = p.index((b2,minus_strand))
                     strand = p[pi][1]
                     if pi>=0:
                         self.sequences[seq] = p[:pi] + [(concat.name, strand)] + p[pi+2:]
 
             self.blocks[concat.name] = concat
-            self.blocks.pop(b1)
-            self.blocks.pop(b2)
+            for b in c:
+                self.blocks.pop(b)
 
         return transitive
 
@@ -162,12 +199,19 @@ class Graph(object):
                     for c in self.blocks.values()], fname, format='fasta')
 
 
-    def to_json(self, fname):
+    def to_json(self, fname, min_length=500):
         J = {}
-        J['Isolate_names'] = list(self.sequences.keys())
-        J['Plasmids'] = [[x[0] for x in self.sequences[s]] for s in J['Isolate_names']]
+        cleaned_sequences = {s:[b for b in self.sequences[s] if len(self.blocks[b[0]])>min_length]
+                             for s in self.sequences}
+        relevant_blocks = set()
+        for s in cleaned_sequences.values():
+            relevant_blocks.update([b[0] for b in s])
+        # import ipdb; ipdb.set_trace()
+
+        J['Isolate_names'] = list(cleaned_sequences.keys())
+        J['Plasmids'] = [[x[0] for x in cleaned_sequences[s]] for s in J['Isolate_names']]
         nodes = {}
-        for b in self.blocks:
+        for b in relevant_blocks:
             nodes[b] = {"ID":b,
                         "Genomes":{"Consensus":''.join(self.blocks[b].consensus),
                         "Alignment":{J["Isolate_names"].index(s):self.blocks[b].extract(s, strip_gaps=False)
@@ -194,6 +238,22 @@ class Graph(object):
         import json
         with open(fname, 'w') as fh:
             json.dump(J, fh)
+
+
+    def sub_graph(self, sequences):
+        new_graph = Graph()
+        new_graph.sequences = {s:list(self.sequences[s]) for s in sequences}
+        new_graph.sequence_start = {s:self.sequence_start[s] for s in sequences}
+        new_graph.blocks = {}
+        for bname,b in self.blocks.items():
+            new_block = b.copy(keep_name=True)
+            new_block.sequences = {s:v for s,v in new_block.sequences.items()
+                                                  if s in sequences}
+            new_graph.blocks[bname] = new_block
+
+        new_graph.prune_blocks()
+        return new_graph
+
 
 
 if __name__ == '__main__':
