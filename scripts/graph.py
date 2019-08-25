@@ -171,7 +171,7 @@ class Graph(object):
         unique_chains = {id(x):x for x in chains.values()}.values()
         print("Chains:", unique_chains)
         for c in unique_chains:
-            bs1,bs2 = c[0],c[1]
+            c_start,c_end = c[0],c[-1]
             if len(c)>3:
                 import ipdb; ipdb.set_trace()
 
@@ -179,30 +179,27 @@ class Graph(object):
                                         else self.blocks[b[0]].reverse_complement()
                                         for b in c])
             for seq in edges[(c[0],c[1])]:
+                # alternative
+                # - find first/last block
+                # - use strand in seq and chain to determine orientation
+                # - fwd and end>begin -> internal
+                # - rev  and begin<end -> internal
+                # - otherwise -> wraps around the origin
+                #
                 p = self.sequences[seq]
-                if (bs2==p[0] and bs1==p[-1]):
-                    strand = plus_strand
-                    self.sequences[seq] = [(concat.name, strand)] + p[1:-1]
-                    self.sequence_start[seq] = len(self.blocks[bs1[0]])
-                elif (bs2[0]==p[-1][0] and bs1[0]==p[0][0]):
-                    if not (bs2[1]*minus_strand==p[-1][1] and bs1[1]*minus_strand==p[0][1]):
-                        import ipdb; ipdb.set_trace()
-                    strand = minus_strand
-                    self.sequences[seq] = [(concat.name, strand)] + p[1:-1]
-                    self.sequence_start[seq] = len(self.blocks[bs2[0]])
+                p_blocks = [b[0] for b in p] #sequence regardless of strand
+                ci_start = p_blocks.index(c_start[0])
+                ci_end = p_blocks.index(c_end[0])
+
+                strand = plus_strand if p[ci_start]==c_start else minus_strand
+                p_start = ci_start if strand==plus_strand else ci_end
+                p_end = ci_end if strand==plus_strand else ci_start
+                if (strand==plus_strand and ci_start<ci_end) \
+                    or (strand==minus_strand and ci_start>ci_end): # internal segment
+                    self.sequences[seq] = p[:p_start+1] + [(concat.name, strand)] + p[p_end:]
                 else:
-                    print("merging internal")
-                    try: # found the first block in same orientation as in concatenation
-                        pi = p.index(bs1)
-                        strand = plus_strand
-                    except: # found the second block in reverse concatentation
-                        try:
-                            pi = p.index((bs2[0], bs2[1]*minus_strand))
-                            strand = minus_strand
-                        except:
-                            import ipdb; ipdb.set_trace()
-                    if pi>=0:
-                        self.sequences[seq] = p[:pi] + [(concat.name, strand)] + p[pi+2:]
+                    self.sequences[seq] = [(concat.name, strand)] + p[p_end+1:p_start]
+                    self.sequence_start[seq] = np.sum([len(self.blocks[b[0]]) for b in p[p_start:]])
 
             self.blocks[concat.name] = concat
             for b in c:
