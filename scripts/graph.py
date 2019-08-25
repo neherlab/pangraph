@@ -136,36 +136,42 @@ class Graph(object):
     def prune_transitive_edges(self):
         edges = self.get_edges()
         transitive = []
+        # to label an edge, we need pairs of blocks together with their orientation
+        # edges have an inversion symmetry: flipping order and strand results in the same edge
+        # this is already standardized by the self.get_edges() such that each edge starts with
+        # the alphabetically earlier block
         for (b1,s1),(b2,s2) in edges:
             if self.blocks[b1].sequences.keys()==self.blocks[b2].sequences.keys() \
                 and set(edges[((b1,s1),(b2,s2))])==self.blocks[b1].sequences.keys():
                 transitive.append([(b1,s1),(b2,s2)])
+
         chains = {}
-        for b1,b2 in transitive:
-            if b1 in chains:
-                if b1==chains[b1][-1]:
-                    chains[b1].append(b2)
-                elif b1==chains[b1][0]:
-                    chains[b1].insert(0,b2)
+        # bs1, bs2 are (block, strand) pairs
+        for bs1,bs2 in transitive:
+            if bs1 in chains:
+                if bs1==chains[bs1][-1]:
+                    chains[bs1].append(bs2)
+                elif bs1==chains[bs1][0]:
+                    chains[bs1].insert(0,bs2)
                 else:
                     raise ValueError("chains should be unbranched")
-                chains[b2] = chains[b1]
+                chains[bs2] = chains[bs1]
             elif b2 in chains:
-                if b2==chains[b2][-1]:
+                if bs2==chains[bs2][-1]:
                     chains[b2].append(b1)
-                elif b2==chains[b2][0]:
-                    chains[b2].insert(0,b1)
+                elif bs2==chains[bs2][0]:
+                    chains[bs2].insert(0,bs1)
                 else:
                     raise ValueError("chains should be unbranched")
-                chains[b1] = chains[b2]
+                chains[bs1] = chains[bs2]
             else:
-                chains[b1] = [b1,b2]
-                chains[b2] = chains[b1]
-        print(chains)
+                chains[bs1] = [bs1,bs2]
+                chains[bs2] = chains[bs1]
 
         unique_chains = {id(x):x for x in chains.values()}.values()
+        print("Chains:", unique_chains)
         for c in unique_chains:
-            b1,b2 = c[0],c[1]
+            bs1,bs2 = c[0],c[1]
             if len(c)>3:
                 import ipdb; ipdb.set_trace()
 
@@ -174,22 +180,33 @@ class Graph(object):
                                         for b in c])
             for seq in edges[(c[0],c[1])]:
                 p = self.sequences[seq]
-                if (b1==p[0][0] and b2==p[-1][0]) or (b1==p[-1][0] and b2==p[0][0]):
-                    strand = p[0][1]
+                if (bs2==p[0] and bs1==p[-1]):
+                    strand = plus_strand
                     self.sequences[seq] = [(concat.name, strand)] + p[1:-1]
-                    self.sequence_start[seq] = len(self.blocks[b1]) if strand==plus_strand else len(self.blocks[b2])
+                    self.sequence_start[seq] = len(self.blocks[bs1[0]])
+                elif (bs2[0]==p[-1][0] and bs1[0]==p[0][0]):
+                    if not (bs2[1]*minus_strand==p[-1][1] and bs1[1]*minus_strand==p[0][1]):
+                        import ipdb; ipdb.set_trace()
+                    strand = minus_strand
+                    self.sequences[seq] = [(concat.name, strand)] + p[1:-1]
+                    self.sequence_start[seq] = len(self.blocks[bs2[0]])
                 else:
-                    try:
-                        pi = p.index((b1,plus_strand))
-                    except:
-                        pi = p.index((b2,minus_strand))
-                    strand = p[pi][1]
+                    print("merging internal")
+                    try: # found the first block in same orientation as in concatenation
+                        pi = p.index(bs1)
+                        strand = plus_strand
+                    except: # found the second block in reverse concatentation
+                        try:
+                            pi = p.index((bs2[0], bs2[1]*minus_strand))
+                            strand = minus_strand
+                        except:
+                            import ipdb; ipdb.set_trace()
                     if pi>=0:
                         self.sequences[seq] = p[:pi] + [(concat.name, strand)] + p[pi+2:]
 
             self.blocks[concat.name] = concat
             for b in c:
-                self.blocks.pop(b)
+                self.blocks.pop(b[0])
 
         return transitive
 

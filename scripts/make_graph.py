@@ -93,17 +93,17 @@ for n in T.get_terminals():
 	if (orig!=rec):
 		nerror += 1
 		import ipdb; ipdb.set_trace()
-		# for i in range(len(orig)//100):
-		# 	if (orig[i*100:(i+1)*100]!=rec[i*100:(i+1)*100]):
-		# 		for j,o,r in zip(range(100), orig[i*100:(i+1)*100], rec[i*100:(i+1)*100]):
-		# 			if o!=r:
-		# 				print(i*100+j,o,r)
-		# 		node_path = T.get_path(n.name)
-		# 		for ni,pn in enumerate(node_path):
-		# 			print(ni, pn.name, orig==pn.graph.extract(n.name))
-		# 		import ipdb; ipdb.set_trace()
-		# 		print(i,orig[i*100:(i+1)*100])
-		# 		print(i,rec[i*100:(i+1)*100])
+		for i in range(len(orig)//100):
+			if (orig[i*100:(i+1)*100]!=rec[i*100:(i+1)*100]):
+				# for j,o,r in zip(range(100), orig[i*100:(i+1)*100], rec[i*100:(i+1)*100]):
+				# 	if o!=r:
+				# 		print(i*100+j,o,r)
+				# node_path = T.get_path(n.name)
+				# for ni,pn in enumerate(node_path):
+				# 	print(ni, pn.name, orig==pn.graph.extract(n.name))
+				# import ipdb; ipdb.set_trace()
+				print(i,orig[i*100:(i+1)*100])
+				print(i,rec[i*100:(i+1)*100])
 
 if nerror==0:
 	print("all sequences correctly reconstructed")
