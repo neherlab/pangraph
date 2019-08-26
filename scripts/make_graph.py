@@ -1,9 +1,13 @@
-import os, glob, sys
+import os, glob, sys, io
+
 from Bio import SeqIO, Phylo
 from graph import Graph
 from util import parse_paf
 import numpy as np
 from cigar import Cigar
+from scipy.cluster.hierarchy import dendrogram, linkage, to_tree
+from scipy.spatial.distance import squareform
+from kmer_tree import getNewick
 
 cluster_id = int(sys.argv[1]) or 1
 
@@ -14,7 +18,7 @@ working_dir = os.path.basename(cluster)+'_dir'
 if not os.path.isdir(working_dir):
 	os.mkdir(working_dir)
 
-self_maps = 1
+self_maps = 2
 
 def map_and_merge(graph, fname1, fname2, out):
 	os.system(f"minimap2 -x asm5 -D -c  {fname1} {fname2} 1> {out}.paf 2>log")
@@ -118,9 +122,36 @@ T.root.graph.to_json(os.path.join(working_dir, f'graph_{cluster_id:03d}.json'))
 ## make subgraphs
 #
 from itertools import combinations
-for s1,s2 in combinations(G.sequences, r=2):
+total_errors = 0
+DM = np.zeros((len(seqs), len(seqs)))
+for (s1,s2), (i1,i2) in zip(combinations(G.sequences, r=2),combinations(range(len(seqs)), r=2)):
+	# print("\n", s1, s2,"\n")
 	S = G.sub_graph((s1,s2))
-	break
+	S.prune_transitive_edges()
+	for s in S.sequences:
+		seq = seqs[s]
+		orig = str(seq.seq).upper()
+		rec = S.extract(s)
+		if (orig!=rec):
+			nerror += 1
+	DM[i1,i2] = len(S.blocks)
+	DM[i2,i1] = len(S.blocks)
+	total_errors += nerror
+	if nerror:
+		print("reconstruction error for pair",(s1,s2), nerror)
+		import ipdb;ipdb.set_trace()
 
-print(S.blocks.keys())
-print(S.sequences)
+if total_errors:
+	print("there were reconstruction errors")
+else:
+	print("all pairwise subgraphs led to correct reconstructions.")
+
+
+condensed_DM = squareform(DM)
+Z = linkage(condensed_DM)
+Tgraph = to_tree(Z)
+nwk = getNewick(Tgraph, "", Tgraph.dist, list(G.sequences))
+Tgraph2 = Phylo.read(io.StringIO(nwk),'newick')
+Tgraph2.ladderize()
+
+Phylo.draw_ascii(Tgraph2)

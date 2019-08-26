@@ -121,7 +121,7 @@ class Graph(object):
             self.sequences[seq] = [self.sequences[seq][bi] for bi in good_blocks]
 
     def flip_edge(self, edge):
-        return ((edge[0][0], minus_strand*edge[0][1]), (edge[1][0], minus_strand*edge[1][1]))
+        return ((edge[1][0], minus_strand*edge[1][1]), (edge[0][0], minus_strand*edge[0][1]))
 
     def get_edges(self):
         edges = defaultdict(list)
@@ -130,7 +130,7 @@ class Graph(object):
                 if p[bi-1][0]<b[0]:
                     label = (p[bi-1], b)
                 else:
-                    label = self.flip_edge((b, p[bi-1]))
+                    label = self.flip_edge((p[bi-1], b))
 
                 edges[label].append(seq)
         return edges
@@ -143,8 +143,6 @@ class Graph(object):
         # edges have an inversion symmetry: flipping order and strand results in the same edge
         # this is already standardized by the self.get_edges() such that each edge starts with
         # the alphabetically earlier block
-        #
-        # The latter needs to check that there are no intervening edges.
         for (b1,s1),(b2,s2) in edges:
             if self.blocks[b1].sequences.keys()==self.blocks[b2].sequences.keys() \
                 and set(edges[((b1,s1),(b2,s2))])==self.blocks[b1].sequences.keys():
@@ -152,42 +150,67 @@ class Graph(object):
 
         chains = {}
         # bs1, bs2 are (block, strand) pairs
-        for bs1, bs2 in transitive:
-            if bs1 in chains:
-                if bs1==chains[bs1][-1]:
-                    chains[bs1].append(bs2)
-                elif bs1==chains[bs1][0]:
-                    chains[bs1].insert(0,bs2)
+        # the chaining needs
+        for (b1, s1), (b2, s2) in transitive:
+            if b1 in chains and b2 in chains:
+                c1 = chains[b1]
+                c2 = chains[b2]
+                if c1==c2: # this would circularize/duplicate the chain
+                    continue
+                if (b1,s1)==c1[-1] and (b2,s2)==c2[0]:
+                    new_chain = c1 + c2
+                elif (b1,s1)==c1[-1] and (b2,s2*minus_strand)==c2[-1]:
+                    new_chain = c1 + [(b,s*minus_strand) for b,s in c2[::-1]]
+                elif (b1,s1*minus_strand)==c1[0] and (b2,s2*minus_strand)==c2[-1]:
+                    new_chain = c2 + c1
+                elif (b1,s1*minus_strand)==c1[0] and (b2,s2)==c2[0]:
+                    new_chain = [(b,s*minus_strand) for b,s in c1[::-1]] + c2
                 else:
-                    raise ValueError("chains should be unbranched")
-                chains[bs2] = chains[bs1]
-            elif bs2 in chains:
-                if bs2==chains[bs2][-1]:
-                    chains[b2].append(b1)
-                elif bs2==chains[bs2][0]:
-                    chains[bs2].insert(0,bs1)
+                    print("not covered:", b1, s1, b2, s1, c1, c2)
+                for b,s in new_chain:
+                    chains[b] = new_chain
+            elif b1 in chains:
+                if (b1,s1)==chains[b1][-1]:
+                    chains[b1].append((b2,s2))
+                elif (b1, s1*minus_strand)==chains[b1][0]:
+                    chains[b1].insert(0, (b2,s2*minus_strand))
                 else:
+                    import ipdb; ipdb.set_trace()
                     raise ValueError("chains should be unbranched")
-                chains[bs1] = chains[bs2]
+                chains[b2] = chains[b1]
+            elif b2 in chains:
+                if (b2,s2*minus_strand)==chains[b2][-1]:
+                    chains[b2].append((b1, s1*minus_strand))
+                elif (b2,s2)==chains[b2][0]:
+                    chains[b2].insert(0,(b1,s1))
+                else:
+                    import ipdb; ipdb.set_trace()
+                    raise ValueError("chains should be unbranched")
+                chains[b1] = chains[b2]
             else:
-                chains[bs1] = [bs1,bs2]
-                chains[bs2] = chains[bs1]
+                chains[b1] = [(b1,s1),(b2,s2)]
+                chains[b2] = chains[b1]
 
         unique_chains = {id(x):x for x in chains.values()}.values()
-        print("Chains:", unique_chains)
+        # print("Edges", edges.keys())
+        # print(unique_chains)
         for c in unique_chains:
-            if len(c)>3:
-                print("encountered chain with more than 2 blocks")
+            seqs = set.union(set(edges[(c[0],c[1])]), set(edges[self.flip_edge((c[0],c[1]))]))
+            # print("Chain:", c, seqs)
+            if len(seqs)==0:
                 import ipdb; ipdb.set_trace()
+
+            # if len(c)>3:
+            #     print("encountered chain with more than 2 blocks")
 
             c_start,c_end = c[0],c[-1]
             concat = Block.concatenate([self.blocks[b[0]] if b[1]==plus_strand
                                         else self.blocks[b[0]].reverse_complement()
                                         for b in c])
-            print("new block", concat.name)
-            print("replacing", [x[0] for x in c])
+            # print("new block", concat.name)
+            # print("replacing", [x[0] for x in c])
             # loop over all sequences in the chains. each element of the chain should have the same sequences
-            for seq in edges[(c[0],c[1])]:
+            for seq in seqs:
                 # - find first/last block
                 # - use strand in seq and chain to determine orientation
                 # - fwd and end>begin -> internal
@@ -206,13 +229,12 @@ class Graph(object):
                     self.sequences[seq] = p[:p_start] + [(concat.name, strand)] + p[p_end+1:]
                 else:
                     self.sequences[seq] = [(concat.name, strand)] + p[p_end+1:p_start]
-                    self.sequence_start[seq] = np.sum([len(self.blocks[b[0]]) for b in p[p_start:]])
+                    self.sequence_start[seq] = self.sequence_start.get(seq, 0) + np.sum([len(self.blocks[b[0]]) for b in p[p_start:]])
 
             self.blocks[concat.name] = concat
+            # print(self.blocks.keys())
             for b in c:
                 self.blocks.pop(b[0])
-
-        return transitive
 
 
     def to_fasta(self, fname):
@@ -266,8 +288,12 @@ class Graph(object):
         new_graph.sequences = {s:list(self.sequences[s]) for s in sequences}
         new_graph.sequence_start = {s:self.sequence_start[s] for s in sequences}
         new_graph.blocks = {}
-        for bname,b in self.blocks.items():
-            new_block = b.copy(keep_name=True)
+        remaining_blocks = set()
+        for s in new_graph.sequences:
+            remaining_blocks.update([x[0] for x in new_graph.sequences[s]])
+
+        for bname in remaining_blocks:
+            new_block = self.blocks[bname].copy(keep_name=True)
             new_block.sequences = {s:v for s,v in new_block.sequences.items()
                                                   if s in sequences}
             new_graph.blocks[bname] = new_block
