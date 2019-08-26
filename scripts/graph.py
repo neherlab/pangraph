@@ -140,6 +140,8 @@ class Graph(object):
         # edges have an inversion symmetry: flipping order and strand results in the same edge
         # this is already standardized by the self.get_edges() such that each edge starts with
         # the alphabetically earlier block
+        #
+        # The latter needs to check that there are no intervening edges.
         for (b1,s1),(b2,s2) in edges:
             if self.blocks[b1].sequences.keys()==self.blocks[b2].sequences.keys() \
                 and set(edges[((b1,s1),(b2,s2))])==self.blocks[b1].sequences.keys():
@@ -194,9 +196,8 @@ class Graph(object):
                 strand = plus_strand if p[ci_start]==c_start else minus_strand
                 p_start = ci_start if strand==plus_strand else ci_end
                 p_end = ci_end if strand==plus_strand else ci_start
-                if (strand==plus_strand and ci_start<ci_end) \
-                    or (strand==minus_strand and ci_start>ci_end): # internal segment
-                    self.sequences[seq] = p[:p_start+1] + [(concat.name, strand)] + p[p_end:]
+                if p_start<p_end: # internal segment
+                    self.sequences[seq] = p[:p_start] + [(concat.name, strand)] + p[p_end+1:]
                 else:
                     self.sequences[seq] = [(concat.name, strand)] + p[p_end+1:p_start]
                     self.sequence_start[seq] = np.sum([len(self.blocks[b[0]]) for b in p[p_start:]])
