@@ -113,3 +113,14 @@ if nerror==0:
 	print(f"compression: {uncompressed_length/tlength:1.2f}")
 
 T.root.graph.to_json(os.path.join(working_dir, f'graph_{cluster_id:03d}.json'))
+
+
+## make subgraphs
+#
+from itertools import combinations
+for s1,s2 in combinations(G.sequences, r=2):
+	S = G.sub_graph((s1,s2))
+	break
+
+print(S.blocks.keys())
+print(S.sequences)
