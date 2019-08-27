@@ -89,69 +89,76 @@ uncompressed_length = 0
 G = T.root.graph
 G.prune_transitive_edges()
 
-for n in T.get_terminals():
-	seq = seqs[n.name]
-	orig = str(seq.seq).upper()
-	rec = G.extract(n.name)
-	uncompressed_length += len(orig)
-	if (orig!=rec):
-		nerror += 1
-		import ipdb; ipdb.set_trace()
-		for i in range(len(orig)//100):
-			if (orig[i*100:(i+1)*100]!=rec[i*100:(i+1)*100]):
-				# for j,o,r in zip(range(100), orig[i*100:(i+1)*100], rec[i*100:(i+1)*100]):
-				# 	if o!=r:
-				# 		print(i*100+j,o,r)
-				# node_path = T.get_path(n.name)
-				# for ni,pn in enumerate(node_path):
-				# 	print(ni, pn.name, orig==pn.graph.extract(n.name))
-				# import ipdb; ipdb.set_trace()
-				print(i,orig[i*100:(i+1)*100])
-				print(i,rec[i*100:(i+1)*100])
+check_sequences = False
+export_json = False
+subgraph_matrix = False
 
-if nerror==0:
-	print("all sequences correctly reconstructed")
-	tlength = np.sum([len(x) for x in G.blocks.values()])
-	print(f"total graph length: {tlength}")
-	print(f"total input sequence: {uncompressed_length}")
-	print(f"compression: {uncompressed_length/tlength:1.2f}")
+if check_sequences:
+	for n in T.get_terminals():
+		seq = seqs[n.name]
+		orig = str(seq.seq).upper()
+		rec = G.extract(n.name)
+		uncompressed_length += len(orig)
+		if (orig!=rec):
+			nerror += 1
+			import ipdb; ipdb.set_trace()
+			for i in range(len(orig)//100):
+				if (orig[i*100:(i+1)*100]!=rec[i*100:(i+1)*100]):
+					# for j,o,r in zip(range(100), orig[i*100:(i+1)*100], rec[i*100:(i+1)*100]):
+					# 	if o!=r:
+					# 		print(i*100+j,o,r)
+					# node_path = T.get_path(n.name)
+					# for ni,pn in enumerate(node_path):
+					# 	print(ni, pn.name, orig==pn.graph.extract(n.name))
+					# import ipdb; ipdb.set_trace()
+					print(i,orig[i*100:(i+1)*100])
+					print(i,rec[i*100:(i+1)*100])
 
-T.root.graph.to_json(os.path.join(working_dir, f'graph_{cluster_id:03d}.json'))
+	if nerror==0:
+		print("all sequences correctly reconstructed")
+		tlength = np.sum([len(x) for x in G.blocks.values()])
+		print(f"total graph length: {tlength}")
+		print(f"total input sequence: {uncompressed_length}")
+		print(f"compression: {uncompressed_length/tlength:1.2f}")
+
+if export_json:
+	T.root.graph.to_json(os.path.join(working_dir, f'graph_{cluster_id:03d}.json'))
 
 
 ## make subgraphs
 #
-from itertools import combinations
-total_errors = 0
-DM = np.zeros((len(seqs), len(seqs)))
-for (s1,s2), (i1,i2) in zip(combinations(G.sequences, r=2),combinations(range(len(seqs)), r=2)):
-	# print("\n", s1, s2,"\n")
-	S = G.sub_graph((s1,s2))
-	S.prune_transitive_edges()
-	for s in S.sequences:
-		seq = seqs[s]
-		orig = str(seq.seq).upper()
-		rec = S.extract(s)
-		if (orig!=rec):
-			nerror += 1
-	DM[i1,i2] = len(S.blocks)
-	DM[i2,i1] = len(S.blocks)
-	total_errors += nerror
-	if nerror:
-		print("reconstruction error for pair",(s1,s2), nerror)
-		import ipdb;ipdb.set_trace()
+if subgraph_matrix:
+	from itertools import combinations
+	total_errors = 0
+	DM = np.zeros((len(seqs), len(seqs)))
+	for (s1,s2), (i1,i2) in zip(combinations(G.sequences, r=2),combinations(range(len(seqs)), r=2)):
+		# print("\n", s1, s2,"\n")
+		S = G.sub_graph((s1,s2))
+		S.prune_transitive_edges()
+		for s in S.sequences:
+			seq = seqs[s]
+			orig = str(seq.seq).upper()
+			rec = S.extract(s)
+			if (orig!=rec):
+				nerror += 1
+		DM[i1,i2] = len(S.blocks)
+		DM[i2,i1] = len(S.blocks)
+		total_errors += nerror
+		if nerror:
+			print("reconstruction error for pair",(s1,s2), nerror)
+			import ipdb;ipdb.set_trace()
 
-if total_errors:
-	print("there were reconstruction errors")
-else:
-	print("all pairwise subgraphs led to correct reconstructions.")
+	if total_errors:
+		print("there were reconstruction errors")
+	else:
+		print("all pairwise subgraphs led to correct reconstructions.")
 
 
-condensed_DM = squareform(DM)
-Z = linkage(condensed_DM)
-Tgraph = to_tree(Z)
-nwk = getNewick(Tgraph, "", Tgraph.dist, list(G.sequences))
-Tgraph2 = Phylo.read(io.StringIO(nwk),'newick')
-Tgraph2.ladderize()
+	condensed_DM = squareform(DM)
+	Z = linkage(condensed_DM)
+	Tgraph = to_tree(Z)
+	nwk = getNewick(Tgraph, "", Tgraph.dist, list(G.sequences))
+	Tgraph2 = Phylo.read(io.StringIO(nwk),'newick')
+	Tgraph2.ladderize()
 
-Phylo.draw_ascii(Tgraph2)
+	Phylo.draw_ascii(Tgraph2)

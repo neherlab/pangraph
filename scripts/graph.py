@@ -14,6 +14,7 @@ class Graph(object):
         self.sequences = {}
         self.sequence_start = {}
 
+
     @classmethod
     def from_sequence(cls, sequence_name, sequence):
         new_graph = cls()
@@ -22,6 +23,7 @@ class Graph(object):
         new_graph.sequences = {sequence_name: [(b.name, plus_strand)]}
         new_graph.sequence_start = {sequence_name:0}
         return new_graph
+
 
     @classmethod
     def fuse(cls, graph1, graph2):
@@ -32,6 +34,7 @@ class Graph(object):
         new_graph.sequences = {s:list(b) for s,b in list(graph1.sequences.items())+list(graph2.sequences.items())}
         new_graph.sequence_start = {s:b for s,b in list(graph1.sequence_start.items())+list(graph2.sequence_start.items())}
         return new_graph
+
 
     def merge_hit(self,hit):
         orig_ref_block = self.blocks[hit['ref']['name']]
@@ -83,6 +86,7 @@ class Graph(object):
 
         self.prune_blocks()
 
+
     def prune_blocks(self):
         remaining_blocks = set()
         for s in self.sequences:
@@ -108,6 +112,7 @@ class Graph(object):
 
         return seq
 
+
     def prune_empty(self):
         for seq in self.sequences:
             good_blocks = []
@@ -120,8 +125,10 @@ class Graph(object):
                     print("Pop", seq, b)
             self.sequences[seq] = [self.sequences[seq][bi] for bi in good_blocks]
 
+
     def flip_edge(self, edge):
         return ((edge[1][0], minus_strand*edge[1][1]), (edge[0][0], minus_strand*edge[0][1]))
+
 
     def get_edges(self):
         edges = defaultdict(list)
@@ -237,6 +244,63 @@ class Graph(object):
                 self.blocks.pop(b[0])
 
 
+    def shared_block_length(self):
+        from itertools import combinations
+        bl = defaultdict(list)
+        for b in self.blocks.values():
+            l = len(b)
+            for s1, s2 in combinations(b.sequences, r=2):
+                bl[(s1,s2)].append(l)
+                bl[(s2,s1)].append(l)
+
+        return bl
+
+
+    def sub_graph(self, sequences):
+        new_graph = Graph()
+        new_graph.sequences = {s:list(self.sequences[s]) for s in sequences}
+        new_graph.sequence_start = {s:self.sequence_start[s] for s in sequences}
+        new_graph.blocks = {}
+        remaining_blocks = set()
+        for s in new_graph.sequences:
+            remaining_blocks.update([x[0] for x in new_graph.sequences[s]])
+
+        for bname in remaining_blocks:
+            new_block = self.blocks[bname].copy(keep_name=True)
+            new_block.sequences = {s:v for s,v in new_block.sequences.items()
+                                                  if s in sequences}
+            new_graph.blocks[bname] = new_block
+
+        new_graph.prune_blocks()
+        return new_graph
+
+
+    def make_suffix_tree(self):
+        # make a generalized suffix tree containing 5-3 and 3-5 of all sequences
+        # terminate at sequence_name_fwd/rev_pos
+        #
+        from suffix_tree import Tree
+        strings = {s+'_fwd':seq+seq[:-1] for s, seq in self.sequences.items()}
+        strings.update({s+'_rev':[(b, s*minus_strand) for b,s in seq[::-1]+seq[::-1][:-1]]
+                                   for s,seq in self.sequences.items()})
+        self.ST = Tree(strings)
+
+
+    def strip_suffix_tree(self):
+        seq_length = {s:len(seq) for s, seq in self.sequences.items()}
+        def assign_max(x):
+            if x.is_leaf():
+                x.max_length = seq_length[x.str_id[:-4]]
+            else:
+                x.max_length = np.max([yv.max_length for yv in x.children.values()])
+        self.ST.root.post_order(assign_max)
+
+        def prune_redundant(x):
+            if x.is_internal():
+                x.children = {k:v for k,v in x.children.items() if v.string_depth()<=v.max_length+1}
+        self.ST.root.pre_order(prune_redundant)
+
+
     def to_fasta(self, fname):
         SeqIO.write([SeqRecord.SeqRecord(seq=Seq.Seq("".join(c.consensus)), id=c.name, description='')
                     for c in self.blocks.values()], fname, format='fasta')
@@ -281,26 +345,6 @@ class Graph(object):
         import json
         with open(fname, 'w') as fh:
             json.dump(J, fh)
-
-
-    def sub_graph(self, sequences):
-        new_graph = Graph()
-        new_graph.sequences = {s:list(self.sequences[s]) for s in sequences}
-        new_graph.sequence_start = {s:self.sequence_start[s] for s in sequences}
-        new_graph.blocks = {}
-        remaining_blocks = set()
-        for s in new_graph.sequences:
-            remaining_blocks.update([x[0] for x in new_graph.sequences[s]])
-
-        for bname in remaining_blocks:
-            new_block = self.blocks[bname].copy(keep_name=True)
-            new_block.sequences = {s:v for s,v in new_block.sequences.items()
-                                                  if s in sequences}
-            new_graph.blocks[bname] = new_block
-
-        new_graph.prune_blocks()
-        return new_graph
-
 
 
 if __name__ == '__main__':
