@@ -89,6 +89,18 @@ uncompressed_length = 0
 G = T.root.graph
 G.prune_transitive_edges()
 
+G.make_suffix_tree()
+seqs = ['GCA_002082705_1_2', 'GCA_001806485_1_2']
+sequences = set(seqs)
+cs, covered = G.find_common_substrings(sequences)
+
+from itertools import combinations
+for (s1,s2), (i1,i2) in zip(combinations(G.sequences, r=2),combinations(range(len(seqs)), r=2)):
+	# print("\n", s1, s2,"\n")
+	cs, covered = G.find_common_substrings(set([s1,s2]))
+	print(s1,s2,covered)
+
+
 check_sequences = False
 export_json = False
 subgraph_matrix = False

@@ -283,10 +283,17 @@ class Graph(object):
         strings = {s+'_fwd':seq+seq[:-1] for s, seq in self.sequences.items()}
         strings.update({s+'_rev':[(b, s*minus_strand) for b,s in seq[::-1]+seq[::-1][:-1]]
                                    for s,seq in self.sequences.items()})
+        print(strings)
         self.ST = Tree(strings)
 
 
     def strip_suffix_tree(self):
+        """
+        we added the sequences twice, hence we only retain suffixes that are at most the
+        length of the longest sequence in a particular branch of the tree.
+        this doesn't actually work -- one needs to prune more specifically suffixes that don't
+        start in copy one
+        """
         seq_length = {s:len(seq) for s, seq in self.sequences.items()}
         def assign_max(x):
             if x.is_leaf():
@@ -297,8 +304,57 @@ class Graph(object):
 
         def prune_redundant(x):
             if x.is_internal():
-                x.children = {k:v for k,v in x.children.items() if v.string_depth()<=v.max_length+1}
+                x.children = {k:v for k,v in x.children.items() if v.string_depth()<=v.max_length+2}
         self.ST.root.pre_order(prune_redundant)
+
+
+    def find_common_substrings(self, sequences):
+        common_substrings = {}
+        seq_len = {s:len(self.sequences[s]) for s in self.sequences}
+        def attach_tip_names(x):
+            if x.is_leaf():
+                x.tip_names = {x.str_id[:-4]}
+                x.tip_names_pos = {(x.str_id, (x.path.end - x.string_depth())%seq_len[x.str_id[:-4]])}
+            else:
+                x.tip_names = set()
+                x.tip_names_pos = set()
+                for c in x.children.values():
+                    x.tip_names_pos.update(c.tip_names_pos)
+                    x.tip_names.update(c.tip_names)
+        self.ST.root.post_order(attach_tip_names)
+
+        def get_common_substrings(x):
+            if len(x.path) and len(sequences.intersection(x.tip_names)) == len(sequences):
+                label = tuple(sorted([s for s in x.tip_names_pos if s[0][:-4] in sequences]))
+                if label in common_substrings:
+                    if len(common_substrings[label])<len(x.path):
+                        common_substrings[label] = x.path
+                else:
+                    common_substrings[label] = x.path
+
+        self.ST.root.pre_order(get_common_substrings)
+        covered = {s:np.zeros(len(self.sequences[s]), dtype=int) for s in sequences}
+        for cs in common_substrings:
+            l = len(common_substrings[cs])
+            for s,p in cs:
+                lseq = seq_len[s[:-4]]
+                if s.endswith('fwd'):
+                    start = p
+                    end = start + l
+                else:
+                    end = (2*lseq-1) - p + 1
+                    start = end - l
+
+                start_mod = start%lseq
+                end_mod = end%lseq or lseq
+                print(l, lseq, p, start, end, start_mod, end_mod)
+                if start_mod<end_mod:
+                    covered[s[:-4]][start_mod:end_mod] += 1
+                else:
+                    covered[s[:-4]][start_mod:] += 1
+                    covered[s[:-4]][:end_mod] += 1
+
+        return common_substrings, covered
 
 
     def to_fasta(self, fname):
