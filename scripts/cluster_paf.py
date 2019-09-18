@@ -39,7 +39,7 @@ class Hit():
 
     @property
     def aln(self):
-        return (self.nmatch, self.alen, self.strand)
+        return (self.nmatch, self.alen, self.strand == '+')
 
 class Cluster(object):
     """docstring for Cluster"""
@@ -57,8 +57,12 @@ class Cluster(object):
             # sort partners by number of aligned bases
             # in most cases there will be just 1 -> no sorting necessary
             if hit.qname in self.fragments and hit.rname in self.fragments:
+                print("####")
+                print(self.fragments)
+                print(self.fragments[hit.rname])
+                print(self.fragments[hit.qname])
                 refhit, qryhit = sorted([hit.ref, hit.qry], key = lambda x : self.fragments[x[0]]["in_seq"][2])
-            elif hit.qryname in self.fragments:
+            elif hit.qname in self.fragments:
                 refhit, qryhit = hit.qry, hit.ref
             else:
                 qryhit, refhit = hit.ref, hit.qry
@@ -154,7 +158,7 @@ def main(args):
             print(o)
             if o[2][0] == 4:
                 import ipdb; ipdb.set_trace()
-            if o[0] =='contained':
+            if o[0] == 'contained':
                 focal_cluster.merge_hit(*o)
 
     # clusters = []

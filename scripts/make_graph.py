@@ -70,7 +70,7 @@ print("merging nodes")
 for n in T.get_nonterminals(order='postorder'):
 	n.name = f'NODE_{node_count:07d}'
 	print(f" -- node {n.name} with {n.count_terminals()} children")
-	node_count+=1
+	node_count += 1
 	n.graph = Graph.fuse(n.clades[0].graph, n.clades[1].graph)
 	map_and_merge(n.graph, n.clades[0].fasta_fname, n.clades[1].fasta_fname, f"{working_dir}/{n.name}")
 	n.fasta_fname = os.path.join(*[working_dir, n.name+'.fasta'])
