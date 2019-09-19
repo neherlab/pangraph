@@ -1,4 +1,5 @@
 import argparse, gzip
+import csv
 import numpy as np
 from collections import defaultdict
 
@@ -8,8 +9,8 @@ def myopen(fname, mode='r'):
     else:
         return open(fname, mode)
 
-
 def parse_paf(fname):
+    assert fname.endswith(".paf")
     hits = []
     with myopen(fname) as fh:
         for line in fh:
@@ -22,4 +23,18 @@ def parse_paf(fname):
                 if extra.startswith('cg:'):
                     hit['cigar'] = extra.split(':')[-1]
             hits.append(hit)
+    return hits
+
+def parse_m8(fname):
+    assert fname.endswith(".m8")
+    hits = defaultdict(list)
+    with open(fname) as fh:
+        rdr = csv.reader(fh, delimiter = "\t", quotechar = '"')
+        for row in rdr:
+            hits[row[0]].append((row[11], row[1]))
+
+        hits = dict(hits)
+        for key in hits:
+            hits[key] = sorted(hits[key], key = lambda x: x[0])[::-1]
+
     return hits

@@ -1,0 +1,17 @@
+#!/bin/bash
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+source $DIR/env
+
+raw=$seqdir/$1*.fasta
+aln=$alndir/$1.paf
+blocks=$graphdir/$1.fasta
+string=$graphdir/$1.json
+
+if [ ! -f $raw ]; then
+    echo "Fasta not found"
+elif [ ! -f $aln ]; then
+    echo "Alignment not found"
+else
+    python $pydir/gather_hits.py $raw $aln
+fi

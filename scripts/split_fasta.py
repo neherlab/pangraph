@@ -15,15 +15,7 @@ from util  import parse_paf
 from interval import Partition
 
 # ------------------------------------------------------------------------
-# Global constants/variables
-
-qryfa = "tmp/qry.fasta"
-
-# ------------------------------------------------------------------------
 # Functions
-
-def aln(qry, ref, out):
-    os.system(f"minimap2 -x asm5 -D -c {qry} {ref} 1>{out}.paf 2>log")
 
 def writefa(seq, out):
     with open(out, 'w') as fh:
@@ -34,11 +26,10 @@ def main(args):
     # Fasta file must be indexed for random access
     seqs = fai.Fasta(args.fa)
     for isolate in seqs.keys():
-        if os.path.isfile(f"{args.dir}/{isolate}.paf"):
+        outpath = f"{args.dir}/{isolate}.fasta"
+        if os.path.isfile(outpath):
             continue
-        print(isolate)
-        writefa(seqs[isolate], qryfa)
-        aln(qryfa, args.fa, f"{args.dir}/{isolate}")
+        writefa(seqs[isolate], outpath)
 
 # ------------------------------------------------------------------------
 # Main point of entry
