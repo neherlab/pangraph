@@ -9,14 +9,12 @@ from scipy.cluster.hierarchy import dendrogram, linkage, to_tree
 from scipy.spatial.distance import squareform
 from kmer_tree import getNewick
 
-cluster_id = int(sys.argv[1]) or 1
-
-clusters_by_id = {int(c.split('_')[-3]):c for c in glob.glob('inc_clusters/*fasta')}
-
-cluster = clusters_by_id[cluster_id][:-6]
-working_dir = os.path.basename(cluster)+'_dir'
+cluster_id     = int(sys.argv[1]) or 1
+clusters_by_id = {int(c.split('_')[-3]):c for c in glob.glob('data/graph/seq/*fa*')}
+cluster        = clusters_by_id[cluster_id][:-6]
+working_dir    = os.path.basename(cluster)+'_dir'
 if not os.path.isdir(working_dir):
-	os.mkdir(working_dir)
+    os.mkdir(working_dir)
 
 self_maps = 2
 
@@ -27,8 +25,8 @@ def map_and_merge(graph, fname1, fname2, out):
 	merged_blocks = set()
 	for hit in paf:
 		if hit['query']['name'] in merged_blocks \
-		   or hit['ref']['name'] in merged_blocks \
-		   or hit['ref']['name']==hit['query']['name']:
+                or hit['ref']['name'] in merged_blocks \
+                or hit['ref']['name']==hit['query']['name']:
 			continue
 
 		if set(graph.blocks[hit['query']['name']].sequences.keys()).intersection(graph.blocks[hit['ref']['name']].sequences.keys()):
@@ -99,7 +97,6 @@ for (s1,s2), (i1,i2) in zip(combinations(G.sequences, r=2),combinations(range(le
 	# print("\n", s1, s2,"\n")
 	cs, covered = G.find_common_substrings(set([s1,s2]))
 	print(s1,s2,covered)
-
 
 check_sequences = False
 export_json = False

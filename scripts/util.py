@@ -38,3 +38,18 @@ def parse_m8(fname):
             hits[key] = sorted(hits[key], key = lambda x: x[0])[::-1]
 
     return hits
+
+def parse_kmer(mtx):
+    with open(mtx) as fh:
+        nrows = int(fh.readline().strip())
+        M = np.zeros((nrows, nrows), dtype=float)
+        seq_names = []
+        for li, line in enumerate(fh):
+                e = line.strip().split()
+                seq_names.append(e[0].split('/')[-1][:-3])
+                M[li,:(li+1)] = [float(x) for x in e[1:]]
+
+        Msym = M + M.T
+        Msym -= np.eye(nrows)
+
+    return Msym, np.array(seq_names)

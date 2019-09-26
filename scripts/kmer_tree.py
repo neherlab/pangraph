@@ -17,7 +17,6 @@ def getNewick(node, newick, parentdist, leaf_names):
         newick = "(%s" % (newick)
         return newick
 
-
 with open('kmer_dist_matrix.dist') as fh:
 	nrows = int(fh.readline().strip())
 	M = np.zeros((nrows, nrows), dtype=float)
@@ -45,5 +44,3 @@ for c in cluster_list:
 		nwk = getNewick(T, "", T.dist, [seq_names[i] for i in indices])
 		with open(c[:-6]+'.nwk', 'w') as fh:
 			fh.write(nwk+'\n')
-
-

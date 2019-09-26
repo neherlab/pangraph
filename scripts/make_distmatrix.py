@@ -134,7 +134,11 @@ def main(args):
     for name, n in names.items():
         ordered_names[n] = name
 
-    np.savez("data/graphdist.npz", ordered_names, D)
+    for key in DB.keys():
+        DB[key] = dict(DB[key])
+    DB = dict(DB)
+
+    np.savez("data/graphdist.noremap.npz", ordered_names, D, DB)
     pkl.dump(DB, "data/partitions.pkl")
 
 # ------------------------------------------------------------------------
