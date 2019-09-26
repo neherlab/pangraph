@@ -1,0 +1,26 @@
+#!/bin/python
+
+import sys, os
+from glob import glob
+
+from Bio           import SeqIO
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq       import Seq
+from Bio.Alphabet  import IUPAC
+
+if __name__ == "__main__":
+    assert len(sys.argv) == 2
+    sdir = sys.argv[1]
+    assert os.path.exists(sdir) and os.path.isdir(sdir)
+
+    files = glob(f"{sdir}/*.fa")
+
+    for file in files:
+        prots = []
+        for s in SeqIO.parse(open(file,'r'), 'fasta'):
+            aas = s.seq.translate().split('*')
+            aas = ''.join(str(aa) for aa in aas)
+            prots.append(SeqRecord(Seq(aas, IUPAC.protein), id=s.id, name=s.id, description=f"{s.description} {s.description}"))
+
+        file = file.replace(".fa", ".faa")
+        SeqIO.write(prots, open(file, 'w+'), 'fasta')

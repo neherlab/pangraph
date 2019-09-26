@@ -1,0 +1,82 @@
+#!/bin/python
+
+import json
+import numpy as np
+import intervals as Is
+
+from glob         import glob
+from collections  import defaultdict
+from scripts.util import parse_m8, parse_tsv
+
+# ------------------------------------------------------------------------
+# Global constants/parameters
+
+argdb = "data/betalactam.m8"
+incdb = "data/incgroups.m8"
+mstdb = "data/seqtypes.tsv"
+clsdb = "data/graph/clusters.tsv"
+mxdir = "data/graph/mtx"
+
+ojson = "data/metacls.json"
+
+# ------------------------------------------------------------------------
+# Functions
+
+def avgdist(mtx):
+    D = np.load(mtx)
+    return np.ndarray.mean(D[:])
+
+def readcls(db):
+    cls = {}
+    with open(db, 'r') as fd:
+        for n, c in enumerate(fd):
+            for iso in c.split():
+                cls[iso] = n
+    return cls
+
+def onlytop(hits):
+    for iso, hit in hits.items():
+        tops = []
+        for h in hit:
+            I  = Is.closedopen(h[2], h[3])
+            ok = True
+            for iv in tops:
+                if not ok:
+                    break
+
+                ok = not I.overlaps(iv[0])
+
+            if ok:
+                tops.append((I, h))
+        hits[iso] = [top[1] for top in tops]
+
+    return hits
+
+def add(meta, todb, key, cmap):
+    for iso in meta.keys():
+        if iso not in cmap:
+            continue
+        todb[cmap[iso]][key][iso] = meta[iso]
+
+    return todb
+
+# ------------------------------------------------------------------------
+# Point of entry
+
+if __name__ == "__main__":
+    cltrs = readcls(clsdb)
+    incgs = onlytop(parse_m8(incdb))
+    blats = onlytop(parse_m8(argdb))
+    mlsts = parse_tsv(mstdb)
+
+    isodb = [{"isos" : [], "incs" : {}, "args" : {}, "mlsts" : {}, "dist" : 0} \
+                for _ in range(max(cltrs.values())+1)]
+
+    for n, mtx in enumerate(sorted(glob(f"mxdir/*.npy"))):
+        isodb[n]["dist"] = avgdist(mtx)
+
+    isodb = add(incgs, isodb, "incs", cltrs)
+    isodb = add(blats, isodb, "args", cltrs)
+    isodb = add(mlsts, isodb, "mlsts", cltrs)
+
+    json.dump(isodb, open(ojson, "w+"))

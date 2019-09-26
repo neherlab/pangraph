@@ -15,8 +15,8 @@ def parse_paf(fname):
     with myopen(fname) as fh:
         for line in fh:
             entries = line.strip().split()
-            hit = {'query':{'name':entries[0], 'start':int(entries[2]), 'end':int(entries[3])},
-                   'ref':  {'name':entries[5], 'start':int(entries[7]), 'end':int(entries[8])},
+            hit = {'qry': {'name':entries[0], 'start':int(entries[2]), 'end':int(entries[3])},
+                   'ref': {'name':entries[5], 'start':int(entries[7]), 'end':int(entries[8])},
                    'aligned_bases':int(entries[9]), 'aligned_length':int(entries[10]),
                    'orientation':1 if entries[4]=='+' else -1, 'mapping_quality':int(entries[11])}
             for extra in entries[12:]:
@@ -25,13 +25,24 @@ def parse_paf(fname):
             hits.append(hit)
     return hits
 
+def parse_tsv(fname):
+    assert fname.endswith(".tsv")
+    hits = dict()
+    with open(fname) as fh:
+        rdr = csv.reader(fh, delimiter = "\t", quotechar = '"')
+        for row in rdr:
+            assert row[0] not in hits
+            hits[row[0][:-6]] = (row[1], row[0])
+
+    return dict(hits)
+
 def parse_m8(fname):
     assert fname.endswith(".m8")
     hits = defaultdict(list)
     with open(fname) as fh:
         rdr = csv.reader(fh, delimiter = "\t", quotechar = '"')
         for row in rdr:
-            hits[row[0]].append((row[11], row[1]))
+            hits[row[0]].append((row[11], row[1], row[6], row[7]))
 
         hits = dict(hits)
         for key in hits:

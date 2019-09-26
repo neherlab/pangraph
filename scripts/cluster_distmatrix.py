@@ -14,12 +14,13 @@ from scripts.util import parse_kmer
 # ------------------------------------------------------------------------
 # Global constants/variables
 
-gmtx  = "data/graphdist.nomap.npz"
+gmtx  = "data/mtx/graphdist.nomap.npz"
 kmtx  = "data/kmerdist.txt"
 sfas  = "data/seq/all.fasta"
 fname = "data/graph/clusters.tsv"
 tdir  = "data/graph/nwk"
 sdir  = "data/graph/seq"
+mdir  = "data/graph/mtx"
 
 plot = False
 
@@ -73,6 +74,13 @@ def main(D, Dk, names):
             for name in names[cls == (c+1)]:
                 out.write(f">{name}\n")
                 out.write(f"{str(seqs[name])}\n")
+
+    # Export submatrices 
+    for c in range(C):
+        indx = cls == (c+1)
+        Dsub = D[indx,:]
+        Dsub = Dsub[:, indx]
+        np.save(f"{mdir}/cluster_{c:03d}.npy", Dsub)
 
     # Debugging
     if plot:

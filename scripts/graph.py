@@ -38,9 +38,9 @@ class Graph(object):
 
     def merge_hit(self,hit):
         orig_ref_block = self.blocks[hit['ref']['name']]
-        orig_seq_block = self.blocks[hit['query']['name']]
+        orig_seq_block = self.blocks[hit['qry']['name']]
         ref_block = orig_ref_block[hit['ref']['start']:hit['ref']['end']]
-        seq_block = orig_seq_block[hit['query']['start']:hit['query']['end']]
+        seq_block = orig_seq_block[hit['qry']['start']:hit['qry']['end']]
 
         if hit["orientation"]==minus_strand:
             seq_block = seq_block.reverse_complement()
@@ -54,7 +54,7 @@ class Graph(object):
         self.blocks[merged_block.name] = merged_block
 
         for tmp_block, subhit, strand in [(orig_ref_block, hit['ref'], plus_strand),
-                                          (orig_seq_block, hit['query'], hit["orientation"])]:
+                                          (orig_seq_block, hit['qry'], hit["orientation"])]:
             new_blocks = []
             if subhit['start']:
                 left = tmp_block[0:subhit['start']]
@@ -411,7 +411,7 @@ if __name__ == '__main__':
 
     # this defines the homology hit format, meant to be parsed from paf
     hit = {'ref': {'name':g.sequences['S1'][0][0], 'start':6, 'end':12},
-           'query': {'name':g.sequences['S2'][0][0], 'start':3, 'end':9},
+           'qry': {'name':g.sequences['S2'][0][0], 'start':3, 'end':9},
            'cigar':'6M', 'orientation':minus_strand}
 
     g.merge_hit(hit)
