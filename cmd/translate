@@ -16,6 +16,9 @@ if __name__ == "__main__":
     files = glob(f"{sdir}/*.fa")
 
     for file in files:
+        if os.path.exists(file.replace(".fa", ".faa")):
+            continue
+
         prots = []
         for s in SeqIO.parse(open(file,'r'), 'fasta'):
             aas = s.seq.translate().split('*')

@@ -32,21 +32,22 @@ def parse_tsv(fname):
         rdr = csv.reader(fh, delimiter = "\t", quotechar = '"')
         for row in rdr:
             assert row[0] not in hits
-            hits[row[0][:-6]] = (row[1], row[0])
+            hits[row[0][:-6]] = (row[1], row[2])
 
     return dict(hits)
 
-def parse_m8(fname):
+def parse_m8(fname, onlytophit=True):
     assert fname.endswith(".m8")
     hits = defaultdict(list)
     with open(fname) as fh:
         rdr = csv.reader(fh, delimiter = "\t", quotechar = '"')
         for row in rdr:
-            hits[row[0]].append((row[11], row[1], row[6], row[7]))
+            hits[row[0]].append({ "hit" : row[1], "prcid" : float(row[2]), "eval" : float(row[11]), "beg" : int(row[6]), "end" : int(row[7]) })
 
         hits = dict(hits)
-        for key in hits:
-            hits[key] = sorted(hits[key], key = lambda x: x[0])[::-1]
+        if onlytophit:
+            for qry in hits:
+                hits[qry] = sorted(hits[qry], key = lambda x: x["eval"])[::-1]
 
     return hits
 

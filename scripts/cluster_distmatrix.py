@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 import scipy.spatial.distance as ssd
 import scipy.cluster.hierarchy as sch
@@ -80,7 +82,9 @@ def main(D, Dk, names):
         indx = cls == (c+1)
         Dsub = D[indx,:]
         Dsub = Dsub[:, indx]
-        np.save(f"{mdir}/cluster_{c:03d}.npy", Dsub)
+        np.savez(f"{mdir}/cluster_{c:03d}.npz", Dsub, names[indx])
+        json.dump({'mtx' : Dsub.tolist(), "iso" : names[indx].tolist()}, \
+                open(f"{mdir}/cluster_{c:03d}.json", "w+"))
 
     # Debugging
     if plot:
@@ -111,5 +115,5 @@ if __name__ == "__main__":
     Dkmers = Dkmer_t
 
     # Run code
+    print("Running main")
     main(Dgraph, Dkmers, graph_names)
-

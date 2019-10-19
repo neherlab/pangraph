@@ -2,6 +2,7 @@ import os
 import sys
 import io
 from glob import glob
+import json
 
 import numpy as np
 from scipy.cluster.hierarchy import dendrogram, linkage, to_tree
@@ -16,14 +17,19 @@ from graph     import Graph
 from util      import parse_paf
 from cigar     import Cigar
 
+import suffix
+
 # -----------------------------------------------------------------------------
 # Global constants/parameters
 
 allseq = "data/seq/all.fasta"
 seqdir = "data/seq/singles"
 outdir = "data/graph"
+visdir = f"{outdir}/vis"
+alndir = f"{outdir}/aln"
 nwkdir = f"{outdir}/nwk"
 blddir = f"{outdir}/bld"
+mtxdir = f"{outdir}/mtx"
 
 self_maps = 2
 # cluster_id     = int(sys.argv[1]) or 1
@@ -71,20 +77,40 @@ def base(name):
 def torec(seq):
     return SeqRecord(Seq(str(seq)), id=seq.name, name=seq.name)
 
+def compute_suffix_tree_mtx(G, cls):
+    # if G.ST is None:
+    #     G.make_suffix_tree()
+    #     G.strip_suffix_tree()
+
+    # names = list(G.sequences.keys())
+    # D     = np.zeros((len(names), len(names)))
+
+    # for n, name1 in enumerate(names):
+    #     for m, name2 in enumerate(names[n:]):
+    #         D[n, m+n] = len(G.find_common_substrings(set([name1, name2]))[0])
+    #         D[m+n, n] = D[n, m+n]
+
+    t = suffix.Tree(G.sequences)
+    names = list(G.sequences.keys())
+    D     = np.zeros((len(names), len(names)))
+
+    for n, name1 in enumerate(names):
+        for m, name2 in enumerate(names[n:]):
+            D[n, m+n] = len(t.matches(name1, name2))
+            D[m+n, n] = D[n, m+n]
+    json.dump({'mtx': D.tolist(), 'iso': names},
+            open(f"{mtxdir}/{cls}.st.json", 'w+'))
+
 def main():
     nwks = glob(f"{nwkdir}/*.nwk")
     seqs = fai.Fasta(allseq)
     for nwk in nwks:
-        # if "101" not in nwk:
-        #     continue
-
         print(f"processing {nwk}")
         cls = base(nwk)
         T   = Phylo.read(nwk,'newick')
         if T.count_terminals() == 1:
             continue
         print("kmer tree, total length:", T.total_branch_length())
-        # Phylo.draw_ascii(T)
 
         print("initializing terminal node graphs")
         for n in T.get_terminals():
@@ -118,9 +144,12 @@ def main():
         try:
             G.prune_transitive_edges()
         except:
-            raise ValueError("panic")
+            print("error: could not prune")
+            # raise ValueError("panic")
         # To fasta here
-        G.to_json(f"{outdir}/{cls}.json")
+        G.to_json(f"{visdir}/{cls}.json", min_length=500)
+        G.to_fasta(f"{alndir}/{cls}.fa")
+        compute_suffix_tree_mtx(G, cls)
 
     return G
 

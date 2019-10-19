@@ -1,11 +1,14 @@
 #!/bin/python
 
+import sys, os
 import json
 import numpy as np
 import intervals as Is
 
 from glob         import glob
 from collections  import defaultdict
+
+sys.path.append(os.path.abspath("/home/nolln/code/bio/pangraph"))
 from scripts.util import parse_m8, parse_tsv
 
 # ------------------------------------------------------------------------
@@ -23,8 +26,9 @@ ojson = "data/metacls.json"
 # Functions
 
 def avgdist(mtx):
-    D = np.load(mtx)
-    return np.ndarray.mean(D[:])
+    D      = np.load(mtx)
+    D, nms = D['arr_0'], D['arr_1']
+    return np.ndarray.mean(D[:]), nms.tolist()
 
 def readcls(db):
     cls = {}
@@ -38,7 +42,7 @@ def onlytop(hits):
     for iso, hit in hits.items():
         tops = []
         for h in hit:
-            I  = Is.closedopen(h[2], h[3])
+            I  = Is.closedopen(h['beg'], h['end'])
             ok = True
             for iv in tops:
                 if not ok:
@@ -72,8 +76,8 @@ if __name__ == "__main__":
     isodb = [{"isos" : [], "incs" : {}, "args" : {}, "mlsts" : {}, "dist" : 0} \
                 for _ in range(max(cltrs.values())+1)]
 
-    for n, mtx in enumerate(sorted(glob(f"mxdir/*.npy"))):
-        isodb[n]["dist"] = avgdist(mtx)
+    for n, mtx in enumerate(sorted(glob(f"{mxdir}/*.npz"))):
+        isodb[n]["dist"], isodb[n]["isos"] = avgdist(mtx)
 
     isodb = add(incgs, isodb, "incs", cltrs)
     isodb = add(blats, isodb, "args", cltrs)

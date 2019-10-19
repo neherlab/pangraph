@@ -13,6 +13,7 @@ class Graph(object):
         self.blocks = {}
         self.sequences = {}
         self.sequence_start = {}
+        self.ST = None
 
 
     @classmethod
@@ -282,8 +283,8 @@ class Graph(object):
         from suffix_tree import Tree
         strings = {s+'_fwd':seq+seq[:-1] for s, seq in self.sequences.items()}
         strings.update({s+'_rev':[(b, s*minus_strand) for b,s in seq[::-1]+seq[::-1][:-1]]
-                                   for s,seq in self.sequences.items()})
-        print(strings)
+                                   for s, seq in self.sequences.items()})
+        # print(strings)
         self.ST = Tree(strings)
 
 
@@ -314,7 +315,7 @@ class Graph(object):
         def attach_tip_names(x):
             if x.is_leaf():
                 x.tip_names = {x.str_id[:-4]}
-                x.tip_names_pos = {(x.str_id, (x.path.end - x.string_depth())%seq_len[x.str_id[:-4]])}
+                x.tip_names_pos = {(x.str_id, (x.path.end - x.string_depth()) % seq_len[x.str_id[:-4]])}
             else:
                 x.tip_names = set()
                 x.tip_names_pos = set()
@@ -333,7 +334,7 @@ class Graph(object):
                     common_substrings[label] = x.path
 
         self.ST.root.pre_order(get_common_substrings)
-        covered = {s:np.zeros(len(self.sequences[s]), dtype=int) for s in sequences}
+        covered = { s : np.zeros(len(self.sequences[s]), dtype=int) for s in sequences    }
         for cs in common_substrings:
             l = len(common_substrings[cs])
             for s,p in cs:
@@ -347,7 +348,7 @@ class Graph(object):
 
                 start_mod = start%lseq
                 end_mod = end%lseq or lseq
-                print(l, lseq, p, start, end, start_mod, end_mod)
+                # print(l, lseq, p, start, end, start_mod, end_mod)
                 if start_mod<end_mod:
                     covered[s[:-4]][start_mod:end_mod] += 1
                 else:
@@ -355,7 +356,6 @@ class Graph(object):
                     covered[s[:-4]][:end_mod] += 1
 
         return common_substrings, covered
-
 
     def to_fasta(self, fname):
         SeqIO.write([SeqRecord.SeqRecord(seq=Seq.Seq("".join(c.consensus)), id=c.name, description='')

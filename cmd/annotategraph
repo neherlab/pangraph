@@ -1,0 +1,49 @@
+#!/bin/python
+
+import sys, os
+import json
+import numpy as np
+
+from glob import glob
+
+sys.path.append(os.path.abspath("/home/nolln/code/bio/pangraph"))
+from scripts.util import parse_m8
+
+# ------------------------------------------------------------------------
+# Global constants/parameters
+
+gadir = "data/graph/aln"
+incdb = "data/db/incgroups"
+argdb = "data/db/betalactam"
+ojson = "data/graph/annotations.json"
+
+tmpfd = "tmp.m8"
+
+dbs = [incdb, argdb]
+# ------------------------------------------------------------------------
+# Functions
+
+def diamond(qrypath, db):
+    cmd = f"diamond blastx --more-sensitive -d {db} -q {qrypath} -o {tmpfd} > log 2>/dev/null"
+    os.system(cmd)
+
+def name(db):
+    return db.replace("data/db/", "")
+
+# ------------------------------------------------------------------------
+# Point of entry
+
+if __name__ == "__main__":
+    annotate_db = {}
+    for graph in glob(f"{gadir}/*.fa"):
+        print(f"start mapping {graph}")
+        cls = os.path.basename(graph).replace(".fa","")
+        annotate_db[cls] = { name(db) : {} for db in dbs }
+        for db in dbs:
+            print(f"---> mapping to db {db}")
+            diamond(graph, db)
+            annotate_db[cls][name(db)] = parse_m8(tmpfd)
+        print(f"done mapping {graph}")
+
+    json.dump(annotate_db, open(ojson, "w"))
+    os.remove(tmpfd)
