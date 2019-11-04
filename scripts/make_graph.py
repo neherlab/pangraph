@@ -149,7 +149,7 @@ def main():
         # To fasta here
         G.to_json(f"{visdir}/{cls}.json", min_length=500)
         G.to_fasta(f"{alndir}/{cls}.fa")
-        compute_suffix_tree_mtx(G, cls)
+        # compute_suffix_tree_mtx(G, cls)
 
     return G
 

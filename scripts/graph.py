@@ -372,31 +372,31 @@ class Graph(object):
         # import ipdb; ipdb.set_trace()
 
         J['Isolate_names'] = list(cleaned_sequences.keys())
-        J['Plasmids'] = [[x[0] for x in cleaned_sequences[s]] for s in J['Isolate_names']]
+        J['Plasmids'] = [[x for x in cleaned_sequences[s]] for s in J['Isolate_names']]
         nodes = {}
         for b in relevant_blocks:
             nodes[b] = {"ID":b,
-                        "Genomes":{"Consensus":''.join(self.blocks[b].consensus),
-                        "Alignment":{J["Isolate_names"].index(s):self.blocks[b].extract(s, strip_gaps=False)
+                        "Genomes": {"Consensus":''.join(self.blocks[b].consensus),
+                        "Alignment": {J["Isolate_names"].index(s):self.blocks[b].extract(s, strip_gaps=False)
                                                                  for s in self.blocks[b].sequences}},
                         "Out_Edges":[], "In_Edges":[]}
 
         edges = {}
         for pname, p in zip(range(len(J["Isolate_names"])), J['Plasmids']):
             for i in range(len(p)-1):
-                e = (p[i],p[i+1])
+                e = (p[i], p[i+1])
                 if e in edges:
                     edges[e]["Isolates"].append(pname)
                 else:
                     edges[e] = {"Source":e[0], "Target":e[1], "Isolates":[pname]}
-            e = (p[-1],p[0])
+            e = (p[-1], p[0])
             if e in edges:
                 edges[e]["Isolates"].append(pname)
             else:
                 edges[e] = {"Source":e[0], "Target":e[1], "Isolates":[pname]}
         for e in edges:
-            nodes[e[0]]["Out_Edges"].append(edges[e])
-            nodes[e[1]]["In_Edges"].append(edges[e])
+            nodes[e[0][0]]["Out_Edges"].append(edges[e])
+            nodes[e[1][0]]["In_Edges"].append(edges[e])
         J["Nodes"] = nodes
         import json
         with open(fname, 'w') as fh:
