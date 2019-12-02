@@ -13,9 +13,9 @@ from Bio           import SeqIO, Phylo
 from Bio.Seq       import Seq
 from Bio.SeqRecord import SeqRecord
 
-from graph     import Graph
-from util      import parse_paf
-from cigar     import Cigar
+from graph import Graph
+from util  import parse_paf
+from cigar import Cigar
 
 import suffix
 
@@ -24,7 +24,7 @@ import suffix
 
 allseq = "data/seq/all.fasta"
 seqdir = "data/seq/singles"
-outdir = "data/graph"
+outdir = "data/graph_2"
 visdir = f"{outdir}/vis"
 alndir = f"{outdir}/aln"
 nwkdir = f"{outdir}/nwk"
@@ -50,6 +50,9 @@ def map_and_merge(graph, fname1, fname2, out):
     paf.sort(key=lambda x:-x['aligned_bases'])
 
     merged_blocks = set()
+    if len(paf) == 0:
+        return graph, False
+
     for hit in paf:
         if hit['qry']['name'] in merged_blocks \
         or hit['ref']['name'] in merged_blocks \
@@ -69,7 +72,7 @@ def map_and_merge(graph, fname1, fname2, out):
         merged_blocks.add(hit['qry']['name'])
 
     graph.prune_empty()
-    return graph
+    return graph, True
 
 def base(name):
     return ".".join(os.path.basename(name).split(".")[:-1])
@@ -90,7 +93,7 @@ def compute_suffix_tree_mtx(G, cls):
     #         D[n, m+n] = len(G.find_common_substrings(set([name1, name2]))[0])
     #         D[m+n, n] = D[n, m+n]
 
-    t = suffix.Tree(G.sequences)
+    t     = suffix.Tree(G.sequences)
     names = list(G.sequences.keys())
     D     = np.zeros((len(names), len(names)))
 
@@ -131,11 +134,15 @@ def main():
             n.graph = map_and_merge(n.graph, n.clades[0].fasta_fname, n.clades[1].fasta_fname, f"{blddir}/{n.name}")
             n.fasta_fname = os.path.join(*[blddir, n.name+'.fasta'])
 
-            for i in range(self_maps):
+            contin = True
+            # for i in range(self_maps):
+            i = 0
+            while contin:
                 print(f"   --- self map")
                 n.graph.to_fasta(n.fasta_fname+f'_iter_{i}')
-                n.graph = map_and_merge(n.graph, n.fasta_fname+f'_iter_{i}', n.fasta_fname+f'_iter_{i}', f"{blddir}/{n.name}_iter_{i}")
+                n.graph, contin = map_and_merge(n.graph, n.fasta_fname+f'_iter_{i}', n.fasta_fname+f'_iter_{i}', f"{blddir}/{n.name}_iter_{i}")
                 print(f"   --- Blocks: {len(n.graph.blocks)}, length: {np.sum([len(b) for b in n.graph.blocks.values()])}")
+                i += 1
 
             print(f"  --- Blocks: {len(n.graph.blocks)}, length: {np.sum([len(b) for b in n.graph.blocks.values()])}")
             n.graph.to_fasta(n.fasta_fname)

@@ -22,30 +22,29 @@ class Block(object):
         new_block.sequences = {name:{}}
         return new_block
 
-
     @classmethod
     def from_alignment(cls, aln):
         new_block = cls()
         consensus = ""
         new_block.sequences = {}
         ref_pos = aln['ref_start']
-        query_pos = 0
+        qry_pos = 0
         R = {}
         S = {}
         tmpCigar = Cigar(aln["cigar"])
         for l,t in tmpCigar.items():
             consensus_pos = len(consensus)
             if t in ['S', 'H']:
-                query_pos+=l
+                qry_pos+=l
             elif t=='M':
                 ref_block = np.array(list(aln['ref_seq'][ref_pos:ref_pos+l]))
-                query_block = np.array(list(aln['query_seq'][query_pos:query_pos+l]))
+                query_block = np.array(list(aln['qry_seq'][qry_pos:qry_pos+l]))
                 diff = np.where(np.array(ref_block!=query_block))[0]
                 for i in diff:
                     S[i+consensus_pos] = query_block[i]
                 consensus += aln['ref_seq'][ref_pos:ref_pos+l]
                 ref_pos += l
-                query_pos += l
+                qry_pos += l
             elif t=='D':
                 for i in range(l):
                     S[i+consensus_pos] = '-'
@@ -54,8 +53,8 @@ class Block(object):
             elif t=='I':
                 for i in range(l):
                     R[i+consensus_pos] = '-'
-                consensus += aln['query_seq'][query_pos:query_pos+l]
-                query_pos += l
+                consensus += aln['qry_seq'][qry_pos:qry_pos+l]
+                qry_pos += l
 
         new_block.sequences[aln['ref_name']] = R
         new_block.sequences[aln['query_name']] = S
@@ -78,35 +77,34 @@ class Block(object):
 
         return new_block
 
-
     @classmethod
     def from_cluster_alignment(cls, aln):
         new_block = cls()
         consensus = ""
         new_block.sequences = {}
         ref_pos = aln['ref_start']
-        query_pos = 0
+        qry_pos = 0
         consensus_pos = 0
         ref_map = [(ref_pos, 0)]
-        query_map = [(query_pos, 0)]
+        qry_map = [(qry_pos, 0)]
 
         # additional changes
         R = {}
         S = {}
         tmpCigar = Cigar(aln["cigar"])
 
-        for l,t in tmpCigar.items():
+        for l, t in tmpCigar.items():
             if t in ['S', 'H']:
-                query_pos+=l
+                qry_pos+=l
             elif t=='M':
                 ref_block = np.array(list(aln['ref_seq'][ref_pos:ref_pos+l]))
-                query_block = np.array(list(aln['query_seq'][query_pos:query_pos+l]))
+                query_block = np.array(list(aln['qry_seq'][qry_pos:qry_pos+l]))
                 diff = np.where(np.array(ref_block!=query_block))[0]
                 for i in diff:
                     S[i+consensus_pos] = query_block[i]
                 consensus+=aln['ref_seq'][ref_pos:ref_pos+l]
                 ref_pos += l
-                query_pos += l
+                qry_pos += l
             elif t=='D':
                 for i in range(l):
                     S[i+consensus_pos] = '-'
@@ -115,19 +113,19 @@ class Block(object):
             elif t=='I':
                 for i in range(l):
                     R[i+consensus_pos] = '-'
-                consensus+=aln['query_seq'][query_pos:query_pos+l]
-                query_pos += l
+                consensus+=aln['qry_seq'][qry_pos:qry_pos+l]
+                qry_pos += l
 
             consensus_pos = len(consensus)
 
             ref_map.append((ref_pos, consensus_pos-ref_pos))
-            query_map.append((query_pos, consensus_pos-query_pos))
+            qry_map.append((qry_pos, consensus_pos-qry_pos))
 
         ref_map = np.array(ref_map).T
-        query_map = np.array(query_map).T
+        qry_map = np.array(qry_map).T
 
         for transform, extra_mods, sub_cluster in [(ref_map, R, aln['ref_cluster']),
-                                                   (query_map, S, aln['query_cluster'])]:
+                                                   (qry_map, S, aln['qry_cluster'])]:
             for s,muts in sub_cluster.items():
                 old_pos = np.array(list(muts.keys()))
                 new_pos = old_pos + transform[1][np.searchsorted(transform[0], old_pos, side='right')]
@@ -199,18 +197,18 @@ class Block(object):
 if __name__ == '__main__':
     seqs={'R1':"___ABCdEF123GHiJ", 'S1':'xxxABCD6789EFGHIJ',
           'R2':'ABCdEF123GHiJ', 'S2':'ABcdEFaaa23GHiJ'}
-    aln = {'ref_seq':seqs["R1"], 'query_seq':seqs["S1"], 'cigar':'3S4M4I2M3D4M',
+    aln = {'ref_seq':seqs["R1"], 'qry_seq':seqs["S1"], 'cigar':'3S4M4I2M3D4M',
            'ref_name':'R1', 'query_name':'S1', 'ref_start':3}
 
     b = Block.from_alignment(aln)
 
-    aln = {'ref_seq':seqs["R2"], 'query_seq':seqs["S2"], 'cigar':'6M3I1D6M',
+    aln = {'ref_seq':seqs["R2"], 'qry_seq':seqs["S2"], 'cigar':'6M3I1D6M',
             'ref_name':'R2', 'query_name':'S2', 'ref_start':0}
 
     c = Block.from_alignment(aln)
 
-    caln = {"ref_seq":"".join(b.consensus), "query_seq":"".join(c.consensus),
-            "ref_cluster":b.sequences, "query_cluster":c.sequences,
+    caln = {"ref_seq":"".join(b.consensus), "qry_seq":"".join(c.consensus),
+            "ref_cluster":b.sequences, "qry_cluster":c.sequences,
             "ref_start":0, "cigar":"4M4D2M3I7M"}
 
     d  = Block.from_cluster_alignment(caln)

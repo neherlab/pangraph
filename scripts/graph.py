@@ -37,19 +37,21 @@ class Graph(object):
         return new_graph
 
 
-    def merge_hit(self,hit):
+    def merge_hit(self, hit):
         orig_ref_block = self.blocks[hit['ref']['name']]
         orig_seq_block = self.blocks[hit['qry']['name']]
         ref_block = orig_ref_block[hit['ref']['start']:hit['ref']['end']]
         seq_block = orig_seq_block[hit['qry']['start']:hit['qry']['end']]
 
-        if hit["orientation"]==minus_strand:
+        if hit["orientation"] == minus_strand:
             seq_block = seq_block.reverse_complement()
 
-        aln = {"ref_seq":"".join(ref_block.consensus),
-               "query_seq":"".join(seq_block.consensus),
-               "cigar":hit["cigar"], "ref_cluster":ref_block.sequences,
-               "query_cluster":seq_block.sequences, 'ref_start':0}
+        aln = {"ref_seq" : "".join(ref_block.consensus),
+               "qry_seq" : "".join(seq_block.consensus),
+               "cigar" : hit["cigar"],
+               "ref_cluster" : ref_block.sequences,
+               "qry_cluster" : seq_block.sequences,
+               "ref_start": 0}
 
         merged_block = Block.from_cluster_alignment(aln)
         self.blocks[merged_block.name] = merged_block
@@ -61,8 +63,10 @@ class Graph(object):
                 left = tmp_block[0:subhit['start']]
                 new_blocks.append((left.name, plus_strand))
                 self.blocks[left.name] = left
+
             new_blocks.append((merged_block.name, strand))
-            if subhit['end']<len(tmp_block):
+
+            if subhit['end'] < len(tmp_block):
                 right = tmp_block[subhit['end']:]
                 new_blocks.append((right.name, plus_strand))
                 self.blocks[right.name] = right
