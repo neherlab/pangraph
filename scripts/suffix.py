@@ -164,9 +164,6 @@ class Tree(object):
         sfx.tree.root.post_order(pushmum)
 
         mums.sort(key = lambda m: len(cat(m)), reverse=True)
-        # print("\nNon unique maximal matches...")
-        # for i, m in enumerate(mums):
-        #     print(f"{i}:", m)
 
         # Remove reversed versions of the same match
         # assert len(mums) % 2 == 0 Not true! Palindromic sequences.
