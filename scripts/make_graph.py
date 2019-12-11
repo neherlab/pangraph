@@ -174,8 +174,8 @@ def main():
     nwks = glob(f"{nwkdir}/*.nwk")
     seqs = fai.Fasta(allseq)
     for nwk in nwks:
-        if "005" not in nwk:
-            continue
+        # if "005" not in nwk:
+        #     continue
 
         print(f"#### PROCESSING {nwk}")
 
@@ -198,33 +198,15 @@ def main():
         # iso ='GCA_002587885_1_4'
         for n in T.get_nonterminals(order='postorder'):
             node_count += 1
-            n.name      = f'NODE_{node_count:07d}'
+            n.name  = f'NODE_{node_count:07d}'
             print(f" -- node {n.name} with {n.count_terminals()} children")
-
-            n.graph       = Graph.fuse(n.clades[0].graph, n.clades[1].graph)
-
-            # if iso in n.graph.seqs:
-            #     # print("HIT", -1, n.name, n.graph.seqs[iso])
-            #     lens = [0]
-            #     for b in n.graph.seqs[iso]:
-            #         lens.append(lens[-1] + sum(1 for nuc in n.graph.blks[b[0]].extract(iso) if not nuc == '-'))
-            #     # print("-->", lens[1:])
-            # # check(seqs, T, n.graph)
+            n.graph = Graph.fuse(n.clades[0].graph, n.clades[1].graph)
 
             print("NEW MAPPING ROUND")
             n.graph, _    = map_and_merge(n.graph, n.clades[0].fasta_fname, n.clades[1].fasta_fname, f"{blddir}/{n.name}")
             n.fasta_fname = os.path.join(*[blddir, n.name+'.fasta'])
 
-            # if iso in n.graph.seqs:
-            #     # print("HIT", 0, n.name, n.graph.seqs[iso])
-            #     lens = [0]
-            #     for b in n.graph.seqs[iso]:
-            #         lens.append(lens[-1] + sum(1 for nuc in n.graph.blks[b[0]].extract(iso) if not nuc == '-'))
-            #     # print("-->", lens[1:])
-            # # check(seqs, T, n.graph)
-
             contin = True
-            # for i in range(self_maps):
             i = 0
             while contin:
                 n.graph.to_fasta(n.fasta_fname+f'_iter_{i}')
@@ -232,29 +214,19 @@ def main():
                 n.graph, contin = map_and_merge(n.graph, n.fasta_fname+f'_iter_{i}', n.fasta_fname+f'_iter_{i}', f"{blddir}/{n.name}_iter_{i}")
                 i += 1
 
-                # if iso in n.graph.seqs:
-                #     print("HIT", i, n.name, n.graph.seqs[iso])
-                #     lens = [0]
-                #     for b in n.graph.seqs[iso]:
-                #         lens.append(lens[-1] + sum(1 for nuc in n.graph.blks[b[0]].extract(iso) if not nuc == '-'))
-                #     print("-->", lens[1:])
-
-                # check(seqs, T, n.graph)
                 contin &= i < self_maps
 
             print(f"  --- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}")
             n.graph.to_fasta(n.fasta_fname)
 
             assert all_blks_contained(n.graph), "missing blocks: intermediate"
-            print(f"Node is root = {n == T.root}")
 
         G = T.root.graph
-        try:
-            G.prune_transitive_edges()
-        except:
-            print("error: could not prune transitive edges")
-            # raise ValueError("panic")
-        # To fasta here
+        # try:
+        #     G.prune_transitive_edges()
+        # except:
+        #     print("error: could not prune transitive edges")
+
         assert all_blks_contained(G), "missing blocks"
         G.to_json(f"{visdir}/{cls}.json", min_length=500)
         G.to_fasta(f"{alndir}/{cls}.fa")
