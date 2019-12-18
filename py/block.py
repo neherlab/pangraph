@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.random as rng
 
-from utils import parsecigar, wcpair, asarray
+from utils import parsecigar, wcpair, asarray, asstring
 
 # ------------------------------------------------------------------------
 # Helper functions
@@ -133,9 +133,19 @@ class Block(object):
 
         assert len(tmp) > 0, "empty sequence"
         if strip_gaps:
-            return "".join(tmp[tmp != '-'])
+            return asstring(tmp[tmp != '-'])
+            # return "".join(tmp[tmp != '-'])
         else:
-            return "".join(tmp)
+            return asstring(tmp)
+            # return "".join(tmp)
+
+    def isempty(self, iso, num, strip_gaps=True):
+        tag = (iso, num)
+        seq = np.copy(self.seq)
+        for p, s in self.muts[tag].items():
+            seq[p] = s
+
+        return len(seq) == 0 or all(nuc == "-" for nuc in seq)
 
     def revcmpl(self):
         from Bio import Seq

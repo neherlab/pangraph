@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 from glob  import glob
-from utils import Strand, parsepaf, panic
+from utils import Strand, asstring, parsepaf, panic
 from block import Block
 from Bio   import Seq, SeqIO, SeqRecord, Phylo
 
@@ -242,17 +242,22 @@ class Graph(object):
             goodblks = []
             popblks  = set()
             for i, (b, _, n) in enumerate(self.seqs[iso]):
-                # if b == "BDWFSBDNCP":
-                #     import ipdb; ipdb.set_trace()
-
                 if b in popblks:
                     continue
 
-                bseq = self.blks[b].extract(iso, n)
-                if bseq:
-                    goodblks.append(i)
-                else:
+                # NOTE: Concatenating the sequence just to see if it's empty
+                #       takes 1/2 the time of running! 
+
+                # bseq = self.blks[b].extract(iso, n)
+                # if bseq:
+                #     goodblks.append(i)
+                # else:
+                #     self.blks[b].muts.pop((iso, n))
+
+                if self.blks[b].isempty(iso, n):
                     self.blks[b].muts.pop((iso, n))
+                else:
+                    goodblks.append(i)
 
                 if not self.blks[b].has(iso):
                     popblks.add(b)
@@ -273,8 +278,8 @@ class Graph(object):
         if hit["orientation"] == Strand.Minus:
             qryblk = qryblk.revcmpl()
 
-        aln = {"ref_seq"     : "".join(refblk.seq),
-               "qry_seq"     : "".join(qryblk.seq),
+        aln = {"ref_seq"     : asstring(refblk.seq), # "".join(refblk.seq),
+               "qry_seq"     : asstring(qryblk.seq), # "".join(qryblk.seq),
                "cigar"       : hit["cigar"],
                "ref_cluster" : refblk.muts,
                "qry_cluster" : qryblk.muts,
@@ -430,7 +435,7 @@ class Graph(object):
             path = f"{Graph.alndir}/{self.name}.fasta"
         elif not path.endswith(".fasta"):
             path = path + ".fasta"
-        SeqIO.write(sorted([ SeqRecord.SeqRecord(seq=Seq.Seq("".join(c.seq)), id=c.id, description='')
+        SeqIO.write(sorted([ SeqRecord.SeqRecord(seq=Seq.Seq(asstring(c.seq)), id=c.id, description='')
             for c in self.blks.values() ], key=lambda x: len(x), reverse=True), path, format='fasta')
 
         return

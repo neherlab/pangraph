@@ -20,6 +20,9 @@ def panic(msg):
 def asarray(x):
     return np.array(list(x))
 
+def asstring(x):
+    return x.view(f'U{x.size}')[0]
+
 # ------------------------------------------------------------------------
 # Helper Functions
 
