@@ -6,10 +6,17 @@ from utils import parsecigar, wcpair, asarray
 # ------------------------------------------------------------------------
 # Helper functions
 
-rng.seed(0) # For deterministic block names
+RS = rng.RandomState(0)
 def randomid():
     alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-    return "".join([alphabet[i] for i in rng.randint(0, len(alphabet), 10)])
+    randomid.N += 1
+    name = "".join([alphabet[i] for i in RS.randint(0, len(alphabet), 10)])
+
+    # if name == "FYLWYFIIUV":
+    #     import ipdb; ipdb.set_trace()
+
+    return name
+randomid.N = 0
 
 # ------------------------------------------------------------------------
 # Block class
@@ -29,14 +36,14 @@ class Block(object):
     def fromseq(cls, name, seq):
         new_blk      = cls()
         new_blk.seq  = asarray(seq)
-        new_blk.muts = {name:{}}
+        new_blk.muts = {(name, 0):{}}
 
         return new_blk
 
     @classmethod
     def cat(cls, blks):
         nblk = cls()
-        assert all([blks[0].muts.keys()==b2.muts.keys() for b2 in blks[1:]])
+        assert all([blks[0].muts.keys() == b2.muts.keys() for b2 in blks[1:]])
 
         nblk.seq  = np.concatenate([b.seq for b in blks])
         nblk.muts = { s:dict(x) for s,x in blks[0].muts.items() }
@@ -49,12 +56,12 @@ class Block(object):
         return nblk
 
     @classmethod
-    def fromaln(cls, aln):
+    def fromaln(cls, aln, debug=False):
         def updatemuts(blk, xtramuts, xmap, omuts, ival):
             seq = blk.seq
             # Iterate over all sequences in the block
+            isomap = {}
             for iso, muts in omuts.items():
-
                 # Shift position by indel #'s
                 opos = asarray(m for m in muts.keys() if m >= ival[0] and m < ival[1])
                 npos = opos + xmap[1][np.searchsorted(xmap[0], opos, side='right')]
@@ -68,32 +75,44 @@ class Block(object):
                             newmuts.pop(p)
                     else:
                         newmuts[p] = n
-                blk.muts[iso] = newmuts
-            return blk
+
+                isomap[iso] = blk.push(iso, newmuts)
+
+            return blk, isomap
 
         qrys, refs, blks = parsecigar(aln['cigar'], aln['qry_seq'], aln['ref_seq'])
 
+        # Iterate over all merged blocks and merge their sequences + mutations.
         newblks = []
+        isomap  = {}
         for i, blk in enumerate(blks):
             newblk      = cls()
             newblk.muts = {}
+
+            # if newblk.id == 'IIAAMUUZVS':
+            #     import ipdb; ipdb.set_trace()
 
             newblk.seq, qry, ref = blk
             Q, qrymap = qry
             R, refmap = ref
 
             if qrys[i] is not None:
-                newblk = updatemuts(newblk, Q, qrymap, aln['qry_cluster'], qrys[i])
+                newblk, isomap[aln['qry_name']] = updatemuts(newblk, Q, qrymap, aln['qry_cluster'], qrys[i])
             if refs[i] is not None:
-                newblk = updatemuts(newblk, R, refmap, aln['ref_cluster'], refs[i])
+                newblk, isomap[aln['ref_name']] = updatemuts(newblk, R, refmap, aln['ref_cluster'], refs[i])
+
             newblks.append(newblk)
 
         qryblks = [nb for i, nb in enumerate(newblks) if qrys[i] is not None]
         if aln['orientation'] == -1:
             qryblks = qryblks[::-1]
+
         refblks = [nb for i, nb in enumerate(newblks) if refs[i] is not None]
 
-        return newblks, qryblks, refblks
+        # if newblk.id == 'LRSQAHWSLZ':
+        #     import ipdb; ipdb.set_trace()
+
+        return newblks, qryblks, refblks, isomap
 
     # --- Instance methods ---
 
@@ -106,9 +125,10 @@ class Block(object):
 
         return b
 
-    def extract(self, iso, strip_gaps=True, verbose=False):
+    def extract(self, iso, num, strip_gaps=True, verbose=False):
+        tag = (iso, num)
         tmp = np.copy(self.seq)
-        for p, s in self.muts[iso].items():
+        for p, s in self.muts[tag].items():
             tmp[p] = s
 
         assert len(tmp) > 0, "empty sequence"
@@ -127,6 +147,32 @@ class Block(object):
             nblk.muts[s] = {L-p: wcpair.get(c,c) for p,c in self.muts[s].items()}
 
         return nblk
+
+    def push(self, iso, muts):
+        tag = iso if isinstance(iso, tuple) else (iso, 0)
+
+        while tag in self.muts:
+            tag = (tag[0], tag[1]+1)
+
+        self.muts[tag] = muts
+        return tag
+
+    def has(self, iso):
+        # TODO: Removed assumption that isolates will be strictly ordered.
+        # i.e. isolate num 0 can be removed but num 1 can still exist.
+        # Test to see if this works
+        for tag in self.muts.keys():
+            if tag[0] == iso:
+                return True
+        return False
+
+        # ---- Removed code ----
+        # tag = (iso, 0)
+        # while tag in self.muts:
+        #     tag = (tag[0], tag[1]+1)
+
+        # return tag[1]
+        # ----------------------
 
     # --- Python Operator Overloads ---
 

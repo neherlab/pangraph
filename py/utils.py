@@ -1,6 +1,5 @@
 import gzip
 import numpy as np
-
 from enum import IntEnum
 
 # ------------------------------------------------------------------------
@@ -45,7 +44,7 @@ def parsepaf(path):
                    'aligned_bases'   : int(row[9]),
                    'aligned_length'  : int(row[10]),
                    'mapping_quality' : int(row[11]),
-                   'orientation'     : 1 if row[4]=='+' else -1}
+                   'orientation'     : Strand.Plus if row[4]=='+' else Strand.Minus}
             for xtra in row[12:]:
                 if xtra.startswith('cg:'):
                     hit['cigar'] = xtra.split(':')[-1]
@@ -108,9 +107,14 @@ def parsecigar(aln, qryseq, refseq, cutoff=500):
     for l, t in aln.items():
         if t in ['S', 'H']:
             if l >= cutoff:
+                print(aln)
+                import ipdb; ipdb.set_trace()
+
                 push((lq, rq), (lr, rr))
 
                 blkseq = qryseq[rq:rq+l]
+                # TODO: Think through soft/hard clips
+                # if t == 'S':
                 rq += l
                 recordbp()
 
@@ -173,6 +177,6 @@ def parsecigar(aln, qryseq, refseq, cutoff=500):
                 recordbp()
 
     push((lq, rq), (lr, rr))
-
     assert len(qrys) == len(refs) and len(qrys) == len(blks)
+
     return qrys, refs, blks
