@@ -1,0 +1,19 @@
+#!/bin/python
+
+from Bio import SeqIO
+
+if __name__ == "__main__":
+    recs = []
+    isos = set()
+    for rec in SeqIO.parse("data/all_plasmids.fa", "fasta"):
+        rec.name = rec.description.split()[-1] #"/".join(s for s in rec.name.split("/")[1:])
+        rec.id   = rec.name
+        rec.description = ""
+        if rec.name in isos:
+            continue
+        recs.append(rec)
+        isos.add(rec.name)
+    print(f"Number of filtered records = {len(recs)}")
+
+    with open("data/all_plasmids_filtered.fa", "w+") as out:
+        SeqIO.write(recs, out, "fasta")

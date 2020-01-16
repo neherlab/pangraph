@@ -2,6 +2,37 @@ import gzip
 import numpy as np
 from enum import IntEnum
 
+from Bio import Phylo, Seq, SeqIO, SeqRecord
+
+# ------------------------------------------------------------------------
+# Helper/debugging functions
+
+def cdfplot(x, **kwargs):
+    import matplotlib.pylab as plt
+
+    plt.plot(sorted(x), np.linspace(0, 1, len(x)), **kwargs)
+
+def flatten(x):
+    return np.ndarray.flatten(x[:])
+
+def tryprint(msg, verbose):
+    if verbose:
+        print(msg)
+    else:
+        pass
+
+def asrecord(seq):
+    return SeqRecord.SeqRecord(Seq.Seq(str(seq)), id=seq.name, name=seq.name)
+
+def newstrand(s, t):
+    if not isinstance(s, Strand) or not isinstance(t, Strand):
+        raise TypeError(f"Expected an enum! Recieved {type(t)} and {type(s)}")
+
+    if s != t:
+        return Strand.Minus
+    else:
+        return Strand.Plus
+
 # ------------------------------------------------------------------------
 # Global Enums
 

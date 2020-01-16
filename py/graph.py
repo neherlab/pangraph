@@ -1,37 +1,14 @@
-import os
+import os, sys
 import numpy as np
 
 from glob  import glob
-from utils import Strand, asstring, parsepaf, panic
+from utils import Strand, asstring, parsepaf, panic, tryprint, asrecord, newstrand
 from block import Block
 from Bio   import Seq, SeqIO, SeqRecord, Phylo
 
 # ------------------------------------------------------------------------
 # Global variables
-
 outdir      = "data/graph"
-maxselfmaps = 25
-
-# ------------------------------------------------------------------------
-# Helper functions
-
-def asrecord(seq):
-    return SeqRecord.SeqRecord(Seq.Seq(str(seq)), id=seq.name, name=seq.name)
-
-def newstrand(s, t):
-    if not isinstance(s, Strand) or not isinstance(t, Strand):
-        raise TypeError(f"Expected an enum! Recieved {type(t)} and {type(s)}")
-
-    if s != t:
-        return Strand.Minus
-    else:
-        return Strand.Plus
-
-def tryprint(msg, verbose):
-    if verbose:
-        print(msg)
-    else:
-        pass
 
 # ------------------------------------------------------------------------
 # Graph class
@@ -60,9 +37,21 @@ class Graph(object):
         newg.name = name
         newg.blks = {blk.id : blk}
         newg.seqs = {name : [(blk.id, Strand.Plus, 0)]}
-        newg.spos = {name :0}
+        newg.spos = {name : 0}
 
         return newg
+
+    @classmethod
+    def fromdict(cls, d):
+        G = Graph()
+        G.name = d['name']
+        G.blks = [Block.fromdict(b) for b in d['blocks']]
+        G.blks = {b.id : b for b in G.blks}
+        G.seqs = d['seqs']
+        G.spos = d['starts']
+        G.sfxt = None
+
+        return G
 
     @classmethod
     def fuse(cls, g1, g2):
@@ -76,113 +65,120 @@ class Graph(object):
 
         return ng
 
-    @classmethod
-    def fromnwk(cls, path, seqs, save=True, verbose=False):
-        # Debugging function that will check reconstructed sequence against known real one.
-        def check(seqs, T, G, verbose=False):
-            nerror = 0
-            uncompressed_length = 0
-            for n in T.get_terminals():
-                if n.name not in G.seqs:
-                    continue
+    # @classmethod
+    # def fromnwk(cls, path, seqs, save=True, verbose=False):
+    #     # Debugging function that will check reconstructed sequence against known real one.
+    #     def check(seqs, T, G, verbose=False):
+    #         nerror = 0
+    #         uncompressed_length = 0
+    #         for n in T.get_terminals():
+    #             if n.name not in G.seqs:
+    #                 continue
 
-                seq = seqs[n.name]
-                orig = str(seq[:].seq).upper()
-                tryprint(f"--> Checking {n.name}", verbose=verbose)
-                rec = G.extract(n.name)
-                uncompressed_length += len(orig)
-                if orig != rec:
-                    nerror += 1
+    #             seq = seqs[n.name]
+    #             orig = str(seq[:].seq).upper()
+    #             tryprint(f"--> Checking {n.name}", verbose=verbose)
+    #             rec = G.extract(n.name)
+    #             uncompressed_length += len(orig)
+    #             if orig != rec:
+    #                 nerror += 1
 
-                    with open("test.fa", "w+") as out:
-                        out.write(f">original\n{orig}\n")
-                        out.write(f">reconstructed\n{rec}")
+    #                 with open("test.fa", "w+") as out:
+    #                     out.write(f">original\n{orig}\n")
+    #                     out.write(f">reconstructed\n{rec}")
 
-                    for i in range(len(orig)//100):
-                        if (orig[i*100:(i+1)*100] != rec[i*100:(i+1)*100]):
-                            print("-----------------")
-                            print("O:", i, orig[i*100:(i+1)*100])
-                            print("G:", i, rec[i*100:(i+1)*100])
+    #                 for i in range(len(orig)//100):
+    #                     if (orig[i*100:(i+1)*100] != rec[i*100:(i+1)*100]):
+    #                         print("-----------------")
+    #                         print("O:", i, orig[i*100:(i+1)*100])
+    #                         print("G:", i, rec[i*100:(i+1)*100])
 
-                            diffs = [i for i in range(len(rec)) if rec[i] != orig[i]]
-                            pos   = [0]
-                            blks  = G.seqs[n.name]
-                            for b, strand, num in blks:
-                                pos.append(pos[-1] + len(G.blks[b].extract(n.name, num)))
-                            pos = pos[1:]
+    #                         diffs = [i for i in range(len(rec)) if rec[i] != orig[i]]
+    #                         pos   = [0]
+    #                         blks  = G.seqs[n.name]
+    #                         for b, strand, num in blks:
+    #                             pos.append(pos[-1] + len(G.blks[b].extract(n.name, num)))
+    #                         pos = pos[1:]
 
-                            testseqs = []
-                            for b in G.seqs[n.name]:
-                                if b[1] == Strand.Plus:
-                                    testseqs.append("".join(G.blks[b[0]].extract(n.name, b[2])))
-                                else:
-                                    testseqs.append("".join(Seq.reverse_complement(G.blks[b[0]].extract(n.name, b[2]))))
+    #                         testseqs = []
+    #                         for b in G.seqs[n.name]:
+    #                             if b[1] == Strand.Plus:
+    #                                 testseqs.append("".join(G.blks[b[0]].extract(n.name, b[2])))
+    #                             else:
+    #                                 testseqs.append("".join(Seq.reverse_complement(G.blks[b[0]].extract(n.name, b[2]))))
 
-                            # import ipdb; ipdb.set_trace()
-                else:
-                    tryprint(f"+++ Verified {n.name}", verbose=verbose)
+    #                         # import ipdb; ipdb.set_trace()
+    #             else:
+    #                 tryprint(f"+++ Verified {n.name}", verbose=verbose)
 
-            if nerror == 0:
-                    tryprint("all sequences correctly reconstructed", verbose=verbose)
-                    tlength = np.sum([len(x) for x in G.blks.values()])
-                    tryprint(f"--- total graph length: {tlength}", verbose=verbose)
-                    tryprint(f"--- total input sequence: {uncompressed_length}", verbose=verbose)
-                    tryprint(f"--- compression: {uncompressed_length/tlength:1.2f}", verbose=verbose)
-            else:
-                raise ValueError("bad sequence reconstruction")
+    #         if nerror == 0:
+    #             tryprint("all sequences correctly reconstructed", verbose=verbose)
+    #             tlength = np.sum([len(x) for x in G.blks.values()])
+    #             tryprint(f"--- total graph length: {tlength}", verbose=verbose)
+    #             tryprint(f"--- total input sequence: {uncompressed_length}", verbose=verbose)
+    #             tryprint(f"--- compression: {uncompressed_length/tlength:1.2f}", verbose=verbose)
+    #         else:
+    #             raise ValueError("bad sequence reconstruction")
 
-        T = Phylo.read(path, "newick")
-        if T.count_terminals() == 1:
-            return Graph()
+    #     T = Phylo.read(path, "newick")
+    #     if T.count_terminals() == 1:
+    #         return Graph()
 
-        for i, n in enumerate(T.get_terminals()):
-            seq      = asrecord(seqs[n.name])
-            n.graph  = Graph.fromseq(seq.id, str(seq.seq).upper())
-            n.name   = seq.id
-            n.fapath = f"{Graph.blddir}/{n.name}"
-            tryprint(f"------> Outputting {n.fapath}", verbose=verbose)
-            n.graph.tofasta(n.fapath)
+    #     for i, n in enumerate(T.get_terminals()):
+    #         seq      = asrecord(seqs[n.name])
+    #         n.graph  = Graph.fromseq(seq.id, str(seq.seq).upper())
+    #         n.name   = seq.id
+    #         n.fapath = f"{Graph.blddir}/{n.name}"
+    #         tryprint(f"------> Outputting {n.fapath}", verbose=verbose)
+    #         n.graph.tofasta(n.fapath)
 
-        nnodes = 0
-        for n in T.get_nonterminals(order='postorder'):
-            nnodes += 1
-            # Simple graph "fuse". Straight concatenation
+    #     nnodes = 0
+    #     for n in T.get_nonterminals(order='postorder'):
+    #         nnodes += 1
 
-            n.name   = f"NODE_{nnodes:07d}"
-            n.graph  = Graph.fuse(n.clades[0].graph, n.clades[1].graph)
-            # check(seqs, T, n.graph)
-            n.fapath = os.path.join(*[Graph.blddir, f"{n.name}.fasta"])
+    #         # Simple graph "fuse". Straight concatenation
+    #         print(f"Fusing {n.clades[0].name} with {n.clades[1].name}", file=sys.stderr)
+    #         n.name   = f"NODE_{nnodes:07d}"
+    #         n.graph  = Graph.fuse(n.clades[0].graph, n.clades[1].graph)
+    #         # check(seqs, T, n.graph)
+    #         n.fapath = os.path.join(*[Graph.blddir, f"{n.name}.fasta"])
 
-            tryprint(f"-- node {n.name} with {len(n.clades)} children", verbose)
+    #         tryprint(f"-- node {n.name} with {len(n.clades)} children", verbose)
 
-            # Initial map from graph to itself
-            n.graph, _ = n.graph.__mapandmerge(n.clades[0].fapath, n.clades[1].fapath,
-                                    f"{Graph.blddir}/{n.name}")
+    #         # Initial map from graph to itself
+    #         n.graph, _ = n.graph._mapandmerge(n.clades[0].fapath, n.clades[1].fapath,
+    #                                 f"{Graph.blddir}/{n.name}")
 
-            i, contin = 0, True
-            while contin:
-                tryprint(f"----> merge round {i}", verbose)
-                # check(seqs, T, n.graph)
-                itrseq = f"{Graph.blddir}/{n.name}_iter_{i}"
-                n.graph.tofasta(itrseq)
-                n.graph, contin = n.graph.__mapandmerge(itrseq, itrseq, f"{Graph.blddir}/{n.name}_iter_{i}")
-                i += 1
+    #         i, contin = 0, True
+    #         while contin:
+    #             tryprint(f"----> merge round {i}", verbose)
+    #             # check(seqs, T, n.graph)
+    #             itrseq = f"{Graph.blddir}/{n.name}_iter_{i}"
+    #             n.graph.tofasta(itrseq)
+    #             n.graph, contin = n.graph._mapandmerge(itrseq, itrseq, f"{Graph.blddir}/{n.name}_iter_{i}")
+    #             i += 1
 
-                contin &= i < maxselfmaps
+    #             contin &= i < maxselfmaps
 
-            tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
+    #         tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
+    #         n.graph.tofasta(f"{Graph.blddir}/{n.name}")
+    #         # Continuous error logging
+    #         print(f"Node {n.name}", file=sys.stderr)
+    #         print(f"--> Compression ratio parent: {n.graph.compressratio()}", file=sys.stderr)
+    #         print(f"--> Compression ratio child1: {n.clades[0].graph.compressratio()}", file=sys.stderr)
+    #         print(f"--> Compression ratio child2: {n.clades[1].graph.compressratio()}", file=sys.stderr)
+    #         # Output with content
+    #         print(f"{n.graph.compressratio()}\t{n.clades[0].graph.compressratio()}\t{n.clades[1].graph.compressratio()}\t{n.clades[0].branch_length + n.clades[1].branch_length}", file=sys.stdout, flush=True)
 
-            n.graph.tofasta(f"{Graph.blddir}/{n.name}")
+    #     G      = T.root.graph
+    #     G.name = ".".join(os.path.basename(path).split(".")[:-1])
+    #     # check(seqs, T, G)
 
-        G      = T.root.graph
-        G.name = ".".join(os.path.basename(path).split(".")[:-1])
-        check(seqs, T, G)
+    #     if save:
+    #         G.tojson()
+    #         G.tofasta()
 
-        if save:
-            G.tojson()
-            G.tofasta()
-
-        return G
+    #     return G
 
     @classmethod
     def cleanbld(cls):
@@ -191,8 +187,8 @@ class Graph(object):
 
     # --- Internal methods ---
 
-    def __mapandmerge(self, qpath, rpath, out):
-        os.system(f"minimap2 -x asm5 -D -c {qpath}.fasta {rpath}.fasta 1>{out}.paf 2>log")
+    def _mapandmerge(self, qpath, rpath, out):
+        os.system(f"minimap2 -t 2 -x asm5 -D -c {qpath}.fasta {rpath}.fasta 1>{out}.paf 2>log")
 
         paf = parsepaf(f"{out}.paf")
         paf.sort(key = lambda x: x['aligned_bases'], reverse=True)
@@ -231,9 +227,6 @@ class Graph(object):
         for iso in self.seqs:
             blks_remain.update([s[0] for s in self.seqs[iso]])
         self.blks = {b:self.blks[b] for b in blks_remain}
-
-        # if "FYLWYFIIUV" in self.blks:
-        #     import ipdb; ipdb.set_trace()
 
         return
 
@@ -297,14 +290,6 @@ class Graph(object):
         def update(blk, addblks, hit, strand):
             new_blks = []
             # The convention for the tuples are (block id, strand orientation, if merged)
-            # if blk.id == "TCSGYOLBUN":
-            #     pos   = [0]
-            #     blks  = self.seqs['carb003_3']
-            #     for b, strand, num in blks:
-            #         pos.append(pos[-1] + len(self.blks[b].extract('carb003_3', num)))
-            #     pos = pos[1:]
-
-            #     # import ipdb; ipdb.set_trace()
 
             if hit['start'] > 0:
                 left = blk[0:hit['start']]
@@ -319,23 +304,12 @@ class Graph(object):
                 self.blks[right.id] = right
                 new_blks.append((right.id, Strand.Plus, False))
 
-            # for nb in new_blks:
-            #     if nb[0] == 'IIAAMUUZVS':
-            #         import ipdb; ipdb.set_trace()
-            #         iso = "carb003_3"
-            #         pos = [0]
-            #         for b in self.seqs[iso]:
-            #             pos.append(pos[-1] + len(self.blks[b[0]].extract(iso, b[2])))
-            #         pos = pos[1:]
-
             def replace(tag, blk, newblks):
                 iso = tag[0]
 
                 new_blk_seq = []
                 for b in self.seqs[iso]:
                     if b[0] == blk.id and b[2] == tag[1]:
-                        # if iso == "carb003_3" and b[0] == "TCSGYOLBUN" and tag[1] == 2:
-                        #     import ipdb; ipdb.set_trace()
 
                         orig_strand    = b[1]
                         tmp_new_blocks = [(ID, newstrand(orig_strand, ns), isomap[blk.id][tag][1]) if merged else (ID, newstrand(orig_strand, ns), b[2]) for ID, ns, merged in newblks]
@@ -346,14 +320,11 @@ class Graph(object):
                     else:
                         new_blk_seq.append(b)
 
-                # if iso == "carb003_3" and blk.id == "TCSGYOLBUN" and tag[1] == 2:
-                #     import ipdb; ipdb.set_trace()
                 self.seqs[iso] = new_blk_seq
 
             for tag in blk.muts.keys():
                 replace(tag, blk, new_blks)
 
-        # print(f"UPDATING {refblk_orig.id} and {qryblk_orig.id}")
         update(refblk_orig, refblks, hit['ref'], Strand.Plus)
         update(qryblk_orig, qryblks, hit['qry'], hit['orientation'])
         self.prune()
@@ -378,6 +349,20 @@ class Graph(object):
             seq = seq.replace('-', '')
 
         return seq
+
+    def compressratio(self, name=None):
+        unclen = 0
+        if name is None:
+            for n in self.seqs:
+                seq = self.extract(n)
+                unclen += len(seq)
+
+        if name is None:
+            cmplen = np.sum([len(x) for x in self.blks.values()])
+        else:
+            cmplen = np.sum([len(x) for x in self.blks.values() if name in x.muts])
+
+        return unclen/cmplen
 
     def tojson(self, minlen=500):
         import json
@@ -439,3 +424,9 @@ class Graph(object):
             for c in self.blks.values() ], key=lambda x: len(x), reverse=True), path, format='fasta')
 
         return
+
+    def todict(self):
+        return {'name'  : self.name,
+                'seqs'  : self.seqs,
+                'starts': self.spos,
+                'blocks': [b.todict() for b in self.blks.values()]}

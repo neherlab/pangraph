@@ -12,9 +12,6 @@ def randomid():
     randomid.N += 1
     name = "".join([alphabet[i] for i in RS.randint(0, len(alphabet), 10)])
 
-    # if name == "FYLWYFIIUV":
-    #     import ipdb; ipdb.set_trace()
-
     return name
 randomid.N = 0
 
@@ -24,9 +21,9 @@ randomid.N = 0
 class Block(object):
     """docstring for Block"""
 
-    def __init__(self):
+    def __init__(self, gen=True):
         super(Block, self).__init__()
-        self.id   = randomid()
+        self.id   = randomid() if gen else 0
         self.seq  = None
         self.muts = {}
 
@@ -39,6 +36,18 @@ class Block(object):
         new_blk.muts = {(name, 0):{}}
 
         return new_blk
+
+    @classmethod
+    def fromdict(cls, d):
+        def unpack(key):
+            return tuple(key.split("?###?"))
+
+        B      = Block()
+        B.id   = d['id']
+        B.seq  = asarray(d['seq'])
+        B.muts = {unpack(k):v for k, v in d['muts'].items()}
+
+        return B
 
     @classmethod
     def cat(cls, blks):
@@ -88,9 +97,6 @@ class Block(object):
         for i, blk in enumerate(blks):
             newblk      = cls()
             newblk.muts = {}
-
-            # if newblk.id == 'IIAAMUUZVS':
-            #     import ipdb; ipdb.set_trace()
 
             newblk.seq, qry, ref = blk
             Q, qrymap = qry
@@ -142,6 +148,10 @@ class Block(object):
     def isempty(self, iso, num, strip_gaps=True):
         tag = (iso, num)
         seq = np.copy(self.seq)
+        # NOTE: This is a hack. Need to investigate the error that arises.
+        if tag not in self.muts:
+            return True
+
         for p, s in self.muts[tag].items():
             seq[p] = s
 
@@ -183,6 +193,17 @@ class Block(object):
 
         # return tag[1]
         # ----------------------
+
+    def todict(self):
+        def pack(key):
+            return f"{key[0]}?###?{key[1]}"
+
+        def fix(d):
+            return {int(k):v for k, v in d.items()}
+
+        return {'id'   : self.id,
+                'seq'  : "".join(str(n) for n in self.seq),
+                'muts' : {pack(k) : fix(v) for k, v in self.muts.items()}}
 
     # --- Python Operator Overloads ---
 
