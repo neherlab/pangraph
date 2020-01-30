@@ -5,8 +5,8 @@ import json
 from Bio import Phylo, Seq, SeqIO, SeqRecord
 from Bio.Phylo.TreeConstruction import DistanceMatrix, DistanceTreeConstructor
 
-from utils import Strand, asstring, parsepaf, panic, tryprint, asrecord, newstrand
-from graph import Graph
+from .utils import Strand, asstring, parsepaf, panic, tryprint, asrecord, newstrand
+from .graph import Graph
 
 # ------------------------------------------------------------------------
 # Global variables
@@ -366,8 +366,6 @@ class Tree(object):
 # Main point of entry for testing
 
 if __name__ == "__main__":
-    # M   = np.array([[0, 2, 4, 4], [2, 0, 4, 4], [4, 4, 0, 2], [4, 4, 2, 0.0]])
-    # nms = ["A", "B", "C", "D"]
     M, nms = parse("data/kmerdist.txt")
     T = Tree.nj(M, nms)
 

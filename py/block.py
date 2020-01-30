@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.random as rng
 
-from utils import parsecigar, wcpair, asarray, asstring
+from .utils import parsecigar, wcpair, asarray, asstring
 
 # ------------------------------------------------------------------------
 # Helper functions

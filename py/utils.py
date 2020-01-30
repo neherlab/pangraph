@@ -1,6 +1,6 @@
 import gzip
 import numpy as np
-from enum import IntEnum
+from   enum import IntEnum
 
 from Bio import Phylo, Seq, SeqIO, SeqRecord
 
@@ -39,6 +39,20 @@ def newstrand(s, t):
 class Strand(IntEnum):
     Plus  = +1
     Minus = -1
+    Null  = 0
+
+def Complement(S):
+    if isinstance(S, int):
+        S = Strand(S)
+
+    if S == Strand.Plus:
+        return Strand.Minus
+    elif S == Strand.Minus:
+        return Strand.Plus
+    elif S == Strand.Null:
+        return Strand.Null
+    else:
+        raise ValueError(f"expected type 'Strand', got '{type(S)}'")
 
 wcpair = {'A' : 'T', 'T': 'A', 'C' : 'G', 'G': 'C'}
 

@@ -2,13 +2,16 @@ import os, sys
 import numpy as np
 
 from glob  import glob
-from utils import Strand, asstring, parsepaf, panic, tryprint, asrecord, newstrand
-from block import Block
 from Bio   import Seq, SeqIO, SeqRecord, Phylo
+
+from . import suffix
+from .block import Block
+from .utils import Strand, asstring, parsepaf, panic, tryprint, asrecord, newstrand
 
 # ------------------------------------------------------------------------
 # Global variables
 outdir      = "data/graph"
+maxselfmaps = 20
 
 # ------------------------------------------------------------------------
 # Graph class
@@ -27,6 +30,7 @@ class Graph(object):
         self.seqs = {}   # All sequences (as list of blocks)
         self.spos = {}   # All start positions (index of block that starts fasta)
         self.sfxt = None # Suffix tree of block records
+        self.dmtx = None # Graph distance matrix
 
     # --- Class methods ---
 
@@ -50,6 +54,10 @@ class Graph(object):
         G.seqs = d['seqs']
         G.spos = d['starts']
         G.sfxt = None
+        G.dmtx = None
+        if d['suffix'] is not None:
+            G.compilesuffix()
+            G.dmtx = d['distmtx']
 
         return G
 
@@ -65,120 +73,119 @@ class Graph(object):
 
         return ng
 
-    # @classmethod
-    # def fromnwk(cls, path, seqs, save=True, verbose=False):
-    #     # Debugging function that will check reconstructed sequence against known real one.
-    #     def check(seqs, T, G, verbose=False):
-    #         nerror = 0
-    #         uncompressed_length = 0
-    #         for n in T.get_terminals():
-    #             if n.name not in G.seqs:
-    #                 continue
+    @classmethod
+    def fromnwk(cls, path, seqs, save=True, verbose=False):
+        # Debugging function that will check reconstructed sequence against known real one.
+        def check(seqs, T, G, verbose=False):
+            nerror = 0
+            uncompressed_length = 0
+            for n in T.get_terminals():
+                if n.name not in G.seqs:
+                    continue
 
-    #             seq = seqs[n.name]
-    #             orig = str(seq[:].seq).upper()
-    #             tryprint(f"--> Checking {n.name}", verbose=verbose)
-    #             rec = G.extract(n.name)
-    #             uncompressed_length += len(orig)
-    #             if orig != rec:
-    #                 nerror += 1
+                seq = seqs[n.name]
+                orig = str(seq[:].seq).upper()
+                tryprint(f"--> Checking {n.name}", verbose=verbose)
+                rec = G.extract(n.name)
+                uncompressed_length += len(orig)
+                if orig != rec:
+                    nerror += 1
 
-    #                 with open("test.fa", "w+") as out:
-    #                     out.write(f">original\n{orig}\n")
-    #                     out.write(f">reconstructed\n{rec}")
+                    with open("test.fa", "w+") as out:
+                        out.write(f">original\n{orig}\n")
+                        out.write(f">reconstructed\n{rec}")
 
-    #                 for i in range(len(orig)//100):
-    #                     if (orig[i*100:(i+1)*100] != rec[i*100:(i+1)*100]):
-    #                         print("-----------------")
-    #                         print("O:", i, orig[i*100:(i+1)*100])
-    #                         print("G:", i, rec[i*100:(i+1)*100])
+                    for i in range(len(orig)//100):
+                        if (orig[i*100:(i+1)*100] != rec[i*100:(i+1)*100]):
+                            print("-----------------")
+                            print("O:", i, orig[i*100:(i+1)*100])
+                            print("G:", i, rec[i*100:(i+1)*100])
 
-    #                         diffs = [i for i in range(len(rec)) if rec[i] != orig[i]]
-    #                         pos   = [0]
-    #                         blks  = G.seqs[n.name]
-    #                         for b, strand, num in blks:
-    #                             pos.append(pos[-1] + len(G.blks[b].extract(n.name, num)))
-    #                         pos = pos[1:]
+                            diffs = [i for i in range(len(rec)) if rec[i] != orig[i]]
+                            pos   = [0]
+                            blks  = G.seqs[n.name]
+                            for b, strand, num in blks:
+                                pos.append(pos[-1] + len(G.blks[b].extract(n.name, num)))
+                            pos = pos[1:]
 
-    #                         testseqs = []
-    #                         for b in G.seqs[n.name]:
-    #                             if b[1] == Strand.Plus:
-    #                                 testseqs.append("".join(G.blks[b[0]].extract(n.name, b[2])))
-    #                             else:
-    #                                 testseqs.append("".join(Seq.reverse_complement(G.blks[b[0]].extract(n.name, b[2]))))
+                            testseqs = []
+                            for b in G.seqs[n.name]:
+                                if b[1] == Strand.Plus:
+                                    testseqs.append("".join(G.blks[b[0]].extract(n.name, b[2])))
+                                else:
+                                    testseqs.append("".join(Seq.reverse_complement(G.blks[b[0]].extract(n.name, b[2]))))
 
-    #                         # import ipdb; ipdb.set_trace()
-    #             else:
-    #                 tryprint(f"+++ Verified {n.name}", verbose=verbose)
+                            # import ipdb; ipdb.set_trace()
+                else:
+                    tryprint(f"+++ Verified {n.name}", verbose=verbose)
 
-    #         if nerror == 0:
-    #             tryprint("all sequences correctly reconstructed", verbose=verbose)
-    #             tlength = np.sum([len(x) for x in G.blks.values()])
-    #             tryprint(f"--- total graph length: {tlength}", verbose=verbose)
-    #             tryprint(f"--- total input sequence: {uncompressed_length}", verbose=verbose)
-    #             tryprint(f"--- compression: {uncompressed_length/tlength:1.2f}", verbose=verbose)
-    #         else:
-    #             raise ValueError("bad sequence reconstruction")
+            if nerror == 0:
+                tryprint("all sequences correctly reconstructed", verbose=verbose)
+                tlength = np.sum([len(x) for x in G.blks.values()])
+                tryprint(f"--- total graph length: {tlength}", verbose=verbose)
+                tryprint(f"--- total input sequence: {uncompressed_length}", verbose=verbose)
+                tryprint(f"--- compression: {uncompressed_length/tlength:1.2f}", verbose=verbose)
+            else:
+                raise ValueError("bad sequence reconstruction")
 
-    #     T = Phylo.read(path, "newick")
-    #     if T.count_terminals() == 1:
-    #         return Graph()
+        T = Phylo.read(path, "newick")
+        if T.count_terminals() == 1:
+            return Graph(), False
 
-    #     for i, n in enumerate(T.get_terminals()):
-    #         seq      = asrecord(seqs[n.name])
-    #         n.graph  = Graph.fromseq(seq.id, str(seq.seq).upper())
-    #         n.name   = seq.id
-    #         n.fapath = f"{Graph.blddir}/{n.name}"
-    #         tryprint(f"------> Outputting {n.fapath}", verbose=verbose)
-    #         n.graph.tofasta(n.fapath)
+        for i, n in enumerate(T.get_terminals()):
+            seq      = asrecord(seqs[n.name])
+            n.graph  = Graph.fromseq(seq.id, str(seq.seq).upper())
+            n.name   = seq.id
+            n.fapath = f"{Graph.blddir}/{n.name}"
+            tryprint(f"------> Outputting {n.fapath}", verbose=verbose)
+            n.graph.tofasta(n.fapath)
 
-    #     nnodes = 0
-    #     for n in T.get_nonterminals(order='postorder'):
-    #         nnodes += 1
+        nnodes = 0
+        for n in T.get_nonterminals(order='postorder'):
+            nnodes += 1
 
-    #         # Simple graph "fuse". Straight concatenation
-    #         print(f"Fusing {n.clades[0].name} with {n.clades[1].name}", file=sys.stderr)
-    #         n.name   = f"NODE_{nnodes:07d}"
-    #         n.graph  = Graph.fuse(n.clades[0].graph, n.clades[1].graph)
-    #         # check(seqs, T, n.graph)
-    #         n.fapath = os.path.join(*[Graph.blddir, f"{n.name}.fasta"])
+            # Simple graph "fuse". Straight concatenation
+            n.name   = f"NODE_{nnodes:07d}"
+            n.graph  = Graph.fuse(n.clades[0].graph, n.clades[1].graph)
+            # check(seqs, T, n.graph)
+            n.fapath = os.path.join(*[Graph.blddir, f"{n.name}.fasta"])
 
-    #         tryprint(f"-- node {n.name} with {len(n.clades)} children", verbose)
+            tryprint(f"-- node {n.name} with {len(n.clades)} children", verbose)
 
-    #         # Initial map from graph to itself
-    #         n.graph, _ = n.graph._mapandmerge(n.clades[0].fapath, n.clades[1].fapath,
-    #                                 f"{Graph.blddir}/{n.name}")
+            # Initial map from graph to itself
+            n.graph, _ = n.graph._mapandmerge(n.clades[0].fapath, n.clades[1].fapath,
+                                    f"{Graph.blddir}/{n.name}")
 
-    #         i, contin = 0, True
-    #         while contin:
-    #             tryprint(f"----> merge round {i}", verbose)
-    #             # check(seqs, T, n.graph)
-    #             itrseq = f"{Graph.blddir}/{n.name}_iter_{i}"
-    #             n.graph.tofasta(itrseq)
-    #             n.graph, contin = n.graph._mapandmerge(itrseq, itrseq, f"{Graph.blddir}/{n.name}_iter_{i}")
-    #             i += 1
+            i, contin = 0, True
+            while contin:
+                tryprint(f"----> merge round {i}", verbose)
+                # check(seqs, T, n.graph)
+                itrseq = f"{Graph.blddir}/{n.name}_iter_{i}"
+                n.graph.tofasta(itrseq)
+                n.graph, contin = n.graph._mapandmerge(itrseq, itrseq, f"{Graph.blddir}/{n.name}_iter_{i}")
+                i += 1
 
-    #             contin &= i < maxselfmaps
+                contin &= i < maxselfmaps
 
-    #         tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
-    #         n.graph.tofasta(f"{Graph.blddir}/{n.name}")
-    #         # Continuous error logging
-    #         print(f"Node {n.name}", file=sys.stderr)
-    #         print(f"--> Compression ratio parent: {n.graph.compressratio()}", file=sys.stderr)
-    #         print(f"--> Compression ratio child1: {n.clades[0].graph.compressratio()}", file=sys.stderr)
-    #         print(f"--> Compression ratio child2: {n.clades[1].graph.compressratio()}", file=sys.stderr)
-    #         # Output with content
-    #         print(f"{n.graph.compressratio()}\t{n.clades[0].graph.compressratio()}\t{n.clades[1].graph.compressratio()}\t{n.clades[0].branch_length + n.clades[1].branch_length}", file=sys.stdout, flush=True)
+            tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
+            n.graph.tofasta(f"{Graph.blddir}/{n.name}")
+            # Continuous error logging
+            # print(f"Node {n.name}", file=sys.stderr)
+            # print(f"--> Compression ratio parent: {n.graph.compressratio()}", file=sys.stderr)
+            # print(f"--> Compression ratio child1: {n.clades[0].graph.compressratio()}", file=sys.stderr)
+            # print(f"--> Compression ratio child2: {n.clades[1].graph.compressratio()}", file=sys.stderr)
+            # Output with content
+            # print(f"{n.graph.compressratio()}\t{n.clades[0].graph.compressratio()}\t{n.clades[1].graph.compressratio()}\t{n.clades[0].branch_length + n.clades[1].branch_length}", file=sys.stdout, flush=True)
 
-    #     G      = T.root.graph
-    #     G.name = ".".join(os.path.basename(path).split(".")[:-1])
-    #     # check(seqs, T, G)
+        G      = T.root.graph
+        G.name = ".".join(os.path.basename(path).split(".")[:-1])
+        # check(seqs, T, G)
 
-    #     if save:
-    #         G.tojson()
-    #         G.tofasta()
+        if save:
+            G.tojson()
+            G.tofasta()
 
-    #     return G
+        return G, True
 
     @classmethod
     def cleanbld(cls):
@@ -364,6 +371,21 @@ class Graph(object):
 
         return unclen/cmplen
 
+    def compilesuffix(self, force=False):
+        if self.sfxt is None or force:
+            self.sfxt = suffix.Tree({k: [c[0:2] for c in v] for k, v in self.seqs.items()})
+
+    def computepairdists(self, force=False):
+        if self.dmtx is None or force:
+            nms, N = sorted(list(self.seqs.keys())), len(self.seqs)
+            self.dmtx = np.zeros((N*(N-1))//2)
+
+            n = 0
+            for i, nm1 in enumerate(nms):
+                for nm2 in nms[:i]:
+                    self.dmtx[n] = len(self.sfxt.matches(nm1, nm2))
+                    n += 1
+
     def tojson(self, minlen=500):
         import json
 
@@ -426,7 +448,9 @@ class Graph(object):
         return
 
     def todict(self):
-        return {'name'  : self.name,
-                'seqs'  : self.seqs,
-                'starts': self.spos,
-                'blocks': [b.todict() for b in self.blks.values()]}
+        return {'name'   : self.name,
+                'seqs'   : self.seqs,
+                'starts' : self.spos,
+                'blocks' : [b.todict() for b in self.blks.values()],
+                'suffix' : None if self.sfxt is None else "compiled",
+                'distmtx': self.dmtx}
