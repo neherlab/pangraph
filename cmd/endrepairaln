@@ -1,0 +1,38 @@
+#!/bin/python
+
+import subprocess
+import pickle
+
+from py.graph import Graph
+
+# ------------------------------------------------------------------------
+# Globals
+
+VDIR = "data/graph/vis"
+PDIR = "data/graph/pkl"
+
+# ------------------------------------------------------------------------
+# Helper functions
+
+def align(fin, fout):
+    cmd = f"mafft --auto {fin} > {fout}"
+    err = subprocess.call(cmd, shell=True)
+    if err:
+        print(f"MAFFT error: returned code {err}")
+
+def load(cls):
+    d = pickle.load(open(f"{PDIR}/cluster_{cls:03d}.pkl",'rb'))
+    return Graph.fromdict(d)
+
+def collect_at_node(left, middle, right):
+
+
+# ------------------------------------------------------------------------
+# Main point of entry
+
+if __name__ == "__main__":
+    print("Choose the cluster to analyze")
+    print("Set the LEFT, MIDDLE, and RIGHT lists of blocks")
+
+    cluster = 131
+    graph   = load(cluster)
