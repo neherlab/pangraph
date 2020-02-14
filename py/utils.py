@@ -84,9 +84,11 @@ def parsepaf(path):
         for line in fh:
             row = line.strip().split()
             hit = {'qry': {'name'    : row[0],
+                           'len'     : int(row[1]),
                            'start'   : int(row[2]),
                            'end'     : int(row[3])},
                    'ref': {'name'    : row[5],
+                           'len'     : int(row[6]),
                            'start'   : int(row[7]),
                            'end'     : int(row[8])},
                    'aligned_bases'   : int(row[9]),
@@ -96,6 +98,9 @@ def parsepaf(path):
             for xtra in row[12:]:
                 if xtra.startswith('cg:'):
                     hit['cigar'] = xtra.split(':')[-1]
+                elif xtra.startswith('de:f'):
+                    hit['divergence'] = float(xtra.split(':')[-1])
+
             hits.append(hit)
     return hits
 

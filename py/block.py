@@ -40,7 +40,8 @@ class Block(object):
     @classmethod
     def fromdict(cls, d):
         def unpack(key):
-            return tuple(key.split("?###?"))
+            t = tuple(key.split("?###?"))
+            return (t[0], int(t[1]))
 
         B      = Block()
         B.id   = d['id']
@@ -89,7 +90,10 @@ class Block(object):
 
             return blk, isomap
 
-        qrys, refs, blks = parsecigar(aln['cigar'], aln['qry_seq'], aln['ref_seq'])
+        try:
+            qrys, refs, blks = parsecigar(aln['cigar'], aln['qry_seq'], aln['ref_seq'])
+        except:
+            import ipdb; ipdb.set_trace()
 
         # Iterate over all merged blocks and merge their sequences + mutations.
         newblks = []

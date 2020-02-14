@@ -3,6 +3,7 @@
 import subprocess
 import pickle
 
+from collections import defaultdict
 from py.graph import Graph
 
 # ------------------------------------------------------------------------
@@ -15,7 +16,7 @@ PDIR = "data/graph/pkl"
 # Helper functions
 
 def align(fin, fout):
-    cmd = f"mafft --auto {fin} > {fout}"
+    cmd = f"mafft --auto {fin} >{fout} 2>/dev/null"
     err = subprocess.call(cmd, shell=True)
     if err:
         print(f"MAFFT error: returned code {err}")
@@ -24,15 +25,168 @@ def load(cls):
     d = pickle.load(open(f"{PDIR}/cluster_{cls:03d}.pkl",'rb'))
     return Graph.fromdict(d)
 
-def collect_at_node(left, middle, right):
+def dump_aln(seqs, wtr):
+    from Bio import SeqIO
+    from Bio.SeqRecord import SeqRecord
 
+    seqs = [SeqRecord(v, name=k, id=k) for k,v in seqs.items()]
+    n = SeqIO.write(seqs, wtr, "fasta")
+
+    return n == seqs
+
+def aln_seqs_with(G, blks, extent=0):
+    from Bio.Seq import Seq
+    from Bio.Alphabet import generic_dna
+
+    if blks is None or len(blks) == 0:
+        return None
+
+    def find(iso, blks):
+        S, Bs  = G.seqs[iso], set(b[0] for b in blks)
+        index  = {b[0]:[] for b in blks}
+        for si, b in enumerate(S):
+            bid = b[0]
+            if bid in Bs:
+                index[bid] = index[bid] + [(si, b[1])]
+
+        return index
+
+    def revcmpl_if(S, cond):
+        if cond:
+            return S.reverse_complement()
+        else:
+            return S
+
+    def extend(iso, I, delta, sgn):
+        S, s = G.seqs[iso], Seq("", alphabet=generic_dna)
+        while len(s) < extent:
+            s += revcmpl_if(Seq(G.blks[S[I][0]].extract(iso, S[I][2])), S[I][1] != sgn)
+            I = (I + delta) % len(S)
+
+        return s[:extent]
+
+    isos = set(G.seqs.keys())
+    for b in blks:
+        isos.intersection(set([k[0] for k in G.blks[b[0]].muts.keys()]))
+
+    if len(blks) == 1:
+        blks += [blks[0]]
+
+    seqs = {}
+    for iso in sorted(isos):
+        print(f"Isolate {iso}")
+        seqs[iso] = ""
+        index     = find(iso, blks)
+        S, B      = G.seqs[iso], len(G.seqs[iso])
+        for i, b in enumerate(blks[:-1]):
+            # TODO: Deal with multiple paths
+            s, sgn = index[b[0]][0]
+            e, _   = index[blks[i+1][0]][0]
+
+            seq = Seq("", alphabet=generic_dna)
+            if sgn == b[1]: # We move forwards if signs agree
+                if s != e:
+                    e = (e+1) % B
+
+                if e <= s: # Circularity assumption of blocks
+                    for j in range(s, B):
+                        print(f"Block: {S[j][0]}")
+                        seq += revcmpl_if(Seq(G.blks[S[j][0]].extract(iso, S[j][2])), S[j][1] != sgn)
+
+                    for j in range(0, e):
+                        print(f"Block: {S[j][0]}")
+                        seq += revcmpl_if(Seq(G.blks[S[j][0]].extract(iso, S[j][2])), S[j][1] != sgn)
+                else:
+                    for j in range(s, e):
+                        seq += revcmpl_if(Seq(G.blks[S[j][0]].extract(iso, S[j][2])), S[j][1] != sgn)
+
+            else: # We move backwards if signs do not agree
+                if s != e:
+                    e = (e-1) % B
+
+                if e >= s: # Circularity assumption of blocks
+                    for j in range(s, -1, -1):
+                        print(f"Block: {S[j][0]}")
+                        seq += revcmpl_if(Seq(G.blks[S[j][0]].extract(iso, S[j][2])), S[j][1] != sgn)
+
+                    for j in range(B-1, e, -1):
+                        print(f"Block: {S[j][0]}")
+                        seq += revcmpl_if(Seq(G.blks[S[j][0]].extract(iso, S[j][2])), S[j][1] != sgn)
+                else:
+                    for j in range(e-1, s-1):
+                        seq += revcmpl_if(Seq(G.blks[S[j][0]].extract(iso, S[j][2])), S[j][1] != sgn)
+
+            seqs[iso] += seq
+            if extent > 0:
+                s, e = index[blks[0][0]][0], index[blks[-1][0]][0]
+                s, sgn_s = s
+                e, sgn_e = e
+
+                s, e = (s-1) % B, (e+1) % B
+
+                seqs[iso] = extend(iso, s, -1, sgn_s) + seqs[iso] + extend(iso, s, 1, sgn_e)
+
+    return seqs
+
+
+# TODO: Deal with the cases where there are missing blocks
+# TODO: Deal with numbers of tags. Right now we assume its zero.
+def collect(G, middle, right):
+    from Bio.Seq import Seq
+    from Bio.SeqRecord import SeqRecord
+
+    seqs = defaultdict(str)
+
+    def findoccurence(blks):
+        index = defaultdict(list)
+        for iso, S in G.seqs:
+            blkpos = defaultdict(list)
+            for si, b in enumerate(S):
+                blkpos[b[0]] = blkpos[b[0]] + [(si, b[2])]
+
+            # TODO: Deal with ambiguous paths due to duplications
+            #       Right now we just pick the first one.
+            index[iso] = [blkpos[b][0] for b in blks]
+
+        return index
+
+    def addblocksfrom(path):
+        nonlocal seqs
+
+        for bid in path:
+            blk = G.blks[bid]
+            for tag in blk.muts:
+                iso = tag[0]
+                seqs[iso] = seqs[iso] + blk.extract(iso, 0)
+
+        return seqs
+
+    seqs = addblocksfrom(left)
+    seqs = addblocksfrom(middle)
+    seqs = addblocksfrom(right)
+
+    for iso, s in seqs.items():
+        seqs[iso] = SeqRecord(Seq(s), id=iso, name=iso)
+
+    return list(seqs.values())
 
 # ------------------------------------------------------------------------
 # Main point of entry
 
 if __name__ == "__main__":
-    print("Choose the cluster to analyze")
-    print("Set the LEFT, MIDDLE, and RIGHT lists of blocks")
+    from py.utils import Strand
 
     cluster = 131
+    print(f"Analyzing cluster {cluster}")
     graph   = load(cluster)
+    # seqs    = aln_seqs_with(graph, [('KDJJPXGUFA', Strand.Plus), ('NJLHVHOXPA', Strand.Plus)], extent=50)
+    # print(f"Finished traversing graph")
+    # with open("test.fa", "w") as out:
+    #     dump_aln(seqs, out)
+    # print(f"Finished dumping to file")
+
+    # for k, v in seqs.items():
+    #     print(f"Isolate {k}, Length {len(v)}")
+
+    # print(f"Aligning")
+    # align("test.fa", "test.fna")

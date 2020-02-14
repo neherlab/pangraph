@@ -153,9 +153,9 @@ class Tree(object):
         self.tree.root.post_order(putname)
 
     def _getstr_(self, n):
-        self = n.string_depth()
+        sfx    = n.string_depth()
         strlen = len(self.strs[n.str_id]) + 1
-        s = self.strs[n.str_id][strlen-self:strlen]
+        s = self.strs[n.str_id][strlen-sfx:strlen]
         if isinstance(s, str):
             s += "$"
         else:
