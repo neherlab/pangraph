@@ -15,7 +15,7 @@ from .utils import Strand, asstring, parsepaf, panic, tryprint, asrecord, newstr
 # ------------------------------------------------------------------------
 # Global variables
 outdir      = "data/graph"
-maxselfmaps = 20
+maxselfmaps = 100
 
 # ------------------------------------------------------------------------
 # Graph class
@@ -163,7 +163,7 @@ class Graph(object):
             i, contin = 0, True
             while contin:
                 tryprint(f"----> merge round {i}", verbose)
-                check(seqs, T, n.graph)
+                # check(seqs, T, n.graph)
                 itrseq = f"{Graph.blddir}/{n.name}_iter_{i}"
                 n.graph.tofasta(itrseq)
                 n.graph, contin = n.graph._mapandmerge(itrseq, itrseq, f"{Graph.blddir}/{n.name}_iter_{i}",
@@ -184,7 +184,7 @@ class Graph(object):
 
         G      = T.root.graph
         G.name = ".".join(os.path.basename(path).split(".")[:-1])
-        check(seqs, T, G)
+        # check(seqs, T, G)
 
         if save:
             G.tojson()
@@ -224,7 +224,7 @@ class Graph(object):
 
             dmut = hit["aligned_length"] * hit["divergence"]
 
-            print(f"{l} :: {mu*delP + beta*dmut}")
+            # print(f"{l} :: {mu*delP + beta*dmut}")
 
             return -l + mu*delP + beta*dmut
 
@@ -234,7 +234,7 @@ class Graph(object):
         qpath = qpath.replace(".fasta", "")
         rpath = rpath.replace(".fasta", "")
 
-        print(f"--> {qpath} & {rpath} -> {out}.paf")
+        # print(f"--> {qpath} & {rpath} -> {out}.paf")
         os.system(f"minimap2 -t 2 -x asm5 -D -c {rpath}.fasta {qpath}.fasta 1>{out}.paf 2>log")
 
         paf = parsepaf(f"{out}.paf")
@@ -326,13 +326,8 @@ class Graph(object):
                     hit['ref']['start'] = 0
                 elif 0 < dS_q <= cutoff and 0 < dS_r <= cutoff:
                     qseq, rseq = getseqs()
-                    # aln = pairwise2.align.globalms(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[0:dS_q],
-                    #         rseq[0:dS_r], 3, -1, -6, -.5, one_alignment_only=True)
                     aln = globalaln(DNA(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[0:dS_q]), DNA(rseq[0:dS_r]))
                     aln = tuple([str(v) for v in aln[0].to_dict().values()])
-                    # import ipdb; ipdb.set_trace()
-                    # print(f"-----> CASE S3: {hit['qry']['name']} and {hit['ref']['name']}")
-                    # import ipdb; ipdb.set_trace()
                     hit['cigar'] = tocigar(aln) + hit['cigar']
                     hit['qry']['start'] = 0
                     hit['ref']['start'] = 0
@@ -349,11 +344,7 @@ class Graph(object):
                     qseq, rseq = getseqs()
                     aln = globalaln(DNA(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[-dE_q:]), DNA(rseq[-dE_r:]))
                     aln = tuple([str(v) for v in aln[0].to_dict().values()])
-                    # import ipdb; ipdb.set_trace()
-                    # aln = pairwise2.align.globalms(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[-dE_q:],
-                    #         rseq[-dE_r:], 3, -1, -6, -.5, one_alignment_only=True)
-                    # print(f"-----> CASE E3: {hit['qry']['name']} and {hit['ref']['name']}")
-                    # import ipdb; ipdb.set_trace()
+
                     hit['cigar'] = hit['cigar'] + tocigar(aln)
                     hit['qry']['end'] = hit['qry']['len']
                     hit['ref']['end'] = hit['ref']['len']
@@ -366,7 +357,7 @@ class Graph(object):
             if hit['qry']['name'] in merged_blks \
             or hit['ref']['name'] in merged_blks \
             or(hit['ref']['name'] <= hit['qry']['name'] and qpath == rpath) \
-            or hit['mapping_quality'] < 40:
+            or hit['align_score'] < 0.5:
                 continue
 
             if not accepted(hit):
@@ -409,6 +400,8 @@ class Graph(object):
                 #     self.blks[b].muts.pop((iso, n))
 
                 if self.blks[b].isempty(iso, n):
+                    if (iso, n) not in self.blks[b].muts:
+                        import ipdb; ipdb.set_trace()
                     self.blks[b].muts.pop((iso, n))
                 else:
                     goodblks.append(i)
@@ -469,10 +462,12 @@ class Graph(object):
                 iso = tag[0]
 
                 new_blk_seq = []
+                oldseq = self.seqs[iso].copy()
+
                 for b in self.seqs[iso]:
                     if b[0] == blk.id and b[2] == tag[1]:
                         orig_strand    = b[1]
-                        tmp_new_blocks = [(ID, newstrand(orig_strand, ns), isomap[blk.id][tag][1]) if merged else (ID, newstrand(orig_strand, ns), b[2]) for ID, ns, merged in newblks]
+                        tmp_new_blocks = [(ID, newstrand(orig_strand, ns), isomap[ID][blk.id][tag][1]) if merged else (ID, newstrand(orig_strand, ns), b[2]) for ID, ns, merged in newblks]
                         if orig_strand == Strand.Minus:
                             tmp_new_blocks = tmp_new_blocks[::-1]
 
@@ -481,6 +476,10 @@ class Graph(object):
                         new_blk_seq.append(b)
 
                 self.seqs[iso] = new_blk_seq
+                for b in self.seqs[iso]:
+                    if (iso, b[2]) not in self.blks[b[0]].muts:
+                        import ipdb; ipdb.set_trace()
+
 
             for tag in blk.muts.keys():
                 replace(tag, blk, new_blks)
@@ -584,7 +583,7 @@ class Graph(object):
 
         J["Nodes"] = nodes
 
-        print(f"----> Saving to {Graph.visdir}/{self.name}.json")
+        # print(f"----> Saving to {Graph.visdir}/{self.name}.json")
         with open(f"{Graph.visdir}/{self.name}.json", 'w+') as fh:
             json.dump(J, fh)
 

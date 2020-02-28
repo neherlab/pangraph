@@ -1,6 +1,7 @@
 import numpy as np
 import numpy.random as rng
 
+from collections import defaultdict
 from .utils import parsecigar, wcpair, asarray, asstring
 
 # ------------------------------------------------------------------------
@@ -97,7 +98,7 @@ class Block(object):
 
         # Iterate over all merged blocks and merge their sequences + mutations.
         newblks = []
-        isomap  = {}
+        isomap  = defaultdict(lambda: {})
         for i, blk in enumerate(blks):
             newblk      = cls()
             newblk.muts = {}
@@ -107,20 +108,18 @@ class Block(object):
             R, refmap = ref
 
             if qrys[i] is not None:
-                newblk, isomap[aln['qry_name']] = updatemuts(newblk, Q, qrymap, aln['qry_cluster'], qrys[i])
+                newblk, isomap[newblk.id][aln['qry_name']] = updatemuts(newblk, Q, qrymap, aln['qry_cluster'], qrys[i])
             if refs[i] is not None:
-                newblk, isomap[aln['ref_name']] = updatemuts(newblk, R, refmap, aln['ref_cluster'], refs[i])
+                newblk, isomap[newblk.id][aln['ref_name']] = updatemuts(newblk, R, refmap, aln['ref_cluster'], refs[i])
 
             newblks.append(newblk)
+
+        isomap = dict(isomap)
 
         qryblks = [nb for i, nb in enumerate(newblks) if qrys[i] is not None]
         if aln['orientation'] == -1:
             qryblks = qryblks[::-1]
-
         refblks = [nb for i, nb in enumerate(newblks) if refs[i] is not None]
-
-        # if newblk.id == 'LRSQAHWSLZ':
-        #     import ipdb; ipdb.set_trace()
 
         return newblks, qryblks, refblks, isomap
 

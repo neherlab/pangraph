@@ -1,3 +1,4 @@
+import csv
 import gzip
 import numpy as np
 from   enum import IntEnum
@@ -100,6 +101,8 @@ def parsepaf(path):
                     hit['cigar'] = xtra.split(':')[-1]
                 elif xtra.startswith('de:f'):
                     hit['divergence'] = float(xtra.split(':')[-1])
+                elif xtra.startswith('AS:i'):
+                    hit['align_score'] = int(xtra.split(":")[2]) / hit['aligned_length']
 
             hits.append(hit)
     return hits

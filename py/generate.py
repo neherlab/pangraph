@@ -31,8 +31,6 @@ Ls = L0 // 20
 lx = L // 5
 ls = lx // 2
 
-mu = 1e-6
-
 # ------------------------------------------------------------------------
 # Useful structs
 
@@ -55,9 +53,6 @@ class IntervalMap(object):
         i = 0
         while i < len(self.ival) and not K.is_empty():
             ival = self.ival[i]
-            # print(f"INTERVAL: {ival}")
-            # print(f"KEY: {K}")
-            # import ipdb; ipdb.set_trace()
             if not ival.overlaps(K):
                 i += 1
                 continue
@@ -67,6 +62,9 @@ class IntervalMap(object):
                 return i
 
             elif ival.contains(K):
+                # if len(K) > 1:
+                #     import ipdb; ipdb.set_trace()
+
                 Is = [IV.Interval(iv) for iv in ival - K]
                 Is.append(K)
 
@@ -84,23 +82,24 @@ class IntervalMap(object):
 
             elif K.contains(ival):
                 K = K-ival
-                if len(K) == 1:
-                    K = K
-                    self.data[i].add(val)
-                    i += 1
-                else:
-                    Ds = [set([val]) for _ in range(len(K))]
-                    Ks = [IV.Interval(k) for k in K[:-1]] + [ival]
+                # if len(K) == 1:
+                self.data[i].add(val)
+                i += 1
+                # else:
+                #     Ds = [set([val]) for _ in range(len(K))]
+                #     Ks = [IV.Interval(k) for k in K[:-1]] + [ival]
 
-                    self.ival = self.ival[:i] + Ks + self.ival[i+1:]
-                    self.data = self.data[:i] + Ds + self.data[i+1:]
-                    i += len(Ks)
+                #     self.ival = self.ival[:i] + Ks + self.ival[i+1:]
+                #     self.data = self.data[:i] + Ds + self.data[i+1:]
+                #     i += len(Ks)
 
-                    K = IV.Interval(K[-1])
+                #     K = IV.Interval(K[-1])
             else:
                 tmp, K = K, K - ival
                 ov = tmp.intersection(ival)
                 Is = [ival-tmp]
+                if len(Is[0]) > 1:
+                    import ipdb; ipdb.set_trace()
                 Ds = [self.data[i]]
                 Ds[0].add(val)
 
@@ -119,12 +118,12 @@ class IntervalMap(object):
                 i += len(Is)
 
         if not K.is_empty():
-            I = 0
-            while I < len(self.ival) and self.ival[I].lower < K.lower:
-                I += 1
-
-            self.ival.insert(I, K)
-            self.data.insert(I, set([val]))
+            for k in K:
+                I = 0
+                while I < len(self.ival) and self.ival[I].lower < k.lower:
+                    I += 1
+                self.ival.insert(I, IV.Interval(k))
+                self.data.insert(I, set([val]))
 
             return I
 
@@ -276,12 +275,12 @@ def random_invert(seq):
 
     return seq
 
-def mutate(seq, alphabet=None):
+def mutate(seq, mu, alphabet=None):
     if alphabet is None:
         alphabet = "ACGT"
 
     # Unpack
-    seq, bc = seq
+    seq, bc, anc = seq
 
     nm  = rng.poisson(lam=int(mu*len(seq)), size=1)
     idx = rng.choice(len(seq), size=nm, replace=False)
@@ -294,12 +293,12 @@ def mutate(seq, alphabet=None):
         seq[i] = alphabet[mut[i]]
 
     # Repack
-    return tuple(seq, bc)
+    return tuple((seq, bc, anc))
 
 r_transposition  = .00
 r_indel = .00
 r_hgt  = .10
-def evolve(seqs):
+def evolve(seqs, mu=0):
     nseqs   = []
     parent  = rng.choice(len(seqs), size=len(seqs))
     for i in range(len(seqs)):
@@ -313,17 +312,20 @@ def evolve(seqs):
             oseq = seqs[int(rng.choice(len(seqs), size=1))]
             nseq = random_indel(nseq, oseq)
 
+        if mu > 0:
+            nseq = mutate(nseq, mu)
         nseqs.append(nseq)
 
     return nseqs
 
 def tofasta(seqs, wtr, prefix="isolate"):
+    recs = []
     for n, seq in enumerate(seqs):
         seq  = "".join(chr(n) for n in seq[0])
         name = f"{prefix}_{n:04d}"
-        seqs[n] = SeqRecord(Seq(seq), id=name, name=name)
+        recs.append(SeqRecord(Seq(seq), id=name, name=name))
 
-    return SeqIO.write(seqs, wtr, "fasta")
+    return SeqIO.write(recs, wtr, "fasta")
 
 def ancestral_weights(seqs):
     W = np.zeros((N, L))
@@ -339,6 +341,9 @@ def ancestral_blocks(seqs):
     #                    this code is wrong as the modulo arithmetic needs to change.
     blks = [IntervalMap() for _ in range(len(seqs))]
 
+    # ---------------------------------
+    # Internal Functions
+
     def And(x, y):
         return np.bitwise_and(x, y)
 
@@ -346,30 +351,53 @@ def ancestral_blocks(seqs):
         if curiv[0] < curiv[1]:
             vals = [(C, IV.closedopen(curiv[0], curiv[1]))]
         else:
-            vals = [(C, IV.closedopen(curiv[1], l)),
-                    (C, IV.closedopen(0, curiv[0]))]
+            I1 = IV.closedopen(curiv[1], l)
+            I2 = IV.closedopen(0, curiv[0])
+            vals = [(C, I1.union(I2))]
+
+        # if int(A) == 2 and C == 35:
+        #     print(anciv)
+        #     import ipdb; ipdb.set_trace()
 
         for val in vals:
             # Deal with intervals that span the cut
             if anciv[0] < anciv[1]:
                 blks[int(A)].put(IV.closedopen(anciv[0], anciv[1]+1), val)
+            elif anciv[0] == anciv[1]:
+                I1 = IV.closedopen(anciv[0], L0)
+                I2 = IV.closedopen(0, anciv[0])
+                blks[int(A)].put(I1.union(I2), val)
             else:
-                blks[int(A)].put(IV.closedopen(anciv[1], L0), val)
-                blks[int(A)].put(IV.closedopen(0, anciv[0]+1), val)
+                I1 = IV.closedopen(anciv[0], L0)
+                I2 = IV.closedopen(0, anciv[1]+1)
+                blks[int(A)].put(I1.union(I2), val)
+                # blks[int(A)].put(IV.closedopen(anciv[1], L0), val)
+                # blks[int(A)].put(IV.closedopen(0, anciv[0]+1), val)
+
+        # if int(A) == 2 and C == 35:
+        #     print(anciv)
+        #     import ipdb; ipdb.set_trace()
+
+    # ---------------------------------
 
     for n, (_, anc, pos) in enumerate(seqs):
         delta     = np.empty(pos.shape)
-        delta[0]  = np.abs(pos[0] - pos[-1])
+        delta[0]  = np.abs(pos[0]  - pos[-1])
         delta[1:] = np.abs(pos[1:] - pos[:-1])
 
         cond  = And(And(delta != 1, delta != L0-1), anc < N)
         bkpnt = np.where(cond)[0]
+
         if len(bkpnt) == 0:
-            break
+            # TODO: Put check for difference in ancestral values here??
+            Put(anc[0], (pos[0], pos[-1]), n, (0, len(pos)), len(anc))
+            continue
 
         for i, bp in enumerate(bkpnt[:-1]):
             nbp = bkpnt[i+1]
+            assert bp < nbp, "non-ordered breakpoints"
             if not np.equal(anc[bp:nbp], anc[bp]).all():
+                print("PANIC: Inconsistent cut/boundary")
                 import ipdb; ipdb.set_trace()
             else:
                 Put(anc[bp], (pos[bp], pos[nbp-1]), n, (bp, nbp), len(anc))
@@ -430,69 +458,139 @@ def test_interval_map():
     print(f"--> Keys: {M.ival}")
     print(f"--> Vals: {M.data}")
 
-if __name__ == "__main__":
-    # test_interval_map()
+NWK_DIR = "data/synth/nwk"
+MTX_DIR = "data/synth/mtx"
+PKL_DIR = "data/synth/pkl"
+SEQ_DIR = "data/synth/seq"
+VIS_DIR = "data/synth/vis"
+BLK_DIR = "data/synth/blk"
 
+NITS = 10
+MUS  = np.linspace(0, 1e-6, 20)
+TS   = np.array([ int(N / n) for n in [7, 5, 3, 1, .5, .25] ], dtype=np.int)
+
+def mk_grid():
+    for M, mu in enumerate(MUS):
+        for I, T in enumerate(TS):
+            for it in range(NITS):
+                fa   = f"{SEQ_DIR}/mu{M:02d}_T{I:02d}_{it:02d}.fa"
+                bfa  = f"{BLK_DIR}/mu{M:02d}_T{I:02d}_{it:02d}.fa"
+                mtx  = f"{MTX_DIR}/mu{M:02d}_T{I:02d}_{it:02d}.mtx"
+                tree = f"{NWK_DIR}/mu{M:02d}_T{I:02d}_{it:02d}.nwk"
+
+                print(f"Building random seqs")
+                seqs = [random_seq(L, barcode=n) for n in range(N)]
+                ancs = seqs
+                for _ in range(T):
+                    seqs = evolve(seqs, mu)
+
+                # W    = ancestral_weights(seqs)
+                print(f"Collecting blocks")
+                blks = ancestral_blocks(seqs)
+
+                # Get distribution of block lengths
+                lens, nums, blkseqs = [], [], []
+                for n, blk in enumerate(blks):
+                    for i, iv in enumerate(blk.ival):
+                        lens.append(iv.upper-iv.lower)
+                        nums.append(len(blk.data[i]))
+                        for atom in iv:
+                            blkseqs.append([ancs[n][0][atom.lower:atom.upper]])
+                lens = np.array(lens)
+
+                print(f"Number of blocks: {len(lens)}")
+                # print(f"--> Output {bfa}")
+                with open(bfa, "w+") as out:
+                    tofasta(blkseqs, out, prefix="block")
+
+                # xratio = np.sum(lens/np.sum(lens) * nums)
+                # print(f"Compression Ratio: {xratio}")
+                # cdfplot(lens)
+
+                # Output individual current sequences
+                # print(f"--> Output {fa}")
+                with open(fa, "w+") as out:
+                    tofasta(seqs, out)
+
+                # Output kmer guide tree
+                mash(fa, mtx)
+                # print(f"--> Output {mtx}")
+                with open(mtx) as out:
+                    D, names = getmtx(out)
+
+                sf  = squareform(D)
+                Z   = linkage(sf)
+                t   = to_tree(Z)
+                nwk = getnwk(t, "", t.dist, names)
+
+                # print(f"--> Output {tree}")
+                with open(tree, 'w+') as out:
+                    out.write(f"{nwk}\n")
+
+    with open("data/synth/params.npz", "w+") as out:
+        np.savez(out, Mus=MUS, Ts=TS)
+
+    # # Run graph creation code
+    # f = "test.nwk"
+    # Ss = fai.Fasta(fa)
+
+    # g, ok = Graph.fromnwk(f, Ss) #, mu=0, beta=0)
+    # g.name = "test"
+    # g.tofasta()
+    # pickle.dump(g.todict(), open(f"{g.name}.pkl", "wb"))
+
+    # os.system(f"minimap2 -t 2 -x asm5 -D -c blocks.fasta data/graph/aln/test.fasta 1>test.paf 2>log")
+    # hits = parsepaf("test.paf")
+
+if __name__ == "__main__":
+    # --------------------
+    # Possible entry points
+    # test_interval_map()
+    # mk_grid()
+    # --------------------
+
+    import re
     import matplotlib.pylab as plt
     from py.utils import cdfplot
 
-    print(f"Building random seqs")
-    seqs = [random_seq(L, barcode=n) for n in range(N)]
-    ancs = seqs
-    for T in range(N//3):
-        seqs = evolve(seqs)
+    T  = N // 7
+    mu = 0
 
-    # W    = ancestral_weights(seqs)
-    print(f"Collecting blocks")
-    blks = ancestral_blocks(seqs)
+    STOP = False
+    for nit in range(20):
+        if STOP:
+            break
+        print(f"Running iteration {nit:02d}")
+        seqs = [random_seq(L, barcode=n) for n in range(N)]
+        ancs = seqs.copy()
+        for _ in range(T):
+            seqs = evolve(seqs, mu)
 
-    # Get distribution of block lengths
-    lens, nums, blkseqs = [], [], []
-    for n, blk in enumerate(blks):
-        for i, iv in enumerate(blk.ival):
-            lens.append(iv.upper-iv.lower)
-            nums.append(len(blk.data[i]))
-            for atom in iv:
-                blkseqs.append([ancs[n][0][atom.lower:atom.upper]])
-    lens = np.array(lens)
+        print(f"Collecting blocks")
+        blks = ancestral_blocks(seqs)
 
-    with open("blocks.fasta", "w+") as out:
-        tofasta(blkseqs, out, prefix="block")
+        blkseqs = {}
+        for n, blk in enumerate(blks):
+            for i, iv in enumerate(blk.ival):
+                for j, atom in enumerate(iv):
+                    blkseqs[(n, i, j)] = "".join(chr(c) for c in ancs[n][0][atom.lower:atom.upper])
 
-    # xratio = np.sum(lens/np.sum(lens) * nums)
-    print(f"Number of blocks: {len(lens)}")
-    # print(f"Compression Ratio: {xratio}")
-    # cdfplot(lens)
+        # Convert sequences to strings
+        for i, seq in enumerate(seqs):
+            seqs[i] = ("".join(chr(c) for c in seq[0]), seq[1], seq[2])
 
-    # Output individual current sequences
-    with open("test.fasta", "w+") as out:
-        tofasta(seqs, out)
+        for (b, i, j), blk in blkseqs.items():
+            if len(blk) < 10:
+                continue
 
-    # Output kmer guide tree
-    fa   = "test.fasta"
-    mtx  = "dist.mtx"
-    tree = "test.nwk"
+            locs = []
+            for n, seq in enumerate(seqs):
+                locs.extend([(n, m.start()) for m in re.finditer(blk, seq[0])])
 
-    mash(fa, mtx)
-    with open(mtx) as out:
-        D, names = getmtx(out)
-
-    sf  = squareform(D)
-    Z   = linkage(sf)
-    T   = to_tree(Z)
-    nwk = getnwk(T, "", T.dist, names)
-
-    with open(tree, 'w+') as out:
-        out.write(f"{nwk}\n")
-
-    # Run graph creation code
-    f    = "test.nwk"
-    seqs = fai.Fasta("test.fasta")
-
-    g, ok = Graph.fromnwk(f, seqs, mu=0, beta=0)
-    g.name = "test"
-    g.tofasta()
-    pickle.dump(g.todict(), open(f"{g.name}.pkl", "wb"))
-
-    os.system(f"minimap2 -t 2 -x asm5 -D -c blocks.fasta data/graph/aln/test.fasta 1>test.paf 2>log")
-    hits = parsepaf("test.paf")
+            data = set([(elt[0], elt[1][0]) for elt in blks[b].data[i] if elt[1][1]-elt[1][0] == len(blk)-1])
+            locs = set(locs)
+            if locs != data:
+                print(locs)
+                print(data)
+                STOP = True
+                break
