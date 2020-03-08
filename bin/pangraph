@@ -1,0 +1,25 @@
+#!/usr/bin/env python3
+#
+# This script is only used in development.  Package installations will use a
+# similar "augur" script automatically created using the entry point feature of
+# setuptools.
+#
+from sys import path, exit
+from pathlib import Path
+
+# Try to add our containing package source directory to the Python module
+# search path so that we load augur from there instead of any installed
+# system-wide.
+
+try:
+    dev_path = Path(__file__).parent.parent
+
+    # Raises an exception if the path doesn't exist.
+    (dev_path / "augur/__init__.py").resolve()
+except:
+    pass
+else:
+    path.insert(0, str(dev_path))
+
+from pangraph.__main__ import main
+exit( main() )

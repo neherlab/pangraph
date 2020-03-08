@@ -1,7 +1,8 @@
 import csv
 import gzip
 import numpy as np
-from   enum import IntEnum
+
+from enum import IntEnum
 
 from Bio import Phylo, Seq, SeqIO, SeqRecord
 
