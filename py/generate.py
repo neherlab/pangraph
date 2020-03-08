@@ -20,6 +20,31 @@ from py.utils import asstring, parsepaf
 from py.graph import Graph
 
 # ------------------------------------------------------------------------
+# Class
+
+class Population(object):
+
+    def __init__(self, N, L, mu, dir, name):
+        # Population parameters
+        self.N    = N
+        self.L    = L
+        self.mu   = mu
+        self.dir  = dir
+        self.name = name
+
+        # Distribution parameters
+        self.lx = L // 5
+        self.ls = self.lx // 2
+        self.Ls = L0 // 20
+
+        # Population data
+        self.seqs = [random_seq(L, barcode=n) for n in range(N)]
+
+    def evolve(self, T):
+        for _ in range(T):
+            pass
+
+# ------------------------------------------------------------------------
 # Globals
 
 N  = int(100)
@@ -47,10 +72,12 @@ class IntervalMap(object):
         self.ival = []
         self.data  = []
 
-    def put(self, key, val):
-        K = key
-        # K = atomic(key)
-        i = 0
+
+    def put(self, key, val, top_level=True):
+        K, i = key, 0
+        if not isinstance(val, set):
+            val = set([val])
+
         while i < len(self.ival) and not K.is_empty():
             ival = self.ival[i]
             if not ival.overlaps(K):
@@ -58,18 +85,16 @@ class IntervalMap(object):
                 continue
 
             if ival == K:
-                self.data[i].add(val)
-                return i
+                K = K - ival
+                self.data[i].update(val)
+                break
 
             elif ival.contains(K):
-                # if len(K) > 1:
-                #     import ipdb; ipdb.set_trace()
-
                 Is = [IV.Interval(iv) for iv in ival - K]
                 Is.append(K)
 
                 Ds = [self.data[i].copy() for _ in range(len(Is))]
-                Ds[-1].add(val)
+                Ds[-1].update(val)
 
                 idx = list(range(len(Is)))
                 idx.sort(key=lambda x: Is[x].lower)
@@ -78,12 +103,13 @@ class IntervalMap(object):
                 self.ival = self.ival[:i] + Is + self.ival[i+1:]
                 self.data = self.data[:i] + Ds + self.data[i+1:]
 
-                return i
+                K = K - ival
+                break
 
             elif K.contains(ival):
-                K = K-ival
+                K = K - ival
                 # if len(K) == 1:
-                self.data[i].add(val)
+                self.data[i].update(val)
                 i += 1
                 # else:
                 #     Ds = [set([val]) for _ in range(len(K))]
@@ -98,10 +124,8 @@ class IntervalMap(object):
                 tmp, K = K, K - ival
                 ov = tmp.intersection(ival)
                 Is = [ival-tmp]
-                if len(Is[0]) > 1:
-                    import ipdb; ipdb.set_trace()
                 Ds = [self.data[i]]
-                Ds[0].add(val)
+                Ds[0].update(val)
 
                 if not ov.is_empty():
                     Is.append(IV.Interval(ov))
@@ -123,17 +147,43 @@ class IntervalMap(object):
                 while I < len(self.ival) and self.ival[I].lower < k.lower:
                     I += 1
                 self.ival.insert(I, IV.Interval(k))
-                self.data.insert(I, set([val]))
+                self.data.insert(I, val)
 
-            return I
+        # Find intervals that are fully translated by L0
+        ok = True
+        for i, I in enumerate(self.ival):
+            if I.lower >= L0:
+                ok = False
+                break
+
+        # NOTE: Assumes ivals are sorted by lower bounds!!
+        if not ok:
+            self.ival, ival_add = self.ival[:i], self.ival[i:]
+            self.data, data_add = self.data[:i], self.data[i:]
+
+            ival_add = [IV.closedopen(iv.lower%L0, iv.upper%L0) for iv in ival_add]
+            for iv, d in zip(ival_add, data_add):
+                self.put(iv, d, False)
+
+        ok = True
+        for i, I in enumerate(self.ival):
+            if I.upper > L0:
+                ok = False
+                break
+
+        if not ok and top_level:
+            # import ipdb; ipdb.set_trace()
+            for iv, d in zip(self.ival[:i], self.data[:i]):
+                I = IV.openclosed(iv.lower+L0, iv.upper+L0)
+                self.put(I, d, False)
+            # import ipdb; ipdb.set_trace()
+
 
         return None
 
     def get(self, key):
         data = []
-        # key  = atomic(key)
         for i, ival in enumerate(self.ival):
-            print(f"IVAL: {ival}")
             if ival.overlaps(key):
                 data.append((ival, self.data[i]))
 
@@ -348,36 +398,23 @@ def ancestral_blocks(seqs):
         return np.bitwise_and(x, y)
 
     def Put(A, anciv, C, curiv, l):
-        if curiv[0] < curiv[1]:
-            vals = [(C, IV.closedopen(curiv[0], curiv[1]))]
-        else:
-            I1 = IV.closedopen(curiv[1], l)
-            I2 = IV.closedopen(0, curiv[0])
-            vals = [(C, I1.union(I2))]
+        if curiv[0] >= curiv[1]:
+            curiv = (curiv[0], curiv[1]+l)
+        vals = [(C, IV.closedopen(curiv[0], curiv[1]))]
 
-        # if int(A) == 2 and C == 35:
-        #     print(anciv)
+        # if int(A) == 44:
+        #     print(f"{anciv}->{blks[int(A)].ival}")
+        #     print(f"--> iso: {C}, val: {vals}")
         #     import ipdb; ipdb.set_trace()
 
         for val in vals:
-            # Deal with intervals that span the cut
-            if anciv[0] < anciv[1]:
-                blks[int(A)].put(IV.closedopen(anciv[0], anciv[1]+1), val)
-            elif anciv[0] == anciv[1]:
-                I1 = IV.closedopen(anciv[0], L0)
-                I2 = IV.closedopen(0, anciv[0])
-                blks[int(A)].put(I1.union(I2), val)
-            else:
-                I1 = IV.closedopen(anciv[0], L0)
-                I2 = IV.closedopen(0, anciv[1]+1)
-                blks[int(A)].put(I1.union(I2), val)
-                # blks[int(A)].put(IV.closedopen(anciv[1], L0), val)
-                # blks[int(A)].put(IV.closedopen(0, anciv[0]+1), val)
+            if anciv[0] >= anciv[1]:
+                anciv = (anciv[0], anciv[1]+L0)
+            blks[int(A)].put(IV.closedopen(anciv[0], anciv[1]+1), val)
 
-        # if int(A) == 2 and C == 35:
-        #     print(anciv)
+        # if int(A) == 44:
+        #     print(f"RESULT: {blks[int(A)].ival}")
         #     import ipdb; ipdb.set_trace()
-
     # ---------------------------------
 
     for n, (_, anc, pos) in enumerate(seqs):
@@ -408,6 +445,9 @@ def ancestral_blocks(seqs):
     # Now that we've found the ancestral block 'units', we go back and update the intervals
     for nanc, blk in enumerate(blks):
         for i in range(len(blk.ival)):
+            # if nanc == 11:
+            #     import ipdb; ipdb.set_trace()
+
             anc_iv, data = blk.ival[i], blk.data[i]
             updated = set([])
             for item in data:
@@ -418,7 +458,7 @@ def ancestral_blocks(seqs):
 
                 # TODO: Make faster!
                 lbs = np.where(And(anc_pos == anc_iv.lower, anc_id==nanc))[0]
-                ubs = np.where(And(anc_pos == anc_iv.upper-1, anc_id==nanc))[0]
+                ubs = np.where(And(anc_pos == (anc_iv.upper-1)%L0, anc_id==nanc))[0]
                 for lb, ub in zip(sorted(lbs), sorted(ubs)):
                     updated.add((ncur, (lb, ub)))
 
@@ -495,7 +535,11 @@ def mk_grid():
                         lens.append(iv.upper-iv.lower)
                         nums.append(len(blk.data[i]))
                         for atom in iv:
-                            blkseqs.append([ancs[n][0][atom.lower:atom.upper]])
+                            if atom.upper <= L0:
+                                blkseqs.append([ancs[n][0][atom.lower:atom.upper]])
+                            else:
+                                blkseqs.append([np.array(ancs[n][0][atom.lower:L0].tolist() + \
+                                                         ancs[n][0][0:atom.upper].tolist() )])
                 lens = np.array(lens)
 
                 print(f"Number of blocks: {len(lens)}")
@@ -573,7 +617,12 @@ if __name__ == "__main__":
         for n, blk in enumerate(blks):
             for i, iv in enumerate(blk.ival):
                 for j, atom in enumerate(iv):
-                    blkseqs[(n, i, j)] = "".join(chr(c) for c in ancs[n][0][atom.lower:atom.upper])
+                    assert atom.lower < L0, "bad interval"
+                    if atom.upper < L0:
+                        blkseqs[(n, i, j)] = "".join(chr(c) for c in ancs[n][0][atom.lower:atom.upper])
+                    else:
+                        blkseqs[(n, i, j)] = "".join(chr(c) for c in (ancs[n][0][atom.lower:L0].tolist() + \
+                                                                      ancs[n][0][0:atom.upper].tolist()))
 
         # Convert sequences to strings
         for i, seq in enumerate(seqs):
@@ -587,10 +636,17 @@ if __name__ == "__main__":
             for n, seq in enumerate(seqs):
                 locs.extend([(n, m.start()) for m in re.finditer(blk, seq[0])])
 
-            data = set([(elt[0], elt[1][0]) for elt in blks[b].data[i] if elt[1][1]-elt[1][0] == len(blk)-1])
+            data = set()
+            for elt in blks[b].data[i]:
+                if elt[1][0] < elt[1][1]:
+                    if abs(elt[1][1]-elt[1][0] - (len(blk)-1)) < 10:
+                        data.add((elt[0], elt[1][0]))
+                else:
+                    if abs((len(seqs[elt[0]][0]) - elt[1][0]) + elt[1][1] - (len(blk)-1)) < 10:
+                        data.add((elt[0], elt[1][1]))
+
             locs = set(locs)
-            if locs != data:
-                print(locs)
-                print(data)
+            if locs != data and len(blk) > 100:
+                print(locs-data)
                 STOP = True
                 break
