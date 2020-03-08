@@ -1,0 +1,7 @@
+deprecated
+data
+viewer
+.snakemake
+__pycache
+figs
+log
