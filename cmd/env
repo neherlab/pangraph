@@ -1,5 +1,0 @@
-root="$HOME/code/bio/pangraph"
-pydir="$root/scripts"
-seqdir="$root/data/seq"
-alndir="$root/data/aln"
-graphdir="$root/data/graph"
