@@ -10,12 +10,11 @@ from pathlib import Path
 # Try to add our containing package source directory to the Python module
 # search path so that we load augur from there instead of any installed
 # system-wide.
-
 try:
     dev_path = Path(__file__).parent.parent
 
     # Raises an exception if the path doesn't exist.
-    (dev_path / "augur/__init__.py").resolve()
+    (dev_path / "pangraph/__init__.py").resolve()
 except:
     pass
 else:

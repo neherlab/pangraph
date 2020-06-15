@@ -28,8 +28,6 @@ class Block(object):
         self.seq  = None
         self.muts = {}
 
-    # --- Class methods ---
-
     @classmethod
     def fromseq(cls, name, seq):
         new_blk      = cls()
@@ -143,10 +141,8 @@ class Block(object):
         assert len(tmp) > 0, "empty sequence"
         if strip_gaps:
             return asstring(tmp[tmp != '-'])
-            # return "".join(tmp[tmp != '-'])
         else:
             return asstring(tmp)
-            # return "".join(tmp)
 
     def isempty(self, iso, num, strip_gaps=True):
         tag = (iso, num)
@@ -189,14 +185,6 @@ class Block(object):
                 return True
         return False
 
-        # ---- Removed code ----
-        # tag = (iso, 0)
-        # while tag in self.muts:
-        #     tag = (tag[0], tag[1]+1)
-
-        # return tag[1]
-        # ----------------------
-
     def todict(self):
         def pack(key):
             return f"{key[0]}?###?{key[1]}"
@@ -207,8 +195,6 @@ class Block(object):
         return {'id'   : self.id,
                 'seq'  : "".join(str(n) for n in self.seq),
                 'muts' : {pack(k) : fix(v) for k, v in self.muts.items()}}
-
-    # --- Python Operator Overloads ---
 
     def __len__(self):
         return len(self.seq)

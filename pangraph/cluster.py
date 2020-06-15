@@ -1,10 +1,29 @@
+"""
+builds a guide tree utilized by the pan-genome alignment
+"""
+
 import json
 import numpy as np
-import scipy.spatial.distance as ssd
+
+import scipy.spatial.distance  as ssd
 import scipy.cluster.hierarchy as sch
 
 import pyfaidx as fai
 from   ete3 import Tree
+
+def register_args(parser):
+    parser.add_argument("-d", "--dir",
+                        metavar="directory",
+                        type=str,
+                        nargs=1,
+                        default="data/synth",
+                        help="directory for output file")
+    parser.add_argument("-i", "--in",
+                        metavar="input file",
+                        type=str,
+                        nargs='?',
+                        default="-",
+                        help="fasta file to cluster")
 
 # ------------------------------------------------------------------------
 # Global constants/variables
@@ -71,7 +90,7 @@ if __name__ == "__main__":
     Dk = Dkp
 
     # Cluster matrix and export results
-    Dg[Dk < .35]    = np.inf
+    Dg[Dk < .35]     = np.inf
     Dg[np.isinf(Dg)] = 500
 
     Dsq = ssd.squareform(Dg)

@@ -1,10 +1,13 @@
+import os, sys
 import csv
 import gzip
 import numpy as np
 
 from enum import IntEnum
 
-from Bio import Phylo, Seq, SeqIO, SeqRecord
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
 # ------------------------------------------------------------------------
 # Helper/debugging functions
@@ -13,27 +16,6 @@ def cdfplot(x, **kwargs):
     import matplotlib.pylab as plt
 
     plt.plot(sorted(x), np.linspace(0, 1, len(x)), **kwargs)
-
-def flatten(x):
-    return np.ndarray.flatten(x[:])
-
-def tryprint(msg, verbose):
-    if verbose:
-        print(msg)
-    else:
-        pass
-
-def asrecord(seq):
-    return SeqRecord.SeqRecord(Seq.Seq(str(seq)), id=seq.name, name=seq.name)
-
-def newstrand(s, t):
-    if not isinstance(s, Strand) or not isinstance(t, Strand):
-        raise TypeError(f"Expected an enum! Recieved {type(t)} and {type(s)}")
-
-    if s != t:
-        return Strand.Minus
-    else:
-        return Strand.Plus
 
 # ------------------------------------------------------------------------
 # Global Enums
@@ -59,10 +41,26 @@ def Complement(S):
 wcpair = {'A' : 'T', 'T': 'A', 'C' : 'G', 'G': 'C'}
 
 # ------------------------------------------------------------------------
-# Global Functions
+# errors
 
 def panic(msg):
-    raise SystemExit(f"Panic: {msg}")
+    SystemExit(f"panic: {msg}", file=sys.stderr)
+
+def debug(msg):
+    print(f"bug: {msg}", file=sys.stderr)
+    import ipdb; ipdb.set_trace()
+
+def warn(msg):
+    raise print(f"warn: {msg}", file=sys.stderr)
+
+def tryprint(msg, verbose):
+    if verbose:
+        print(msg)
+    else:
+        pass
+
+# ------------------------------------------------------------------------
+# simple conversions
 
 def asarray(x):
     return np.array(list(x))
@@ -70,14 +68,61 @@ def asarray(x):
 def asstring(x):
     return x.view(f'U{x.size}')[0]
 
+def flatten(x):
+    return np.ndarray.flatten(x[:])
+
+def cat(*args):
+    return np.concatenate(tuple(arg for arg in args))
+
+def asrecord(seq, name):
+    return SeqRecord(Seq(seq), id=name, name=name)
+
 # ------------------------------------------------------------------------
-# Helper Functions
+# file handling
+
+# equivalent to mkdir -p
+def mkdir(path):
+    if os.path.exists(path):
+        return os.path.isdir(path)
+    try:
+        os.mkdirs(path)
+        return 1
+    except:
+        return 0
 
 def openany(path, mode='r'):
     if path.endswith('.gz'):
         return gzip.open(path, mode)
     else:
         return open(path, mode)
+
+# ------------------------------------------------------------------------
+# misc
+
+def newstrand(s, t):
+    if not isinstance(s, Strand) or not isinstance(t, Strand):
+        raise TypeError(f"Expected an enum! Recieved {type(t)} and {type(s)}")
+
+    if s != t:
+        return Strand.Minus
+    else:
+        return Strand.Plus
+
+def getnwk(node, newick, parentdist, leaf_names):
+    if node.is_leaf():
+        return "%s:%.8f%s" % (leaf_names[node.id], parentdist - node.dist, newick)
+    else:
+        if len(newick) > 0:
+            newick = "):%.8f%s" % (parentdist - node.dist, newick)
+        else:
+            newick = ");"
+        newick = getnwk(node.get_left(), newick, node.dist, leaf_names)
+        newick = getnwk(node.get_right(), ",%s" % (newick), node.dist, leaf_names)
+        newick = "(%s" % (newick)
+        return newick
+
+# ------------------------------------------------------------------------
+# parsers
 
 def parsepaf(path):
     assert path.endswith(".paf")

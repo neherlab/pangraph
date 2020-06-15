@@ -7,78 +7,22 @@ import re
 import os
 import sys
 import importlib
+
 from types import SimpleNamespace
 
-command_strings = [
+# ------------------------------------------------------------------------
+# define subcommands here
+
+subcmd_names = [
     "build",
     "generate",
+    "version",
 ]
 
-CMDS = [importlib.import_module('pangraph.' + c) for c in command_strings]
+SUB_CMDS = [importlib.import_module('pangraph.' + cmd) for cmd in subcmd_names]
 
-def make_parser():
-    parser = argparse.ArgumentParser(
-        prog        = "pangraph",
-        description = "pangraph: a bioinformatics toolkit for fast multiple genome alignment")
-
-    subparsers = parser.add_subparsers()
-
-    add_default_command(parser)
-    add_version_alias(parser)
-
-    for cmd in CMDS:
-        # Add a subparser for each command.
-        subparser = subparsers.add_parser(
-            command_name(cmd),
-            help        = (cmd.__doc__).strip().splitlines()[0],
-            description = cmd.__doc__)
-
-        subparser.set_defaults(__command__ = cmd)
-
-        # Let the command register arguments on its subparser.
-        cmd.register_args(subparser)
-
-        # Use the same formatting class for every command for consistency.
-        # Set here to avoid repeating it in every command's register_parser().
-        subparser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
-
-    return parser
-
-
-def run(argv):
-    args = make_parser().parse_args(argv)
-    return args.__command__.run(args)
-
-def add_default_command(parser):
-    """
-    Sets the default command to run when none is provided.
-    """
-    class default_command():
-        def run(args):
-            parser.print_help()
-            return 2
-
-    parser.set_defaults(__command__ = default_command)
-
-
-def add_version_alias(parser):
-    """
-    Add --version as a (hidden) alias for the version command.
-    It's not uncommon to blindly run a command with --version as the sole
-    argument, so its useful to make that Just Work.
-    """
-
-    class run_version_command(argparse.Action):
-        def __call__(self, *args, **kwargs):
-            opts = SimpleNamespace()
-            sys.exit( version.run(opts) )
-
-    return parser.add_argument(
-        "--version",
-        nargs  = 0,
-        help   = argparse.SUPPRESS,
-        action = run_version_command)
-
+# ------------------------------------------------------------------------
+# helper functions
 
 def command_name(cmd):
     """
@@ -92,3 +36,64 @@ def command_name(cmd):
     module_name = cmd.__name__
 
     return remove_prefix(package, module_name).lstrip(".").replace("_", "-")
+
+def add_default_command(parser):
+    """
+    Sets the default command to run when none is provided.
+    """
+    class default_command():
+        def main(args):
+            parser.print_help()
+            return 2
+
+    parser.set_defaults(__command__ = default_command)
+
+def add_version_alias(parser):
+    """
+    Add --version as a (hidden) alias for the version command.
+    It's not uncommon to blindly run a command with --version as the sole
+    argument, so its useful to make that Just Work.
+    """
+
+    class version_cmd(argparse.Action):
+        def __call__(self, *args, **kwargs):
+            opts = SimpleNamespace()
+            sys.exit( version.main(opts) )
+
+    return parser.add_argument(
+        "-v", "--version",
+        nargs  = 0,
+        help   = argparse.SUPPRESS,
+        action = version_cmd
+    )
+
+def make_parser():
+    parser = argparse.ArgumentParser(
+        prog        = "pangraph",
+        description = "pangraph: a bioinformatics toolkit for fast multiple genome alignment"
+    )
+
+    subparsers = parser.add_subparsers()
+
+    add_default_command(parser)
+    add_version_alias(parser)
+
+    for cmd in SUB_CMDS:
+        subparser = subparsers.add_parser(
+            command_name(cmd),
+            help        = (cmd.__doc__).strip().splitlines()[0],
+            description = cmd.__doc__)
+
+        subparser.set_defaults(__command__ = cmd)
+
+        cmd.register_args(subparser)
+
+        # use the same formatting class for every command for consistency
+        # set here to avoid repeating it in every command's register_parser()
+        subparser.formatter_class = argparse.ArgumentDefaultsHelpFormatter
+
+    return parser
+
+def main(argv):
+    args = make_parser().parse_args(argv)
+    return args.__command__.main(args)

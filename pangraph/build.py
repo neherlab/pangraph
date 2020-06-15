@@ -5,7 +5,7 @@ build a pangenome alignment from a collection of fasta records
 def register_args(parser):
     pass
 
-def run(args):
+def main(args):
     '''
     Parameters
     ----------

@@ -1,6 +1,6 @@
 import os, sys
 import numpy as np
-import pyfaidx as fai
+# import pyfaidx as fai
 
 from glob  import glob
 
@@ -8,12 +8,13 @@ from Bio           import SeqIO, Phylo
 from Bio.Seq       import Seq
 from Bio.SeqRecord import SeqRecord
 
-from . import suffix
+from .      import suffix
 from .block import Block
 from .utils import Strand, asstring, parsepaf, panic, tryprint, asrecord, newstrand
 
 # ------------------------------------------------------------------------
 # Global variables
+
 outdir      = "data/graph"
 maxselfmaps = 100
 
