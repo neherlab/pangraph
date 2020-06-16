@@ -1,15 +1,32 @@
-DIR := data/synth
-
 .PHONY:	all clean
 .SUFFIXES:
 
-all: $(DIR)/guide.json
+# set all paths
+ROOT_DIR := data/synth
+TGT_FILE := targets
 
-$(DIR)/seq.fa:
-	pangraph generate -d $(DIR) -L 10000 -m 1e-4 -N 50 -T 150
+DIRS != cat "$(TGT_FILE)"
+DIRS := $(addprefix $(ROOT_DIR)/, $(DIRS))
 
-$(DIR)/guide.json: $(DIR)/seq.fa
-	pangraph cluster -d $(DIR) $(DIR)/seq.fa
+SEQS := $(addsuffix /seq.fa, $(DIRS))
+TREE := $(addsuffix /guide.json, $(DIRS))
+# ... etc ...
+
+all: $(TREE)
+
+%seq.fa:
+	@mkdir -p $(@D)
+	# extract variables
+	@$(eval vars=$(subst _, ,$(@D)))
+	@$(eval N=$(word 2,$(vars)))
+	@$(eval T=$(word 3,$(vars)))
+	@$(eval H=$(word 4,$(vars)))
+	@$(eval I=$(word 5,$(vars)))
+	@$(eval X=$(word 6,$(vars)))
+	pangraph generate -d $(@D) -L 10000 -m 1e-4 -N $(N) -T $(T) --hgt $(H) --indel $(I) --transpose $(X)
+
+%guide.json: %seq.fa
+	pangraph cluster -d $(@D) $^
 
 clean:
-	@rm -f $(DIR)/*
+	@rm -rf $(ROOT_DIR)/*

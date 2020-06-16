@@ -295,7 +295,7 @@ class Population(object):
 
         # store thunks for nicer function calls
         self.hgt       = lambda seq, donor: hgt(seq, donor, self.seqmv_avg, self.seqmv_std)
-        self.indel     = lambda seq, other: indel(seq, other, self.indel_std)
+        self.indel     = lambda seq: indel(seq, None, self.indel_std)
         self.transpose = lambda seq: tranpose(seq, self.seqmv_avg, self.seqmv_std)
         self.mutate    = lambda seq: mutate(seq, self.mu)
 

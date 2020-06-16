@@ -45,7 +45,7 @@ wcpair = {'A' : 'T', 'T': 'A', 'C' : 'G', 'G': 'C'}
 # errors
 
 def panic(msg):
-    SystemExit(f"panic: {msg}", file=sys.stderr)
+    SystemExit(f"panic: {msg}")
 
 def debug(msg):
     print(f"bug: {msg}", file=sys.stderr)
