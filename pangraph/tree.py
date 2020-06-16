@@ -1,11 +1,12 @@
 import os, sys
-import numpy as np
 import json
 
-from Bio import Phylo, Seq, SeqIO, SeqRecord
-from Bio.Phylo.TreeConstruction import DistanceMatrix, DistanceTreeConstructor
+import numpy as np
+import matplotlib.pylab as plt
 
-from .utils import Strand, asstring, parsepaf, panic, tryprint, asrecord, newstrand
+from Bio import Phylo, Seq, SeqIO, SeqRecord
+
+from .utils import Strand, flatten, asstring, parsepaf, panic, tryprint, asrecord, newstrand
 from .graph import Graph
 
 # ------------------------------------------------------------------------
@@ -15,9 +16,6 @@ maxselfmaps = 25
 
 # ------------------------------------------------------------------------
 # Helper functions
-
-def flatten(x):
-    return np.ndarray.flatten(x)
 
 def nodiag(mtx):
     return mtx-np.diag(np.diag(mtx))
@@ -151,46 +149,46 @@ class Tree(object):
 
         return T
 
-    # Neighbor joining
-    # BioPython implementation is too slow.
+    # our own neighbor joining
+    # Biopython implementation is WAY too slow.
     @classmethod
     def nj(cls, mtx, names, verbose=False):
-        assert len(names) == len(set(names)), "non-unique names found"
+        # -----------------------------
+        # internal functions
 
-        T = Tree()
-        for name in names:
-            T.root.children.append(Node(name, T.root, None, children=[]))
-        idx = 0
-
-        # -- Internal functions --
-        def calcq(D):
+        def q(D):
             n = D.shape[0]
-            Q = (n-2)*D - np.sum(D,axis=1) - np.sum(D,axis=0)
+            Q = (n-2)*D - (np.sum(D,axis=0,keepdims=True) + np.sum(D,axis=1,keepdims=True))
             np.fill_diagonal(Q, np.inf)
-
             return Q
 
         def minpair(q):
             i, j = np.unravel_index(np.argmin(q), q.shape)
-            qmin = q[i,j]
+            qmin = q[i, j]
             if i > j:
                 i, j = j, i
-            return (i,j), qmin
+            return (i, j), qmin
 
         def pairdists(D, i, j):
             n  = D.shape[0]
             d1 = .5*D[i,j] + 1/(2*(n-2)) * (np.sum(D[i,:], axis=0) - np.sum(D[j,:], axis=0))
             d2 = D[i,j] - d1
-            return d1, d2
 
-        def newdists(D, i, j):
-            return .5*(D[i, :] + D[j,:] - D[i,j])
+            # remove negative branches while keeping total fixed
+            if d1 < 0:
+                d2 -= d1
+                d1  = 0
+            if d2 < 0:
+                d1 -= d2
+                d2  = 0
+
+            dnew = .5*(D[i,:] + D[j,:] - D[i, j])
+            return d1, d2, dnew
 
         def join(D, debug=False):
             nonlocal idx
-            Q = calcq(D)
+            Q = q(D)
             (i, j), qmin = minpair(Q)
-            assert i < j
             if debug:
                 q0min = min(flatten(Q[:]))
                 assert abs(qmin-q0min) < 1e-2, f"minimum not found correctly. returned {qmin}, expected {q0min}"
@@ -198,8 +196,7 @@ class Tree(object):
 
             node   = Node(f"NODE_{idx:05d}", T.root, None, [T.root.children[i], T.root.children[j]])
 
-            d1, d2 = pairdists(D, i, j)
-            dnew   = newdists(D, i, j)
+            d1, d2, dnew = pairdists(D, i, j)
             node.children[0].newparent(node, d1)
             node.children[1].newparent(node, d2)
 
@@ -214,6 +211,15 @@ class Tree(object):
             idx = idx + 1
 
             return D
+
+        # -----------------------------
+        # body
+        assert len(names) == len(set(names)), "non-unique names found"
+
+        T = Tree()
+        for name in names:
+            T.root.children.append(Node(name, T.root, None, children=[]))
+        idx = 0
 
         while mtx.shape[0] > 2:
             if verbose:
@@ -354,11 +360,11 @@ class Tree(object):
                 with open("error.json", "w+") as out:
                     self.tojson(out)
 
-    def tonwk(self, wtr):
+    def write_nwk(self, wtr):
         self.root.tonwk(wtr)
         wtr.write(";")
 
-    def tojson(self, wtr):
+    def write_json(self, wtr):
         data = {'tree' : self.root.tojson()}
         wtr.write(json.dumps(data))
 

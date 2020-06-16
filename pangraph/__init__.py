@@ -15,6 +15,7 @@ from types import SimpleNamespace
 
 subcmd_names = [
     "build",
+    "cluster",
     "generate",
     "version",
 ]

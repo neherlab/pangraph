@@ -20,6 +20,7 @@ def cdfplot(x, **kwargs):
 # ------------------------------------------------------------------------
 # Global Enums
 
+# TODO: find a better place for this to live
 class Strand(IntEnum):
     Plus  = +1
     Minus = -1
@@ -82,6 +83,7 @@ def asrecord(seq, name):
 
 # equivalent to mkdir -p
 def mkdir(path):
+    print(path)
     if os.path.exists(path):
         return os.path.isdir(path)
     try:

@@ -3,12 +3,8 @@ import os
 import numpy as np
 import numpy.random as rng
 
-from portion import Interval, closedopen, to_data
-
-# from scipy.cluster.hierarchy import dendrogram, linkage, to_tree
-# from scipy.spatial.distance import squareform
-
 from Bio import SeqIO
+from portion import Interval, closedopen, to_data
 
 from .graph import Graph
 from .utils import asrecord, cat
@@ -118,20 +114,20 @@ def invert(seq, avg, std):
 
 def mutate(seq, mu, alphabet=None):
     if alphabet is None:
-        alphabet = "ACGT"
+        alphabet = np.array([ord(c) for c in ['A', 'C', 'G', 'T']])
 
     # Unpack
     seq, bc, anc = seq
 
-    nm  = rng.poisson(lam=int(mu*len(seq)), size=1)
+    nm  = rng.poisson(lam=mu*len(seq), size=1)
     idx = rng.choice(len(seq), size=nm, replace=False)
-    mut = rng.choice(len(alphabet), size=nm, replace=False)
+    mut = rng.choice(len(alphabet), size=nm, replace=True)
 
     for i, I in enumerate(idx):
         while alphabet[mut[i]] == seq[I]:
             mut[i] = rng.choice(len(alphabet), 1)
 
-        seq[i] = alphabet[mut[i]]
+        seq[I] = alphabet[mut[i]]
 
     # Repack
     return tuple((seq, bc, anc))

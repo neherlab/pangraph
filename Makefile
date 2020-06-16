@@ -3,13 +3,13 @@ DIR := data/synth
 .PHONY:	all clean
 .SUFFIXES:
 
-all: graph
+all: $(DIR)/guide.json
 
 $(DIR)/seq.fa:
-	pangraph generate -d $(DIR)
+	pangraph generate -d $(DIR) -L 10000 -m 1e-4 -N 50 -T 150
 
-$(DIR)/tree:
-	pangraph cluster -d $(DIR)
+$(DIR)/guide.json: $(DIR)/seq.fa
+	pangraph cluster -d $(DIR) $(DIR)/seq.fa
 
 clean:
-	rm $(DIR)/*
+	@rm -f $(DIR)/*

@@ -12,6 +12,8 @@ matplotlib = "*"
 biopython = "*"
 suffix-tree = "*"
 portion = "*"
+scipy = "*"
+pyfaidx = "*"
 
 [requires]
 python_version = "3.8"

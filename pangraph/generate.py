@@ -14,32 +14,27 @@ def register_args(parser):
     parser.add_argument("-d", "--dir",
                         metavar="directory",
                         type=str,
-                        nargs=1,
                         default="data/synth",
                         help="directory for output files")
     parser.add_argument("-n", "--name",
                         metavar="name",
                         type=str,
-                        nargs=1,
                         default="generated",
                         help="base name for output")
     parser.add_argument("-N", "--size",
                         metavar="size",
                         type=int,
-                        nargs=1,
                         default=100,
                         help="simulated population size")
     parser.add_argument("-L", "--len",
                         metavar="length",
                         type=int,
-                        nargs=1,
                         default=100000,
                         help="average (and initial) genome length")
     parser.add_argument("-m", "--mu",
                         metavar="mutation rate",
                         type=float,
-                        nargs=1,
-                        default=0.0,
+                        default=1e-5,
                         help="rate of mutation/genome/generation")
     parser.add_argument("--hgt",
                         metavar="hgt rate",
@@ -62,7 +57,6 @@ def register_args(parser):
     parser.add_argument("-T", "--gen",
                         metavar="generations",
                         type=int,
-                        nargs=1,
                         default=35,
                         help="number of generations to simulate")
 
