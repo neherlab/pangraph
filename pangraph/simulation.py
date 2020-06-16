@@ -23,16 +23,17 @@ def random_seq(L, alphabet=None, barcode=None):
 
     return seq, barcode*np.ones(L), np.arange(L)
 
-def indel(seq, other=None, std=0):
+def indel(seq, other=None, std=0, L0=0, N=0):
     if len(seq[0]) != len(seq[1]):
         print("unequal sequence lengths")
         import ipdb; ipdb.set_trace()
 
     L = len(seq[0])
     i = rng.randint(L)
-    k = rng.randint(len(other[0]))
+    if other is not None:
+        k = rng.randint(len(other[0]))
 
-    dl  = int(rng.randn(1)*std + (self.L-L))
+    dl  = int(rng.randn(1)*std + (L0-L))
 
     def interval(seq, i, j):
         if i < j:
@@ -49,7 +50,7 @@ def indel(seq, other=None, std=0):
                 s = s[j:i]
         elif 0 < dl < L:
             if o is None:
-                ins = random_seq(dl) if isseq else N*np.ones(dl)
+                ins = random_seq(dl) if isseq else N*np.ones(dl, dtype=np.int8)
             elif dl < len(o):
                 j = (k + dl) % len(o)
                 ins = interval(o, k, j)
@@ -239,7 +240,7 @@ class IntervalMap(object):
 
         if not ok and top_level:
             for iv, d in zip(self.ival[:i], self.data[:i]):
-                I = closedopen(iv.lower+self.L, iv.upper+self.L)
+                I = closedopen(iv.lower+self.boundary[1], iv.upper+self.boundary[1])
                 self.put(I, d, False)
 
         return
@@ -261,7 +262,7 @@ class IntervalMap(object):
             return dict(zip(keys,vals))
 
         def pack(intervals):
-            return [tuple(d[1:3] for d in to_data(iv)) for iv in intervals]
+            return [tuple([int(e) for e in d[1:3]] for d in to_data(iv)) for iv in intervals]
 
         if len(self.ival) == 0:
             return None
@@ -275,7 +276,7 @@ class IntervalMap(object):
 # main class used to generate data
 
 class Population(object):
-    def __init__(self, size, len, mu, hgt, indel, transpose):
+    def __init__(self, size, len, mu, rate_hgt, rate_indel, rate_transpose):
         # Population parameters
         self.N    = size
         self.L    = len
@@ -289,36 +290,38 @@ class Population(object):
 
         # reassortment rates (per generation)
         # perform cumulative sum here
-        self.rhgt       = hgt
-        self.rindel     = self.rhgt + indel
-        self.rtranspose = self.rindel + transpose
+        self.rhgt       = rate_hgt
+        self.rindel     = self.rhgt + rate_indel
+        self.rtranspose = self.rindel + rate_transpose
 
         # store thunks for nicer function calls
-        self.hgt       = lambda seq, donor: hgt(seq, donor, self.seqmv_avg, self.seqmv_std)
-        self.indel     = lambda seq: indel(seq, None, self.indel_std)
-        self.transpose = lambda seq: tranpose(seq, self.seqmv_avg, self.seqmv_std)
+        self.hgt       = lambda seq, donor: indel(seq, donor, self.indel_std, self.L, self.N)
+        self.indel     = lambda seq: indel(seq, None, self.indel_std, self.L, self.N)
+        self.transpose = lambda seq: transpose(seq, self.seqmv_avg, self.seqmv_std)
         self.mutate    = lambda seq: mutate(seq, self.mu)
 
         # Population data
-        self.seq = np.array([random_seq(self.L, barcode=n) for n in range(self.N)], dtype=object)
+        self.seq = [random_seq(self.L, barcode=n) for n in range(self.N)]
         self.anc = self.seq.copy()
 
     def evolve(self, T):
         for _ in range(T):
             rand   = rng.rand(self.N)
             parent = rng.choice(self.N, size=self.N)
-            seq    = np.array([self.seq[p] for p in parent], dtype=object)
+            seq    = []
             for n in range(self.N):
+                s = self.seq[parent[n]]
                 # NOTE: this must be in the same order as the rates above
                 if rand[n] < self.rhgt:
-                    donor = self.seq[int(rng.choice(self.N), size=1)]
-                    seq[n] = self.hgt(seq[n], donor)
+                    donor = self.seq[int(rng.choice(self.N, size=1))]
+                    s = self.hgt(s, donor)
                 elif rand[n] < self.rindel:
-                    seq[n] = self.indel(seq[n])
+                    s = self.indel(s)
                 elif rand[n] < self.rtranspose:
-                    seq[n] = self.transpose(seq[n])
+                    s = self.transpose(s)
 
-                seq[n] = self.mutate(seq[n])
+                s = self.mutate(s)
+                seq.append(s)
 
             self.seq = seq
 

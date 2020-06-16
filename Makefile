@@ -23,7 +23,7 @@ all: $(TREE)
 	@$(eval H=$(word 4,$(vars)))
 	@$(eval I=$(word 5,$(vars)))
 	@$(eval X=$(word 6,$(vars)))
-	pangraph generate -d $(@D) -L 10000 -m 1e-4 -N $(N) -T $(T) --hgt $(H) --indel $(I) --transpose $(X)
+	pangraph generate -d $(@D) -L 10000 -m 1e-4 -N $(N) -T $(T) --rate_hgt $(H) --rate_indel $(I) --rate_transpose $(X)
 
 %guide.json: %seq.fa
 	pangraph cluster -d $(@D) $^

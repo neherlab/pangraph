@@ -36,24 +36,21 @@ def register_args(parser):
                         type=float,
                         default=1e-5,
                         help="rate of mutation/genome/generation")
-    parser.add_argument("--hgt",
+    parser.add_argument("--rate_hgt",
                         metavar="hgt rate",
                         type=float,
-                        nargs='?',
                         default=0.0,
                         help="rate of horizontal gene transfer/genome/generation")
-    parser.add_argument("--indel",
+    parser.add_argument("--rate_indel",
                         metavar="indel rate",
                         type=float,
-                        nargs='?',
                         default=0.0,
                         help="rate of indels/genome/generation")
-    parser.add_argument("--transpose",
-                        metavar="transpose rate",
+    parser.add_argument("--rate_transpose",
+                        metavar="transposition rate",
                         type=float,
-                        nargs='?',
                         default=0.0,
-                        help="rate of indels/genome/generation")
+                        help="rate of transpositions/genome/generation")
     parser.add_argument("-T", "--gen",
                         metavar="generations",
                         type=int,
