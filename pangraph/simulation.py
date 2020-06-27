@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 
 import numpy as np
 import numpy.random as rng
@@ -119,7 +120,6 @@ def mutate(seq, mu, alphabet=None):
 
     # Unpack
     seq, bc, anc = seq
-
     nm  = rng.poisson(lam=mu*len(seq), size=1)
     idx = rng.choice(len(seq), size=nm, replace=False)
     mut = rng.choice(len(alphabet), size=nm, replace=True)
@@ -310,7 +310,7 @@ class Population(object):
             parent = rng.choice(self.N, size=self.N)
             seq    = []
             for n in range(self.N):
-                s = self.seq[parent[n]]
+                s = deepcopy(self.seq[parent[n]])
                 # NOTE: this must be in the same order as the rates above
                 if rand[n] < self.rhgt:
                     donor = self.seq[int(rng.choice(self.N, size=1))]

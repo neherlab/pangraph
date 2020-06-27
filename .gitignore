@@ -1,7 +1,7 @@
-deprecated
+.dep
 data
 viewer
 .snakemake
-__pycache
+__pycache__
 figs
 log

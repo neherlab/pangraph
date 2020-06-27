@@ -4,15 +4,15 @@ import json
 import numpy as np
 import matplotlib.pylab as plt
 
-from Bio import Phylo, Seq, SeqIO, SeqRecord
+from Bio.Seq import Seq
 
-from .utils import Strand, flatten, asstring, parsepaf, panic, tryprint, asrecord, newstrand
+from .utils import Strand, log, flatten, tryprint
 from .graph import Graph
 
 # ------------------------------------------------------------------------
 # Global variables
 
-maxselfmaps = 25
+MAXSELFMAPS = 25
 
 # ------------------------------------------------------------------------
 # Helper functions
@@ -45,7 +45,7 @@ def parse(mtx):
 
     return M, seq_names
 
-def tolist(dmtx):
+def to_list(dmtx):
     assert len(dmtx.shape) == 2 and dmtx.shape[0] == dmtx.shape[1], "expected a square matrix"
 
     dlst = []
@@ -83,18 +83,18 @@ class Node(object):
     # Static functions
 
     @classmethod
-    def fromdict(cls, d, parent):
+    def from_dict(cls, d, parent):
         N = Node(d['name'], parent, d['dist'])
-        N.children = [Node.fromdict(child, N) for child in d['children']]
+        N.children = [Node.from_dict(child, N) for child in d['children']]
         N.fapath = d['fapath']
-        N.graph  = Graph.fromdict(d['graph']) if d['graph'] is not None else None
+        N.graph  = Graph.from_dict(d['graph']) if d['graph'] is not None else None
 
         return N
 
     # ---------------------------------
     # Class methods
 
-    def isleaf(self):
+    def is_leaf(self):
         return len(self.children) == 0
 
     def postorder(self):
@@ -103,35 +103,33 @@ class Node(object):
                 yield it
         yield self
 
-    def newparent(self, parent, dist):
+    def new_parent(self, parent, dist):
         self.parent = parent
         self.dist   = dist if dist > 0 else 0
 
-    def tonwk(self, wtr):
-        if not self.isleaf():
+    def to_nwk(self, wtr):
+        if not self.is_leaf():
             wtr.write("(")
             for i, child in enumerate(self.children):
                 if i > 0:
                     wtr.write(",")
-                child.tonwk(wtr)
+                child.to_nwk(wtr)
             wtr.write(")")
 
         wtr.write(self.name)
         wtr.write(":")
         wtr.write(f"{self.dist:.6f}")
 
-    def tojson(self):
+    def to_json(self):
         return {'name'     : self.name,
                 'dist'     : self.dist,
-                'children' : [ child.tojson() for child in self.children ],
+                'children' : [ child.to_json() for child in self.children ],
                 'fapath'   : self.fapath,
-                'graph'    : self.graph.todict() if self.graph is not None else None }
+                'graph'    : self.graph.to_dict() if self.graph is not None else None }
 
 class Tree(object):
-
     # ------------------- 
     # Class constructor
-
     def __init__(self, bare=False):
         self.root   = Node("ROOT", None, 0) if not bare else None
         self.seqs   = None
@@ -142,10 +140,13 @@ class Tree(object):
 
     # Loading from json
     @classmethod
-    def fromjson(cls, rdr):
+    def from_json(cls, rdr):
         data   = json.load(rdr)
         T      = Tree(bare=True)
-        T.root = Node.fromdict(data['tree'], None)
+        T.root = Node.from_dict(data['tree'], None)
+
+        leafs  = {n.name: n for n in T.get_leafs()}
+        T.seqs = {leafs[k]:Seq(v) for k,v in data['seqs'].items()}
 
         return T
 
@@ -197,8 +198,8 @@ class Tree(object):
             node   = Node(f"NODE_{idx:05d}", T.root, None, [T.root.children[i], T.root.children[j]])
 
             d1, d2, dnew = pairdists(D, i, j)
-            node.children[0].newparent(node, d1)
-            node.children[1].newparent(node, d2)
+            node.children[0].new_parent(node, d1)
+            node.children[1].new_parent(node, d2)
 
             D[i, :] = dnew
             D[:, i] = dnew
@@ -234,34 +235,38 @@ class Tree(object):
         return T
 
     # ------------------- 
-    # Class methods 
+    # methods 
 
     def postorder(self):
         return self.root.postorder()
 
-    def getleafs(self):
+    def get_leafs(self):
         if self.leaves is None:
-            self.leaves = [node for node in self.postorder() if node.isleaf()]
+            self.leaves = [node for node in self.postorder() if node.is_leaf()]
 
         return self.leaves
 
-    def numleafs(self):
+    def num_leafs(self):
         if self.leaves is None:
-            self.leaves = [node for node in self.postorder() if node.isleaf()]
+            self.leaves = [node for node in self.postorder() if node.is_leaf()]
 
         return len(self.leaves)
 
-    def align(self, seqs, save=True, verbose=False):
+    def attach(self, seqs):
+        leafs = {n.name: n for n in self.get_leafs()}
+        self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
+
+    def align(self, tmpdir, save=True, verbose=False):
         # Debugging function that will check reconstructed sequence against known real one.
         def check(seqs, T, G, verbose=False):
             nerror = 0
             uncompressed_length = 0
-            for n in T.getleafs():
+            for n in T.get_leafs():
                 if n.name not in G.seqs:
                     continue
 
-                seq  = seqs[n.name]
-                orig = str(seq[:].seq).upper()
+                seq  = seqs[n]
+                orig = str(seq[:]).upper()
                 tryprint(f"--> Checking {n.name}", verbose=verbose)
                 rec  = G.extract(n.name)
                 uncompressed_length += len(orig)
@@ -304,90 +309,82 @@ class Tree(object):
             else:
                 raise ValueError("bad sequence reconstruction")
 
-        # T = Phylo.read(path, "newick")
-        if self.numleafs() == 1:
+        if self.num_leafs() == 1:
             return Graph()
 
-        for i, n in enumerate(self.getleafs()):
-            seq      = asrecord(seqs[n.name])
-            n.graph  = Graph.fromseq(seq.id, str(seq.seq).upper())
-            n.name   = seq.id
-            n.fapath = f"{Graph.blddir}/{n.name}"
+        for i, n in enumerate(self.get_leafs()):
+            seq      = self.seqs[n]
+            n.graph  = Graph.from_seq(n.name, str(seq).upper())
+            n.fapath = f"{tmpdir}/{n.name}"
             tryprint(f"------> Outputting {n.fapath}", verbose=verbose)
-            n.graph.tofasta(n.fapath)
+            n.graph.to_fasta(n.fapath)
 
         nnodes = 0
         for n in self.postorder():
-            try:
-                if n.isleaf():
-                    continue
-                nnodes += 1
+            if n.is_leaf():
+                continue
+            nnodes += 1
 
-                # Simple graph "fuse". Straight concatenation
-                print(f"Fusing {n.children[0].name} with {n.children[1].name}", file=sys.stderr)
-                n.graph  = Graph.fuse(n.children[0].graph, n.children[1].graph)
-                # check(seqs, T, n.graph)
-                n.fapath = os.path.join(*[Graph.blddir, f"{n.name}.fasta"])
+            # Simple graph "fuse". Straight concatenation
+            print(f"Fusing {n.children[0].name} with {n.children[1].name}", file=sys.stderr)
+            n.graph  = Graph.fuse(n.children[0].graph, n.children[1].graph)
+            check(self.seqs, self, n.graph)
+            n.fapath = os.path.join(*[Graph.blddir, f"{n.name}.fasta"])
 
-                tryprint(f"-- node {n.name} with {len(n.children)} children", verbose)
+            tryprint(f"-- node {n.name} with {len(n.children)} children", verbose)
 
-                # Initial map from graph to itself
-                n.graph, _ = n.graph._mapandmerge(n.children[0].fapath, n.children[1].fapath,
-                                        f"{Graph.blddir}/{n.name}")
+            # Initial map from graph to itself
+            n.graph, _ = n.graph._mapandmerge(n.children[0].fapath, n.children[1].fapath, f"{tmpdir}/{n.name}")
 
-                i, contin = 0, True
-                while contin:
-                    tryprint(f"----> merge round {i}", verbose)
-                    # check(seqs, T, n.graph)
-                    itrseq = f"{Graph.blddir}/{n.name}_iter_{i}"
-                    n.graph.tofasta(itrseq)
-                    n.graph, contin = n.graph._mapandmerge(itrseq, itrseq, f"{Graph.blddir}/{n.name}_iter_{i}")
-                    i += 1
+            i, contin = 0, True
+            while contin:
+                tryprint(f"----> merge round {i}", verbose)
+                check(self.seqs, self, n.graph)
+                itrseq = f"{tmpdir}/{n.name}_iter_{i}"
+                n.graph.to_fasta(itrseq)
+                n.graph, contin = n.graph._mapandmerge(itrseq, itrseq, f"{tmpdir}/{n.name}_iter_{i}")
+                i += 1
 
-                    contin &= i < maxselfmaps
+                contin &= i < MAXSELFMAPS
 
-                tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
-                n.graph.tofasta(f"{Graph.blddir}/{n.name}")
-                # Continuous error logging
-                print(f"Node {n.name}", file=sys.stderr)
-                print(f"--> Compression ratio parent: {n.graph.compressratio()}", file=sys.stderr)
-                print(f"--> Compression ratio child1: {n.children[0].graph.compressratio()}", file=sys.stderr)
-                print(f"--> Compression ratio child2: {n.children[1].graph.compressratio()}", file=sys.stderr)
-                # Output with content
-                print(f"{n.graph.compressratio()}\t{n.children[0].graph.compressratio()}\t{n.children[1].graph.compressratio()}\t{n.children[0].dist+ n.children[1].dist}", file=sys.stdout, flush=True)
-            except:
-                print(f"ERROR AT NODE {n.name}")
-                with open("error.json", "w+") as out:
-                    self.tojson(out)
+            tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
+            n.graph.to_fasta(f"{tmpdir}/{n.name}")
+            log(f"node: {n.name}; dist {n.children[0].dist+ n.children[1].dist}")
+            log((f"--> compression ratio: parent: "
+                   f"{n.graph.compress_ratio()}"))
+            log((f"--> compression ratio: child1: "
+                 f"{n.children[0].graph.compress_ratio()}"))
+            log((f"--> compression ratio: child2: "
+                 f"{n.children[1].graph.compress_ratio()}"))
 
     def write_nwk(self, wtr):
-        self.root.tonwk(wtr)
+        self.root.to_nwk(wtr)
         wtr.write(";")
 
     def write_json(self, wtr):
-        data = {'tree' : self.root.tojson()}
+        data = {'tree' : self.root.to_json(), 'seqs': {k.name:str(v) for k,v in self.seqs.items()}}
         wtr.write(json.dumps(data))
 
 # ------------------------------------------------------------------------
 # Main point of entry for testing
 
-if __name__ == "__main__":
-    M, nms = parse("data/kmerdist.txt")
-    T = Tree.nj(M, nms)
+# if __name__ == "__main__":
+#     M, nms = parse("data/kmerdist.txt")
+#     T = Tree.nj(M, nms)
 
-    import pyfaidx as fai
-    seqs = fai.Fasta("data/all_plasmids_filtered.fa")
-    T.align(seqs)
+#     import pyfaidx as fai
+#     seqs = fai.Fasta("data/all_plasmids_filtered.fa")
+#     T.align(seqs)
 
-    print("DUMPING")
-    with open("data/tree.json", "w+") as fd:
-        T.tojson(fd)
+#     print("DUMPING")
+#     with open("data/tree.json", "w+") as fd:
+#         T.to_json(fd)
 
-    S1 = json.dumps(T.root.tojson())
-    print("LOADING")
-    with open("data/tree.json", "r") as fd:
-        T = Tree.fromjson(fd)
+#     S1 = json.dumps(T.root.to_json())
+#     print("LOADING")
+#     with open("data/tree.json", "r") as fd:
+#         T = Tree.from_json(fd)
 
-    S2 = json.dumps(T.root.tojson())
+#     S2 = json.dumps(T.root.to_json())
 
-    print(S1==S2)
+#     print(S1==S2)

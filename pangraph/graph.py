@@ -24,6 +24,7 @@ maxselfmaps = 100
 class Graph(object):
     """docstring for Graph"""
 
+    # TODO: deprecate these variables
     visdir = f"{outdir}/vis"
     alndir = f"{outdir}/aln"
     blddir = f"{outdir}/bld"
@@ -40,9 +41,9 @@ class Graph(object):
     # --- Class methods ---
 
     @classmethod
-    def fromseq(cls, name, seq):
+    def from_seq(cls, name, seq):
         newg = cls()
-        blk  = Block.fromseq(name, seq)
+        blk  = Block.from_seq(name, seq)
         newg.name = name
         newg.blks = {blk.id : blk}
         newg.seqs = {name : [(blk.id, Strand.Plus, 0)]}
@@ -51,17 +52,17 @@ class Graph(object):
         return newg
 
     @classmethod
-    def fromdict(cls, d):
+    def from_dict(cls, d):
         G = Graph()
         G.name = d['name']
-        G.blks = [Block.fromdict(b) for b in d['blocks']]
+        G.blks = [Block.from_dict(b) for b in d['blocks']]
         G.blks = {b.id : b for b in G.blks}
         G.seqs = d['seqs']
         G.spos = d['starts']
         G.sfxt = None
         G.dmtx = None
         if d['suffix'] is not None:
-            G.compilesuffix()
+            G.compile_suffix()
             G.dmtx = d['distmtx']
 
         return G
@@ -78,9 +79,9 @@ class Graph(object):
 
         return ng
 
+    # Debugging function that will check reconstructed sequence against known real one.
     @classmethod
-    def fromnwk(cls, path, seqs, save=True, verbose=False, mu=100, beta=2):
-        # Debugging function that will check reconstructed sequence against known real one.
+    def from_nwk(cls, path, seqs, save=True, verbose=False, mu=100, beta=2):
         def check(seqs, T, G, verbose=False):
             nerror = 0
             uncompressed_length = 0
@@ -139,11 +140,11 @@ class Graph(object):
 
         for i, n in enumerate(T.get_terminals()):
             seq      = asrecord(seqs[n.name])
-            n.graph  = Graph.fromseq(seq.id, str(seq.seq).upper())
+            n.graph  = Graph.from_seq(seq.id, str(seq.seq).upper())
             n.name   = seq.id
             n.fapath = f"{Graph.blddir}/{n.name}"
             tryprint(f"------> Outputting {n.fapath}", verbose=verbose)
-            n.graph.tofasta(n.fapath)
+            n.graph.to_fasta(n.fapath)
 
         nnodes = 0
         for n in T.get_nonterminals(order='postorder'):
@@ -166,7 +167,7 @@ class Graph(object):
                 tryprint(f"----> merge round {i}", verbose)
                 # check(seqs, T, n.graph)
                 itrseq = f"{Graph.blddir}/{n.name}_iter_{i}"
-                n.graph.tofasta(itrseq)
+                n.graph.to_fasta(itrseq)
                 n.graph, contin = n.graph._mapandmerge(itrseq, itrseq, f"{Graph.blddir}/{n.name}_iter_{i}",
                             cutoff=50, mu=mu, beta=beta)
                 i += 1
@@ -174,7 +175,7 @@ class Graph(object):
                 contin &= i < maxselfmaps
 
             tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
-            n.graph.tofasta(f"{Graph.blddir}/{n.name}")
+            n.graph.to_fasta(f"{Graph.blddir}/{n.name}")
             # Continuous error logging
             # print(f"Node {n.name}", file=sys.stderr)
             # print(f"--> Compression ratio parent: {n.graph.compressratio()}", file=sys.stderr)
@@ -188,8 +189,8 @@ class Graph(object):
         # check(seqs, T, G)
 
         if save:
-            G.tojson()
-            G.tofasta()
+            G.to_json()
+            G.to_fasta()
 
         return G, True
 
@@ -201,7 +202,6 @@ class Graph(object):
     # --- Internal methods ---
 
     def _mapandmerge(self, qpath, rpath, out, cutoff=None, mu=100, beta=2):
-        # from Bio import pairwise2
         import warnings
         from skbio.alignment import global_pairwise_align
         from skbio import DNA
@@ -370,10 +370,11 @@ class Graph(object):
             merged_blks.add(hit['ref']['name'])
             merged_blks.add(hit['qry']['name'])
 
-        self.purgeempty()
+        self.purge_empty()
         return self, merged
 
-    # --- Instance methods ---
+    # ---------------
+    # methods
 
     def prune(self):
         blks_remain = set()
@@ -383,22 +384,13 @@ class Graph(object):
 
         return
 
-    def purgeempty(self):
+    def purge_empty(self):
         for iso in self.seqs:
             goodblks = []
             popblks  = set()
             for i, (b, _, n) in enumerate(self.seqs[iso]):
                 if b in popblks:
                     continue
-
-                # NOTE: Concatenating the sequence just to see if it's empty
-                #       takes 1/2 the time of running! 
-
-                # bseq = self.blks[b].extract(iso, n)
-                # if bseq:
-                #     goodblks.append(i)
-                # else:
-                #     self.blks[b].muts.pop((iso, n))
 
                 if self.blks[b].isempty(iso, n):
                     if (iso, n) not in self.blks[b].muts:
@@ -438,7 +430,7 @@ class Graph(object):
                "orientation" : hit["orientation"]}
 
         # shares_isos = not set(self.blks[aln['ref_name']].muts.keys()).isdisjoint(set(self.blks[aln['qry_name']].muts.keys()))
-        merged_blks, qryblks, refblks, isomap = Block.fromaln(aln) #, debug=shares_isos)
+        merged_blks, qryblks, refblks, isomap = Block.from_aln(aln) #, debug=shares_isos)
         for merged_blk in merged_blks:
             self.blks[merged_blk.id] = merged_blk
 
@@ -510,7 +502,7 @@ class Graph(object):
 
         return seq
 
-    def compressratio(self, name=None):
+    def compress_ratio(self, name=None):
         unclen = 0
         if name is None:
             for n in self.seqs:
@@ -524,7 +516,7 @@ class Graph(object):
 
         return unclen/cmplen
 
-    def compilesuffix(self, force=False):
+    def compile_suffix(self, force=False):
         if self.sfxt is None or force:
             self.sfxt = suffix.Tree({k: [c[0:2] for c in v] for k, v in self.seqs.items()})
 
@@ -539,7 +531,7 @@ class Graph(object):
                     self.dmtx[n] = len(self.sfxt.matches(nm1, nm2))
                     n += 1
 
-    def tojson(self, minlen=500):
+    def to_json(self, minlen=500):
         import json
 
         J = {}
@@ -590,7 +582,7 @@ class Graph(object):
 
         return
 
-    def tofasta(self, path=None):
+    def to_fasta(self, path=None):
         if path is None:
             path = f"{Graph.alndir}/{self.name}.fasta"
         elif not path.endswith(".fasta"):
@@ -600,10 +592,10 @@ class Graph(object):
 
         return
 
-    def todict(self):
+    def to_dict(self):
         return {'name'   : self.name,
                 'seqs'   : self.seqs,
                 'starts' : self.spos,
-                'blocks' : [b.todict() for b in self.blks.values()],
+                'blocks' : [b.to_dict() for b in self.blks.values()],
                 'suffix' : None if self.sfxt is None else "compiled",
                 'distmtx': self.dmtx}

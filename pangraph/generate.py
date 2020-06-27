@@ -100,7 +100,7 @@ def main(args):
     # ancestral block sequences
     ancs = []
     for a, b in blk.items():
-        nm = "anc_{a:05d}"
+        nm = f"anc_{a:05d}"
         for i, ivs in enumerate(b['interval']):
             for j, iv in enumerate(ivs):
                 if (iv[0] < pop.L):

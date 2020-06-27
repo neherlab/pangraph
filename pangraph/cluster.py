@@ -8,6 +8,8 @@ import subprocess as spawn
 import numpy as np
 import matplotlib.pylab as plt
 
+from Bio import SeqIO
+
 from .tree import Tree
 
 def register_args(parser):
@@ -103,6 +105,10 @@ def main(args):
 
     dist, names = backend.parse(backend.run(args.input))
     tree = Tree.nj(dist, names)
+
+    with open(args.input, 'r') as fd:
+        seqs = {s.id : s.seq for s in SeqIO.parse(fd, "fasta")}
+    tree.attach(seqs)
 
     # exports:
     np.savez(f"{outdir}/distmtx.npz", dist=dist, names=names)

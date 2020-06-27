@@ -60,6 +60,9 @@ def tryprint(msg, verbose):
     else:
         pass
 
+def log(msg, file=sys.stderr):
+    print(msg, file=file)
+
 # ------------------------------------------------------------------------
 # simple conversions
 
@@ -83,11 +86,10 @@ def asrecord(seq, name):
 
 # equivalent to mkdir -p
 def mkdir(path):
-    print(path)
     if os.path.exists(path):
         return os.path.isdir(path)
     try:
-        os.mkdirs(path)
+        os.makedirs(path)
         return 1
     except:
         return 0
@@ -155,7 +157,7 @@ def parsepaf(path):
             hits.append(hit)
     return hits
 
-def parsecigar(aln, qryseq, refseq, cutoff=500):
+def parse_cigar(aln, qryseq, refseq, cutoff=500):
     from cigar import Cigar
 
     aln = Cigar(aln)

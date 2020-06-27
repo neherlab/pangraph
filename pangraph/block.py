@@ -2,7 +2,7 @@ import numpy as np
 import numpy.random as rng
 
 from collections import defaultdict
-from .utils import parsecigar, wcpair, asarray, asstring
+from .utils import parse_cigar, wcpair, asarray, asstring
 
 # ------------------------------------------------------------------------
 # Helper functions
@@ -28,8 +28,11 @@ class Block(object):
         self.seq  = None
         self.muts = {}
 
+    # ------------------
+    # static methods
+
     @classmethod
-    def fromseq(cls, name, seq):
+    def from_seq(cls, name, seq):
         new_blk      = cls()
         new_blk.seq  = asarray(seq)
         new_blk.muts = {(name, 0):{}}
@@ -37,7 +40,7 @@ class Block(object):
         return new_blk
 
     @classmethod
-    def fromdict(cls, d):
+    def from_dict(cls, d):
         def unpack(key):
             t = tuple(key.split("?###?"))
             return (t[0], int(t[1]))
@@ -65,7 +68,7 @@ class Block(object):
         return nblk
 
     @classmethod
-    def fromaln(cls, aln, debug=False):
+    def from_aln(cls, aln, debug=False):
         def updatemuts(blk, xtramuts, xmap, omuts, ival):
             seq = blk.seq
             # Iterate over all sequences in the block
@@ -89,10 +92,7 @@ class Block(object):
 
             return blk, isomap
 
-        try:
-            qrys, refs, blks = parsecigar(aln['cigar'], aln['qry_seq'], aln['ref_seq'])
-        except:
-            import ipdb; ipdb.set_trace()
+        qrys, refs, blks = parse_cigar(aln['cigar'], aln['qry_seq'], aln['ref_seq'])
 
         # Iterate over all merged blocks and merge their sequences + mutations.
         newblks = []
@@ -121,7 +121,8 @@ class Block(object):
 
         return newblks, qryblks, refblks, isomap
 
-    # --- Instance methods ---
+    # --------------
+    # methods
 
     def copy(self, keepname=False):
         b = Block()
@@ -185,7 +186,7 @@ class Block(object):
                 return True
         return False
 
-    def todict(self):
+    def to_dict(self):
         def pack(key):
             return f"{key[0]}?###?{key[1]}"
 

@@ -14,6 +14,9 @@ suffix-tree = "*"
 portion = "*"
 scipy = "*"
 pyfaidx = "*"
+scikit-bio = "*"
+ipdb = "*"
+cigar = "*"
 
 [requires]
 python_version = "3.8"
