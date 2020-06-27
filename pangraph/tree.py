@@ -336,6 +336,8 @@ class Tree(object):
 
             # Initial map from graph to itself
             n.graph, _ = n.graph.union(n.children[0].fapath, n.children[1].fapath, f"{tmpdir}/{n.name}")
+            if n.name == "ROOT":
+                import ipdb; ipdb.set_trace()
 
             i, contin = 0, True
             while contin:

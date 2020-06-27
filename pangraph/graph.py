@@ -79,118 +79,6 @@ class Graph(object):
 
         return ng
 
-    # TODO: remove
-    # Debugging function that will check reconstructed sequence against known real one.
-    @classmethod
-    def from_nwk(cls, path, seqs, save=True, verbose=False, mu=100, beta=2):
-        def check(seqs, T, G, verbose=False):
-            nerror = 0
-            uncompressed_length = 0
-            for n in T.get_terminals():
-                if n.name not in G.seqs:
-                    continue
-
-                seq = seqs[n.name]
-                orig = str(seq[:].seq).upper()
-                tryprint(f"--> Checking {n.name}", verbose=verbose)
-                rec = G.extract(n.name)
-                uncompressed_length += len(orig)
-                if orig != rec:
-                    nerror += 1
-
-                    with open("test.fa", "w+") as out:
-                        out.write(f">original\n{orig}\n")
-                        out.write(f">reconstructed\n{rec}")
-
-                    for i in range(len(orig)//100):
-                        if (orig[i*100:(i+1)*100] != rec[i*100:(i+1)*100]):
-                            print("-----------------")
-                            print("O:", i, orig[i*100:(i+1)*100])
-                            print("G:", i, rec[i*100:(i+1)*100])
-
-                            diffs = [i for i in range(len(rec)) if rec[i] != orig[i]]
-                            pos   = [0]
-                            blks  = G.seqs[n.name]
-                            for b, strand, num in blks:
-                                pos.append(pos[-1] + len(G.blks[b].extract(n.name, num)))
-                            pos = pos[1:]
-
-                            testseqs = []
-                            for b in G.seqs[n.name]:
-                                if b[1] == Strand.Plus:
-                                    testseqs.append("".join(G.blks[b[0]].extract(n.name, b[2])))
-                                else:
-                                    testseqs.append("".join(Seq.reverse_complement(G.blks[b[0]].extract(n.name, b[2]))))
-
-                            import ipdb; ipdb.set_trace()
-                else:
-                    tryprint(f"+++ Verified {n.name}", verbose=verbose)
-
-            if nerror == 0:
-                tryprint("all sequences correctly reconstructed", verbose=verbose)
-                tlength = np.sum([len(x) for x in G.blks.values()])
-                tryprint(f"--- total graph length: {tlength}", verbose=verbose)
-                tryprint(f"--- total input sequence: {uncompressed_length}", verbose=verbose)
-                tryprint(f"--- compression: {uncompressed_length/tlength:1.2f}", verbose=verbose)
-            else:
-                raise ValueError("bad sequence reconstruction")
-
-        T = Phylo.read(path, "newick")
-        if T.count_terminals() == 1:
-            return Graph(), False
-
-        for i, n in enumerate(T.get_terminals()):
-            seq      = asrecord(seqs[n.name])
-            n.graph  = Graph.from_seq(seq.id, str(seq.seq).upper())
-            n.name   = seq.id
-            n.fapath = f"{Graph.blddir}/{n.name}"
-            tryprint(f"------> Outputting {n.fapath}", verbose=verbose)
-            n.graph.write_fasta(n.fapath)
-
-        nnodes = 0
-        for n in T.get_nonterminals(order='postorder'):
-            nnodes += 1
-
-            # Simple graph "fuse". Straight concatenation
-            n.name   = f"NODE_{nnodes:07d}"
-            n.graph  = Graph.fuse(n.clades[0].graph, n.clades[1].graph)
-            # check(seqs, T, n.graph)
-            n.fapath = os.path.join(*[Graph.blddir, f"{n.name}.fasta"])
-
-            tryprint(f"-- node {n.name} with {len(n.clades)} children", verbose)
-
-            # Initial map from graph to itself
-            n.graph, _ = n.graph.merge(n.clades[0].fapath, n.clades[1].fapath, f"{Graph.blddir}/{n.name}",
-                            cutoff=50, mu=mu, beta=beta)
-
-            i, contin = 0, True
-            while contin:
-                tryprint(f"----> merge round {i}", verbose)
-                # check(seqs, T, n.graph)
-                itrseq = f"{Graph.blddir}/{n.name}_iter_{i}"
-                n.graph.write_fasta(itrseq)
-                n.graph, contin = n.graph.merge(itrseq, itrseq, f"{Graph.blddir}/{n.name}_iter_{i}",
-                            cutoff=50, mu=mu, beta=beta)
-                i += 1
-
-                contin &= i < MAXSELFMAPS
-
-            tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
-            n.graph.write_fasta(f"{Graph.blddir}/{n.name}")
-            # Continuous error logging
-            # print(f"Node {n.name}", file=sys.stderr)
-            # print(f"--> Compression ratio parent: {n.graph.compressratio()}", file=sys.stderr)
-            # print(f"--> Compression ratio child1: {n.clades[0].graph.compressratio()}", file=sys.stderr)
-            # print(f"--> Compression ratio child2: {n.clades[1].graph.compressratio()}", file=sys.stderr)
-            # Output with content
-            # print(f"{n.graph.compressratio()}\t{n.clades[0].graph.compressratio()}\t{n.clades[1].graph.compressratio()}\t{n.clades[0].branch_length + n.clades[1].branch_length}", file=sys.stdout, flush=True)
-
-        G      = T.root.graph
-        G.name = ".".join(os.path.basename(path).split(".")[:-1])
-        # check(seqs, T, G)
-
-        return G, True
-
     # ---------------
     # methods
 
@@ -223,10 +111,10 @@ class Graph(object):
         def accepted(hit):
             return energy(hit) < 0
 
-        qpath = qpath.replace(".fasta", "")
-        rpath = rpath.replace(".fasta", "")
+        qpath = qpath.replace(".fa", "")
+        rpath = rpath.replace(".fa", "")
 
-        os.system(f"minimap2 -t 2 -x asm5 -D -c {rpath}.fasta {qpath}.fasta 1>{out}.paf 2>log")
+        os.system(f"minimap2 -t 2 -x asm5 -D -c {rpath}.fa {qpath}.fa 1>{out}.paf 2>log")
 
         paf = parse_paf(f"{out}.paf")
         paf.sort(key = lambda x: energy(x))
@@ -292,12 +180,12 @@ class Graph(object):
 
                 def getseqs():
                     if qpath == rpath:
-                        fa   = fai.Fasta(f"{qpath}.fasta")
+                        fa   = fai.Fasta(f"{qpath}.fa")
                         qseq = fa[hit['qry']['name']][:].seq
                         rseq = fa[hit['ref']['name']][:].seq
                     else:
-                        qseq = fai.Fasta(f"{qpath}.fasta")[hit['qry']['name']][:].seq
-                        rseq = fai.Fasta(f"{rpath}.fasta")[hit['ref']['name']][:].seq
+                        qseq = fai.Fasta(f"{qpath}.fa")[hit['qry']['name']][:].seq
+                        rseq = fai.Fasta(f"{rpath}.fa")[hit['ref']['name']][:].seq
 
                     return qseq, rseq
 
