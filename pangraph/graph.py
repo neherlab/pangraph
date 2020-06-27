@@ -111,7 +111,6 @@ class Graph(object):
         def accepted(hit):
             return energy(hit) < 0
 
-        print(f"REF: {rpath} QRY: {qpath}")
         os.system(f"minimap2 -t 2 -x asm20 -m 10 -n 2 -s 30 -X -c {rpath}.fa {qpath}.fa 1>{out}.paf 2>log")
 
         paf = parse_paf(f"{out}.paf")

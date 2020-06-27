@@ -54,7 +54,7 @@ def parse_mash(input):
     return M, np.array(names)
 
 # ------------------------------------------------------------------------
-# all backends here 
+# backends perform the pairwise distance approximation
 
 class Backend(object):
     def __init__(self, run, parse):
@@ -65,12 +65,6 @@ backends = {
     "mash" : Backend(run=run_mash, parse=parse_mash),
     # add more backends here...
 }
-
-# gpath = "data/mtx/graphdist.nomap.npz"
-# fname = "data/graph/clusters.tsv"
-# tdir  = "data/graph/nwk"
-# sdir  = "data/graph/seq"
-# mdir  = "data/graph/mtx"
 
 # ------------------------------------------------------------------------
 # helpers
@@ -121,64 +115,3 @@ def main(args):
         tree.write_json(fd)
 
     return 0
-
-# TODO: remove
-# if __name__ == "__main__":
-#     d = np.load(gpath)
-
-#     # Load in kmer distance and graph distance
-#     # Permute rows/columns in kmer to graph
-#     Dk, knames = parsekmer(kpath)
-#     Dg, gnames = d['arr_1'], d['arr_0']
-
-#     Dg = .5 * (Dg + Dg.T)
-
-#     maps = np.zeros(len(gnames))
-#     for i, name in enumerate(gnames):
-#         j = np.where(knames == name)[0][0]
-#         maps[i] = int(j)
-
-#     Dkp = np.zeros_like(Dg)
-#     for i in range(len(maps)):
-#         for j in range(len(maps)):
-#             Dkp[i,j] = Dk[maps[i], maps[j]]
-
-#     Dk = Dkp
-
-#     # Cluster matrix and export results
-#     Dg[Dk < .35]     = np.inf
-#     Dg[np.isinf(Dg)] = 500
-
-#     Dsq = ssd.squareform(Dg)
-#     Z   = sch.linkage(Dsq, method="average")
-#     cls = sch.fcluster(Z, 200, criterion="distance")
-#     cls = np.array(cls)
-
-#     # Export final clusters as tsv
-#     export(cls, gnames, fname)
-
-#     # Export final clusters as newicks
-#     C = np.max(cls)
-#     T = Tree(asnwkstr(sch.to_tree(Z), "", 0, gnames))
-#     for c in range(C):
-#         Tp = T.copy()
-#         Tp.prune(gnames[cls == (c+1)])
-#         with open(f"{tdir}/cluster_{c:03d}.nwk", "w") as out:
-#             out.write((Tp.write()))
-
-#     # Export final clusters as fastas
-#     seqs = fai.Fasta("data/seq/all.fasta")
-#     for c in range(C):
-#         with open(f"{sdir}/cluster_{c:03d}.fa", "w") as out:
-#             for name in gnames[cls == (c+1)]:
-#                 out.write(f">{name}\n")
-#                 out.write(f"{str(seqs[name])}\n")
-
-#     # Export submatrices 
-#     for c in range(C):
-#         indx = cls == (c+1)
-#         Dsub = Dg[indx,:]
-#         Dsub = Dsub[:, indx]
-#         np.savez(f"{mdir}/cluster_{c:03d}.npz", Dsub, gnames[indx])
-#         json.dump({'mtx' : Dsub.tolist(), "iso" : gnames[indx].tolist()}, \
-#                 open(f"{mdir}/cluster_{c:03d}.json", "w+"))
