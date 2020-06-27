@@ -36,8 +36,11 @@ def main(args):
     with open(args.input, 'r') as input:
         T = Tree.from_json(input)
 
-    tmp = f"{args.dir.rstrip('/')}/tmp"
+    root = args.dir.rstrip('/')
+    tmp = f"{root}/tmp"
     mkdir(tmp)
     T.align(tmp)
+    with open(f"{root}/graph.fa", 'w') as fd:
+        T.root.graph.write_fasta(fd)
 
     return 0

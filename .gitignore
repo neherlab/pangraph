@@ -1,7 +1,5 @@
 .dep
 data
 viewer
-.snakemake
-__pycache__
 figs
 log

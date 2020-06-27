@@ -122,7 +122,7 @@ def main(args):
 
     return 0
 
-# TODO: Remove assumption of having kpath/gpath already computed.
+# TODO: remove
 # if __name__ == "__main__":
 #     d = np.load(gpath)
 

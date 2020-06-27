@@ -256,7 +256,7 @@ class Tree(object):
         leafs = {n.name: n for n in self.get_leafs()}
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
-    def align(self, tmpdir, save=True, verbose=False):
+    def align(self, tmpdir, verbose=False):
         # Debugging function that will check reconstructed sequence against known real one.
         def check(seqs, T, G, verbose=False):
             nerror = 0
@@ -317,7 +317,8 @@ class Tree(object):
             n.graph  = Graph.from_seq(n.name, str(seq).upper())
             n.fapath = f"{tmpdir}/{n.name}"
             tryprint(f"------> Outputting {n.fapath}", verbose=verbose)
-            n.graph.to_fasta(n.fapath)
+            with open(f"{n.fapath}.fa", 'w') as fd:
+                n.graph.write_fasta(fd)
 
         nnodes = 0
         for n in self.postorder():
@@ -329,26 +330,28 @@ class Tree(object):
             print(f"Fusing {n.children[0].name} with {n.children[1].name}", file=sys.stderr)
             n.graph  = Graph.fuse(n.children[0].graph, n.children[1].graph)
             check(self.seqs, self, n.graph)
-            n.fapath = os.path.join(*[Graph.blddir, f"{n.name}.fasta"])
+            n.fapath = os.path.join(*[tmpdir, f"{n.name}"])
 
             tryprint(f"-- node {n.name} with {len(n.children)} children", verbose)
 
             # Initial map from graph to itself
-            n.graph, _ = n.graph._mapandmerge(n.children[0].fapath, n.children[1].fapath, f"{tmpdir}/{n.name}")
+            n.graph, _ = n.graph.union(n.children[0].fapath, n.children[1].fapath, f"{tmpdir}/{n.name}")
 
             i, contin = 0, True
             while contin:
                 tryprint(f"----> merge round {i}", verbose)
                 check(self.seqs, self, n.graph)
-                itrseq = f"{tmpdir}/{n.name}_iter_{i}"
-                n.graph.to_fasta(itrseq)
-                n.graph, contin = n.graph._mapandmerge(itrseq, itrseq, f"{tmpdir}/{n.name}_iter_{i}")
+                itrseq = f"{tmpdir}/{n.name}_iter_{i}.fa"
+                with open(itrseq, 'w') as fd:
+                    n.graph.write_fasta(fd)
+                n.graph, contin = n.graph.union(itrseq, itrseq, f"{tmpdir}/{n.name}_iter_{i}")
                 i += 1
 
                 contin &= i < MAXSELFMAPS
 
             tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
-            n.graph.to_fasta(f"{tmpdir}/{n.name}")
+            with open(f"{tmpdir}/{n.name}.fa", 'w') as fd:
+                n.graph.write_fasta(fd)
             log(f"node: {n.name}; dist {n.children[0].dist+ n.children[1].dist}")
             log((f"--> compression ratio: parent: "
                    f"{n.graph.compress_ratio()}"))

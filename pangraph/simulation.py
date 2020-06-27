@@ -418,6 +418,7 @@ class Population(object):
 # ------------------------------------------------------------------------
 # Main point of entry
 
+# TODO: remove
 # def test_interval_map():
 #     print("ROUND 1")
 #     M = IntervalMap()

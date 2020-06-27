@@ -10,13 +10,13 @@ from Bio.SeqRecord import SeqRecord
 
 from .      import suffix
 from .block import Block
-from .utils import Strand, asstring, parsepaf, panic, tryprint, asrecord, newstrand
+from .utils import Strand, asstring, parse_paf, panic, tryprint, asrecord, newstrand
 
 # ------------------------------------------------------------------------
 # Global variables
 
 outdir      = "data/graph"
-maxselfmaps = 100
+MAXSELFMAPS = 100
 
 # ------------------------------------------------------------------------
 # Graph class
@@ -79,6 +79,7 @@ class Graph(object):
 
         return ng
 
+    # TODO: remove
     # Debugging function that will check reconstructed sequence against known real one.
     @classmethod
     def from_nwk(cls, path, seqs, save=True, verbose=False, mu=100, beta=2):
@@ -144,7 +145,7 @@ class Graph(object):
             n.name   = seq.id
             n.fapath = f"{Graph.blddir}/{n.name}"
             tryprint(f"------> Outputting {n.fapath}", verbose=verbose)
-            n.graph.to_fasta(n.fapath)
+            n.graph.write_fasta(n.fapath)
 
         nnodes = 0
         for n in T.get_nonterminals(order='postorder'):
@@ -159,7 +160,7 @@ class Graph(object):
             tryprint(f"-- node {n.name} with {len(n.clades)} children", verbose)
 
             # Initial map from graph to itself
-            n.graph, _ = n.graph._mapandmerge(n.clades[0].fapath, n.clades[1].fapath, f"{Graph.blddir}/{n.name}",
+            n.graph, _ = n.graph.merge(n.clades[0].fapath, n.clades[1].fapath, f"{Graph.blddir}/{n.name}",
                             cutoff=50, mu=mu, beta=beta)
 
             i, contin = 0, True
@@ -167,15 +168,15 @@ class Graph(object):
                 tryprint(f"----> merge round {i}", verbose)
                 # check(seqs, T, n.graph)
                 itrseq = f"{Graph.blddir}/{n.name}_iter_{i}"
-                n.graph.to_fasta(itrseq)
-                n.graph, contin = n.graph._mapandmerge(itrseq, itrseq, f"{Graph.blddir}/{n.name}_iter_{i}",
+                n.graph.write_fasta(itrseq)
+                n.graph, contin = n.graph.merge(itrseq, itrseq, f"{Graph.blddir}/{n.name}_iter_{i}",
                             cutoff=50, mu=mu, beta=beta)
                 i += 1
 
-                contin &= i < maxselfmaps
+                contin &= i < MAXSELFMAPS
 
             tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
-            n.graph.to_fasta(f"{Graph.blddir}/{n.name}")
+            n.graph.write_fasta(f"{Graph.blddir}/{n.name}")
             # Continuous error logging
             # print(f"Node {n.name}", file=sys.stderr)
             # print(f"--> Compression ratio parent: {n.graph.compressratio()}", file=sys.stderr)
@@ -188,20 +189,12 @@ class Graph(object):
         G.name = ".".join(os.path.basename(path).split(".")[:-1])
         # check(seqs, T, G)
 
-        if save:
-            G.to_json()
-            G.to_fasta()
-
         return G, True
 
-    @classmethod
-    def cleanbld(cls):
-        for p in glob(f"{cls.blddir}/*"):
-            os.remove(p)
+    # ---------------
+    # methods
 
-    # --- Internal methods ---
-
-    def _mapandmerge(self, qpath, rpath, out, cutoff=None, mu=100, beta=2):
+    def union(self, qpath, rpath, out, cutoff=None, mu=100, beta=2):
         import warnings
         from skbio.alignment import global_pairwise_align
         from skbio import DNA
@@ -225,8 +218,6 @@ class Graph(object):
 
             dmut = hit["aligned_length"] * hit["divergence"]
 
-            # print(f"{l} :: {mu*delP + beta*dmut}")
-
             return -l + mu*delP + beta*dmut
 
         def accepted(hit):
@@ -235,10 +226,9 @@ class Graph(object):
         qpath = qpath.replace(".fasta", "")
         rpath = rpath.replace(".fasta", "")
 
-        # print(f"--> {qpath} & {rpath} -> {out}.paf")
         os.system(f"minimap2 -t 2 -x asm5 -D -c {rpath}.fasta {qpath}.fasta 1>{out}.paf 2>log")
 
-        paf = parsepaf(f"{out}.paf")
+        paf = parse_paf(f"{out}.paf")
         paf.sort(key = lambda x: energy(x))
 
         merged_blks = set()
@@ -358,10 +348,7 @@ class Graph(object):
             if hit['qry']['name'] in merged_blks \
             or hit['ref']['name'] in merged_blks \
             or(hit['ref']['name'] <= hit['qry']['name'] and qpath == rpath) \
-            or hit['align_score'] < 0.5:
-                continue
-
-            if not accepted(hit):
+            or not accepted(hit):
                 continue
 
             tryprint(f"------> merge {hit['ref']['name']} with {hit['qry']['name']}", False)
@@ -372,9 +359,6 @@ class Graph(object):
 
         self.purge_empty()
         return self, merged
-
-    # ---------------
-    # methods
 
     def prune(self):
         blks_remain = set()
@@ -520,7 +504,7 @@ class Graph(object):
         if self.sfxt is None or force:
             self.sfxt = suffix.Tree({k: [c[0:2] for c in v] for k, v in self.seqs.items()})
 
-    def computepairdists(self, force=False):
+    def compute_pdist(self, force=False):
         if self.dmtx is None or force:
             nms, N = sorted(list(self.seqs.keys())), len(self.seqs)
             self.dmtx = np.zeros((N*(N-1))//2)
@@ -582,16 +566,6 @@ class Graph(object):
 
         return
 
-    def to_fasta(self, path=None):
-        if path is None:
-            path = f"{Graph.alndir}/{self.name}.fasta"
-        elif not path.endswith(".fasta"):
-            path = path + ".fasta"
-        SeqIO.write(sorted([ SeqRecord(seq=Seq(asstring(c.seq)), id=c.id, description='')
-            for c in self.blks.values() ], key=lambda x: len(x), reverse=True), path, format='fasta')
-
-        return
-
     def to_dict(self):
         return {'name'   : self.name,
                 'seqs'   : self.seqs,
@@ -599,3 +573,10 @@ class Graph(object):
                 'blocks' : [b.to_dict() for b in self.blks.values()],
                 'suffix' : None if self.sfxt is None else "compiled",
                 'distmtx': self.dmtx}
+
+    def write_fasta(self, wtr):
+        SeqIO.write(sorted([ SeqRecord(seq=Seq(asstring(c.seq)), id=c.id, description='')
+            for c in self.blks.values() ], key=lambda x: len(x), reverse=True), wtr, format='fasta')
+
+        return
+

@@ -128,7 +128,7 @@ def getnwk(node, newick, parentdist, leaf_names):
 # ------------------------------------------------------------------------
 # parsers
 
-def parsepaf(path):
+def parse_paf(path):
     assert path.endswith(".paf")
     hits = []
     with openany(path) as fh:
