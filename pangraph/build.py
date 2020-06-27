@@ -40,8 +40,9 @@ def main(args):
     tmp = f"{root}/tmp"
     mkdir(tmp)
     T.align(tmp)
+
     graphs = T.collect()
     for g in graphs:
-        print(len(g.seqs))
+        print(len(g.seqs.keys()))
 
     return 0

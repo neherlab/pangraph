@@ -391,7 +391,7 @@ class Graph(object):
         return unc/cmp/len(self.seqs) if not extensive else unc/cmp
 
     def contains(self, other):
-        return set(other.seqs.keys()) in set(self.seqs.keys())
+        return set(other.seqs.keys()).issubset(set(self.seqs.keys()))
 
     def compile_suffix(self, force=False):
         if self.sfxt is None or force:
