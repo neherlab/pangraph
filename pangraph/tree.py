@@ -1,12 +1,14 @@
 import os, sys
 import json
 
+from copy import deepcopy
+
 import numpy as np
 import matplotlib.pylab as plt
 
 from Bio.Seq import Seq
 
-from .utils import Strand, log, flatten, tryprint
+from .utils import Strand, log, flatten, tryprint, panic
 from .graph import Graph
 
 # ------------------------------------------------------------------------
@@ -256,12 +258,15 @@ class Tree(object):
         leafs = {n.name: n for n in self.get_leafs()}
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
+    # TODO: move all tryprints to logging 
     def align(self, tmpdir, verbose=False):
+        # ---------------------------------------------
+        # internal functions
         # Debugging function that will check reconstructed sequence against known real one.
-        def check(seqs, T, G, verbose=False):
+        def check(seqs, G, verbose=False):
             nerror = 0
             uncompressed_length = 0
-            for n in T.get_leafs():
+            for n in self.get_leafs():
                 if n.name not in G.seqs:
                     continue
 
@@ -309,6 +314,44 @@ class Tree(object):
             else:
                 raise ValueError("bad sequence reconstruction")
 
+        def merge0(node1, node2):
+            graph1, fapath1 = node1.graph, node1.fapath
+            graph2, fapath2 = node2.graph, node2.fapath
+
+            graph = Graph.fuse(graph1, graph2)
+            graph, _ = graph.union(fapath1, fapath2, f"{tmpdir}/{n.name}")
+
+            cutoff = min(graph1.compress_ratio(), graph2.compress_ratio())
+            cutoff = max(0, cutoff-.05)
+            if (c:=graph.compress_ratio()) < cutoff:
+                print(f"SKIPPING {n.name} {c} -- {cutoff}")
+                print(f"CHILDREN {n.children[0].name} {n.children[1].name}")
+                return None
+
+            for i in range(MAXSELFMAPS):
+                tryprint(f"----> merge round {i}", verbose)
+                check(self.seqs, graph)
+                itr = f"{tmpdir}/{n.name}_iter_{i}"
+                with open(f"{itr}.fa", 'w') as fd:
+                    graph.write_fasta(fd)
+                graph, contin = graph.union(itr, itr, f"{tmpdir}/{n.name}_iter_{i}")
+                if not contin:
+                    return graph
+
+        def merge1(node, p):
+            g1 = merge0(node, p.children[0])
+            g2 = merge0(node, p.children[1])
+            if g1 and g2:
+                if g1.compress_ratio(extensive=True) > g2.compress_ratio(extensive=True):
+                    return g1
+                return g2
+            elif g1:
+                return g1
+            return g2
+
+        # --------------------------------------------
+        # body
+
         if self.num_leafs() == 1:
             return Graph()
 
@@ -326,39 +369,41 @@ class Tree(object):
                 continue
             nnodes += 1
 
-            # Simple graph "fuse". Straight concatenation
-            log(f"Fusing {n.children[0].name} with {n.children[1].name}")
-            n.graph  = Graph.fuse(n.children[0].graph, n.children[1].graph)
-            check(self.seqs, self, n.graph)
             n.fapath = f"{tmpdir}/{n.name}"
+            log(f"Attempting to fuse {n.children[0].name} with {n.children[1].name} @ {n.name}")
 
-            # Initial map from graph to itself
-            n.graph, _ = n.graph.union(n.children[0].fapath, n.children[1].fapath, f"{tmpdir}/{n.name}")
-            # if n.name == "ROOT":
-            #     import ipdb; ipdb.set_trace()
+            if n.children[0].graph and n.children[1].graph:
+                n.graph = merge0(n.children[0], n.children[1])
+                if not n.graph:
+                    continue
+            elif n.children[0].graph:
+                n.graph = merge1(n.children[0], n.children[1])
+                if not n.graph:
+                    import ipdb; impdb.set_trace()
+            elif n.children[1].graph:
+                n.graph = merge1(n.children[1], n.children[0])
+                if not n.graph:
+                    import ipdb; impdb.set_trace()
+            else:
+                # XXX: will we ever get here...
+                continue
 
-            i, contin = 0, True
-            while contin:
-                tryprint(f"----> merge round {i}", verbose)
-                check(self.seqs, self, n.graph)
-                itrseq = f"{tmpdir}/{n.name}_iter_{i}"
-                with open(f"{itrseq}.fa", 'w') as fd:
-                    n.graph.write_fasta(fd)
-                n.graph, contin = n.graph.union(itrseq, itrseq, f"{tmpdir}/{n.name}_iter_{i}")
-                i += 1
-
-                contin &= i < MAXSELFMAPS
-
-            tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
+            check(self.seqs, n.graph)
             with open(f"{tmpdir}/{n.name}.fa", 'w') as fd:
                 n.graph.write_fasta(fd)
-            log(f"node: {n.name}; dist {n.children[0].dist+ n.children[1].dist}")
-            log((f"--> compression ratio: parent: "
+
+            # tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
+            # log(f"node: {n.name}; dist {n.children[0].dist+ n.children[1].dist}")
+            log((f"--> compression ratio: "
                    f"{n.graph.compress_ratio()}"))
-            log((f"--> compression ratio: child1: "
-                 f"{n.children[0].graph.compress_ratio()}"))
-            log((f"--> compression ratio: child2: "
-                 f"{n.children[1].graph.compress_ratio()}"))
+            log((f"--> number of blocks: "
+                   f"{len(n.graph.blks)}"))
+            log((f"--> number of members: "
+                   f"{len(n.graph.seqs)}"))
+            # log((f"--> compression ratio: child1: "
+            #      f"{n.children[0].graph.compress_ratio()}"))
+            # log((f"--> compression ratio: child2: "
+            #      f"{n.children[1].graph.compress_ratio()}"))
 
     def write_nwk(self, wtr):
         self.root.to_nwk(wtr)

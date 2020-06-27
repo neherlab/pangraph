@@ -87,7 +87,10 @@ class Graph(object):
         from skbio.alignment import global_pairwise_align
         from skbio import DNA
 
-        def globalaln(s1, s2):
+        # ----------------------------------
+        # internal functions
+
+        def global_aln(s1, s2):
             M = {}
             alphas = ['A', 'C', 'G', 'T', 'N']
             for a in alphas:
@@ -99,6 +102,7 @@ class Graph(object):
                         M[a][b] = -3
             return global_pairwise_align(s1, s2, 5, 2, M)
 
+        # TODO: resolve cut extensivity correctly
         def energy(hit):
             l    = hit["aligned_bases"]
             delP = len(self.blks[hit["qry"]["name"]].muts) + \
@@ -110,15 +114,6 @@ class Graph(object):
 
         def accepted(hit):
             return energy(hit) < 0
-
-        os.system(f"minimap2 -t 2 -x asm20 -m 10 -n 2 -s 30 -X -c {rpath}.fa {qpath}.fa 1>{out}.paf 2>log")
-
-        paf = parse_paf(f"{out}.paf")
-        paf.sort(key = lambda x: energy(x))
-
-        merged_blks = set()
-        if len(paf) == 0:
-            return self, False
 
         if cutoff is None:
             def proc(hit):
@@ -202,7 +197,7 @@ class Graph(object):
                     hit['ref']['start'] = 0
                 elif 0 < dS_q <= cutoff and 0 < dS_r <= cutoff:
                     qseq, rseq = getseqs()
-                    aln = globalaln(DNA(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[0:dS_q]), DNA(rseq[0:dS_r]))
+                    aln = global_aln(DNA(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[0:dS_q]), DNA(rseq[0:dS_r]))
                     aln = tuple([str(v) for v in aln[0].to_dict().values()])
                     hit['cigar'] = tocigar(aln) + hit['cigar']
                     hit['qry']['start'] = 0
@@ -218,7 +213,7 @@ class Graph(object):
                     hit['ref']['end'] = hit['ref']['len']
                 elif 0 < dE_q <= cutoff and 0 < dE_r <= cutoff:
                     qseq, rseq = getseqs()
-                    aln = globalaln(DNA(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[-dE_q:]), DNA(rseq[-dE_r:]))
+                    aln = global_aln(DNA(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[-dE_q:]), DNA(rseq[-dE_r:]))
                     aln = tuple([str(v) for v in aln[0].to_dict().values()])
 
                     hit['cigar'] = hit['cigar'] + tocigar(aln)
@@ -227,6 +222,18 @@ class Graph(object):
                     hit['aligned_bases'] += len(aln[0])
 
                 return hit
+
+        # ----------------------------------
+        # body
+
+        os.system(f"minimap2 -t 2 -x asm20 -m 10 -n 2 -s 30 -D -c {rpath}.fa {qpath}.fa 1>{out}.paf 2>log")
+
+        paf = parse_paf(f"{out}.paf")
+        paf.sort(key = lambda x: energy(x))
+
+        merged_blks = set()
+        if len(paf) == 0:
+            return self, False
 
         merged = False
         for hit in paf:
@@ -371,19 +378,17 @@ class Graph(object):
 
         return seq
 
-    def compress_ratio(self, name=None):
-        unclen = 0
+    def compress_ratio(self, extensive=False, name=None):
+        unc= 0
         if name is None:
             for n in self.seqs:
-                seq = self.extract(n)
-                unclen += len(seq)
-
-        if name is None:
-            cmplen = np.sum([len(x) for x in self.blks.values()])
+                seq  = self.extract(n)
+                unc += len(seq)
+            cmp = np.sum([len(x) for x in self.blks.values()])
         else:
-            cmplen = np.sum([len(x) for x in self.blks.values() if name in x.muts])
+            cmp = np.sum([len(x) for x in self.blks.values() if name in x.muts])
 
-        return unclen/cmplen
+        return unc/cmp/len(self.seqs) if not extensive else unc/cmp
 
     def compile_suffix(self, force=False):
         if self.sfxt is None or force:

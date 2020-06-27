@@ -40,7 +40,5 @@ def main(args):
     tmp = f"{root}/tmp"
     mkdir(tmp)
     T.align(tmp)
-    with open(f"{root}/graph.fa", 'w') as fd:
-        T.root.graph.write_fasta(fd)
 
     return 0
