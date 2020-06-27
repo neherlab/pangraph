@@ -390,6 +390,9 @@ class Graph(object):
 
         return unc/cmp/len(self.seqs) if not extensive else unc/cmp
 
+    def contains(self, other):
+        return set(other.seqs.keys()) in set(self.seqs.keys())
+
     def compile_suffix(self, force=False):
         if self.sfxt is None or force:
             self.sfxt = suffix.Tree({k: [c[0:2] for c in v] for k, v in self.seqs.items()})

@@ -405,6 +405,24 @@ class Tree(object):
             # log((f"--> compression ratio: child2: "
             #      f"{n.children[1].graph.compress_ratio()}"))
 
+    def collect(self):
+        graphs = []
+        for n in self.postorder():
+            if n.graph:
+                continue
+            if not n.parent:
+                return graphs
+            gp = n.parent.graph
+            g0 = n.children[0].graph
+            g1 = n.children[1].graph
+            if gp.contains(g0):
+                graphs.append(g1)
+            else:
+                graphs.append(g0)
+
+        graphs.append(self.root.graph)
+        return graphs
+
     def write_nwk(self, wtr):
         self.root.to_nwk(wtr)
         wtr.write(";")
