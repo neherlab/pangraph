@@ -111,10 +111,8 @@ class Graph(object):
         def accepted(hit):
             return energy(hit) < 0
 
-        qpath = qpath.replace(".fa", "")
-        rpath = rpath.replace(".fa", "")
-
-        os.system(f"minimap2 -t 2 -x asm5 -D -c {rpath}.fa {qpath}.fa 1>{out}.paf 2>log")
+        print(f"REF: {rpath} QRY: {qpath}")
+        os.system(f"minimap2 -t 2 -x asm20 -m 10 -n 2 -s 30 -X -c {rpath}.fa {qpath}.fa 1>{out}.paf 2>log")
 
         paf = parse_paf(f"{out}.paf")
         paf.sort(key = lambda x: energy(x))
@@ -448,7 +446,6 @@ class Graph(object):
 
         J["Nodes"] = nodes
 
-        # print(f"----> Saving to {Graph.visdir}/{self.name}.json")
         with open(f"{Graph.visdir}/{self.name}.json", 'w+') as fh:
             json.dump(J, fh)
 

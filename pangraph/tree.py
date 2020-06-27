@@ -327,24 +327,22 @@ class Tree(object):
             nnodes += 1
 
             # Simple graph "fuse". Straight concatenation
-            print(f"Fusing {n.children[0].name} with {n.children[1].name}", file=sys.stderr)
+            log(f"Fusing {n.children[0].name} with {n.children[1].name}")
             n.graph  = Graph.fuse(n.children[0].graph, n.children[1].graph)
             check(self.seqs, self, n.graph)
-            n.fapath = os.path.join(*[tmpdir, f"{n.name}"])
-
-            tryprint(f"-- node {n.name} with {len(n.children)} children", verbose)
+            n.fapath = f"{tmpdir}/{n.name}"
 
             # Initial map from graph to itself
             n.graph, _ = n.graph.union(n.children[0].fapath, n.children[1].fapath, f"{tmpdir}/{n.name}")
-            if n.name == "ROOT":
-                import ipdb; ipdb.set_trace()
+            # if n.name == "ROOT":
+            #     import ipdb; ipdb.set_trace()
 
             i, contin = 0, True
             while contin:
                 tryprint(f"----> merge round {i}", verbose)
                 check(self.seqs, self, n.graph)
-                itrseq = f"{tmpdir}/{n.name}_iter_{i}.fa"
-                with open(itrseq, 'w') as fd:
+                itrseq = f"{tmpdir}/{n.name}_iter_{i}"
+                with open(f"{itrseq}.fa", 'w') as fd:
                     n.graph.write_fasta(fd)
                 n.graph, contin = n.graph.union(itrseq, itrseq, f"{tmpdir}/{n.name}_iter_{i}")
                 i += 1
