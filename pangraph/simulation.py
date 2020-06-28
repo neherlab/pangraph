@@ -10,21 +10,36 @@ from portion import Interval, closedopen, to_data
 from .graph import Graph
 from .utils import asrecord, cat
 
+# TODO: move away from storing all data as dense arrays to interval representation
+#       as of now this simulation is overly memory hungry
+
+# ------------------------------------------------------------------------
+# utility functions
+
+def And(x, y):
+    return np.bitwise_and(x, y)
+
+def breakpoints(anc, pos, time):
+    # TODO: put check for difference in ancestral values here
+    # TODO: dido on time
+    cond  = And(And(delta != 1, delta != self.L-1), anc < self.N)
+    bkpnt = np.where(cond)[0]
+
 # ------------------------------------------------------------------------
 # rng sampling
 
-def random_seq(L, alphabet=None, barcode=None):
+def random_seq(L, alphabet=None, barcode=None, time=1):
     if alphabet is None:
         alphabet = np.frombuffer(b"ACGT", dtype=np.int8)
 
     idx = rng.randint(len(alphabet), size=L)
     seq = alphabet[idx]
+
     if barcode is None:
         return seq
+    return seq, barcode*np.ones(L), np.arange(L), time*np.ones(L)
 
-    return seq, barcode*np.ones(L), np.arange(L)
-
-def indel(seq, other=None, std=0, L0=0, N=0):
+def indel(t, seq, other=None, std=0, L0=0, N=0):
     if len(seq[0]) != len(seq[1]):
         print("unequal sequence lengths")
         import ipdb; ipdb.set_trace()
@@ -66,7 +81,7 @@ def indel(seq, other=None, std=0, L0=0, N=0):
 
     return seq
 
-def transpose(seq, avg, std):
+def transpose(t, seq, avg, std):
     L  = len(seq)
     dl = int(rng.randn(1)*std + avg)
 
@@ -92,7 +107,7 @@ def transpose(seq, avg, std):
 
     return seq
 
-def invert(seq, avg, std):
+def invert(t, seq, avg, std):
     L  = len(seq)
     dl = int(rng.randn(1)*std + avg)
     if 0 < dl < L:
@@ -119,7 +134,7 @@ def mutate(seq, mu, alphabet=None):
         alphabet = np.array([ord(c) for c in ['A', 'C', 'G', 'T']])
 
     # Unpack
-    seq, bc, anc = seq
+    seq, bc, anc, time = seq
     nm  = rng.poisson(lam=mu*len(seq), size=1)
     idx = rng.choice(len(seq), size=nm, replace=False)
     mut = rng.choice(len(alphabet), size=nm, replace=True)
@@ -131,7 +146,7 @@ def mutate(seq, mu, alphabet=None):
         seq[I] = alphabet[mut[i]]
 
     # Repack
-    return tuple((seq, bc, anc))
+    return tuple((seq, bc, anc, time))
 
 # ------------------------------------------------------------------------
 # an associative data structure whose keys are 1d intervals
@@ -258,7 +273,7 @@ class IntervalMap(object):
             keys, vals = [], []
             for d in datum:
                 keys.append(int(d[0]))
-                vals.append(tuple(int(e) for e in d[1]))
+                vals.append({'date':d[1], 'pos': tuple(int(e) for e in d[2])})
             return dict(zip(keys,vals))
 
         def pack(intervals):
@@ -281,6 +296,7 @@ class Population(object):
         self.N    = size
         self.L    = len
         self.mu   = mu
+        self.t    = 0
 
         # reassortment parameters
         # TODO: make adjustable
@@ -295,9 +311,9 @@ class Population(object):
         self.rtranspose = self.rindel + rate_transpose
 
         # store thunks for nicer function calls
-        self.hgt       = lambda seq, donor: indel(seq, donor, self.indel_std, self.L, self.N)
-        self.indel     = lambda seq: indel(seq, None, self.indel_std, self.L, self.N)
-        self.transpose = lambda seq: transpose(seq, self.seqmv_avg, self.seqmv_std)
+        self.hgt       = lambda t, seq, donor: indel(t, seq, donor, self.indel_std, self.L, self.N)
+        self.indel     = lambda t, seq: indel(t, seq, None, self.indel_std, self.L, self.N)
+        self.transpose = lambda t, seq: transpose(t, seq, self.seqmv_avg, self.seqmv_std)
         self.mutate    = lambda seq: mutate(seq, self.mu)
 
         # Population data
@@ -305,7 +321,7 @@ class Population(object):
         self.anc = self.seq.copy()
 
     def evolve(self, T):
-        for _ in range(T):
+        for t in range(self.t, T):
             rand   = rng.rand(self.N)
             parent = rng.choice(self.N, size=self.N)
             seq    = []
@@ -314,16 +330,18 @@ class Population(object):
                 # NOTE: this must be in the same order as the rates above
                 if rand[n] < self.rhgt:
                     donor = self.seq[int(rng.choice(self.N, size=1))]
-                    s = self.hgt(s, donor)
+                    s = self.hgt(t, s, donor)
                 elif rand[n] < self.rindel:
-                    s = self.indel(s)
+                    s = self.indel(t, s)
                 elif rand[n] < self.rtranspose:
-                    s = self.transpose(s)
+                    s = self.transpose(t, s)
 
                 s = self.mutate(s)
                 seq.append(s)
 
             self.seq = seq
+
+        self.t += T
 
     def write_fasta(self, wtr, prefix="isolate"):
         seq   = lambda s: "".join(chr(n) for n in s[0])
@@ -347,9 +365,6 @@ class Population(object):
         # ---------------------------------
         # internal funcs
 
-        def And(x, y):
-            return np.bitwise_and(x, y)
-
         def Put(A, anciv, C, curiv, l):
             if curiv[0] >= curiv[1]:
                 curiv = (curiv[0], curiv[1]+l)
@@ -363,16 +378,13 @@ class Population(object):
         # ---------------------------------
         # body
 
-        for n, (_, anc, pos) in enumerate(self.seq):
+        for n, (_, anc, pos, time) in enumerate(self.seq):
             delta     = np.empty(pos.shape)
             delta[0]  = np.abs(pos[0]  - pos[-1])
             delta[1:] = np.abs(pos[1:] - pos[:-1])
 
-            cond  = And(And(delta != 1, delta != self.L-1), anc < self.N)
-            bkpnt = np.where(cond)[0]
-
+            bkpnt = breakpoints(anc, pos, time)
             if len(bkpnt) == 0:
-                # TODO: Put check for difference in ancestral values here??
                 Put(anc[0], (pos[0], pos[-1]), n, (0, len(pos)), len(anc))
                 continue
 
@@ -387,14 +399,15 @@ class Population(object):
             bp, nbp = bkpnt[-1], bkpnt[0]
             Put(anc[bp], (pos[bp], pos[nbp-1]),  n, (bp, nbp), len(anc))
 
-        # Now that we've found the ancestral block 'units', we go back and update the intervals
+        # now that we've found the ancestral block 'units', we go back and update the intervals
+        # furthermore, we now add in date information for each block (the time when the block was transfered)
         for nanc, blk in enumerate(blks):
             for i in range(len(blk.ival)):
                 anc_iv, data = blk.ival[i], blk.data[i]
                 updated = set([])
                 for item in data:
                     ncur, _ = item
-                    anc_id, anc_pos = self.seq[ncur][1:3]
+                    anc_id, anc_pos, date = self.seq[ncur][1:4]
                     if len(anc_iv) > 1:
                         import ipdb; ipdb.set_trace()
 
@@ -402,11 +415,10 @@ class Population(object):
                     lbs = np.where(And(anc_pos == anc_iv.lower, anc_id==nanc))[0]
                     ubs = np.where(And(anc_pos == (anc_iv.upper-1)%self.L, anc_id==nanc))[0]
                     for lb, ub in zip(sorted(lbs), sorted(ubs)):
-                        updated.add((ncur, (lb, ub+1)))
+                        updated.add((ncur, int(date[lb]), (lb, ub+1)))
 
                 blk.data[i] = updated
 
-        # Return the sparse array
         sparse = {}
         for i, b in enumerate(blks):
             data = b.serialize()
