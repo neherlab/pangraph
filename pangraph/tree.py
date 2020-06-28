@@ -259,7 +259,7 @@ class Tree(object):
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
     # TODO: move all tryprints to logging 
-    def align(self, tmpdir, verbose=False):
+    def align(self, tmpdir, min_blk_len, verbose=False):
         # ---------------------------------------------
         # internal functions
         # Debugging function that will check reconstructed sequence against known real one.
@@ -319,13 +319,11 @@ class Tree(object):
             graph2, fapath2 = node2.graph, node2.fapath
 
             graph = Graph.fuse(graph1, graph2)
-            graph, _ = graph.union(fapath1, fapath2, f"{tmpdir}/{n.name}")
+            graph, _ = graph.union(fapath1, fapath2, f"{tmpdir}/{n.name}", min_blk_len)
 
             cutoff = min(graph1.compress_ratio(), graph2.compress_ratio())
             cutoff = max(0, cutoff-.05)
             if (c:=graph.compress_ratio()) < cutoff:
-                print(f"SKIPPING {n.name} {c} -- {cutoff}")
-                print(f"CHILDREN {n.children[0].name} {n.children[1].name}")
                 return None
 
             for i in range(MAXSELFMAPS):
@@ -334,7 +332,7 @@ class Tree(object):
                 itr = f"{tmpdir}/{n.name}_iter_{i}"
                 with open(f"{itr}.fa", 'w') as fd:
                     graph.write_fasta(fd)
-                graph, contin = graph.union(itr, itr, f"{tmpdir}/{n.name}_iter_{i}")
+                graph, contin = graph.union(itr, itr, f"{tmpdir}/{n.name}_iter_{i}", min_blk_len)
                 if not contin:
                     return graph
 
@@ -423,12 +421,22 @@ class Tree(object):
         graphs.append(self.root.graph)
         return graphs
 
+    def keep_only(self, graphs):
+        graphs = set(graphs)
+        for n in self.postorder():
+            if n.graph in graphs:
+                continue
+            n.graph = None
+
     def write_nwk(self, wtr):
         self.root.to_nwk(wtr)
         wtr.write(";")
 
-    def write_json(self, wtr):
-        data = {'tree' : self.root.to_json(), 'seqs': {k.name:str(v) for k,v in self.seqs.items()}}
+    def write_json(self, wtr, no_seqs=False):
+        data = {
+            'tree' : self.root.to_json(),
+            'seqs' : None if no_seqs else {k.name:str(v) for k,v in self.seqs.items()},
+        }
         wtr.write(json.dumps(data))
 
 # ------------------------------------------------------------------------

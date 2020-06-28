@@ -11,9 +11,10 @@ DIRS := $(addprefix $(ROOT_DIR)/, $(DIRS))
 
 SEQS := $(addsuffix /seq.fa, $(DIRS))
 TREE := $(addsuffix /guide.json, $(DIRS))
+GRPH := $(addsuffix /graph000.fa, $(DIRS))
 # ... etc ...
 
-all: $(TREE)
+all: $(GRPH)
 
 %seq.fa:
 	@mkdir -p $(@D)
@@ -30,6 +31,10 @@ all: $(TREE)
 %guide.json: %seq.fa
 	@echo "cluster     "$(@D);\
 	pangraph cluster -d $(@D) $^
+
+%graph000.fa: %guide.json
+	@echo "build	    "$(@D);\
+	pangraph build -d $(@D) $^ 2>$(@D)/build.log
 
 clean:
 	rm -rf $(ROOT_DIR)/*

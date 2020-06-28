@@ -82,7 +82,7 @@ class Graph(object):
     # ---------------
     # methods
 
-    def union(self, qpath, rpath, out, cutoff=None, mu=100, beta=2):
+    def union(self, qpath, rpath, out, cutoff=0, mu=100, beta=2):
         import warnings
         from skbio.alignment import global_pairwise_align
         from skbio import DNA
@@ -115,7 +115,7 @@ class Graph(object):
         def accepted(hit):
             return energy(hit) < 0
 
-        if cutoff is None:
+        if cutoff <= 0:
             def proc(hit):
                 return hit
         else:
