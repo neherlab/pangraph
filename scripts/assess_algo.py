@@ -53,7 +53,7 @@ class Matches():
     def coverage(self):
         return np.array([sum(len(ms)==1 for ms in g.values())/len(g) for g in self.graphs])
 
-    def bp_accuracy(self):
+    def accuracy(self):
         return np.array([m.diff[0] for g in self.graphs for ms in g.values() for m in ms])
 
 def usage():
@@ -90,8 +90,8 @@ def main(args):
                 Match(*anc, d_beg, d_end, score)
             )
 
-        print(matches.coverage())
-        print(matches.bp_accuracy())
+        with open(f"{dir}/algo_stats.npz", "wb") as fd:
+            np.savez(fd, coverage=matches.coverage(), accuracy=matches.accuracy())
 
 if __name__ == "__main__":
     argv0 = argv[0]

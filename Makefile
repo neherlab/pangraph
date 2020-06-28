@@ -12,9 +12,9 @@ DIRS := $(addprefix $(ROOT_DIR)/, $(DIRS))
 SEQS := $(addsuffix /seq.fa, $(DIRS))
 TREE := $(addsuffix /guide.json, $(DIRS))
 GRPH := $(addsuffix /pangraph.json, $(DIRS))
-# ... etc ...
+STAT := $(addsuffix /algo_stats.npz, $(DIRS))
 
-all: $(GRPH)
+all: $(STAT)
 
 %seq.fa:
 	@mkdir -p $(@D)
@@ -35,6 +35,10 @@ all: $(GRPH)
 %pangraph.json: %guide.json
 	@echo "build	    "$(@D);\
 	pangraph build -d $(@D) $^ 2>$(@D)/build.log
+
+%algo_stats.npz: %pangraph.json
+	@echo "assay	    "$(@D);\
+	./scripts/assess_algo.py $(@D)
 
 clean:
 	rm -rf $(ROOT_DIR)/*

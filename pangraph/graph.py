@@ -1,6 +1,5 @@
 import os, sys
 import numpy as np
-# import pyfaidx as fai
 
 from glob  import glob
 
@@ -120,6 +119,20 @@ class Graph(object):
                 return hit
         else:
             def proc(hit):
+                # -----------------------
+                # load in sequences
+                with open(f"{qpath}.fa", 'r') as fd:
+                    qfa = {s.id:str(s.seq) for s in SeqIO.parse(fd, 'fasta')}
+
+                if qpath == rpath:
+                    rfa = qfa
+                else:
+                    with open(f"{rpath}.fa", 'r') as fd:
+                        rfa = {s.id:str(s.seq) for s in SeqIO.parse(fd, 'fasta')}
+
+                # -----------------------
+                # internal functions
+
                 def tocigar(aln):
                     cigar = ""
                     s1, s2 = np.fromstring(aln[0], dtype=np.int8), np.fromstring(aln[1], dtype=np.int8)
@@ -171,15 +184,10 @@ class Graph(object):
                         return s
 
                 def getseqs():
-                    if qpath == rpath:
-                        fa   = fai.Fasta(f"{qpath}.fa")
-                        qseq = fa[hit['qry']['name']][:].seq
-                        rseq = fa[hit['ref']['name']][:].seq
-                    else:
-                        qseq = fai.Fasta(f"{qpath}.fa")[hit['qry']['name']][:].seq
-                        rseq = fai.Fasta(f"{rpath}.fa")[hit['ref']['name']][:].seq
+                    return qfa[hit['qry']['name']], rfa[hit['ref']['name']]
 
-                    return qseq, rseq
+                # -----------------------
+                # body
 
                 dS_q = hit['qry']['start']
                 dE_q = hit['qry']['len'] - hit['qry']['end']
