@@ -100,7 +100,7 @@ def main(args):
     # ancestral block sequences
     ancs = []
     for a, b in blk.items():
-        nm = f"anc_{a:05d}"
+        nm = f"anc_{a:03d}"
         for i, ivs in enumerate(b['interval']):
             for j, iv in enumerate(ivs):
                 if (iv[0] < pop.L):
@@ -108,7 +108,7 @@ def main(args):
                 else:
                     seq = "".join(chr(c) for c in pop.anc[a][0][iv[1]:pop.L]) + \
                           "".join(chr(c) for c in pop.anc[a][0][0:iv[0]])
-            ancs.append(asrecord(seq, f"{nm}_{j:03d}_{i:03d}"))
+            ancs.append(asrecord(seq, f"{nm}_{i:03d}"))
 
     with open(f"{out}/ancestral.fa", 'w') as fd:
         SeqIO.write(ancs, fd, "fasta")
