@@ -57,13 +57,14 @@ def indel(t, seq, other=None, std=0, L0=0, N=0):
 
     dl  = int(rng.randn(1)*std + (L0-L))
 
-    def interval(seq, i, j):
-        if i < j:
-            return seq[i:j]
-        else:
+    def interval(seq, i, j, elt):
+        if elt < 3:
+            if i < j:
+                return seq[i:j]
             return cat(seq[i:], seq[:j])
+        return t*np.ones(j-i)
 
-    def do(s, o, seq=True):
+    def do(s, o, elt):
         if -L < dl < 0:
             j = (i - dl) % L
             if i < j:
@@ -72,66 +73,76 @@ def indel(t, seq, other=None, std=0, L0=0, N=0):
                 s = s[j:i]
         elif 0 < dl < L:
             if o is None:
-                ins = random_seq(dl) if seq else N*np.ones(dl, dtype=np.int8)
+                if elt == 0:
+                    ins = random_seq(dl)
+                elif elt == 3:
+                    ins = t*np.ones(dl, dtype=np.int)
+                else:
+                    ins = N*np.ones(dl, dtype=np.int8)
             elif dl < len(o):
                 j = (k + dl) % len(o)
-                ins = interval(o, k, j)
+                ins = interval(o, k, j, elt)
             s = cat(s[:i], ins, s[i:])
 
         return s
 
     if other is None:
-        seq = tuple(do(s, None, i==0) for i, s in enumerate(seq))
+        seq = tuple(do(s, None, i) for i, s in enumerate(seq))
     else:
-        seq = tuple(do(s, o, i==0) for i, (s, o) in enumerate(zip(seq, other)))
+        seq = tuple(do(s, o, i) for i, (s, o) in enumerate(zip(seq, other)))
 
     return seq
 
 def transpose(t, seq, avg, std):
-    L  = len(seq)
+    L  = len(seq[0])
     dl = int(rng.randn(1)*std + avg)
 
     if 0 < dl < L:
         i = rng.randint(L)
         k = rng.randint(len(seq[0]))
 
-        def do(s):
+        def do(s, elt):
             j = (i+dl) % L
 
             xfer = []
             if i < j:
-                xfer = s[i:j]
+                xfer = s[i:j] if elt < 3 else t*ones(j-i)
                 s    = cat(s[:i], s[j:])
             else:
-                xfer = cat(s[i:], s[:j])
+                xfer = cat(s[i:], s[:j]) if elt < 3 else t*ones(i-j)
                 s    = s[j:i]
 
             s = cat(s[:k], xfer, s[k:])
             return s
 
-        seq = tuple(do(s) for s in seq)
+        seq = tuple(do(s, i) for i, s in enumerate(seq))
 
     return seq
 
 def invert(t, seq, avg, std):
-    L  = len(seq)
+    L  = len(seq[0])
     dl = int(rng.randn(1)*std + avg)
     if 0 < dl < L:
         i = rng.randint(L)
         j = (i+dl) % L
 
-        def do(s):
-            xfer = ""
+        def do(s, elt):
             if i < j:
-                s = cat(s[:i], s[i:j][::-1], s[j:])
+                if elt < 3:
+                    s = cat(s[:i], s[i:j][::-1], s[j:])
+                else:
+                    s = cat(s[:i], t*np.ones(j-i), s[j:])
             else:
-                xfer = cat(s[i:], s[:j])
-                xfer = xfer[::-1]
-                s    = cat(xfer[:j], s[j:i], xfer[j:])
+                if elt < 3:
+                    xfer = cat(s[i:], s[:j])
+                    xfer = xfer[::-1]
+                    s    = cat(xfer[:j], s[j:i], xfer[j:])
+                else:
+                    s    = cat(t*np.ones(j), s[j:i], t*np.ones(L-i-2*j))
 
             return s
 
-        seq = tuple(do(s) for s in seq)
+        seq = tuple(do(s, i) for i, s in enumerate(seq))
 
     return seq
 
