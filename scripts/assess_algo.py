@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+"""
+script to compare simulated breakpoints to those predicted by the algorithm
+"""
 
 import os
 import sys
@@ -16,6 +19,43 @@ from pangraph.utils import parse_paf
 
 argv0 = None
 
+# simple struct
+class Match():
+    def __init__(self, ancestor, block, d_beg, d_end, score):
+        self.id    = (ancestor, block)
+        self.diff  = (d_beg, d_end)
+        self.score = score
+
+    def __str__(self):
+        return f"{{id: {self.id};\tdiff: {self.diff};\tscore: {self.score:.4f}}}"
+    def __repr__(self):
+        return self.__str__()
+
+# associative data structure
+# [graph num]{block hash} -> Match
+# key is the predicted blocks. value is the ancestral
+class Matches():
+    def __init__(self, graphs):
+        self.graphs = [self.init(g) for g in graphs]
+
+    def init(self, graph):
+        return {s.id:[] for s in SeqIO.parse(graph, 'fasta')}
+
+    def __str__(self):
+        return "\n".join(str(g) for g in self.graphs)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def put(self, id, blk, match):
+        self.graphs[id][blk].append(match)
+
+    def coverage(self):
+        return map(lambda g: sum(len(ms)==1 for ms in g.values())/len(g), self.graphs)
+
+    def bp_accuracy(self):
+        return map(lambda g: m.diff[0] for ms in g.values() for m in ms, self.graphs)
+
 def usage():
     print(f"usage: {argv0} [directory]", file=sys.stderr)
     return 1
@@ -31,18 +71,26 @@ def main(args):
     if not os.path.exists(anc_blks):
         exit(f"directory {dir}: missing ancestral block sequences")
 
-    results = []
-    for g in graphs:
-        results.append(subprocess.run(
-            ["minimap2", "-x", "asm5", str(g), str(anc_blks)],
-            capture_output=True)
+    matches = Matches(graphs)
+    for i, g in enumerate(graphs):
+        cmd = subprocess.run(
+            ["minimap2", "-x", "asm5", str(anc_blks), str(g)],
+            capture_output=True
         )
-
-    for result in results:
-        buf = StringIO(result.stdout.decode('utf-8'))
-        paf = parse_paf(buf)
+        buf  = StringIO(cmd.stdout.decode('utf-8'))
+        hits = parse_paf(buf)
         buf.close()
-        print(paf)
+
+        for hit in hits:
+            anc   = [int(n) for n in hit['ref']['name'].split('_')[1:]]
+            d_beg = hit['qry']['start'] - hit['ref']['start']
+            d_end = hit['qry']['end'] - hit['ref']['end']
+            score = hit['aligned_bases'] / hit['aligned_length']
+            matches.put(i, hit['qry']['name'],
+                Match(*anc, d_beg, d_end, score)
+            )
+
+        print(matches)
 
 if __name__ == "__main__":
     argv0 = argv[0]
