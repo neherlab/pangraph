@@ -42,7 +42,7 @@ def indel(seq, other=None, std=0, L0=0, N=0):
         else:
             return cat(seq[i:], seq[:j])
 
-    def do(s, o, isseq=True):
+    def do(s, o, seq=True):
         if -L < dl < 0:
             j = (i - dl) % L
             if i < j:
@@ -51,7 +51,7 @@ def indel(seq, other=None, std=0, L0=0, N=0):
                 s = s[j:i]
         elif 0 < dl < L:
             if o is None:
-                ins = random_seq(dl) if isseq else N*np.ones(dl, dtype=np.int8)
+                ins = random_seq(dl) if seq else N*np.ones(dl, dtype=np.int8)
             elif dl < len(o):
                 j = (k + dl) % len(o)
                 ins = interval(o, k, j)
