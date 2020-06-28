@@ -9,6 +9,6 @@
 
 run `pipenv sync` to pull all dependencies into a virtual environment
 
-#### license
+### license
 
 [MIT License](LICENSE)
