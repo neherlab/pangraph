@@ -128,33 +128,31 @@ def getnwk(node, newick, parentdist, leaf_names):
 # ------------------------------------------------------------------------
 # parsers
 
-def parse_paf(path):
-    assert path.endswith(".paf")
+def parse_paf(fh):
     hits = []
-    with openany(path) as fh:
-        for line in fh:
-            row = line.strip().split()
-            hit = {'qry': {'name'    : row[0],
-                           'len'     : int(row[1]),
-                           'start'   : int(row[2]),
-                           'end'     : int(row[3])},
-                   'ref': {'name'    : row[5],
-                           'len'     : int(row[6]),
-                           'start'   : int(row[7]),
-                           'end'     : int(row[8])},
-                   'aligned_bases'   : int(row[9]),
-                   'aligned_length'  : int(row[10]),
-                   'mapping_quality' : int(row[11]),
-                   'orientation'     : Strand.Plus if row[4]=='+' else Strand.Minus}
-            for xtra in row[12:]:
-                if xtra.startswith('cg:'):
-                    hit['cigar'] = xtra.split(':')[-1]
-                elif xtra.startswith('de:f'):
-                    hit['divergence'] = float(xtra.split(':')[-1])
-                elif xtra.startswith('AS:i'):
-                    hit['align_score'] = int(xtra.split(":")[2]) / hit['aligned_length']
+    for line in fh:
+        row = line.strip().split()
+        hit = {'qry': {'name'    : row[0],
+                       'len'     : int(row[1]),
+                       'start'   : int(row[2]),
+                       'end'     : int(row[3])},
+               'ref': {'name'    : row[5],
+                       'len'     : int(row[6]),
+                       'start'   : int(row[7]),
+                       'end'     : int(row[8])},
+               'aligned_bases'   : int(row[9]),
+               'aligned_length'  : int(row[10]),
+               'mapping_quality' : int(row[11]),
+               'orientation'     : Strand.Plus if row[4]=='+' else Strand.Minus}
+        for xtra in row[12:]:
+            if xtra.startswith('cg:'):
+                hit['cigar'] = xtra.split(':')[-1]
+            elif xtra.startswith('de:f'):
+                hit['divergence'] = float(xtra.split(':')[-1])
+            elif xtra.startswith('AS:i'):
+                hit['align_score'] = int(xtra.split(":")[2]) / hit['aligned_length']
 
-            hits.append(hit)
+        hits.append(hit)
     return hits
 
 def parse_cigar(aln, qryseq, refseq, cutoff=500):

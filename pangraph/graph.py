@@ -228,7 +228,8 @@ class Graph(object):
 
         os.system(f"minimap2 -t 2 -x asm20 -m 10 -n 2 -s 30 -D -c {rpath}.fa {qpath}.fa 1>{out}.paf 2>log")
 
-        paf = parse_paf(f"{out}.paf")
+        with open(f"{out}.paf") as fd:
+            paf = parse_paf(fd)
         paf.sort(key = lambda x: energy(x))
 
         merged_blks = set()
