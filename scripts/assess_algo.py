@@ -5,16 +5,16 @@ script to compare simulated breakpoints to those predicted by the algorithm
 
 import os
 import sys
-from io import StringIO
-
-# gross hack
-sys.path.insert(0, os.path.abspath('.'))
-
+import numpy as np
 import subprocess
 
-from glob import glob
 from sys  import argv, exit
+from io import StringIO
+from glob import glob
+
 from Bio  import SeqIO
+
+sys.path.insert(0, os.path.abspath('.')) # gross hack
 from pangraph.utils import parse_paf
 
 argv0 = None
@@ -51,10 +51,10 @@ class Matches():
         self.graphs[id][blk].append(match)
 
     def coverage(self):
-        return map(lambda g: sum(len(ms)==1 for ms in g.values())/len(g), self.graphs)
+        return np.array([sum(len(ms)==1 for ms in g.values())/len(g) for g in self.graphs])
 
     def bp_accuracy(self):
-        return map(lambda g: m.diff[0] for ms in g.values() for m in ms, self.graphs)
+        return np.array([m.diff[0] for g in self.graphs for ms in g.values() for m in ms])
 
 def usage():
     print(f"usage: {argv0} [directory]", file=sys.stderr)
@@ -90,7 +90,8 @@ def main(args):
                 Match(*anc, d_beg, d_end, score)
             )
 
-        print(matches)
+        print(matches.coverage())
+        print(matches.bp_accuracy())
 
 if __name__ == "__main__":
     argv0 = argv[0]
