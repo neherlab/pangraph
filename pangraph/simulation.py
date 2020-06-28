@@ -12,6 +12,7 @@ from .utils import asrecord, cat
 
 # TODO: move away from storing all data as dense arrays to interval representation
 #       as of now this simulation is overly memory hungry
+#       each seq is a 4-ple storing (nucleotides, ancestor barcode, ancestor position, time)
 
 # ------------------------------------------------------------------------
 # utility functions
@@ -19,10 +20,15 @@ from .utils import asrecord, cat
 def And(x, y):
     return np.bitwise_and(x, y)
 
-def breakpoints(anc, pos, time):
+def breakpoints(anc, pos, time, N, L):
     # TODO: put check for difference in ancestral values here
     # TODO: dido on time
-    cond  = And(And(delta != 1, delta != self.L-1), anc < self.N)
+
+    delta     = np.empty(pos.shape)
+    delta[0]  = np.abs(pos[0]  - pos[-1])
+    delta[1:] = np.abs(pos[1:] - pos[:-1])
+
+    cond  = And(And(delta != 1, delta != L-1), anc < N)
     bkpnt = np.where(cond)[0]
 
 # ------------------------------------------------------------------------
@@ -350,6 +356,15 @@ class Population(object):
 
         return SeqIO.write(entry, wtr, "fasta")
 
+    def breakpoints(self):
+        def bp(seq):
+            bps = breakpoints(*seq[1:], self.N, self.L)
+            if not bps:
+                return None
+            return [(x, max(seq[4][x], seq[4][x+1])) for x in bps]
+
+        return [bp(s) for s in self.seq]
+
     def ancestral_weights(self):
         W = np.zeros((N, L))
         for _, anc, pos in self.seq:
@@ -379,12 +394,8 @@ class Population(object):
         # body
 
         for n, (_, anc, pos, time) in enumerate(self.seq):
-            delta     = np.empty(pos.shape)
-            delta[0]  = np.abs(pos[0]  - pos[-1])
-            delta[1:] = np.abs(pos[1:] - pos[:-1])
-
-            bkpnt = breakpoints(anc, pos, time)
-            if len(bkpnt) == 0:
+            bkpnt = breakpoints(anc, pos, time, self.N, self.L)
+            if not bkpnt:
                 Put(anc[0], (pos[0], pos[-1]), n, (0, len(pos)), len(anc))
                 continue
 

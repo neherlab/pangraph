@@ -110,6 +110,11 @@ def main(args):
                           "".join(chr(c) for c in pop.anc[a][0][0:iv[0]])
             ancs.append(asrecord(seq, f"{nm}_{i:03d}"))
 
+    # date of contemporary breakpoints
+    bps = pop.breakpoints()
+    with open(f"{out}/breakpoints.json", 'w') as fd:
+        json.dump(bps, fd)
+
     with open(f"{out}/ancestral.fa", 'w') as fd:
         SeqIO.write(ancs, fd, "fasta")
 
