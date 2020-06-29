@@ -6,6 +6,8 @@
 
 - python >= 3.8
 - pipenv
+- mash
+- minimap2
 - GNUmake (optional for build)
 
 run `pipenv sync` to pull all dependencies into a virtual environment
