@@ -377,11 +377,11 @@ class Tree(object):
             elif n.children[0].graph:
                 n.graph = merge1(n.children[0], n.children[1])
                 if not n.graph:
-                    import ipdb; impdb.set_trace()
+                    import ipdb; ipdb.set_trace()
             elif n.children[1].graph:
                 n.graph = merge1(n.children[1], n.children[0])
                 if not n.graph:
-                    import ipdb; impdb.set_trace()
+                    import ipdb; ipdb.set_trace()
             else:
                 # XXX: will we ever get here...
                 continue
