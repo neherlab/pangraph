@@ -106,13 +106,13 @@ class Node(object):
                 yield it
         yield self
 
-    def children_graphs(self, func=lambda n: n):
+    def children_graphs(self, func=lambda n: n.graph):
         gs = []
-        for child in root.child:
+        for child in self.child:
             if child.graph:
                 gs.append(func(child))
             else:
-                gs.extend(graphs(child))
+                gs.extend(child.children_graphs(func))
         return gs
 
     def new_parent(self, parent, dist):
@@ -422,12 +422,11 @@ class Tree(object):
             if not gp:
                 continue
 
-            g0 = n.child[0].graph
-            g1 = n.child[1].graph
-            if gp.contains(g0):
-                graphs.append(g1)
-            else:
-                graphs.append(g0)
+            gs = n.children_graphs()
+            for g in n.children_graphs():
+                if gp.contains(g):
+                    graphs.append(g)
+                    break
 
         graphs.append(self.root.graph)
         return graphs
