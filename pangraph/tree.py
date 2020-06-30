@@ -333,7 +333,7 @@ class Tree(object):
             dl = graph.seq_len() - (graph1.seq_len() + graph2.seq_len()) # amount of sequence we lost
             db = graph.num_blk() - (graph1.num_blk() + graph2.num_blk()) # amount of blocks we gain
             if gamma*dl + db >= 0:
-                breakpoint("no merge")
+                # breakpoint("no merge")
                 return None
 
             # breakpoint("test")

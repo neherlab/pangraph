@@ -87,9 +87,9 @@ def indel(t, seq, other=None, std=0, L0=0, N=0):
         return s
 
     if other is None:
-        seq = tuple(do(s, None, i) for i, s in enumerate(seq))
+        seq = tuple(do(s, None, elt) for elt, s in enumerate(seq))
     else:
-        seq = tuple(do(s, o, i) for i, (s, o) in enumerate(zip(seq, other)))
+        seq = tuple(do(s, o, elt) for elt, (s, o) in enumerate(zip(seq, other)))
 
     return seq
 
@@ -115,7 +115,7 @@ def transpose(t, seq, avg, std):
             s = cat(s[:k], xfer, s[k:])
             return s
 
-        seq = tuple(do(s, i) for i, s in enumerate(seq))
+        seq = tuple(do(s, elt) for elt, s in enumerate(seq))
 
     return seq
 
