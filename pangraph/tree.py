@@ -1,6 +1,7 @@
 import os, sys
 import json
 
+from math import inf
 from copy import deepcopy
 
 import numpy as np
@@ -337,15 +338,25 @@ class Tree(object):
                     return graph
 
         def merge1(node, p):
-            g1 = merge0(node, p.child[0])
-            g2 = merge0(node, p.child[1])
-            if g1 and g2:
-                if g1.compress_ratio(extensive=True) > g2.compress_ratio(extensive=True):
-                    return g1
-                return g2
-            elif g1:
-                return g1
-            return g2
+            def graphs(root):
+                gs = []
+                for child in root.child:
+                    if child.graph:
+                        gs.append(merge0(node, child))
+                    else:
+                        gs.extend(graphs(child))
+                return gs
+
+            gs  = graphs(p)
+            g0  = gs[0]
+            max = g0.compress_ratio(extensive=True) if g0 else -inf
+            for g in gs[1:]:
+                val = g.compress_ratio(extensive=True) if g else -inf
+                if val > max:
+                    g0  = g
+                    max = val
+
+            return g0
 
         # --------------------------------------------
         # body
@@ -372,18 +383,14 @@ class Tree(object):
 
             if n.child[0].graph and n.child[1].graph:
                 n.graph = merge0(n.child[0], n.child[1])
-                if not n.graph:
-                    continue
             elif n.child[0].graph:
                 n.graph = merge1(n.child[0], n.child[1])
-                if not n.graph:
-                    breakpoint("no returned graph")
             elif n.child[1].graph:
                 n.graph = merge1(n.child[1], n.child[0])
-                if not n.graph:
-                    breakpoint("no returned graph")
             else:
-                # XXX: will we ever get here...
+                breakpoint("no children")
+
+            if not n.graph:
                 continue
 
             check(self.seqs, n.graph)
