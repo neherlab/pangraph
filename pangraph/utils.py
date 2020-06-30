@@ -17,6 +17,10 @@ def cdfplot(x, **kwargs):
 
     plt.plot(sorted(x), np.linspace(0, 1, len(x)), **kwargs)
 
+def breakpoint(msg):
+    print(f"DEBUG: {msg}", file=sys.stderr)
+    import ipdb; ipdb.set_trace()
+
 # ------------------------------------------------------------------------
 # Global Enums
 

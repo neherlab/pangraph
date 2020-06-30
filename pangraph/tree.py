@@ -8,7 +8,7 @@ import matplotlib.pylab as plt
 
 from Bio.Seq import Seq
 
-from .utils import Strand, log, flatten, tryprint, panic
+from .utils import Strand, log, flatten, tryprint, panic, breakpoint
 from .graph import Graph
 
 # ------------------------------------------------------------------------
@@ -65,12 +65,12 @@ class Node(object):
     # Internal functions
 
     def __init__(self, name, parent, dist, children=[]):
-        self.name     = name
-        self.dist     = dist
-        self.parent   = parent
-        self.children = children
-        self.fapath   = ""
-        self.graph    = None
+        self.name   = name
+        self.dist   = dist
+        self.parent = parent
+        self.child  = children
+        self.fapath = ""
+        self.graph  = None
 
     def __str__(self):
         if self.dist is None:
@@ -87,7 +87,7 @@ class Node(object):
     @classmethod
     def from_dict(cls, d, parent):
         N = Node(d['name'], parent, d['dist'])
-        N.children = [Node.from_dict(child, N) for child in d['children']]
+        N.child = [Node.from_dict(child, N) for child in d['child']]
         N.fapath = d['fapath']
         N.graph  = Graph.from_dict(d['graph']) if d['graph'] is not None else None
 
@@ -97,10 +97,10 @@ class Node(object):
     # Class methods
 
     def is_leaf(self):
-        return len(self.children) == 0
+        return len(self.child) == 0
 
     def postorder(self):
-        for child in self.children:
+        for child in self.child:
             for it in child.postorder():
                 yield it
         yield self
@@ -112,7 +112,7 @@ class Node(object):
     def to_nwk(self, wtr):
         if not self.is_leaf():
             wtr.write("(")
-            for i, child in enumerate(self.children):
+            for i, child in enumerate(self.child):
                 if i > 0:
                     wtr.write(",")
                 child.to_nwk(wtr)
@@ -125,7 +125,7 @@ class Node(object):
     def to_json(self):
         return {'name'     : self.name,
                 'dist'     : self.dist,
-                'children' : [ child.to_json() for child in self.children ],
+                'child' : [ child.to_json() for child in self.child ],
                 'fapath'   : self.fapath,
                 'graph'    : self.graph.to_dict() if self.graph is not None else None }
 
@@ -197,19 +197,19 @@ class Tree(object):
                 assert abs(qmin-q0min) < 1e-2, f"minimum not found correctly. returned {qmin}, expected {q0min}"
                 print(f"{D}\n--> Joining {i} and {j}. d={D[i,j]}")
 
-            node   = Node(f"NODE_{idx:05d}", T.root, None, [T.root.children[i], T.root.children[j]])
+            node   = Node(f"NODE_{idx:05d}", T.root, None, [T.root.child[i], T.root.child[j]])
 
             d1, d2, dnew = pairdists(D, i, j)
-            node.children[0].new_parent(node, d1)
-            node.children[1].new_parent(node, d2)
+            node.child[0].new_parent(node, d1)
+            node.child[1].new_parent(node, d2)
 
             D[i, :] = dnew
             D[:, i] = dnew
             D[i, i] = 0
             D = np.delete(D, j, axis=0)
             D = np.delete(D, j, axis=1)
-            T.root.children[i] = node
-            T.root.children.pop(j)
+            T.root.child[i] = node
+            T.root.child.pop(j)
 
             idx = idx + 1
 
@@ -221,18 +221,18 @@ class Tree(object):
 
         T = Tree()
         for name in names:
-            T.root.children.append(Node(name, T.root, None, children=[]))
+            T.root.child.append(Node(name, T.root, None, children=[]))
         idx = 0
 
         while mtx.shape[0] > 2:
             if verbose:
-                print(f"--> Matrix size={mtx.shape[0]}. Number of root children={len(T.root.children)}")
+                print(f"--> Matrix size={mtx.shape[0]}. Number of root child={len(T.root.child)}")
             mtx = join(mtx)
 
         assert mtx.shape[0] == 2
         d = mtx[0, 1]
-        T.root.children[0].dist = d/2
-        T.root.children[1].dist = d/2
+        T.root.child[0].dist = d/2
+        T.root.child[1].dist = d/2
 
         return T
 
@@ -337,8 +337,8 @@ class Tree(object):
                     return graph
 
         def merge1(node, p):
-            g1 = merge0(node, p.children[0])
-            g2 = merge0(node, p.children[1])
+            g1 = merge0(node, p.child[0])
+            g2 = merge0(node, p.child[1])
             if g1 and g2:
                 if g1.compress_ratio(extensive=True) > g2.compress_ratio(extensive=True):
                     return g1
@@ -368,20 +368,20 @@ class Tree(object):
             nnodes += 1
 
             n.fapath = f"{tmpdir}/{n.name}"
-            log(f"Attempting to fuse {n.children[0].name} with {n.children[1].name} @ {n.name}")
+            log(f"Attempting to fuse {n.child[0].name} with {n.child[1].name} @ {n.name}")
 
-            if n.children[0].graph and n.children[1].graph:
-                n.graph = merge0(n.children[0], n.children[1])
+            if n.child[0].graph and n.child[1].graph:
+                n.graph = merge0(n.child[0], n.child[1])
                 if not n.graph:
                     continue
-            elif n.children[0].graph:
-                n.graph = merge1(n.children[0], n.children[1])
+            elif n.child[0].graph:
+                n.graph = merge1(n.child[0], n.child[1])
                 if not n.graph:
-                    import ipdb; ipdb.set_trace()
-            elif n.children[1].graph:
-                n.graph = merge1(n.children[1], n.children[0])
+                    breakpoint("no returned graph")
+            elif n.child[1].graph:
+                n.graph = merge1(n.child[1], n.child[0])
                 if not n.graph:
-                    import ipdb; ipdb.set_trace()
+                    breakpoint("no returned graph")
             else:
                 # XXX: will we ever get here...
                 continue
@@ -391,7 +391,7 @@ class Tree(object):
                 n.graph.write_fasta(fd)
 
             # tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
-            # log(f"node: {n.name}; dist {n.children[0].dist+ n.children[1].dist}")
+            # log(f"node: {n.name}; dist {n.child[0].dist+ n.child[1].dist}")
             log((f"--> compression ratio: "
                    f"{n.graph.compress_ratio()}"))
             log((f"--> number of blocks: "
@@ -399,9 +399,9 @@ class Tree(object):
             log((f"--> number of members: "
                    f"{len(n.graph.seqs)}"))
             # log((f"--> compression ratio: child1: "
-            #      f"{n.children[0].graph.compress_ratio()}"))
+            #      f"{n.child[0].graph.compress_ratio()}"))
             # log((f"--> compression ratio: child2: "
-            #      f"{n.children[1].graph.compress_ratio()}"))
+            #      f"{n.child[1].graph.compress_ratio()}"))
 
     def collect(self):
         graphs = []
@@ -411,8 +411,8 @@ class Tree(object):
             if not n.parent:
                 return graphs
             gp = n.parent.graph
-            g0 = n.children[0].graph
-            g1 = n.children[1].graph
+            g0 = n.child[0].graph
+            g1 = n.child[1].graph
             if gp.contains(g0):
                 graphs.append(g1)
             else:

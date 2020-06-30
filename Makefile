@@ -34,7 +34,7 @@ all: $(STAT)
 
 %pangraph.json: %guide.json
 	@echo "build	    "$(@D);\
-	pangraph build -d $(@D) $^ 2>$(@D)/build.log
+	pangraph build -d $(@D) $^ #2>$(@D)/build.log
 
 %algo_stats.npz: %pangraph.json
 	@echo "assay	    "$(@D);\
