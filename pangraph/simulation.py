@@ -372,9 +372,9 @@ class Population(object):
     def breakpoints(self):
         def bp(seq):
             bps = breakpoints(*seq[1:], self.N, self.L)
-            if not bps:
+            if len(bps) == 0:
                 return None
-            return [(x, max(seq[4][x], seq[4][x+1])) for x in bps]
+            return [(int(x), max(int(seq[3][x]), int(seq[3][x+1]))) for x in bps]
 
         return [bp(s) for s in self.seq]
 
@@ -408,8 +408,7 @@ class Population(object):
 
         for n, (_, anc, pos, time) in enumerate(self.seq):
             bkpnt = breakpoints(anc, pos, time, self.N, self.L)
-            if not bkpnt:
-                breakpoint("one interval")
+            if len(bkpnt) == 0:
                 Put(anc[0], (pos[0], pos[-1]), n, (0, len(pos)), len(anc))
                 continue
 
