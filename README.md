@@ -10,7 +10,10 @@
 - minimap2
 - GNUmake (optional for build)
 
+#### manual
 run `pipenv sync` to pull all dependencies into a virtual environment
+run `./bin/setup_pangraph` to download mash && minimap2 binaries [optional-linux only]
+append `./bin` to your system path
 
 ### build
 

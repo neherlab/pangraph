@@ -106,10 +106,10 @@ def transpose(t, seq, avg, std):
 
             xfer = []
             if i < j:
-                xfer = s[i:j] if elt < 3 else t*ones(j-i)
+                xfer = s[i:j] if elt < 3 else t*np.ones(j-i)
                 s    = cat(s[:i], s[j:])
             else:
-                xfer = cat(s[i:], s[:j]) if elt < 3 else t*ones(i-j)
+                xfer = cat(s[i:], s[:j]) if elt < 3 else t*np.ones(i-j)
                 s    = s[j:i]
 
             s = cat(s[:k], xfer, s[k:])
