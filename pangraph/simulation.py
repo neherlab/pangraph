@@ -31,6 +31,8 @@ def breakpoints(anc, pos, time, N, L):
     cond  = And(And(delta != 1, delta != L-1), anc < N)
     bkpnt = np.where(cond)[0]
 
+    return bkpnt
+
 # ------------------------------------------------------------------------
 # rng sampling
 
@@ -407,6 +409,7 @@ class Population(object):
         for n, (_, anc, pos, time) in enumerate(self.seq):
             bkpnt = breakpoints(anc, pos, time, self.N, self.L)
             if not bkpnt:
+                breakpoint("one interval")
                 Put(anc[0], (pos[0], pos[-1]), n, (0, len(pos)), len(anc))
                 continue
 
