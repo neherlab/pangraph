@@ -106,6 +106,15 @@ class Node(object):
                 yield it
         yield self
 
+    def children_graphs(self, func=lambda n: n):
+        gs = []
+        for child in root.child:
+            if child.graph:
+                gs.append(func(child))
+            else:
+                gs.extend(graphs(child))
+        return gs
+
     def new_parent(self, parent, dist):
         self.parent = parent
         self.dist   = dist if dist > 0 else 0
@@ -338,16 +347,7 @@ class Tree(object):
                     return graph
 
         def merge1(node, p):
-            def graphs(root):
-                gs = []
-                for child in root.child:
-                    if child.graph:
-                        gs.append(merge0(node, child))
-                    else:
-                        gs.extend(graphs(child))
-                return gs
-
-            gs  = graphs(p)
+            gs  = p.children_graphs(lambda c: merge0(node, c))
             g0  = gs[0]
             max = g0.compress_ratio(extensive=True) if g0 else -inf
             for g in gs[1:]:
@@ -417,7 +417,11 @@ class Tree(object):
                 continue
             if not n.parent:
                 return graphs
+
             gp = n.parent.graph
+            if not gp:
+                continue
+
             g0 = n.child[0].graph
             g1 = n.child[1].graph
             if gp.contains(g0):
