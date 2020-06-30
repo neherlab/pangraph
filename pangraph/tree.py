@@ -388,7 +388,8 @@ class Tree(object):
             elif n.child[1].graph:
                 n.graph = merge1(n.child[1], n.child[0])
             else:
-                breakpoint("no children")
+                # nothing to do, only merge when we have non-zero message
+                continue
 
             if not n.graph:
                 continue

@@ -8,7 +8,7 @@ from Bio import SeqIO
 from portion import Interval, closedopen, to_data
 
 from .graph import Graph
-from .utils import asrecord, cat
+from .utils import asrecord, cat, breakpoint
 
 # TODO: move away from storing all data as dense arrays to interval representation
 #       as of now this simulation is overly memory hungry
