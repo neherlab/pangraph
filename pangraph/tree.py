@@ -424,9 +424,8 @@ class Tree(object):
 
             gs = n.children_graphs()
             for g in n.children_graphs():
-                if gp.contains(g):
+                if not gp.contains(g):
                     graphs.append(g)
-                    break
 
         graphs.append(self.root.graph)
         return graphs

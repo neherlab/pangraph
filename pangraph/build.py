@@ -61,6 +61,8 @@ def main(args):
     # collect all non-trivial graphs, remove all intermediates
     graphs = T.collect()
     T.keep_only(graphs)
+    for i, g in enumerate(graphs):
+        print(f"graph {i}: size: {len(g.seqs)}")
 
     for i, g in enumerate(graphs):
         with open(f"{root}/graph_{i:03d}.fa", 'w') as fd:
