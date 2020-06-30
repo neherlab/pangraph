@@ -64,6 +64,7 @@ def main(args):
     # TODO: when debugging phase is done, remove tmp directory
 
     # collect all non-trivial graphs, remove all intermediates
+    # TODO: intermediates should be removed incrementally for memory savings
     graphs = T.collect()
     T.keep_only(graphs)
     for i, g in enumerate(graphs):
