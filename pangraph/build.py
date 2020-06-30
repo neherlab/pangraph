@@ -24,15 +24,20 @@ def register_args(parser):
                         default=50,
                         help="minimum block size for nucleotides")
     parser.add_argument("-m", "--mu",
-                        metavar="cutoff length",
+                        metavar="block cut chemical potential",
                         type=int,
                         default=100,
-                        help="energy cost for cutting blocks (used during graph merges)")
+                        help="energy cost for cutting blocks (used during block merges)")
     parser.add_argument("-b", "--beta",
-                        metavar="cutoff length",
+                        metavar="block diversity cost",
                         type=int,
                         default=22,
-                        help="energy cost for mutations (used during graph merges)")
+                        help="energy cost for mutations (used during block merges)")
+    parser.add_argument("-g", "--gamma",
+                        metavar="merge length scale",
+                        type=int,
+                        default=1e-2,
+                        help="energy cost for adding new block (used during graph merges)")
     parser.add_argument("input",
                         type=str,
                         default="-",
@@ -55,7 +60,7 @@ def main(args):
     root = args.dir.rstrip('/')
     tmp = f"{root}/tmp"
     mkdir(tmp)
-    T.align(tmp, args.len, args.mu, args.beta)
+    T.align(tmp, args.len, args.mu, args.beta, args.gamma)
     # TODO: when debugging phase is done, remove tmp directory
 
     # collect all non-trivial graphs, remove all intermediates

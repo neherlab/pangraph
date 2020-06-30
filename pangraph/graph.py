@@ -387,8 +387,14 @@ class Graph(object):
 
         return seq
 
+    def seq_len(self):
+        return np.sum([len(x) for x in self.blks.values()])
+
+    def num_blk(self):
+        return len(self.blks)
+
     def compress_ratio(self, extensive=False, name=None):
-        unc= 0
+        unc = 0
         if name is None:
             for n in self.seqs:
                 seq  = self.extract(n)

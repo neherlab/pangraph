@@ -269,7 +269,7 @@ class Tree(object):
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
     # TODO: move all tryprints to logging 
-    def align(self, tmpdir, min_blk_len, mu, beta, verbose=False):
+    def align(self, tmpdir, min_blk_len, mu, beta, gamma, verbose=False):
         # ---------------------------------------------
         # internal functions
         # Debugging function that will check reconstructed sequence against known real one.
@@ -327,13 +327,13 @@ class Tree(object):
         def merge0(node1, node2):
             graph1, fapath1 = node1.graph, node1.fapath
             graph2, fapath2 = node2.graph, node2.fapath
-
-            graph = Graph.fuse(graph1, graph2)
+            graph    = Graph.fuse(graph1, graph2)
             graph, _ = graph.union(fapath1, fapath2, f"{tmpdir}/{n.name}", min_blk_len, mu, beta)
 
-            cutoff = min(graph1.compress_ratio(), graph2.compress_ratio())
-            cutoff = max(0, cutoff-.05)
-            if (c:=graph.compress_ratio()) < cutoff:
+            dl = graph.seq_len() - (graph1.seq_len() + graph2.seq_len()) # amount of sequence we lost
+            db = graph.num_blk() - (graph1.num_blk() + graph2.num_blk()) # amount of blocks   we gain
+            if gamma*dl + db > 0:
+                breakpoint("no merge")
                 return None
 
             for i in range(MAXSELFMAPS):
