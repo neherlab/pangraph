@@ -269,7 +269,7 @@ class Tree(object):
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
     # TODO: move all tryprints to logging 
-    def align(self, tmpdir, min_blk_len, mu, beta, gamma, verbose=False):
+    def align(self, tmpdir, min_blk_len, mu, beta, verbose=False):
         # ---------------------------------------------
         # internal functions
         # Debugging function that will check reconstructed sequence against known real one.
@@ -324,19 +324,11 @@ class Tree(object):
             else:
                 raise ValueError("bad sequence reconstruction")
 
-        def merge0(node1, node2):
+        def merge(node1, node2):
             graph1, fapath1 = node1.graph, node1.fapath
             graph2, fapath2 = node2.graph, node2.fapath
             graph    = Graph.fuse(graph1, graph2)
             graph, _ = graph.union(fapath1, fapath2, f"{tmpdir}/{n.name}", min_blk_len, mu, beta)
-
-            dl = graph.seq_len() - (graph1.seq_len() + graph2.seq_len()) # amount of sequence we lost
-            db = graph.num_blk() - (graph1.num_blk() + graph2.num_blk()) # amount of blocks we gain
-            if gamma*dl + db >= 0:
-                # breakpoint("no merge")
-                return None
-
-            # breakpoint("test")
 
             for i in range(MAXSELFMAPS):
                 tryprint(f"----> merge round {i}", verbose)
@@ -347,18 +339,6 @@ class Tree(object):
                 graph, contin = graph.union(itr, itr, f"{tmpdir}/{n.name}_iter_{i}", min_blk_len, mu, beta)
                 if not contin:
                     return graph
-
-        def merge1(node, p):
-            gs  = p.children_graphs(lambda c: merge0(node, c))
-            g0  = gs[0]
-            max = g0.compress_ratio(extensive=True) if g0 else -inf
-            for g in gs[1:]:
-                val = g.compress_ratio(extensive=True) if g else -inf
-                if val > max:
-                    g0  = g
-                    max = val
-
-            return g0
 
         # --------------------------------------------
         # body
@@ -383,62 +363,26 @@ class Tree(object):
             n.fapath = f"{tmpdir}/{n.name}"
             log(f"Attempting to fuse {n.child[0].name} with {n.child[1].name} @ {n.name}")
 
-            if n.child[0].graph and n.child[1].graph:
-                n.graph = merge0(n.child[0], n.child[1])
-            elif n.child[0].graph:
-                n.graph = merge1(n.child[0], n.child[1])
-            elif n.child[1].graph:
-                n.graph = merge1(n.child[1], n.child[0])
-            else:
-                # nothing to do, only merge when we have non-zero message
-                continue
-
-            if not n.graph:
-                continue
+            n.graph = merge(n.child[0], n.child[1])
+            # Delete children graphs
+            for child in n.child:
+                child.graph = None
 
             check(self.seqs, n.graph)
             with open(f"{tmpdir}/{n.name}.fa", 'w') as fd:
                 n.graph.write_fasta(fd)
 
-            # tryprint(f"-- Blocks: {len(n.graph.blks)}, length: {np.sum([len(b) for b in n.graph.blks.values()])}\n", verbose)
-            # log(f"node: {n.name}; dist {n.child[0].dist+ n.child[1].dist}")
             log((f"--> compression ratio: "
                    f"{n.graph.compress_ratio()}"))
             log((f"--> number of blocks: "
                    f"{len(n.graph.blks)}"))
             log((f"--> number of members: "
                    f"{len(n.graph.seqs)}"))
-            # log((f"--> compression ratio: child1: "
-            #      f"{n.child[0].graph.compress_ratio()}"))
-            # log((f"--> compression ratio: child2: "
-            #      f"{n.child[1].graph.compress_ratio()}"))
 
     def collect(self):
-        graphs = []
-        for n in self.postorder():
-            if n.graph:
-                continue
-            if not n.parent:
-                return graphs
-
-            gp = n.parent.graph
-            if not gp:
-                continue
-
-            gs = n.children_graphs()
-            for g in n.children_graphs():
-                if not gp.contains(g):
-                    graphs.append(g)
-
-        graphs.append(self.root.graph)
-        return graphs
-
-    def keep_only(self, graphs):
-        graphs = set(graphs)
-        for n in self.postorder():
-            if n.graph in graphs:
-                continue
-            n.graph = None
+        if not self.root.graph:
+            return None
+        return Graph.connected_components(self.root.graph)
 
     def write_nwk(self, wtr):
         self.root.to_nwk(wtr)
@@ -450,27 +394,3 @@ class Tree(object):
             'seqs' : None if no_seqs else {k.name:str(v) for k,v in self.seqs.items()},
         }
         wtr.write(json.dumps(data))
-
-# ------------------------------------------------------------------------
-# Main point of entry for testing
-
-# if __name__ == "__main__":
-#     M, nms = parse("data/kmerdist.txt")
-#     T = Tree.nj(M, nms)
-
-#     import pyfaidx as fai
-#     seqs = fai.Fasta("data/all_plasmids_filtered.fa")
-#     T.align(seqs)
-
-#     print("DUMPING")
-#     with open("data/tree.json", "w+") as fd:
-#         T.to_json(fd)
-
-#     S1 = json.dumps(T.root.to_json())
-#     print("LOADING")
-#     with open("data/tree.json", "r") as fd:
-#         T = Tree.from_json(fd)
-
-#     S2 = json.dumps(T.root.to_json())
-
-#     print(S1==S2)

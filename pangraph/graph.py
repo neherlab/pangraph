@@ -29,7 +29,6 @@ class Graph(object):
     blddir = f"{outdir}/bld"
 
     def __init__(self):
-        super(Graph, self).__init__()
         self.name = ""   # The name of graph. Will be used as file basename in exports
         self.blks = {}   # All blocks/alignments
         self.seqs = {}   # All sequences (as list of blocks)
@@ -65,6 +64,34 @@ class Graph(object):
             G.dmtx = d['distmtx']
 
         return G
+
+    @classmethod
+    def connected_components(cls, G):
+        def overlaps(s1, s2):
+            return len(s1.intersection(s2)) > 0
+        def component(graph, name):
+            cc = Graph()
+            cc.blks = {id:G.blks.pop(id) for id in graph}
+            cc.seqs = {nm:G.seqs.pop(nm) for nm in name}
+            cc.spos = {nm:G.spos.pop(nm) for nm in name}
+            cc.sfxt = None
+            cc.dmtx = None
+            return cc
+
+        graphs = []
+        names  = []
+        for name, seq in G.seqs.items():
+            blks = set(s[0] for s in seq)
+            gi   = [ i for i, g in enumerate(graphs) if overlaps(blks, g)]
+            if len(gi) == 0:
+                graphs.append(blks)
+                names.append(set([name]))
+                continue
+
+            graphs[gi[0]] = graphs[gi[0]].union(blks, (graphs.pop(i) for i in gi[:0:-1]))
+            names[gi[0]] = names[gi[0]].union(set([name]), (names.pop(i) for i in gi[:0:-1]))
+
+        return [component(graph, name) for graph, name in zip(graphs, names)]
 
     @classmethod
     def fuse(cls, g1, g2):
@@ -386,12 +413,6 @@ class Graph(object):
             seq = seq.replace('-', '')
 
         return seq
-
-    def seq_len(self):
-        return np.sum([len(x) for x in self.blks.values()])
-
-    def num_blk(self):
-        return len(self.blks)
 
     def compress_ratio(self, extensive=False, name=None):
         unc = 0

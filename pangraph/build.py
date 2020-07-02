@@ -33,11 +33,6 @@ def register_args(parser):
                         type=int,
                         default=22,
                         help="energy cost for mutations (used during block merges)")
-    parser.add_argument("-g", "--gamma",
-                        metavar="merge length scale",
-                        type=int,
-                        default=1e-2,
-                        help="energy cost for adding new block (used during graph merges)")
     parser.add_argument("input",
                         type=str,
                         default="-",
@@ -60,13 +55,11 @@ def main(args):
     root = args.dir.rstrip('/')
     tmp = f"{root}/tmp"
     mkdir(tmp)
-    T.align(tmp, args.len, args.mu, args.beta, args.gamma)
+    T.align(tmp, args.len, args.mu, args.beta)
     # TODO: when debugging phase is done, remove tmp directory
 
-    # collect all non-trivial graphs, remove all intermediates
-    # TODO: intermediates should be removed incrementally for memory savings
     graphs = T.collect()
-    T.keep_only(graphs)
+
     for i, g in enumerate(graphs):
         print(f"graph {i}: size: {len(g.seqs)}")
 
