@@ -296,7 +296,9 @@ class IntervalMap(object):
                     'date' : d[1],
                     'pos' : tuple(int(e) for e in d[2])
                 })
-            return dict(zip(ks, vs))
+            # sort by present day ids
+            index = sorted(list(range(len(ks))), key=lambda i: ks[i])
+            return dict(zip([ks[i] for i in index], [vs[i] for i in index]))
 
         def keys(iv):
             return tuple(tuple(int(e) for e in d[1:3]) for d in to_data(iv))
