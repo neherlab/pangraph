@@ -227,11 +227,15 @@ class Graph(object):
 
                 warnings.simplefilter("ignore")
 
+                # if hit['qry']['start'] > 0 and hit['qry']['start'] < 50 or \
+                #    hit['ref']['start'] > 0 and hit['ref']['start'] < 50:
+                #     breakpoint("START CHANGE")
+
                 # Left side of match
-                if 0 < dS_q <= cutoff and dS_r > cutoff:
+                if 0 < dS_q <= cutoff and (dS_r > cutoff or dS_r == 0):
                     hit['cigar'] = f"{dS_q}I" + hit['cigar']
                     hit['qry']['start'] = 0
-                elif 0 < dS_r <= cutoff and dS_q > cutoff:
+                elif 0 < dS_r <= cutoff and (dS_q > cutoff or dS_q == 0):
                     hit['cigar'] = f"{dS_r}D" + hit['cigar']
                     hit['ref']['start'] = 0
                 elif 0 < dS_q <= cutoff and 0 < dS_r <= cutoff:
@@ -244,10 +248,10 @@ class Graph(object):
                     hit['aligned_bases'] += len(aln[0])
 
                 # Right side of match
-                if 0 < dE_q <= cutoff and dE_r > cutoff:
+                if 0 < dE_q <= cutoff and (dE_r > cutoff or dE_r == 0):
                     hit['cigar'] += f"{dE_q}I"
                     hit['qry']['end'] = hit['qry']['len']
-                elif 0 < dE_r <= cutoff and dE_q > cutoff:
+                elif 0 < dE_r <= cutoff and (dE_q > cutoff or dE_q == 0):
                     hit['cigar'] += f"{dE_r}D"
                     hit['ref']['end'] = hit['ref']['len']
                 elif 0 < dE_q <= cutoff and 0 < dE_r <= cutoff:
@@ -345,16 +349,18 @@ class Graph(object):
                "qry_name"    : hit["qry"]["name"],
                "orientation" : hit["orientation"]}
 
-        # shares_isos = not set(self.blks[aln['ref_name']].muts.keys()).isdisjoint(set(self.blks[aln['qry_name']].muts.keys()))
-        merged_blks, qryblks, refblks, isomap = Block.from_aln(aln) #, debug=shares_isos)
+        merged_blks, qryblks, refblks, isomap = Block.from_aln(aln)
         for merged_blk in merged_blks:
             self.blks[merged_blk.id] = merged_blk
 
         def update(blk, addblks, hit, strand):
             new_blks = []
-            # The convention for the tuples are (block id, strand orientation, if merged)
 
+            # The convention for the tuples are (block id, strand orientation, if merged)
             if hit['start'] > 0:
+                if hit['start'] < 50:
+                    breakpoint("TOO SMALL")
+
                 left = blk[0:hit['start']]
                 self.blks[left.id] = left
                 new_blks.append((left.id, Strand.Plus, False))
