@@ -101,7 +101,7 @@ def main(args):
     ancs = []
     for a, b in blk.items():
         nm = f"anc_{a:03d}"
-        for i, ivs in enumerate(b['interval']):
+        for i, ivs in enumerate(b['intervals']):
             for j, iv in enumerate(ivs):
                 if (iv[0] < pop.L):
                     seq = "".join(chr(c) for c in pop.anc[a][0][iv[0]:iv[1]])

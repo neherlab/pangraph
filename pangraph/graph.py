@@ -67,6 +67,7 @@ class Graph(object):
 
     @classmethod
     def connected_components(cls, G):
+        # internal functions
         def overlaps(s1, s2):
             return len(s1.intersection(s2)) > 0
         def component(graph, name):
@@ -78,6 +79,7 @@ class Graph(object):
             cc.dmtx = None
             return cc
 
+        # main body
         graphs = []
         names  = []
         for name, seq in G.seqs.items():
@@ -89,7 +91,7 @@ class Graph(object):
                 continue
 
             graphs[gi[0]] = graphs[gi[0]].union(blks, (graphs.pop(i) for i in gi[:0:-1]))
-            names[gi[0]] = names[gi[0]].union(set([name]), (names.pop(i) for i in gi[:0:-1]))
+            names[gi[0]]  = names[gi[0]].union(set([name]), (names.pop(i) for i in gi[:0:-1]))
 
         return [component(graph, name) for graph, name in zip(graphs, names)]
 

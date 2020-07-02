@@ -288,22 +288,26 @@ class IntervalMap(object):
         return data
 
     def serialize(self):
-        def unpack(datum):
-            keys, vals = [], []
+        def vals(datum):
+            ks, vs = [], []
             for d in datum:
-                keys.append(int(d[0]))
-                vals.append({'date':d[1], 'pos': tuple(int(e) for e in d[2])})
-            return dict(zip(keys,vals))
+                ks.append(int(d[0]))
+                vs.append({
+                    'date' : d[1],
+                    'pos' : tuple(int(e) for e in d[2])
+                })
+            return dict(zip(ks, vs))
 
-        def pack(intervals):
-            return [tuple([int(e) for e in d[1:3]] for d in to_data(iv)) for iv in intervals]
+        def keys(iv):
+            return tuple(tuple(int(e) for e in d[1:3]) for d in to_data(iv))
 
         if len(self.ival) == 0:
             return None
 
         return {
-            "interval" : pack(self.ival),
-            "children" : [unpack(d) for d in self.data],
+            "geneology"   : [{"ancestral":keys(iv), "present":vals(d)} for iv, d in zip(self.ival, self.data) ],
+            "descendents" : [k for d in self.data for k in vals(d).keys()],
+            "intervals"   : [keys(iv) for iv in self.ival],
         }
 
 # ------------------------------------------------------------------------
