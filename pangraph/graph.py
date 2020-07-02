@@ -9,7 +9,7 @@ from Bio.SeqRecord import SeqRecord
 
 from .      import suffix
 from .block import Block
-from .utils import Strand, asstring, parse_paf, panic, tryprint, asrecord, newstrand
+from .utils import Strand, asstring, parse_paf, panic, tryprint, asrecord, newstrand, breakpoint
 
 # ------------------------------------------------------------------------
 # Global variables
@@ -80,8 +80,7 @@ class Graph(object):
             return cc
 
         # main body
-        graphs = []
-        names  = []
+        graphs, names = [], []
         for name, seq in G.seqs.items():
             blks = set(s[0] for s in seq)
             gi   = [ i for i, g in enumerate(graphs) if overlaps(blks, g)]
@@ -90,8 +89,8 @@ class Graph(object):
                 names.append(set([name]))
                 continue
 
-            graphs[gi[0]] = graphs[gi[0]].union(blks, (graphs.pop(i) for i in gi[:0:-1]))
-            names[gi[0]]  = names[gi[0]].union(set([name]), (names.pop(i) for i in gi[:0:-1]))
+                graphs[gi[0]] = graphs[gi[0]].union(blks, *(graphs.pop(i) for i in gi[:0:-1]))
+                names[gi[0]]  = names[gi[0]].union(set([name]), *(names.pop(i) for i in gi[:0:-1]))
 
         return [component(graph, name) for graph, name in zip(graphs, names)]
 
