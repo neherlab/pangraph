@@ -131,6 +131,9 @@ class Graph(object):
 
         def energy(hit):
             l    = hit["aligned_bases"]
+            if l <= cutoff:
+                return l
+
             num  = lambda k: len(self.blks[hit[k]["name"]].muts)
             cuts = lambda k: (hit[k]['start'] > cutoff) + ((hit[k]['len']-hit[k]['end']) > cutoff)
 

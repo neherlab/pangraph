@@ -61,7 +61,7 @@ def main(args):
     graphs = T.collect()
 
     for i, g in enumerate(graphs):
-        print(f"graph {i}: size: {len(g.seqs)}")
+        print(f"graph {i}: nseqs: {len(g.seqs)} nblks: {len(g.blks)}")
 
     for i, g in enumerate(graphs):
         with open(f"{root}/graph_{i:03d}.fa", 'w') as fd:
