@@ -306,7 +306,7 @@ class IntervalMap(object):
 
         return {
             "geneology"   : [{"ancestral":keys(iv), "present":vals(d)} for iv, d in zip(self.ival, self.data) ],
-            "descendents" : [k for d in self.data for k in vals(d).keys()],
+            "descendents" : list(set([k for d in self.data for k in vals(d).keys()])),
             "intervals"   : [keys(iv) for iv in self.ival],
         }
 

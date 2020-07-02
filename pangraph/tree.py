@@ -133,11 +133,12 @@ class Node(object):
         wtr.write(f"{self.dist:.6f}")
 
     def to_json(self):
+        serialize = lambda gs: [g.to_dict() for g in gs] if isinstance(gs, list) else [gs.to_dict()]
         return {'name'     : self.name,
                 'dist'     : self.dist,
-                'child' : [ child.to_json() for child in self.child ],
+                'child'    : [ child.to_json() for child in self.child ],
                 'fapath'   : self.fapath,
-                'graph'    : self.graph.to_dict() if self.graph is not None else None }
+                'graph'    : serialize(self.graph) if self.graph is not None else None }
 
 class Tree(object):
     # ------------------- 
@@ -382,7 +383,8 @@ class Tree(object):
     def collect(self):
         if not self.root.graph:
             return None
-        return Graph.connected_components(self.root.graph)
+        self.root.graph = Graph.connected_components(self.root.graph)
+        return self.root.graph
 
     def write_nwk(self, wtr):
         self.root.to_nwk(wtr)
