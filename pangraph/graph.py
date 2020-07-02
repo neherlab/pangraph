@@ -109,7 +109,7 @@ class Graph(object):
     # ---------------
     # methods
 
-    def union(self, qpath, rpath, out, cutoff=0, mu=100, beta=2):
+    def union(self, qpath, rpath, out, cutoff=0, mu=10, beta=2):
         import warnings
         from skbio.alignment import global_pairwise_align
         from skbio import DNA
@@ -129,12 +129,12 @@ class Graph(object):
                         M[a][b] = -3
             return global_pairwise_align(s1, s2, 5, 2, M)
 
-        # TODO: resolve cut extensivity correctly
         def energy(hit):
             l    = hit["aligned_bases"]
-            delP = len(self.blks[hit["qry"]["name"]].muts) + \
-                   len(self.blks[hit["ref"]["name"]].muts)
+            num  = lambda k: len(self.blks[hit[k]["name"]].muts)
+            cuts = lambda k: (hit[k]['start'] > cutoff) + ((hit[k]['len']-hit[k]['end']) > cutoff)
 
+            delP = num('qry')*cuts('qry') + num('ref')*cuts('ref')
             dmut = hit["aligned_length"] * hit["divergence"]
 
             return -l + mu*delP + beta*dmut
