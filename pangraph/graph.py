@@ -89,9 +89,10 @@ class Graph(object):
                 names.append(set([name]))
                 continue
 
-                graphs[gi[0]] = graphs[gi[0]].union(blks, *(graphs.pop(i) for i in gi[:0:-1]))
-                names[gi[0]]  = names[gi[0]].union(set([name]), *(names.pop(i) for i in gi[:0:-1]))
+            graphs[gi[0]] = graphs[gi[0]].union(blks, *(graphs.pop(i) for i in gi[:0:-1]))
+            names[gi[0]]  = names[gi[0]].union(set([name]), *(names.pop(i) for i in gi[:0:-1]))
 
+        print(names)
         return [component(graph, name) for graph, name in zip(graphs, names)]
 
     @classmethod
