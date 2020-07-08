@@ -85,13 +85,13 @@ class Matches():
                     continue
 
                 isolates = set([int(rm_prefix(k.split('?')[0],"isolate_")) for k in blocks[b]["muts"].keys()])
-                # "found" blocks
+                # "found" ancestral blocks
                 for m in [ms[0], ms[-1]]:
                     anc, blk = m.id
                     anc  = self.ancestral[str(anc)]["geneology"][blk]["present"]
                     date = [a["date"] for iso in isolates for a in anc[str(iso)]]
                     found.extend(date)
-                # "hidden" blocks
+                # "hidden" ancestral blocks
                 if len(ms) > 1:
                     for m in ms[1:-1]:
                         anc, blk = m.id

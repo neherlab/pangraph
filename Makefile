@@ -9,12 +9,7 @@ TGT_FILE := targets
 DIRS := $(shell sed '/^#.*$$/d' "$(TGT_FILE)")
 DIRS := $(addprefix $(ROOT_DIR)/, $(DIRS))
 
-SEQS := $(addsuffix /seq.fa, $(DIRS))
-TREE := $(addsuffix /guide.json, $(DIRS))
-GRPH := $(addsuffix /pangraph.json, $(DIRS))
-STAT := $(addsuffix /algo_stats.npz, $(DIRS))
-
-all: $(STAT)
+all: $(addsuffix /algo_stats.npz, $(DIRS))
 
 %seq.fa:
 	@mkdir -p $(@D)
@@ -34,7 +29,7 @@ all: $(STAT)
 
 %pangraph.json: %guide.json
 	@echo "build	    "$(@D);\
-	pangraph build -d $(@D) -m 0 $^ 2>$(@D)/build.log
+	pangraph build -d $(@D) -m 0 $^ 1>$@ 2>$(@D)/build.log 
 
 %algo_stats.npz: %pangraph.json
 	@echo "assay	    "$(@D);\

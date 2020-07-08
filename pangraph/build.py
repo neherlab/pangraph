@@ -4,7 +4,7 @@ build a pangenome alignment from an annotated guide tree
 import os, sys
 import builtins
 
-from .utils import mkdir
+from .utils import mkdir, log
 from .tree import Tree
 
 def open(path, *args, **kwargs):
@@ -61,13 +61,14 @@ def main(args):
     graphs = T.collect()
 
     for i, g in enumerate(graphs):
-        print(f"graph {i}: nseqs: {len(g.seqs)} nblks: {len(g.blks)}")
+        log(f"graph {i}: nseqs: {len(g.seqs)} nblks: {len(g.blks)}")
 
     for i, g in enumerate(graphs):
         with open(f"{root}/graph_{i:03d}.fa", 'w') as fd:
             g.write_fasta(fd)
 
-    with open(f"{root}/pangraph.json", "w") as fd:
-        T.write_json(fd, no_seqs=True)
+    T.write_json(sys.stdout, no_seqs=True)
+    # with open(f"{root}/pangraph.json", "w") as fd:
+    #     T.write_json(fd, no_seqs=True)
 
     return 0
