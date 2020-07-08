@@ -80,22 +80,24 @@ class Matches():
             blocks = {b["id"]:b for b in self.pangraph[n]["blocks"]}
             for b, ms in g.items():
                 if len(ms) == 0:
-                    # TODO: log this in someway?
+                    # TODO: log this in a better way?
+                    hidden.append(None)
                     continue
+
                 isolates = set([int(rm_prefix(k.split('?')[0],"isolate_")) for k in blocks[b]["muts"].keys()])
                 # "found" blocks
                 for m in [ms[0], ms[-1]]:
                     anc, blk = m.id
                     anc  = self.ancestral[str(anc)]["geneology"][blk]["present"]
-                    date = mode(a["date"] for iso in isolates for a in anc[str(iso)])
-                    found.append(date)
+                    date = [a["date"] for iso in isolates for a in anc[str(iso)]]
+                    found.extend(date)
                 # "hidden" blocks
                 if len(ms) > 1:
                     for m in ms[1:-1]:
                         anc, blk = m.id
                         anc  = self.ancestral[str(anc)]["geneology"][blk]["present"]
-                        date = mode(a["date"] for iso in isolates for a in anc[str(iso)])
-                        hidden.append(date)
+                        date = [ a["date"] for iso in isolates for a in anc[str(iso)] ]
+                        hidden.extend(date)
 
         return np.array(found), np.array(hidden)
 
