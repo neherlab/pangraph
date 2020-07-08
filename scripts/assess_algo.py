@@ -51,8 +51,12 @@ class Matches():
         self.graphs = [self.init(g) for g in graphs]
         with open(f"{dir}/ancestral.json") as fd:
             self.ancestral = json.load(fd)
-        with open(f"{dir}/pangraph.json") as fd:
-            self.pangraph = json.load(fd)["tree"]["graph"]
+
+        self.pangraph = {}
+        for path in glob(f"{dir}/*.pangraph.json"):
+            with open(path) as fd:
+                mu, beta = rm_prefix(path, f"{dir}/").split(".")[:2]
+                self.pangraph[(mu,beta)] = json.load(fd)["tree"]["graph"]
 
     def init(self, graph):
         return {s.id:[] for s in SeqIO.parse(graph, 'fasta')}
@@ -112,6 +116,8 @@ def main(args):
     if len(args) != 1 or not os.path.isdir(args[0]):
         exit(usage())
     dir      = args[0].rstrip("/")
+    # TODO: our different graphs will clobber each other!!
+    #       fix.
     graphs   = glob(f"{dir}/graph_???.fa")
     anc_blks = f"{dir}/ancestral.fa"
 
