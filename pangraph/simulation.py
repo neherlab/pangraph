@@ -291,11 +291,19 @@ class IntervalMap(object):
         def vals(datum):
             ks, vs = [], []
             for d in datum:
-                ks.append(int(d[0]))
-                vs.append({
-                    'date' : d[1],
-                    'pos' : tuple(int(e) for e in d[2])
-                })
+                n = int(d[0])
+                try:
+                    i = ks.index(n)
+                    vs[i].append({
+                        'date' : d[1],
+                        'pos'  : tuple(int(e) for e in d[2])
+                    })
+                except:
+                    ks.append(int(d[0]))
+                    vs.append([{
+                        'date' : d[1],
+                        'pos'  : tuple(int(e) for e in d[2])
+                    }])
             # sort by present day ids
             index = sorted(list(range(len(ks))), key=lambda i: ks[i])
             return dict(zip([ks[i] for i in index], [vs[i] for i in index]))
