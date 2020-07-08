@@ -23,7 +23,7 @@ from pangraph.utils import parse_paf, breakpoint
 argv0 = None
 
 def mode(items):
-    return Counter(items).most_common(1)
+    return Counter(items).most_common(1)[0][0]
 
 def rm_prefix(s, pfx):
     if s.startswith(pfx):
