@@ -11,6 +11,7 @@ import subprocess
 from sys  import argv, exit
 from io import StringIO
 from glob import glob
+from itertools import chain
 
 from Bio  import SeqIO
 
@@ -56,11 +57,14 @@ class Matches():
             for key, val in g.items():
                 g[key] = sorted(val, key=lambda m: m.pos[0])
 
+    def length(self):
+        return np.array([sum(len(ms)==1 for ms in g.values())/len(g) for g in self.graphs])
+
     def coverage(self):
         return np.array([sum(len(ms)==1 for ms in g.values())/len(g) for g in self.graphs])
 
     def accuracy(self):
-        return np.array([m.diff[0] for g in self.graphs for ms in g.values() for m in ms])
+        return np.array(list(chain.from_iterable((m[0].diff[0], m[-1].diff[1]) for g in self.graphs for m in g.values())))
 
 def usage():
     print(f"usage: {argv0} [directory]", file=sys.stderr)
@@ -98,7 +102,6 @@ def main(args):
             )
 
     matches.sort()
-    import ipdb; ipdb.set_trace()
 
     with open(f"{dir}/algo_stats.npz", "wb") as fd:
         np.savez(fd, coverage=matches.coverage(), accuracy=matches.accuracy())
