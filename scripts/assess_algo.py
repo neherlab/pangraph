@@ -21,13 +21,14 @@ argv0 = None
 
 # simple struct
 class Match():
-    def __init__(self, ancestor, block, d_beg, d_end, score):
+    def __init__(self, ancestor, block, p_beg, p_end, d_beg, d_end, score):
         self.id    = (ancestor, block)
+        self.pos   = (p_beg, p_end)
         self.diff  = (d_beg, d_end)
         self.score = score
 
     def __str__(self):
-        return f"{{id: {self.id};\tdiff: {self.diff};\tscore: {self.score:.4f}}}"
+        return f"{{id: {self.id}; pos: {self.pos}; diff: {self.diff}; score: {self.score:.4f}}}"
     def __repr__(self):
         return self.__str__()
 
@@ -47,8 +48,13 @@ class Matches():
     def __repr__(self):
         return self.__str__()
 
-    def put(self, id, blk, match):
-        self.graphs[id][blk].append(match)
+    def put(self, n, blk, match):
+        self.graphs[n][blk].append(match)
+
+    def sort(self):
+        for g in self.graphs:
+            for key, val in g.items():
+                g[key] = sorted(val, key=lambda m: m.pos[0])
 
     def coverage(self):
         return np.array([sum(len(ms)==1 for ms in g.values())/len(g) for g in self.graphs])
@@ -66,13 +72,14 @@ def main(args):
     dir      = args[0].rstrip("/")
     graphs   = glob(f"{dir}/graph_???.fa")
     anc_blks = f"{dir}/ancestral.fa"
+
     if len(graphs) < 1:
         exit(f"directory {dir}: missing aligned pangraphs")
     if not os.path.exists(anc_blks):
         exit(f"directory {dir}: missing ancestral block sequences")
 
     matches = Matches(graphs)
-    for i, g in enumerate(graphs):
+    for n, g in enumerate(graphs):
         cmd = subprocess.run(
             ["minimap2", "-x", "asm5", str(anc_blks), str(g)],
             capture_output=True
@@ -83,15 +90,20 @@ def main(args):
 
         for hit in hits:
             anc   = [int(n) for n in hit['ref']['name'].split('_')[1:]]
-            d_beg = hit['qry']['start'] - hit['ref']['start']
-            d_end = hit['qry']['end'] - hit['ref']['end']
+            d_beg = hit['qry']['start']-hit['ref']['start']
+            d_end = (hit['qry']['len']-hit['qry']['end']) - (hit['ref']['len']-hit['ref']['end'])
             score = hit['aligned_bases'] / hit['aligned_length']
-            matches.put(i, hit['qry']['name'],
-                Match(*anc, d_beg, d_end, score)
+            matches.put(n, hit['qry']['name'],
+                Match(*anc, hit['qry']['start'], hit['qry']['end'], d_beg, d_end, score)
             )
 
-        with open(f"{dir}/algo_stats.npz", "wb") as fd:
-            np.savez(fd, coverage=matches.coverage(), accuracy=matches.accuracy())
+    matches.sort()
+    import ipdb; ipdb.set_trace()
+
+    with open(f"{dir}/algo_stats.npz", "wb") as fd:
+        np.savez(fd, coverage=matches.coverage(), accuracy=matches.accuracy())
+
+    return 0
 
 if __name__ == "__main__":
     argv0 = argv[0]
