@@ -27,11 +27,15 @@ all: $(addsuffix /algo_stats.npz, $(DIRS))
 	@echo "cluster     "$(@D);\
 	pangraph cluster -d $(@D) $^
 
-%pangraph.json: %guide.json
-	@echo "build	    "$(@D);\
-	pangraph build -d $(@D) -m 0 $^ 1>$@ 2>$(@D)/build.log 
+.SECONDEXPANSION:
+%pangraph.json: $$(@D)/guide.json
+	@$(eval vars=$(subst ., ,$(@F)))
+	@$(eval MU=$(word 1,$(vars)))
+	@$(eval BETA=$(word 2,$(vars)))
+	@echo "build		"$(@D);\
+	pangraph build -d $(@D) -m $(MU) -b $(BETA) $^ 1>$@ 2>$(@D)/build_$(MU)_$(BETA).log 
 
-%algo_stats.npz: %pangraph.json
+%algo_stats.npz: %0.0.pangraph.json
 	@echo "assay	    "$(@D);\
 	./scripts/assess_algo.py $(@D)
 
