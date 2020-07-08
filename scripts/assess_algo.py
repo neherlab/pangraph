@@ -58,7 +58,7 @@ class Matches():
                 g[key] = sorted(val, key=lambda m: m.pos[0])
 
     def length(self):
-        return np.array([sum(len(ms)==1 for ms in g.values())/len(g) for g in self.graphs])
+        return np.array([m[-1].pos[1] - m[0].pos[0] for g in self.graphs for m in g.values()])
 
     def coverage(self):
         return np.array([sum(len(ms)==1 for ms in g.values())/len(g) for g in self.graphs])
@@ -104,7 +104,7 @@ def main(args):
     matches.sort()
 
     with open(f"{dir}/algo_stats.npz", "wb") as fd:
-        np.savez(fd, coverage=matches.coverage(), accuracy=matches.accuracy())
+        np.savez(fd, coverage=matches.coverage(), accuracy=matches.accuracy(), length=matches.length())
 
     return 0
 
