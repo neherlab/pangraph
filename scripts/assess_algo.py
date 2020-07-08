@@ -16,7 +16,7 @@ from itertools import chain
 from Bio  import SeqIO
 
 sys.path.insert(0, os.path.abspath('.')) # gross hack
-from pangraph.utils import parse_paf
+from pangraph.utils import parse_paf, breakpoint
 
 argv0 = None
 
@@ -58,13 +58,13 @@ class Matches():
                 g[key] = sorted(val, key=lambda m: m.pos[0])
 
     def length(self):
-        return np.array([m[-1].pos[1] - m[0].pos[0] for g in self.graphs for m in g.values()])
+        return np.array([m[-1].pos[1] - m[0].pos[0] for g in self.graphs for m in g.values() if len(m) > 0])
 
     def coverage(self):
         return np.array([sum(len(ms)==1 for ms in g.values())/len(g) for g in self.graphs])
 
     def accuracy(self):
-        return np.array(list(chain.from_iterable((m[0].diff[0], m[-1].diff[1]) for g in self.graphs for m in g.values())))
+        return np.array(list(chain.from_iterable((m[0].diff[0], m[-1].diff[1]) for g in self.graphs for m in g.values() if len(m) > 0)))
 
 def usage():
     print(f"usage: {argv0} [directory]", file=sys.stderr)
