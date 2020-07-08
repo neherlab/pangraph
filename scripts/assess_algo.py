@@ -5,6 +5,7 @@ script to compare simulated breakpoints to those predicted by the algorithm
 
 import os
 import sys
+import json
 import numpy as np
 import subprocess
 
@@ -12,6 +13,7 @@ from sys  import argv, exit
 from io import StringIO
 from glob import glob
 from itertools import chain
+from collections import Counter
 
 from Bio  import SeqIO
 
@@ -19,6 +21,14 @@ sys.path.insert(0, os.path.abspath('.')) # gross hack
 from pangraph.utils import parse_paf, breakpoint
 
 argv0 = None
+
+def mode(items):
+    return Counter(items).most_common(1)
+
+def rm_prefix(s, pfx):
+    if s.startswith(pfx):
+        return s[len(pfx):]
+    return s
 
 # simple struct
 class Match():
@@ -37,8 +47,12 @@ class Match():
 # [graph num]{block hash} -> Match
 # key is the predicted blocks. value is the ancestral
 class Matches():
-    def __init__(self, graphs):
+    def __init__(self, graphs, dir):
         self.graphs = [self.init(g) for g in graphs]
+        with open(f"{dir}/ancestral.json") as fd:
+            self.ancestral = json.load(fd)
+        with open(f"{dir}/pangraph.json") as fd:
+            self.pangraph = json.load(fd)["tree"]["graph"]
 
     def init(self, graph):
         return {s.id:[] for s in SeqIO.parse(graph, 'fasta')}
@@ -61,7 +75,29 @@ class Matches():
         return np.array([m[-1].pos[1] - m[0].pos[0] for g in self.graphs for m in g.values() if len(m) > 0])
 
     def coverage(self):
-        return np.array([sum(len(ms)==1 for ms in g.values())/len(g) for g in self.graphs])
+        found, hidden = [], []
+        for n, g in enumerate(self.graphs):
+            blocks = {b["id"]:b for b in self.pangraph[n]["blocks"]}
+            for b, ms in g.items():
+                if len(ms) == 0:
+                    # TODO: log this in someway?
+                    continue
+                isolates = set([int(rm_prefix(k.split('?')[0],"isolate_")) for k in blocks[b]["muts"].keys()])
+                # "found" blocks
+                for m in [ms[0], ms[-1]]:
+                    anc, blk = m.id
+                    anc  = self.ancestral[str(anc)]["geneology"][blk]["present"]
+                    date = mode(a["date"] for iso in isolates for a in anc[str(iso)])
+                    found.append(date)
+                # "hidden" blocks
+                if len(ms) > 1:
+                    for m in ms[1:-1]:
+                        anc, blk = m.id
+                        anc  = self.ancestral[str(anc)]["geneology"][blk]["present"]
+                        date = mode(a["date"] for iso in isolates for a in anc[str(iso)])
+                        hidden.append(date)
+
+        return np.array(found), np.array(hidden)
 
     def accuracy(self):
         return np.array(list(chain.from_iterable((m[0].diff[0], m[-1].diff[1]) for g in self.graphs for m in g.values() if len(m) > 0)))
@@ -82,7 +118,7 @@ def main(args):
     if not os.path.exists(anc_blks):
         exit(f"directory {dir}: missing ancestral block sequences")
 
-    matches = Matches(graphs)
+    matches = Matches(graphs, dir)
     for n, g in enumerate(graphs):
         cmd = subprocess.run(
             ["minimap2", "-x", "asm5", str(anc_blks), str(g)],
@@ -104,7 +140,8 @@ def main(args):
     matches.sort()
 
     with open(f"{dir}/algo_stats.npz", "wb") as fd:
-        np.savez(fd, coverage=matches.coverage(), accuracy=matches.accuracy(), length=matches.length())
+        found, hidden = matches.coverage()
+        np.savez(fd, found=found, hidden=hidden, accuracy=matches.accuracy(), length=matches.length())
 
     return 0
 
