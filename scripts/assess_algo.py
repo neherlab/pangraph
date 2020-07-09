@@ -14,6 +14,7 @@ from io import StringIO
 from glob import glob
 from itertools import chain
 from collections import Counter
+from math import inf
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -24,6 +25,9 @@ from pangraph.utils import parse_paf, breakpoint
 
 argv0 = None
 
+# ---------------------
+# utility functions
+
 def mode(items):
     return Counter(items).most_common(1)[0][0]
 
@@ -32,7 +36,9 @@ def rm_prefix(s, pfx):
         return s[len(pfx):]
     return s
 
-# simple struct
+# ---------------------
+# structs
+
 class Match():
     def __init__(self, ancestor, block, p_beg, p_end, d_beg, d_end, score):
         self.id    = (ancestor, block)
@@ -78,6 +84,23 @@ class Matches():
         return [m[-1].pos[1] - m[0].pos[0] for g in self.graphs for m in g.values() if len(m) > 0]
 
     def coverage(self):
+        # ----------------
+        # internal functions
+
+        def date(matches, isolates):
+            t0 = inf
+            for iso in isolates:
+                t1 = 1
+                for m in matches:
+                    anc, blk = m.id
+                    anc = self.ancestral[str(anc)]["geneology"][blk]["present"]
+                    t2  = min(a['date'] for a in anc[str(iso)])
+                    t1  = max(t1, t2)
+                t0 = min(t0, t1)
+            return t0
+
+        # ----------------
+        # body
         found, hidden = [], []
         for n, g in enumerate(self.graphs):
             blocks = {b["id"]:b for b in self.pangraph[n]["blocks"]}
@@ -88,19 +111,9 @@ class Matches():
                     continue
 
                 isolates = set([int(rm_prefix(k.split('?')[0],"isolate_")) for k in blocks[b]["muts"].keys()])
-                # "found" ancestral blocks
-                for m in [ms[0], ms[-1]]:
-                    anc, blk = m.id
-                    anc  = self.ancestral[str(anc)]["geneology"][blk]["present"]
-                    date = [a["date"] for iso in isolates for a in anc[str(iso)]]
-                    found.extend(date)
-                # "hidden" ancestral blocks
+                found.append(date(ms, isolates))
                 if len(ms) > 1:
-                    for m in ms[1:-1]:
-                        anc, blk = m.id
-                        anc  = self.ancestral[str(anc)]["geneology"][blk]["present"]
-                        date = [ a["date"] for iso in isolates for a in anc[str(iso)] ]
-                        hidden.extend(date)
+                    hidden.extend([date([m], isolates) for m in ms])
 
         return found, hidden
 
@@ -113,7 +126,7 @@ def to_fastas(path):
         pangraph = json.load(ifd)["tree"]["graph"]
         for n, graph in enumerate(pangraph):
             s  = [SeqRecord(id=b["id"], seq=Seq(b["seq"])) for b in graph["blocks"]]
-            fa = f"{root}/graph_{n:03d}"
+            fa = f"{root}/graph_{n:03d}.fa"
             with open(fa, 'w') as ofd:
                 SeqIO.write(s, ofd, "fasta")
             yield fa
