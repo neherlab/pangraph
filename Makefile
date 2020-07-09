@@ -9,7 +9,7 @@ TGT_FILE := targets
 DIRS := $(shell sed '/^#.*$$/d' "$(TGT_FILE)")
 DIRS := $(addprefix $(ROOT_DIR)/, $(DIRS))
 
-all: $(addsuffix /algo_stats.npz, $(DIRS))
+all: $(addsuffix /algo_stats.json, $(DIRS))
 
 %seq.fa:
 	@mkdir -p $(@D)
@@ -32,11 +32,11 @@ all: $(addsuffix /algo_stats.npz, $(DIRS))
 	@$(eval vars=$(subst ., ,$(@F)))
 	@$(eval MU=$(word 1,$(vars)))
 	@$(eval BETA=$(word 2,$(vars)))
-	@echo "build		"$(@D);\
+	@echo "build       "$(@D);\
 	pangraph build -d $(@D) -m $(MU) -b $(BETA) $^ 1>$@ 2>$(@D)/build_$(MU)_$(BETA).log 
 
-%algo_stats.npz: %0.0.pangraph.json
-	@echo "assay	    "$(@D);\
+%algo_stats.json: %0.0.pangraph.json
+	@echo "assay       "$(@D);\
 	./scripts/assess_algo.py $(@D)
 
 clean:

@@ -15,7 +15,9 @@ from glob import glob
 from itertools import chain
 from collections import Counter
 
-from Bio  import SeqIO
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
 sys.path.insert(0, os.path.abspath('.')) # gross hack
 from pangraph.utils import parse_paf, breakpoint
@@ -44,22 +46,19 @@ class Match():
         return self.__str__()
 
 # associative data structure
-# [graph num]{block hash} -> Match
+# [graph num]{block hash} -> [Match]
 # key is the predicted blocks. value is the ancestral
 class Matches():
-    def __init__(self, graphs, dir):
-        self.graphs = [self.init(g) for g in graphs]
+    def __init__(self, pangraph, dir):
         with open(f"{dir}/ancestral.json") as fd:
             self.ancestral = json.load(fd)
 
-        self.pangraph = {}
-        for path in glob(f"{dir}/*.pangraph.json"):
-            with open(path) as fd:
-                mu, beta = rm_prefix(path, f"{dir}/").split(".")[:2]
-                self.pangraph[(mu,beta)] = json.load(fd)["tree"]["graph"]
+        self.mu, self.beta = rm_prefix(pangraph, f"{dir}/").split(".")[:2]
+        with open(pangraph) as fd:
+            self.pangraph = json.load(fd)["tree"]["graph"]
 
-    def init(self, graph):
-        return {s.id:[] for s in SeqIO.parse(graph, 'fasta')}
+        init = lambda g: {b["id"]:[] for b in g["blocks"]}
+        self.graphs = [init(g) for g in self.pangraph]
 
     def __str__(self):
         return "\n".join(str(g) for g in self.graphs)
@@ -76,7 +75,7 @@ class Matches():
                 g[key] = sorted(val, key=lambda m: m.pos[0])
 
     def length(self):
-        return np.array([m[-1].pos[1] - m[0].pos[0] for g in self.graphs for m in g.values() if len(m) > 0])
+        return [m[-1].pos[1] - m[0].pos[0] for g in self.graphs for m in g.values() if len(m) > 0]
 
     def coverage(self):
         found, hidden = [], []
@@ -103,10 +102,21 @@ class Matches():
                         date = [ a["date"] for iso in isolates for a in anc[str(iso)] ]
                         hidden.extend(date)
 
-        return np.array(found), np.array(hidden)
+        return found, hidden
 
     def accuracy(self):
-        return np.array(list(chain.from_iterable((m[0].diff[0], m[-1].diff[1]) for g in self.graphs for m in g.values() if len(m) > 0)))
+        return list( chain.from_iterable((m[0].diff[0], m[-1].diff[1]) for g in self.graphs for m in g.values() if len(m) > 0) )
+
+def to_fastas(path):
+    root = '/'.join(path.split('/')[:-1])
+    with open(path, 'r') as ifd:
+        pangraph = json.load(ifd)["tree"]["graph"]
+        for n, graph in enumerate(pangraph):
+            s  = [SeqRecord(id=b["id"], seq=Seq(b["seq"])) for b in graph["blocks"]]
+            fa = f"{root}/graph_{n:03d}"
+            with open(fa, 'w') as ofd:
+                SeqIO.write(s, ofd, "fasta")
+            yield fa
 
 def usage():
     print(f"usage: {argv0} [directory]", file=sys.stderr)
@@ -116,9 +126,7 @@ def main(args):
     if len(args) != 1 or not os.path.isdir(args[0]):
         exit(usage())
     dir      = args[0].rstrip("/")
-    # TODO: our different graphs will clobber each other!!
-    #       fix.
-    graphs   = glob(f"{dir}/graph_???.fa")
+    graphs   = glob(f"{dir}/*.*.pangraph.json")
     anc_blks = f"{dir}/ancestral.fa"
 
     if len(graphs) < 1:
@@ -126,30 +134,37 @@ def main(args):
     if not os.path.exists(anc_blks):
         exit(f"directory {dir}: missing ancestral block sequences")
 
-    matches = Matches(graphs, dir)
+    all_matches = {}
     for n, g in enumerate(graphs):
-        cmd = subprocess.run(
-            ["minimap2", "-x", "asm5", str(anc_blks), str(g)],
-            capture_output=True
-        )
-        buf  = StringIO(cmd.stdout.decode('utf-8'))
-        hits = parse_paf(buf)
-        buf.close()
-
-        for hit in hits:
-            anc   = [int(n) for n in hit['ref']['name'].split('_')[1:]]
-            d_beg = hit['qry']['start']-hit['ref']['start']
-            d_end = (hit['qry']['len']-hit['qry']['end']) - (hit['ref']['len']-hit['ref']['end'])
-            score = hit['aligned_bases'] / hit['aligned_length']
-            matches.put(n, hit['qry']['name'],
-                Match(*anc, hit['qry']['start'], hit['qry']['end'], d_beg, d_end, score)
+        matches = Matches(g, dir)
+        for i, sg in enumerate(to_fastas(g)):
+            cmd = subprocess.run(
+                ["minimap2", "-x", "asm5", str(anc_blks), sg],
+                capture_output=True
             )
+            buf  = StringIO(cmd.stdout.decode('utf-8'))
+            hits = parse_paf(buf)
+            buf.close()
 
-    matches.sort()
+            for hit in hits:
+                anc   = [int(n) for n in hit['ref']['name'].split('_')[1:]]
+                d_beg = hit['qry']['start']-hit['ref']['start']
+                d_end = (hit['qry']['len']-hit['qry']['end']) - (hit['ref']['len']-hit['ref']['end'])
+                score = hit['aligned_bases'] / hit['aligned_length']
+                matches.put(i, hit['qry']['name'],
+                    Match(*anc, hit['qry']['start'], hit['qry']['end'], d_beg, d_end, score)
+                )
 
-    with open(f"{dir}/algo_stats.npz", "wb") as fd:
+        matches.sort()
+        all_matches[(matches.mu,matches.beta)] = matches
+
+    def stats(matches):
         found, hidden = matches.coverage()
-        np.savez(fd, found=found, hidden=hidden, accuracy=matches.accuracy(), length=matches.length())
+        return {'found':list(found), 'hidden':list(hidden), 'accuracy':list(matches.accuracy()), 'length':list(matches.length())}
+
+    proc_matches = {f"{k}":stats(match) for k, match in all_matches.items()}
+    with open(f"{dir}/algo_stats.json", "w") as fd:
+        json.dump(proc_matches, fd)
 
     return 0
 
