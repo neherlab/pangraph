@@ -270,7 +270,7 @@ class Tree(object):
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
     # TODO: move all tryprints to logging 
-    def align(self, tmpdir, min_blk_len, mu, beta, verbose=False):
+    def align(self, tmpdir, min_blk_len, mu, beta, extensive, verbose=False):
         # ---------------------------------------------
         # internal functions
         # Debugging function that will check reconstructed sequence against known real one.
@@ -329,7 +329,7 @@ class Tree(object):
             graph1, fapath1 = node1.graph, node1.fapath
             graph2, fapath2 = node2.graph, node2.fapath
             graph    = Graph.fuse(graph1, graph2)
-            graph, _ = graph.union(fapath1, fapath2, f"{tmpdir}/{n.name}", min_blk_len, mu, beta)
+            graph, _ = graph.union(fapath1, fapath2, f"{tmpdir}/{n.name}", min_blk_len, mu, beta, extensive)
 
             for i in range(MAXSELFMAPS):
                 tryprint(f"----> merge round {i}", verbose)
@@ -337,7 +337,7 @@ class Tree(object):
                 itr = f"{tmpdir}/{n.name}_iter_{i}"
                 with open(f"{itr}.fa", 'w') as fd:
                     graph.write_fasta(fd)
-                graph, contin = graph.union(itr, itr, f"{tmpdir}/{n.name}_iter_{i}", min_blk_len, mu, beta)
+                graph, contin = graph.union(itr, itr, f"{tmpdir}/{n.name}_iter_{i}", min_blk_len, mu, beta, extensive)
                 if not contin:
                     return graph
 

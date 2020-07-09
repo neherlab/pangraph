@@ -109,7 +109,7 @@ class Graph(object):
     # ---------------
     # methods
 
-    def union(self, qpath, rpath, out, cutoff=0, mu=10, beta=2):
+    def union(self, qpath, rpath, out, cutoff=0, mu=10, beta=2, extensive=False):
         import warnings
         from skbio.alignment import global_pairwise_align
         from skbio import DNA
@@ -137,7 +137,10 @@ class Graph(object):
             num  = lambda k: len(self.blks[hit[k]["name"]].muts)
             cuts = lambda k: (hit[k]['start'] > cutoff) + ((hit[k]['len']-hit[k]['end']) > cutoff)
 
-            delP = num('qry')*cuts('qry') + num('ref')*cuts('ref')
+            if extensive:
+                delP = num('qry')*cuts('qry') + num('ref')*cuts('ref')
+            else:
+                delP = cuts('qry') + cuts('ref')
             dmut = hit["aligned_length"] * hit["divergence"]
 
             return -l + mu*delP + beta*dmut
