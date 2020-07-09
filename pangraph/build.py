@@ -57,7 +57,11 @@ def main(args):
         T = Tree.from_json(input)
 
     root = args.dir.rstrip('/')
-    tmp = f"{root}/tmp"
+    tmp  = f"{root}/tmp"
+    i    = 0
+    while os.path.isdir(tmp) and i < 32:
+        i += 1
+        tmp = f"{root}/tmp{i:03d}"
     mkdir(tmp)
     T.align(tmp, args.len, args.mu, args.beta, args.extensive)
     # TODO: when debugging phase is done, remove tmp directory
