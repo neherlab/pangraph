@@ -32,7 +32,7 @@ all: $(addsuffix /algo_stats.json, $(DIRS))
 	@$(eval vars=$(subst ., ,$(@F)))
 	@$(eval MU=$(word 1,$(vars)))
 	@$(eval BETA=$(word 2,$(vars)))
-	@echo "build($(MU), $(BETA)) "$(@D);\
+	@echo "build       "$(@D) "("$(MU), $(BETA)")";\
 	pangraph build -d $(@D) -m $(MU) -b $(BETA) $^ 1>$@ 2>$(@D)/build_$(MU)_$(BETA).log 
 
 %algo_stats.json: %0.0.pangraph.json %100.50.pangraph.json

@@ -162,7 +162,7 @@ def main(args):
         found, hidden = matches.coverage()
         return {'found':list(found), 'hidden':list(hidden), 'accuracy':list(matches.accuracy()), 'length':list(matches.length())}
 
-    proc_matches = {f"{k}":stats(match) for k, match in all_matches.items()}
+    proc_matches = {f"({k[0]}, {k[1]})":stats(match) for k, match in all_matches.items()}
     with open(f"{dir}/algo_stats.json", "w") as fd:
         json.dump(proc_matches, fd)
 

@@ -29,8 +29,6 @@ def register_args(parser):
                         default=100,
                         help="energy cost for cutting blocks (used during block merges)")
     parser.add_argument("-x", "--extensive",
-                        metavar="block cut energy grows with extensively number of sequences inside",
-                        type=bool,
                         default=False,
                         action='store_true',
                         help="boolean flag that toggles whether the energy associated to a cut grows proportionally to the number of sequences cut")
