@@ -10,6 +10,11 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 def register_args(parser):
+    parser.add_argument("-p", "--prefix",
+                        type=str,
+                        nargs='?',
+                        default=None,
+                        help="prefix name of output files. if not given, will output all to stdout")
     parser.add_argument("input",
                         type=str,
                         nargs='?',
@@ -37,6 +42,11 @@ def main(args):
 
     for n, g in enumerate(pg):
         s  = [SeqRecord(id=b["id"], seq=Seq(b["seq"])) for b in graph["blocks"]]
-        print(s, file=sys.stdout)
-        if n < len(pg) - 1:
-            print('=')
+        if args.prefix:
+            fa = f"{args.prefix}_{n:03d}.fa"
+            with open(fa, 'w') as ofd:
+                SeqIO.write(s, ofd, "fasta")
+        else:
+            print(s)
+            if n < len(pg) - 1:
+                print('=')
