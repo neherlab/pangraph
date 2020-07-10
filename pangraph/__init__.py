@@ -17,6 +17,7 @@ subcmd_names = [
     "build",
     "cluster",
     "generate",
+    "serialize",
     "version",
 ]
 

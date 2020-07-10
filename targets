@@ -1,3 +1,5 @@
 # order: population size, num_gens, mu, rate_hgt, rate_indel, rate_transpose
 # L is hardcoded at 10000
-pop_100_200_3e-4_0_0_5e-2
+pop_50_120_3e-4_0_0_5e-2
+pop_100_240_3e-4_0_0_5e-2
+pop_100_240_3e-2_0_0_5e-2
