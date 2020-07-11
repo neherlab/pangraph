@@ -83,6 +83,17 @@ class Matches():
     def length(self):
         return [m[-1].pos[1] - m[0].pos[0] for g in self.graphs for m in g.values() if len(m) > 0]
 
+    def depth(self):
+        blk_depths = []
+        for n, g in enumerate(self.graphs):
+            blks = { b['id']:b for b in self.pangraph[n]["blocks"] }
+            for b, m in g.items():
+                if len(m) == 0:
+                    continue
+                blk_depths.append(len(blks[b]["muts"]))
+
+        return blk_depths
+
     def coverage(self):
         # ----------------
         # internal functions
@@ -173,7 +184,13 @@ def main(args):
 
     def stats(matches):
         found, hidden = matches.coverage()
-        return {'found':list(found), 'hidden':list(hidden), 'accuracy':list(matches.accuracy()), 'length':list(matches.length())}
+        return {
+            'found' : found,
+            'hidden' : hidden,
+            'accuracy' : matches.accuracy(),
+            'length' : matches.length(),
+            'depth' : matches.depth(),
+        }
 
     proc_matches = {f"({k[0]}, {k[1]})":stats(match) for k, match in all_matches.items()}
     with open(f"{dir}/algo_stats.json", "w") as fd:

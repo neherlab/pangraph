@@ -8,8 +8,9 @@ TGT_FILE := targets
 
 DIRS := $(shell sed '/^#.*$$/d' "$(TGT_FILE)")
 DIRS := $(addprefix $(ROOT_DIR)/, $(DIRS))
+STAT := $(addsuffix /algo_stats.json, $(DIRS))
 
-all: $(addsuffix /algo_stats.json, $(DIRS))
+all: fig1
 
 %seq.fa:
 	@mkdir -p $(@D)
@@ -35,9 +36,13 @@ all: $(addsuffix /algo_stats.json, $(DIRS))
 	@echo "build       "$(@D) "("$(MU), $(BETA)")";\
 	pangraph build -d $(@D) -m $(MU) -b $(BETA) $^ 1>$@ 2>$(@D)/build_$(MU)_$(BETA).log 
 
-%algo_stats.json: %0.0.pangraph.json %1000.0.pangraph.json
+%algo_stats.json: %0.0.pangraph.json %500.0.pangraph.json %1000.0.pangraph.json
 	@echo "assay       "$(@D);\
 	./scripts/assess_algo.py $(@D)
+
+fig1:
+	@echo "making figure 1";\
+	./scripts/figure1.py $(ROOT_DIR)
 
 clean:
 	rm -rf $(ROOT_DIR)/*
