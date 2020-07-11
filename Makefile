@@ -10,7 +10,12 @@ DIRS := $(shell sed '/^#.*$$/d' "$(TGT_FILE)")
 DIRS := $(addprefix $(ROOT_DIR)/, $(DIRS))
 STAT := $(addsuffix /algo_stats.json, $(DIRS))
 
-all: fig1
+figures := \
+	figs/figure1.png
+
+all: figures
+
+# synthetic data
 
 %seq.fa:
 	@mkdir -p $(@D)
@@ -40,7 +45,9 @@ all: fig1
 	@echo "assay       "$(@D);\
 	./scripts/assess_algo.py $(@D)
 
-fig1:
+# figures
+
+figs/figure1.png: $(STAT)
 	@echo "making figure 1";\
 	./scripts/figure1.py $(ROOT_DIR)
 
