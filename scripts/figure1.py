@@ -2,6 +2,7 @@ import sys
 import json
 import numpy as np
 import matplotlib.pylab as plt
+import seaborn as sns
 
 from glob import glob
 
@@ -64,6 +65,26 @@ def adjust_spines(ax, spines, offset):
         # no xaxis ticks
         ax.xaxis.set_ticks([])
 
+# simple 1d histogram w/ length
+def histogram_1d(d):
+    fig = plt.figure()
+    ax = fig.add_subplot(1,1,1)
+
+    for i, (key, val) in enumerate(d.items()):
+        mu, beta = coeffs(key)
+        ax.hist(val["length"], bins=bins, color=colors[i], edgecolor='w', label=f"mu={int(mu):,}", density=True, alpha=.8)
+
+    ax.set_xlabel("Length of block", fontsize='x-large')
+    ax.set_ylabel('Fraction', fontsize='x-large')
+    ax.set_xscale('log')
+    ax.set_xlim([5e1, 9000])
+    ax.tick_params(axis='both', which='major', labelsize='large')
+
+    fig.legend(loc=(.75, .8), fontsize='large')
+    adjust_spines(ax, ['left', 'bottom'], 5)
+
+    fig.show()
+
 # TODO: better way to account/merge different runs...
 def main(root):
     sims = glob(f"{root}/*/algo_stats.json")
@@ -75,24 +96,6 @@ def main(root):
 
         with open(sim) as fd:
             d = json.load(fd)
-
-        fig = plt.figure()
-        ax = fig.add_subplot(1,1,1)
-
-        for i, (key, val) in enumerate(d.items()):
-            mu, beta = coeffs(key)
-            ax.hist(val["length"], bins=bins, color=colors[i], edgecolor='w', label=f"mu={int(mu):,}", density=True, alpha=.8)
-
-        ax.set_xlabel("Length of block", fontsize='x-large')
-        ax.set_ylabel('Fraction', fontsize='x-large')
-        ax.set_xscale('log')
-        ax.set_xlim([5e1, 9000])
-        ax.tick_params(axis='both', which='major', labelsize='large')
-
-        fig.legend(loc=(.75, .8), fontsize='large')
-        adjust_spines(ax, ['left', 'bottom'], 5)
-
-        fig.show()
 
 if __name__ == "__main__":
     plt.style.use('seaborn-ticks')
