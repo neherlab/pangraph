@@ -13,7 +13,7 @@ STAT := $(addsuffix /algo_stats.json, $(DIRS))
 figures := \
 	figs/figure1.png
 
-all: figures
+all: $(STAT)
 
 # synthetic data
 
@@ -41,15 +41,15 @@ all: figures
 	@echo "build       "$(@D) "("$(MU), $(BETA)")";\
 	pangraph build -d $(@D) -m $(MU) -b $(BETA) $^ 1>$@ 2>$(@D)/build_$(MU)_$(BETA).log 
 
-%algo_stats.json: %0.0.pangraph.json %500.0.pangraph.json %1000.0.pangraph.json
+%algo_stats.json: %0.0.pangraph.json %500.0.pangraph.json %1000.0.pangraph.json %2000.0.pangraph.json %5000.0.pangraph.json %10000.0.pangraph.json %15000.0.pangraph.json
 	@echo "assay       "$(@D);\
 	./scripts/assess_algo.py $(@D)
 
 # figures
 
-figs/figure1.png: $(STAT)
-	@echo "making figure 1";\
-	./scripts/figure1.py $(ROOT_DIR)
+# figs/figure1.png: $(STAT)
+# 	@echo "making figure 1";\
+# 	./scripts/figure1.py $(ROOT_DIR)
 
 clean:
 	rm -rf $(ROOT_DIR)/*

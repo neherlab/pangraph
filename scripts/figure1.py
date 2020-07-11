@@ -65,6 +65,9 @@ def adjust_spines(ax, spines, offset):
         # no xaxis ticks
         ax.xaxis.set_ticks([])
 
+# ------------------------------------------------------------------------
+# Exploratory
+
 # simple 1d histogram w/ length
 def histogram_1d(d):
     fig = plt.figure()
@@ -85,6 +88,29 @@ def histogram_1d(d):
 
     fig.show()
 
+def kde_2d(d):
+    colors = ['Reds', 'Greens', 'Blues', 'Oranges', 'Purples']
+    for i, (key, val) in enumerate(d.items()):
+        mu, beta = coeffs(key)
+        x, y = np.array(val['length']), np.array(val['depth'])
+        ax = sns.kdeplot(data=x, data2=y, cmap=colors[i], shade=False, shade_lowest=False, alpha=.375, label=f"{int(mu):,}")
+
+    ax.set_xlim([0, 10000])
+    ax.set_xlabel("Block length (bp)", fontsize='x-large')
+    ax.set_ylim([0, 1.25*N])
+    ax.set_ylabel('Block depth (population count)', fontsize='x-large')
+
+    ax.tick_params(axis='both', which='major', labelsize='large')
+    leg = plt.legend(title='mu', title_fontsize='x-large', fontsize='large', markerscale=0.5)
+    for lh in leg.legendHandles:
+        lh.set_alpha(0.5)
+
+# ------------------------------------------------------------------------
+# Main point of entry
+
+def as_array(*args):
+    return [np.array(arg) for arg in args]
+
 # TODO: better way to account/merge different runs...
 def main(root):
     sims = glob(f"{root}/*/algo_stats.json")
@@ -96,6 +122,30 @@ def main(root):
 
         with open(sim) as fd:
             d = json.load(fd)
+
+        mus, mean_lens, sdev_lens, mean_deps, sdev_deps = [], [], [], [], []
+        for i, (key, val) in enumerate(d.items()):
+            mu, beta = coeffs(key)
+            print(mu)
+            x, y = np.array(val['length']), np.array(val['depth'])
+            mus.append(mu)
+            mean_lens.append(np.mean(x))
+            sdev_lens.append(np.std(x))
+            mean_deps.append(np.mean(y))
+            sdev_deps.append(np.std(y))
+        mean_lens, sdev_lens, mean_deps, sdev_deps = as_array(mean_lens, sdev_lens, mean_deps, sdev_deps)
+
+        idx = sorted(range(len(mus)), key= lambda i: mus[i])
+        mean_lens = mean_lens[idx]
+        sdev_lens = .5*sdev_lens[idx]
+        mean_deps = mean_deps[idx]
+        sdev_deps = .5*sdev_deps[idx]
+
+        plt.errorbar(mean_lens, mean_deps, xerr=sdev_lens, yerr=sdev_deps)
+        plt.xlabel("length")
+        plt.ylabel("depth")
+        plt.show()
+
 
 if __name__ == "__main__":
     plt.style.use('seaborn-ticks')
