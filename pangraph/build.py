@@ -37,6 +37,10 @@ def register_args(parser):
                         type=int,
                         default=22,
                         help="energy cost for mutations (used during block merges)")
+    parser.add_argument("-s", "--statistics",
+                        default=False,
+                        action='store_true',
+                        help="boolean flag that toggles whether the graph statistics are computed for intermediate graphs")
     parser.add_argument("input",
                         type=str,
                         default="-",

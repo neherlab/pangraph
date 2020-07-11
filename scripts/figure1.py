@@ -126,7 +126,6 @@ def main(root):
         mus, mean_lens, sdev_lens, mean_deps, sdev_deps = [], [], [], [], []
         for i, (key, val) in enumerate(d.items()):
             mu, beta = coeffs(key)
-            print(mu)
             x, y = np.array(val['length']), np.array(val['depth'])
             mus.append(mu)
             mean_lens.append(np.mean(x))
