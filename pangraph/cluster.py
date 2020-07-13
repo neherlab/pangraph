@@ -10,7 +10,8 @@ import matplotlib.pylab as plt
 
 from Bio import SeqIO
 
-from .tree import Tree
+from .tree  import Tree
+from .utils import openany
 
 def register_args(parser):
     parser.add_argument("-d", "--dir",
@@ -27,9 +28,9 @@ def register_args(parser):
                         help="backend used to estimate inter-sequence distance")
     parser.add_argument("input",
                         type=str,
-                        nargs='?',
+                        nargs='*',
                         default="-",
-                        help="fasta file to cluster")
+                        help="fasta file(s) to cluster")
 
 # ------------------------------------------------------------------------
 # mash backend
@@ -100,8 +101,11 @@ def main(args):
     dist, names = backend.parse(backend.run(args.input))
     tree = Tree.nj(dist, names)
 
-    with open(args.input, 'r') as fd:
-        seqs = {s.id : s.seq for s in SeqIO.parse(fd, "fasta")}
+    inputs = args.input if isinstance(args.input, list) else [args.input]
+    seqs = {}
+    for input in inputs:
+        with openany(input, 'r') as fd:
+            seqs.update({s.id : s.seq for s in SeqIO.parse(fd, "fasta")})
     tree.attach(seqs)
 
     # exports:

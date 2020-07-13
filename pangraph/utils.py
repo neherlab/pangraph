@@ -100,6 +100,8 @@ def mkdir(path):
 
 def openany(path, mode='r'):
     if path.endswith('.gz'):
+        if not mode.endwith('b'):
+            mode += 'b'
         return gzip.open(path, mode)
     else:
         return open(path, mode)
