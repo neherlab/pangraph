@@ -2,11 +2,10 @@
 .SUFFIXES:
 .SECONDARY:
 
-# set all paths
 ROOT_DIR := data/synth
 TGT_FILE := targets
 
-DIRS := $(shell sed '/^#.*$$/d' "$(TGT_FILE)")
+DIRS := $(shell sed "/^\#.*$$/d" "$(TGT_FILE)")
 DIRS := $(addprefix $(ROOT_DIR)/, $(DIRS))
 STAT := $(addsuffix /algo_stats.json, $(DIRS))
 
