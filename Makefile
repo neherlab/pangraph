@@ -1,4 +1,4 @@
-.PHONY:	all clean
+.PHONY:	all clean ecoli
 .SUFFIXES:
 .SECONDARY:
 
@@ -44,6 +44,13 @@ all: $(STAT)
 %algo_stats.json: %0.0.pangraph.json %500.0.pangraph.json %1000.0.pangraph.json %2000.0.pangraph.json %5000.0.pangraph.json %10000.0.pangraph.json %15000.0.pangraph.json
 	@echo "assay       "$(@D);\
 	./scripts/assess_algo.py $(@D)
+
+# ecoli data
+ecoli:
+	@echo "cluster 	  ecoli"; \
+	pangraph cluster -d data/ecoli data/ecoli/assemblies/*.fna.gz
+	@echo "build      ecoli"; \
+	pangraph build -d data/ecoli -m 500 -b 0 data/ecoli/guide.json 1>data/ecoli/pangraph.json 2>data/ecoli/build.log 
 
 # figures
 

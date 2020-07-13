@@ -37,8 +37,12 @@ def register_args(parser):
 
 # NOTE: mash takes '-' as filename if it is to read from stdin
 def run_mash(inpath):
-    stdout = spawn.check_output(f"mash triangle {inpath} 2>/dev/null", shell=True)
+    if not isinstance(inpath, list):
+        stdout = spawn.check_output(f"mash triangle {inpath} 2>/dev/null", shell=True)
+    else:
+        stdout = spawn.check_output(f"cat {' '.join(inpath)} | mash triangle - 2>/dev/null", shell=True)
     return io.StringIO(stdout.decode("utf-8"))
+
 
 def parse_mash(input):
     nrows = int(input.readline().strip())
