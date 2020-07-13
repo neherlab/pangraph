@@ -67,7 +67,7 @@ def main(args):
         i += 1
         tmp = f"{root}/tmp{i:03d}"
     mkdir(tmp)
-    T.align(tmp, args.len, args.mu, args.beta, args.extensive)
+    T.align(tmp, args.len, args.mu, args.beta, args.extensive, args.statistics)
     # TODO: when debugging phase is done, remove tmp directory
 
     graphs = T.collect()
