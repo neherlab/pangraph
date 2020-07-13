@@ -43,7 +43,6 @@ def run_mash(inpath):
         stdout = spawn.check_output(f"cat {' '.join(inpath)} | mash triangle - 2>/dev/null", shell=True)
     return io.StringIO(stdout.decode("utf-8"))
 
-
 def parse_mash(input):
     nrows = int(input.readline().strip())
     M     = np.zeros((nrows, nrows), dtype=float)

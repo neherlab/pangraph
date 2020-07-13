@@ -45,12 +45,18 @@ all: $(STAT)
 	@echo "assay       "$(@D);\
 	./scripts/assess_algo.py $(@D)
 
-# ecoli data
+# real data
 ecoli:
 	@echo "cluster 	  ecoli"; \
 	pangraph cluster -d data/ecoli data/ecoli/assemblies/*.fna.gz
 	@echo "build      ecoli"; \
 	pangraph build -d data/ecoli -m 500 -b 0 data/ecoli/guide.json 1>data/ecoli/pangraph.json 2>data/ecoli/build.log 
+
+staph:
+	@echo "cluster 	  staph"; \
+	pangraph cluster -d data/staph data/staph/assemblies/*.fna.gz
+	@echo "build      staph"; \
+	pangraph build -d data/staph -m 500 -b 0 data/staph/guide.json 1>data/staph/pangraph.json 2>data/staph/build.log 
 
 # figures
 
