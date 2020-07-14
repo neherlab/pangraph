@@ -26,7 +26,7 @@ all: $(STAT)
 	@$(eval I=$(word 6,$(vars)))
 	@$(eval X=$(word 7,$(vars)))
 	@echo "generate    "$(@D);\
-	pangraph generate -d $(@D) -L 100000 -m $(M) -N $(N) -T $(T) --rate_hgt $(H) --rate_indel $(I) --rate_transpose $(X)
+	pangraph generate -d $(@D) -L 10000 -m $(M) -N $(N) -T $(T) --rate_hgt $(H) --rate_indel $(I) --rate_transpose $(X)
 
 %guide.json: %seq.fa
 	@echo "cluster     "$(@D);\
@@ -46,7 +46,7 @@ all: $(STAT)
 
 # real data
 ecoli:
-	@echo "cluster 	  ecoli"; \
+	@echo "cluster    ecoli"; \
 	pangraph cluster -d data/ecoli data/ecoli/assemblies/*.fna.gz
 	@echo "build      ecoli"; \
 	pangraph build -d data/ecoli -m 500 -b 0 data/ecoli/guide.json 1>data/ecoli/pangraph.json 2>data/ecoli/build.log 

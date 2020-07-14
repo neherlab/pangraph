@@ -326,20 +326,24 @@ class Tree(object):
                 raise ValueError("bad sequence reconstruction")
 
         def merge(node1, node2):
-            graph1, fapath1 = node1.graph, node1.fapath
-            graph2, fapath2 = node2.graph, node2.fapath
-            graph    = Graph.fuse(graph1, graph2)
-            graph, _ = graph.union(fapath1, fapath2, f"{tmpdir}/{n.name}", min_blk_len, mu, beta, extensive)
+            if node1 != node2:
+                graph1, fapath1 = node1.graph, node1.fapath
+                graph2, fapath2 = node2.graph, node2.fapath
+                graph    = Graph.fuse(graph1, graph2)
+                graph, _ = graph.union(fapath1, fapath2, f"{tmpdir}/{n.name}", min_blk_len, mu, beta, extensive)
+            else:
+                graph = node1.graph
 
             for i in range(MAXSELFMAPS):
                 tryprint(f"----> merge round {i}", verbose)
-                check(self.seqs, graph)
+                # check(self.seqs, graph)
                 itr = f"{tmpdir}/{n.name}_iter_{i}"
                 with open(f"{itr}.fa", 'w') as fd:
                     graph.write_fasta(fd)
                 graph, contin = graph.union(itr, itr, f"{tmpdir}/{n.name}_iter_{i}", min_blk_len, mu, beta, extensive)
                 if not contin:
                     return graph
+            return graph
 
         # --------------------------------------------
         # body
@@ -347,6 +351,7 @@ class Tree(object):
         if self.num_leafs() == 1:
             return Graph()
 
+        # fix trivial graphs onto the leafs
         for i, n in enumerate(self.get_leafs()):
             seq      = self.seqs[n]
             n.graph  = Graph.from_seq(n.name, str(seq).upper())
@@ -355,22 +360,19 @@ class Tree(object):
             with open(f"{n.fapath}.fa", 'w') as fd:
                 n.graph.write_fasta(fd)
 
-        nnodes = 0
         for n in self.postorder():
             if n.is_leaf():
-                continue
-            nnodes += 1
-
-            n.fapath = f"{tmpdir}/{n.name}"
-            log(f"Attempting to fuse {n.child[0].name} with {n.child[1].name} @ {n.name}")
-
-            n.graph = merge(n.child[0], n.child[1])
-            # Delete children graphs
-            for child in n.child:
-                child.graph = None
+                n.graph = merge(n, n)
+            else:
+                n.fapath = f"{tmpdir}/{n.name}"
+                log(f"attempting to fuse {n.child[0].name} with {n.child[1].name} @ {n.name}")
+                n.graph = merge(*n.child)
+                # delete references to children graphs for cleanup
+                for c in n.child:
+                    c.graph = None
 
             check(self.seqs, n.graph)
-            with open(f"{tmpdir}/{n.name}.fa", 'w') as fd:
+            with open(f"{n.fapath}.fa", 'w') as fd:
                 n.graph.write_fasta(fd)
 
             log((f"--> compression ratio: "
