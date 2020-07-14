@@ -270,7 +270,7 @@ class Tree(object):
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
     # TODO: move all tryprints to logging 
-    def align(self, tmpdir, min_blk_len, mu, beta, extensive, statistics, verbose=False):
+    def align(self, tmpdir, min_blk_len, mu, beta, extensive, verbose=False):
         # ---------------------------------------------
         # internal functions
         # Debugging function that will check reconstructed sequence against known real one.
@@ -371,7 +371,7 @@ class Tree(object):
                 for c in n.child:
                     c.graph = None
 
-            check(self.seqs, n.graph)
+            # check(self.seqs, n.graph)
             with open(f"{n.fapath}.fa", 'w') as fd:
                 n.graph.write_fasta(fd)
 

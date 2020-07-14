@@ -40,7 +40,7 @@ def run_mash(inpath):
     if not isinstance(inpath, list):
         stdout = spawn.check_output(f"mash triangle {inpath} 2>/dev/null", shell=True)
     else:
-        stdout = spawn.check_output(f"cat {' '.join(inpath)} | mash triangle - 2>/dev/null", shell=True)
+        stdout = spawn.check_output(f"cat {' '.join(inpath)} | mash triangle -C - 2>/dev/null", shell=True)
     return io.StringIO(stdout.decode("utf-8"))
 
 def parse_mash(input):
@@ -48,7 +48,7 @@ def parse_mash(input):
     M     = np.zeros((nrows, nrows), dtype=float)
     names = []
     for i, line in enumerate(input):
-        e = line.strip().split()
+        e = line.strip().split('\t')
         names.append(e[0])
         M[i,:i] = [float(x) for x in e[1:]]
 
