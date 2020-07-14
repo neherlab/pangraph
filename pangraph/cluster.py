@@ -1,14 +1,18 @@
 """
 builds a guide tree utilized by the pan-genome alignment
 """
+import os
 import io
 import json
 import subprocess as spawn
+import tempfile
 
 import numpy as np
 import matplotlib.pylab as plt
 
 from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 
 from .tree  import Tree
 from .utils import openany
@@ -37,10 +41,7 @@ def register_args(parser):
 
 # NOTE: mash takes '-' as filename if it is to read from stdin
 def run_mash(inpath):
-    if not isinstance(inpath, list):
-        stdout = spawn.check_output(f"mash triangle {inpath} 2>/dev/null", shell=True)
-    else:
-        stdout = spawn.check_output(f"cat {' '.join(inpath)} | mash triangle -C - 2>/dev/null", shell=True)
+    stdout = spawn.check_output(f"mash triangle {inpath} 2>/dev/null", shell=True)
     return io.StringIO(stdout.decode("utf-8"))
 
 def parse_mash(input):
@@ -49,6 +50,7 @@ def parse_mash(input):
     names = []
     for i, line in enumerate(input):
         e = line.strip().split('\t')
+        print(e)
         names.append(e[0])
         M[i,:i] = [float(x) for x in e[1:]]
 
@@ -83,6 +85,9 @@ def export(cls, names, fname):
         for c in range(C):
             out.write("\t".join(names[cls == (c+1)]) + "\n")
 
+def escape(name):
+    return name.replace(".", "-").replace("/", "#")
+
 # ------------------------------------------------------------------------
 # Main point of entry
 
@@ -101,15 +106,26 @@ def main(args):
     backend = backends[args.backend]
     outdir  = args.dir.rstrip("/")
 
-    dist, names = backend.parse(backend.run(args.input))
+    tmp = None
+    if isinstance(args.input, list):
+        tmp = tempfile.NamedTemporaryFile('w', delete=True)
+        for file in args.input:
+            with openany(file, 'r') as fd:
+                seqs = [SeqRecord(id = escape("_".join(s.description.split())), name = s.description, seq = s.seq) for s in SeqIO.parse(fd, 'fasta')]
+                SeqIO.write(seqs, tmp, "fasta")
+        input = tmp.name
+    else:
+        input = args.input
+
+    dist, names = backend.parse(backend.run(input))
     tree = Tree.nj(dist, names)
 
-    inputs = args.input if isinstance(args.input, list) else [args.input]
-    seqs = {}
-    for input in inputs:
-        with openany(input, 'r') as fd:
-            seqs.update({s.id : s.seq for s in SeqIO.parse(fd, "fasta")})
+    with openany(input, 'r') as fd:
+        seqs = {s.id : s.seq for s in SeqIO.parse(fd, "fasta")}
     tree.attach(seqs)
+
+    if tmp:
+        tmp.close()
 
     # exports:
     np.savez(f"{outdir}/distmtx.npz", dist=dist, names=names)
