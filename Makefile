@@ -38,7 +38,7 @@ all: $(STAT)
 	@$(eval MU=$(word 1,$(vars)))
 	@$(eval BETA=$(word 2,$(vars)))
 	@echo "build       "$(@D) "("$(MU), $(BETA)")";\
-	pangraph build -d $(@D) -m $(MU) -b $(BETA) $^ 1>$@ 2>$(@D)/build_$(MU)_$(BETA).log 
+	pangraph build -s -d $(@D) -m $(MU) -b $(BETA) $^ 1>$@ 2>$(@D)/build_$(MU)_$(BETA).log 
 
 %algo_stats.json: %0.0.pangraph.json %500.0.pangraph.json %1000.0.pangraph.json %2000.0.pangraph.json %5000.0.pangraph.json %10000.0.pangraph.json %15000.0.pangraph.json
 	@echo "assay       "$(@D);\
