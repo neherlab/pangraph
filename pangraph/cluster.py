@@ -50,7 +50,6 @@ def parse_mash(input):
     names = []
     for i, line in enumerate(input):
         e = line.strip().split('\t')
-        print(e)
         names.append(e[0])
         M[i,:i] = [float(x) for x in e[1:]]
 
