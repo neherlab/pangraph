@@ -253,6 +253,25 @@ class Tree(object):
     def postorder(self):
         return self.root.postorder()
 
+    def preterminals(self):
+        for n in self.postorder():
+            if n.is_leaf():
+                continue
+
+            pre_terminal = True
+            for c in n.child:
+                if not c.is_leaf():
+                    pre_terminal = False
+                    break
+            if pre_terminal:
+                yield n
+
+    def node(self, name):
+        for n in self.postorder():
+            if n.name == name:
+                return n
+        return None
+
     def get_leafs(self):
         if self.leaves is None:
             self.leaves = [node for node in self.postorder() if node.is_leaf()]
@@ -363,8 +382,18 @@ class Tree(object):
 
         for n in self.postorder():
             if n.is_leaf():
-                n.graph = merge(n, n)
+                continue
+                # n.graph = merge(n, n)
             else:
+                # NOTE: for debugging
+                pre_terminal = True
+                for c in n.child:
+                    if not c.is_leaf():
+                        pre_terminal = False
+                        break
+                if not pre_terminal:
+                    continue
+
                 n.fapath = f"{tmpdir}/{n.name}"
                 log(f"attempting to fuse {n.child[0].name} with {n.child[1].name} @ {n.name}")
                 n.graph = merge(*n.child)

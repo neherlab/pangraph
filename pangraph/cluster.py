@@ -85,7 +85,7 @@ def export(cls, names, fname):
             out.write("\t".join(names[cls == (c+1)]) + "\n")
 
 def escape(name):
-    return name.replace(".", "-").replace("/", "#")
+    return name.replace(".", "-").replace("/", "#").replace("'", "").replace(",","")
 
 # ------------------------------------------------------------------------
 # Main point of entry

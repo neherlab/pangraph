@@ -80,7 +80,5 @@ def main(args):
             g.write_fasta(fd)
 
     T.write_json(sys.stdout, no_seqs=True)
-    # with open(f"{root}/pangraph.json", "w") as fd:
-    #     T.write_json(fd, no_seqs=True)
 
     return 0
