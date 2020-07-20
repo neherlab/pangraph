@@ -29,6 +29,16 @@ class Block(object):
         self.muts = {}
 
     # ------------------
+    # properties
+    @property
+    def length(self):
+        return len(self.seq)
+
+    @property
+    def depth(self):
+        return len(self.muts)
+
+    # ------------------
     # static methods
 
     @classmethod

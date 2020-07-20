@@ -270,10 +270,11 @@ class Tree(object):
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
     # TODO: move all tryprints to logging 
-    def align(self, tmpdir, min_blk_len, mu, beta, extensive, verbose=False):
+    def align(self, tmpdir, min_blk_len, mu, beta, extensive, log_stats=False, verbose=False):
+        stats = {}
         # ---------------------------------------------
         # internal functions
-        # Debugging function that will check reconstructed sequence against known real one.
+        # debugging function that will check reconstructed sequence against known real one.
         def check(seqs, G, verbose=False):
             nerror = 0
             uncompressed_length = 0
@@ -369,6 +370,11 @@ class Tree(object):
                 n.graph = merge(*n.child)
                 # delete references to children graphs for cleanup
                 for c in n.child:
+                    if log_stats:
+                        stats[c.name] = {
+                            'length' : [b.length for b in c.graph.blks.values()],
+                            'depth'  : [b.depth for b in c.graph.blks.values()],
+                        }
                     c.graph = None
 
             # check(self.seqs, n.graph)

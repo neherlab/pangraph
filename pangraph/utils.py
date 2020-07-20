@@ -83,7 +83,7 @@ def cat(*args):
     return np.concatenate(tuple(arg for arg in args))
 
 def asrecord(seq, name):
-    return SeqRecord(Seq(seq), id=name, name=name)
+    return SeqRecord(Seq(seq), id=name, name=name, description="")
 
 # ------------------------------------------------------------------------
 # file handling
