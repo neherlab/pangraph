@@ -7,9 +7,10 @@ from Bio           import SeqIO, Phylo
 from Bio.Seq       import Seq
 from Bio.SeqRecord import SeqRecord
 
-from .      import suffix
-from .block import Block
-from .utils import Strand, asstring, parse_paf, panic, tryprint, asrecord, new_strand, breakpoint
+from .         import suffix
+from .block    import Block
+from .sequence import Node, Path
+from .utils    import Strand, as_string, parse_paf, panic, tryprint, asrecord, new_strand, breakpoint
 
 # ------------------------------------------------------------------------
 # Global variables
@@ -332,8 +333,8 @@ class Graph(object):
         if hit["orientation"] == Strand.Minus:
             qryblk = qryblk.rev_cmpl()
 
-        aln = {"ref_seq"     : asstring(refblk.seq), # "".join(refblk.seq),
-               "qry_seq"     : asstring(qryblk.seq), # "".join(qryblk.seq),
+        aln = {"ref_seq"     : as_string(refblk.seq), # "".join(refblk.seq),
+               "qry_seq"     : as_string(qryblk.seq), # "".join(qryblk.seq),
                "cigar"       : hit["cigar"],
                "ref_cluster" : refblk.muts,
                "qry_cluster" : qryblk.muts,
@@ -504,7 +505,7 @@ class Graph(object):
                 'distmtx': self.dmtx}
 
     def write_fasta(self, wtr):
-        SeqIO.write(sorted([ SeqRecord(seq=Seq(asstring(c.seq)), id=c.id, description='')
+        SeqIO.write(sorted([ SeqRecord(seq=Seq(as_string(c.seq)), id=c.id, description='')
             for c in self.blks.values() ], key=lambda x: len(x), reverse=True), wtr, format='fasta')
 
         return

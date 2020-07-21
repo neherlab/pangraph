@@ -73,7 +73,7 @@ def log(msg, file=sys.stderr):
 def asarray(x):
     return np.array(list(x))
 
-def asstring(x):
+def as_string(x):
     return x.view(f'U{x.size}')[0]
 
 def flatten(x):
@@ -109,7 +109,7 @@ def openany(path, mode='r'):
 # ------------------------------------------------------------------------
 # misc
 
-def newstrand(s, t):
+def new_strand(s, t):
     if not isinstance(s, Strand) or not isinstance(t, Strand):
         raise TypeError(f"Expected an enum! Recieved {type(t)} and {type(s)}")
 
