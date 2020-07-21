@@ -23,11 +23,6 @@ MAXSELFMAPS = 100
 class Graph(object):
     """docstring for Graph"""
 
-    # TODO: deprecate these variables
-    visdir = f"{outdir}/vis"
-    alndir = f"{outdir}/aln"
-    blddir = f"{outdir}/bld"
-
     def __init__(self):
         self.name = ""   # The name of graph. Will be used as file basename in exports
         self.blks = {}   # All blocks/alignments
@@ -457,7 +452,7 @@ class Graph(object):
                     self.dmtx[n] = len(self.sfxt.matches(nm1, nm2))
                     n += 1
 
-    def to_json(self, minlen=500):
+    def to_json(self, wtr, minlen=500):
         import json
 
         J = {}
@@ -501,9 +496,7 @@ class Graph(object):
             nodes[e[1][0]]["In_Edges"].append(edges[e])
 
         J["Nodes"] = nodes
-
-        with open(f"{Graph.visdir}/{self.name}.json", 'w+') as fh:
-            json.dump(J, fh)
+        json.dump(J, wtr)
 
         return
 

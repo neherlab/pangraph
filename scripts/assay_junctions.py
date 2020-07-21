@@ -62,20 +62,23 @@ def count_blocks_in(hits, hit, delta):
     return num
 
 def draw_figure(ticks, left, right):
-    Dl = np.diag(1/l[:,0])@l
-    Dr = np.diag(1/r[:,0])@r
+    Dl = np.diag(1/left[:,0])@left
+    Dr = np.diag(1/right[:,0])@right
     fig, (ax1, ax2) = plt.subplots(1, 2)
 
-    ax1.plot(ticks, Dl.T,color='r', alpha=.01)
+    ax1.plot(ticks, Dl.T, color='r', alpha=.01)
     ax1.set_xlabel("extension (bp)")
     ax1.set_ylabel("alignment score (normalized)")
+    ax1.set_ylim([0, 2])
     ax1.set_title("left junction")
-    ax2.plot(ticks, Dr.T,color='b', alpha=.01)
+
+    ax2.plot(ticks, Dr.T, color='b', alpha=.01)
     ax2.set_xlabel("extension (bp)")
     ax2.set_ylabel("alignment score (normalized)")
+    ax2.set_ylim([0, 2])
     ax2.set_title("right junction")
 
-    fig.savefig("figs/alignment_score_extend_past_junction.png")
+    fig.savefig("figs/alignment_score_extend_past_junction.png", bbox_inches='tight')
 
 # ------------------------------------------------------------------------
 # main point of entry
@@ -101,6 +104,7 @@ def main(args):
             with open(path(n.name, "paf")) as fh:
                 hits = parse_paf(fh)
 
+            # TODO: use multiprocessing pool here...
             for hit in hits:
                 qs, rs = seq[hit['qry']['name']], seq[hit['ref']['name']]
                 ql, rl = l_iv(hit['qry']), l_iv(hit['ref'])
@@ -126,8 +130,7 @@ def main(args):
     nblks_good, nblks_all  = np.array(nblks_good), np.array(nblks_all)
     np.savez("data/junctions.npz",
             left=ljunctions, right=rjunctions, ticks=ticks,
-            blks_good=nblks_good, blks_all=nblks_all
-    )
+            blks_good=nblks_good, blks_all=nblks_all)
     draw_figure(ticks, ljunctions, rjunctions)
 
     return 0
