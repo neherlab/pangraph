@@ -155,7 +155,7 @@ class Block(object):
         else:
             return asstring(tmp)
 
-    def isempty(self, iso, num, strip_gaps=True):
+    def is_empty(self, iso, num, strip_gaps=True):
         tag = (iso, num)
         seq = np.copy(self.seq)
         # NOTE: This is a hack. Need to investigate the error that arises.
@@ -167,7 +167,7 @@ class Block(object):
 
         return len(seq) == 0 or all(nuc == "-" for nuc in seq)
 
-    def revcmpl(self):
+    def rev_cmpl(self):
         from Bio import Seq
 
         nblk     = Block()
