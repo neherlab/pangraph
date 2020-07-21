@@ -310,7 +310,7 @@ class Graph(object):
                 if b in popblks:
                     continue
 
-                if self.blks[b].isempty(iso, n):
+                if self.blks[b].is_empty(iso, n):
                     if (iso, n) not in self.blks[b].muts:
                         import ipdb; ipdb.set_trace()
                     self.blks[b].muts.pop((iso, n))
@@ -334,7 +334,7 @@ class Graph(object):
         qryblk = qryblk_orig[hit['qry']['start']:hit['qry']['end']]
 
         if hit["orientation"] == Strand.Minus:
-            qryblk = qryblk.revcmpl()
+            qryblk = qryblk.rev_cmpl()
 
         aln = {"ref_seq"     : asstring(refblk.seq), # "".join(refblk.seq),
                "qry_seq"     : asstring(qryblk.seq), # "".join(qryblk.seq),
