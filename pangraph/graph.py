@@ -1,4 +1,5 @@
 import os, sys
+import json
 import numpy as np
 
 from glob  import glob
@@ -99,7 +100,8 @@ class Graph(object):
     # ---------------
     # methods
 
-    def union(self, qpath, rpath, out, cutoff=0, mu=10, beta=2, extensive=False):
+    def union(self, qpath, rpath, out, cutoff=0, alpha=10, beta=2, extensive=False):
+        # TODO: switch to pyopa
         import warnings
         from skbio.alignment import global_pairwise_align
         from skbio import DNA
@@ -133,7 +135,7 @@ class Graph(object):
                 delP = cuts('qry') + cuts('ref')
             dmut = hit["aligned_length"] * hit["divergence"]
 
-            return -l + mu*delP + beta*dmut
+            return -l + alpha*delP + beta*dmut
 
         def accepted(hit):
             return energy(hit) < 0
@@ -163,8 +165,7 @@ class Graph(object):
                     M, I, D = 0, 0, 0
                     for (c1, c2) in zip(s1, s2):
                         if c1 == ord("-") and c2 == ord("-"):
-                            print("PANIC")
-                            import ipdb; ipdb.set_trace()
+                            breakpoint("panic")
                         elif c1 == ord("-"):
                             if I > 0:
                                 cigar += f"{I}I"
@@ -219,10 +220,6 @@ class Graph(object):
                 dE_r = hit['ref']['len'] - hit['ref']['end']
 
                 warnings.simplefilter("ignore")
-
-                # if hit['qry']['start'] > 0 and hit['qry']['start'] < 50 or \
-                #    hit['ref']['start'] > 0 and hit['ref']['start'] < 50:
-                #     breakpoint("START CHANGE")
 
                 # Left side of match
                 if 0 < dS_q <= cutoff and (dS_r > cutoff or dS_r == 0):
@@ -297,48 +294,45 @@ class Graph(object):
 
     def purge_empty(self):
         for path in self.seqs.values():
-            self.blks = path.rm_empty(self.blks)
+            self.blks = path.rm_empty()
 
     def merge(self, hit):
-        refblk_orig = self.blks[hit['ref']['name']]
-        qryblk_orig = self.blks[hit['qry']['name']]
+        old_ref = self.blks[hit['ref']['name']]
+        old_qry = self.blks[hit['qry']['name']]
 
         # As we slice here, we DONT need to remember the starting position.
         # This is why in from_aln(aln) we set the start index to 0
-        refblk = refblk_orig[hit['ref']['start']:hit['ref']['end']]
-        qryblk = qryblk_orig[hit['qry']['start']:hit['qry']['end']]
+        ref = old_ref[hit['ref']['start']:hit['ref']['end']]
+        qry = old_qry[hit['qry']['start']:hit['qry']['end']]
 
         if hit["orientation"] == Strand.Minus:
-            qryblk = qryblk.rev_cmpl()
+            qry = qry.rev_cmpl()
 
-        aln = {"ref_seq"     : as_string(refblk.seq), # "".join(refblk.seq),
-               "qry_seq"     : as_string(qryblk.seq), # "".join(qryblk.seq),
+        aln = {"ref_seq"     : as_string(ref.seq),
+               "qry_seq"     : as_string(qry.seq),
                "cigar"       : hit["cigar"],
-               "ref_cluster" : refblk.muts,
-               "qry_cluster" : qryblk.muts,
+               "ref_cluster" : ref.muts,
+               "qry_cluster" : qry.muts,
                "ref_start"   : hit["ref"]["start"],
                "ref_name"    : hit["ref"]["name"],
                "qry_start"   : hit["qry"]["start"],
                "qry_name"    : hit["qry"]["name"],
                "orientation" : hit["orientation"]}
 
-        merged_blks, qryblks, refblks, isomap = Block.from_aln(aln)
+        merged_blks, new_qrys, new_refs, blk_map = Block.from_aln(aln)
         for merged_blk in merged_blks:
             self.blks[merged_blk.id] = merged_blk
 
-        def update(blk, addblks, hit, strand):
+        def update(blk, add_blks, hit, strand):
             new_blks = []
 
-            # The convention for the tuples are (block id, strand orientation, if merged)
+            # The convention for the tuples are (block id, strand orientation, merged)
             if hit['start'] > 0:
-                if hit['start'] < 50:
-                    breakpoint("TOO SMALL")
-
                 left = blk[0:hit['start']]
                 self.blks[left.id] = left
                 new_blks.append((left.id, Strand.Plus, False))
 
-            for b in addblks:
+            for b in add_blks:
                 new_blks.append((b.id, strand, True))
 
             if hit['end'] < len(blk):
@@ -346,55 +340,18 @@ class Graph(object):
                 self.blks[right.id] = right
                 new_blks.append((right.id, Strand.Plus, False))
 
-            def replace(tag, blk, newblks):
-                iso = tag[0]
-
-                new_blk_seq = []
-                oldseq = self.seqs[iso].copy()
-
-                for b in self.seqs[iso]:
-                    if b[0] == blk.id and b[2] == tag[1]:
-                        orig_strand    = b[1]
-                        tmp_new_blocks = [(ID, new_strand(orig_strand, ns), isomap[ID][blk.id][tag][1]) if merged else (ID, new_strand(orig_strand, ns), b[2]) for ID, ns, merged in newblks]
-                        if orig_strand == Strand.Minus:
-                            tmp_new_blocks = tmp_new_blocks[::-1]
-
-                        new_blk_seq.extend(tmp_new_blocks)
-                    else:
-                        new_blk_seq.append(b)
-
-                self.seqs[iso] = new_blk_seq
-                for b in self.seqs[iso]:
-                    if (iso, b[2]) not in self.blks[b[0]].muts:
-                        import ipdb; ipdb.set_trace()
-
-
             for tag in blk.muts.keys():
-                replace(tag, blk, new_blks)
+                path = self.seqs[tag[0]]
+                path.replace(tag, blk, new_blks, blk_map)
 
-        update(refblk_orig, refblks, hit['ref'], Strand.Plus)
-        update(qryblk_orig, qryblks, hit['qry'], hit['orientation'])
+        update(old_ref, new_refs, hit['ref'], Strand.Plus)
+        update(old_qry, new_qrys, hit['qry'], hit['orientation'])
         self.prune()
 
-        return
-
     def extract(self, name, strip_gaps=True, verbose=False):
-        seq = ""
-        for (b, strand, num) in self.seqs[name]:
-            tmp_seq = self.blks[b].extract(name, num, strip_gaps=False, verbose=verbose)
-            if strand == Strand.Plus:
-                seq += tmp_seq
-            else:
-                seq += str(Seq.reverse_complement(Seq(tmp_seq)))
-
-        # start_pos = self.spos[name]
-
-        if start_pos:
-            seq = seq[start_pos:] + seq[:start_pos]
-
+        seq = self.seqs[name].sequence(self.blks)
         if strip_gaps:
             seq = seq.replace('-', '')
-
         return seq
 
     def compress_ratio(self, extensive=False, name=None):
@@ -428,8 +385,6 @@ class Graph(object):
                     n += 1
 
     def to_json(self, wtr, minlen=500):
-        import json
-
         J = {}
         cleaned_seqs = {s:[b for b in self.seqs[s] if len(self.blks[b[0]])>minlen]
                              for s in self.seqs}
@@ -473,8 +428,6 @@ class Graph(object):
         J["Nodes"] = nodes
         json.dump(J, wtr)
 
-        return
-
     def to_dict(self):
         return {'name'   : self.name,
                 'seqs'   : [s.to_dict() for s in self.seqs.values()],
@@ -485,6 +438,3 @@ class Graph(object):
     def write_fasta(self, wtr):
         SeqIO.write(sorted([ SeqRecord(seq=Seq(as_string(c.seq)), id=c.id, description='')
             for c in self.blks.values() ], key=lambda x: len(x), reverse=True), wtr, format='fasta')
-
-        return
-

@@ -49,6 +49,20 @@ class Path(object):
     def blocks(self):
         return set([n.id for n in self.nodes])
 
+    def sequence(self, blks, verbose=False):
+        seq = ""
+        for n in self.nodes:
+            tmp = blks[n.id].extract(name, num, strip_gaps=False, verbose=verbose)
+            if strand == Strand.Plus:
+                seq += tmp
+            else:
+                seq += str(Seq.reverse_complement(Seq(tmp)))
+
+        if self.offset != 0:
+            seq = seq[self.offset:] + seq[:self.offset]
+
+        return seq
+
     def rm_empty(self, blks):
         good, popped = [], set()
         for i, n in enumerate(self.nodes):
