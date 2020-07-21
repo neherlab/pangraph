@@ -155,6 +155,12 @@ class Block(object):
         else:
             return asstring(tmp)
 
+    def len_of(self, iso, num):
+        tag    = (iso, num)
+        length = len(self.seq)
+        gaplen = sum(1 for s in self.muts[tag].values() if s == '-')
+        return length - gaplen
+
     def is_empty(self, iso, num, strip_gaps=True):
         tag = (iso, num)
         seq = np.copy(self.seq)
