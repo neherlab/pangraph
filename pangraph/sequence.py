@@ -16,11 +16,11 @@ class Node(object):
         N = Node()
         N.id     = d['id']
         N.num    = d['num']
-        N.strand = d['strand']
+        N.strand = Strand(d['strand'])
         return N
 
     def to_dict(self):
-        return {'id': self.id, 'num': self.num:, 'strand': self.strand}
+        return {'id': self.id, 'num': self.num:, 'strand': int(self.strand)}
 
 # ------------------------------------------------------------------------
 # Path class: (circular) list of blocks

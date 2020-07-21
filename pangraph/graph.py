@@ -40,7 +40,7 @@ class Graph(object):
         blk  = Block.from_seq(name, seq)
         newg.name = name
         newg.blks = {blk.id : blk}
-        newg.seqs = {name : Path((blk.id, Strand.Plus, 0), 0)}
+        newg.seqs = {name : Path(Node(blk.id, 0, Strand.Plus), 0)}
 
         return newg
 
@@ -50,7 +50,7 @@ class Graph(object):
         G.name = d['name']
         G.blks = [Block.from_dict(b) for b in d['blocks']]
         G.blks = {b.id : b for b in G.blks}
-        G.seqs = {key:Path.from_dict(val) for key,val in d['seqs'].items()}
+        G.seqs = [Path.from_dict(seq) for seq in d['seqs']]
         G.sfxt = None
         G.dmtx = None
         if d['suffix'] is not None:
@@ -499,7 +499,7 @@ class Graph(object):
 
     def to_dict(self):
         return {'name'   : self.name,
-                'seqs'   : self.seqs,
+                'seqs'   : [s.to_dict() for s in self.seqs.values()],
                 'blocks' : [b.to_dict() for b in self.blks.values()],
                 'suffix' : None if self.sfxt is None else "compiled",
                 'distmtx': self.dmtx}
