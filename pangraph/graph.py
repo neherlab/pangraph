@@ -9,7 +9,7 @@ from Bio.SeqRecord import SeqRecord
 
 from .      import suffix
 from .block import Block
-from .utils import Strand, asstring, parse_paf, panic, tryprint, asrecord, newstrand, breakpoint
+from .utils import Strand, asstring, parse_paf, panic, tryprint, asrecord, new_strand, breakpoint
 
 # ------------------------------------------------------------------------
 # Global variables
@@ -27,8 +27,8 @@ class Graph(object):
         self.name = ""   # The name of graph. Will be used as file basename in exports
         self.blks = {}   # All blocks/alignments
         self.seqs = {}   # All sequences (as list of blocks)
-        self.spos = {}   # All start positions (index of block that starts fasta)
         self.sfxt = None # Suffix tree of block records
+            def from_dict():
         self.dmtx = None # Graph distance matrix
 
     # --- Class methods ---
@@ -39,8 +39,7 @@ class Graph(object):
         blk  = Block.from_seq(name, seq)
         newg.name = name
         newg.blks = {blk.id : blk}
-        newg.seqs = {name : [(blk.id, Strand.Plus, 0)]}
-        newg.spos = {name : 0}
+        newg.seqs = {name : Path((blk.id, Strand.Plus, 0), 0)}
 
         return newg
 
@@ -50,8 +49,7 @@ class Graph(object):
         G.name = d['name']
         G.blks = [Block.from_dict(b) for b in d['blocks']]
         G.blks = {b.id : b for b in G.blks}
-        G.seqs = d['seqs']
-        G.spos = d['starts']
+        G.seqs = {key:Path.from_dict(val) for key,val in d['seqs'].items()}
         G.sfxt = None
         G.dmtx = None
         if d['suffix'] is not None:
@@ -69,7 +67,6 @@ class Graph(object):
             cc = Graph()
             cc.blks = {id:G.blks.pop(id) for id in graph}
             cc.seqs = {nm:G.seqs.pop(nm) for nm in name}
-            cc.spos = {nm:G.spos.pop(nm) for nm in name}
             cc.sfxt = None
             cc.dmtx = None
             return cc
@@ -97,7 +94,6 @@ class Graph(object):
         ng.blks.update(g2.blks)
 
         ng.seqs = {s:list(b) for s,b in list(g1.seqs.items())+list(g2.seqs.items())}
-        ng.spos = {s:b for s,b in list(g1.spos.items())+list(g2.spos.items())}
 
         return ng
 
@@ -380,7 +376,7 @@ class Graph(object):
                 for b in self.seqs[iso]:
                     if b[0] == blk.id and b[2] == tag[1]:
                         orig_strand    = b[1]
-                        tmp_new_blocks = [(ID, newstrand(orig_strand, ns), isomap[ID][blk.id][tag][1]) if merged else (ID, newstrand(orig_strand, ns), b[2]) for ID, ns, merged in newblks]
+                        tmp_new_blocks = [(ID, new_strand(orig_strand, ns), isomap[ID][blk.id][tag][1]) if merged else (ID, new_strand(orig_strand, ns), b[2]) for ID, ns, merged in newblks]
                         if orig_strand == Strand.Minus:
                             tmp_new_blocks = tmp_new_blocks[::-1]
 
@@ -412,7 +408,7 @@ class Graph(object):
             else:
                 seq += str(Seq.reverse_complement(Seq(tmp_seq)))
 
-        start_pos = self.spos[name]
+        # start_pos = self.spos[name]
 
         if start_pos:
             seq = seq[start_pos:] + seq[:start_pos]
@@ -503,7 +499,6 @@ class Graph(object):
     def to_dict(self):
         return {'name'   : self.name,
                 'seqs'   : self.seqs,
-                'starts' : self.spos,
                 'blocks' : [b.to_dict() for b in self.blks.values()],
                 'suffix' : None if self.sfxt is None else "compiled",
                 'distmtx': self.dmtx}
