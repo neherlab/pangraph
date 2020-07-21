@@ -49,7 +49,7 @@ class Path(object):
     def blocks(self):
         return set([n.id for n in self.nodes])
 
-    def filter(self, blks):
+    def rm_empty(self, blks):
         good, popped = [], set()
         for i, n in enumerate(self.nodes):
             if n.id in popped:

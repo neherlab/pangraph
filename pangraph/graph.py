@@ -90,11 +90,9 @@ class Graph(object):
     @classmethod
     def fuse(cls, g1, g2):
         ng = Graph()
-        ng.blks = {}
-        ng.blks.update(g1.blks)
-        ng.blks.update(g2.blks)
-
-        ng.seqs = {s:list(b) for s,b in list(g1.seqs.items())+list(g2.seqs.items())}
+        merge = lambda d1, d2: {**d1, **d2}
+        ng.blks = merge(g1.blks, g2.blks)
+        ng.seqs = merge(g1.seqs, g2.seqs)
 
         return ng
 
@@ -292,34 +290,14 @@ class Graph(object):
         return self, merged
 
     def prune(self):
-        blks_remain = set()
-        for iso in self.seqs:
-            blks_remain.update([s[0] for s in self.seqs[iso]])
+        blks = set()
+        for path in self.seqs.values():
+            blks.union_update(path.blocks)
         self.blks = {b:self.blks[b] for b in blks_remain}
 
-        return
-
     def purge_empty(self):
-        for iso in self.seqs:
-            goodblks = []
-            popblks  = set()
-            for i, (b, _, n) in enumerate(self.seqs[iso]):
-                if b in popblks:
-                    continue
-
-                if self.blks[b].is_empty(iso, n):
-                    if (iso, n) not in self.blks[b].muts:
-                        import ipdb; ipdb.set_trace()
-                    self.blks[b].muts.pop((iso, n))
-                else:
-                    goodblks.append(i)
-
-                if not self.blks[b].has(iso):
-                    popblks.add(b)
-
-            self.seqs[iso] = [self.seqs[iso][i] for i in goodblks]
-
-        return
+        for path in self.seqs.values():
+            self.blks = path.rm_empty(self.blks)
 
     def merge(self, hit):
         refblk_orig = self.blks[hit['ref']['name']]
