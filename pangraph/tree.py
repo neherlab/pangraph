@@ -402,20 +402,20 @@ class Tree(object):
                     if log_stats:
                         stats[c.name] = {
                             'length' : [b.length for b in c.graph.blks.values()],
-                            'depth'  : [b.depth for b in c.graph.blks.values()],
+                            'depth'  : [b.depth  for b in c.graph.blks.values()],
                         }
                     c.graph = None
 
-            # check(self.seqs, n.graph)
-            with open(f"{n.fapath}.fa", 'w') as fd:
-                n.graph.write_fasta(fd)
+                # check(self.seqs, n.graph)
+                with open(f"{n.fapath}.fa", 'w+') as fd:
+                    n.graph.write_fasta(fd)
 
-            log((f"--> compression ratio: "
-                   f"{n.graph.compress_ratio()}"))
-            log((f"--> number of blocks: "
-                   f"{len(n.graph.blks)}"))
-            log((f"--> number of members: "
-                   f"{len(n.graph.seqs)}"))
+                log((f"--> compression ratio: "
+                       f"{n.graph.compress_ratio()}"))
+                log((f"--> number of blocks: "
+                       f"{len(n.graph.blks)}"))
+                log((f"--> number of members: "
+                       f"{len(n.graph.seqs)}"))
 
     def collect(self):
         if not self.root.graph:

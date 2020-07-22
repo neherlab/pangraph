@@ -62,8 +62,8 @@ def count_blocks_in(hits, hit, delta):
     return num
 
 def draw_figure(ticks, left, right):
-    Dl = np.diag(1/l[:,0])@l
-    Dr = np.diag(1/r[:,0])@r
+    Dl = np.diag(1/left[:,0])@left
+    Dr = np.diag(1/right[:,0])@right
     fig, (ax1, ax2) = plt.subplots(1, 2)
 
     ax1.plot(ticks, Dl.T,color='r', alpha=.01)
