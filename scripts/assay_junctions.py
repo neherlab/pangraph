@@ -14,9 +14,7 @@ from Bio  import SeqIO
 import numpy as np
 import matplotlib.pylab as plt
 
-import pyopa
-from pyopa import Sequence as DNA
-from pyopa import align_double as align
+from seqanpy import align_global as align
 
 sys.path.insert(0, os.path.abspath('.')) # gross hack
 from pangraph.tree  import Tree
@@ -38,11 +36,15 @@ def seq_dict(path):
         d = {s.name:s.seq for s in SeqIO.parse(rdr, 'fasta')}
     return d
 
-default = pyopa.load_default_environments()
-env     = pyopa.generate_env(default['log_pam1'], 250)
+opts = {
+    'band'           : +100,
+    'score_match'    : +3,
+    'score_mismatch' : -3,
+    'score_gapopen'  : -5,
+    'score_gapext'   : -1,
+}
 def align_score(s1, s2):
-    dna = lambda s: DNA(str(s))
-    r   = align(dna(s1), dna(s2), env, False, True, True)
+    r   = align(s1, s2, **opts)
     return r[0]/max(len(s1), len(s2))
 
 def count_blocks_in(hits, hit, delta):
@@ -126,8 +128,7 @@ def main(args):
     nblks_good, nblks_all  = np.array(nblks_good), np.array(nblks_all)
     np.savez("data/junctions.npz",
             left=ljunctions, right=rjunctions, ticks=ticks,
-            blks_good=nblks_good, blks_all=nblks_all
-    )
+            blks_good=nblks_good, blks_all=nblks_all)
     draw_figure(ticks, ljunctions, rjunctions)
 
     return 0
