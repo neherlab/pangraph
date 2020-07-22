@@ -11,7 +11,7 @@ from Bio.SeqRecord import SeqRecord
 from .         import suffix
 from .block    import Block
 from .sequence import Node, Path
-from .utils    import Strand, as_string, parse_paf, panic, tryprint, asrecord, new_strand, breakpoint
+from .utils    import Strand, as_string, parse_paf, panic, tryprint, as_record, new_strand, breakpoint
 
 # ------------------------------------------------------------------------
 # Global variables
@@ -30,7 +30,6 @@ class Graph(object):
         self.blks = {}   # All blocks/alignments
         self.seqs = {}   # All sequences (as list of blocks)
         self.sfxt = None # Suffix tree of block records
-            def from_dict():
         self.dmtx = None # Graph distance matrix
 
     # --- Class methods ---
@@ -62,6 +61,7 @@ class Graph(object):
 
     @classmethod
     def connected_components(cls, G):
+        # -----------------------------
         # internal functions
         def overlaps(s1, s2):
             return len(s1.intersection(s2)) > 0
@@ -73,10 +73,11 @@ class Graph(object):
             cc.dmtx = None
             return cc
 
+        # -----------------------------
         # main body
         graphs, names = [], []
-        for name, seq in G.seqs.items():
-            blks = set(s[0] for s in seq)
+        for name, path in G.seqs.items():
+            blks = path.blocks()
             gi   = [ i for i, g in enumerate(graphs) if overlaps(blks, g)]
             if len(gi) == 0:
                 graphs.append(blks)
@@ -94,6 +95,9 @@ class Graph(object):
         merge = lambda d1, d2: {**d1, **d2}
         ng.blks = merge(g1.blks, g2.blks)
         ng.seqs = merge(g1.seqs, g2.seqs)
+        print(g1.blks, g2.blks)
+        print(ng.blks)
+        breakpoint("debug")
 
         return ng
 
@@ -436,5 +440,5 @@ class Graph(object):
                 'distmtx': self.dmtx}
 
     def write_fasta(self, wtr):
-        SeqIO.write(sorted([ SeqRecord(seq=Seq(as_string(c.seq)), id=c.id, description='')
-            for c in self.blks.values() ], key=lambda x: len(x), reverse=True), wtr, format='fasta')
+        SeqIO.write(sorted([ as_record(as_string(c.seq), c.id) for c in self.blks.values() ],
+            key=lambda x: len(x), reverse=True), wtr, format='fasta')

@@ -356,7 +356,7 @@ class Tree(object):
 
             for i in range(MAXSELFMAPS):
                 tryprint(f"----> merge round {i}", verbose)
-                # check(self.seqs, graph)
+                check(self.seqs, graph)
                 itr = f"{tmpdir}/{n.name}_iter_{i}"
                 with open(f"{itr}.fa", 'w') as fd:
                     graph.write_fasta(fd)
@@ -386,14 +386,13 @@ class Tree(object):
                 # n.graph = merge(n, n)
             else:
                 # NOTE: for debugging
-                pre_terminal = True
-                for c in n.child:
-                    if not c.is_leaf():
-                        pre_terminal = False
-                        break
-                if not pre_terminal:
-                    continue
-
+                # pre_terminal = True
+                # for c in n.child:
+                #     if not c.is_leaf():
+                #         pre_terminal = False
+                #         break
+                # if not pre_terminal:
+                #     continue
                 n.fapath = f"{tmpdir}/{n.name}"
                 log(f"attempting to fuse {n.child[0].name} with {n.child[1].name} @ {n.name}")
                 n.graph = merge(*n.child)
@@ -406,7 +405,7 @@ class Tree(object):
                         }
                     c.graph = None
 
-            # check(self.seqs, n.graph)
+            check(self.seqs, n.graph)
             with open(f"{n.fapath}.fa", 'w') as fd:
                 n.graph.write_fasta(fd)
 
@@ -428,8 +427,6 @@ class Tree(object):
         wtr.write(";")
 
     def write_json(self, wtr, no_seqs=False):
-        data = {
-            'tree' : self.root.to_json(),
-            'seqs' : None if no_seqs else {k.name:str(v) for k,v in self.seqs.items()},
-        }
+        data = {'tree' : self.root.to_json(),
+                'seqs' : None if no_seqs else {k.name:str(v) for k,v in self.seqs.items()}}
         wtr.write(json.dumps(data))

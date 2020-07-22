@@ -70,7 +70,7 @@ def log(msg, file=sys.stderr):
 # ------------------------------------------------------------------------
 # simple conversions
 
-def asarray(x):
+def as_array(x):
     return np.array(list(x))
 
 def as_string(x):
@@ -82,7 +82,7 @@ def flatten(x):
 def cat(*args):
     return np.concatenate(tuple(arg for arg in args))
 
-def asrecord(seq, name):
+def as_record(seq, name):
     return SeqRecord(Seq(seq), id=name, name=name, description="")
 
 # ------------------------------------------------------------------------

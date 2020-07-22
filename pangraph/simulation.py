@@ -8,7 +8,7 @@ from Bio import SeqIO
 from portion import Interval, closedopen, to_data
 
 from .graph import Graph
-from .utils import asrecord, cat, breakpoint
+from .utils import as_record, cat, breakpoint
 
 # TODO: move away from storing all data as dense arrays to interval representation
 #       as of now this simulation is overly memory hungry
@@ -379,7 +379,7 @@ class Population(object):
     def write_fasta(self, wtr, prefix="isolate"):
         seq   = lambda s: "".join(chr(n) for n in s[0])
         name  = lambda n: f"{prefix}_{n:05d}"
-        entry = [asrecord(seq(s), name(n)) for n, s in enumerate(self.seq)]
+        entry = [as_record(seq(s), name(n)) for n, s in enumerate(self.seq)]
 
         return SeqIO.write(entry, wtr, "fasta")
 
