@@ -38,7 +38,7 @@ def seq_dict(path):
     return d
 
 default_opts = {
-    'band'           : +100,
+    'band'           : +1000,
     'score_match'    : +3,
     'score_mismatch' : -3,
     'score_gapopen'  : -5,
