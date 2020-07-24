@@ -9,7 +9,7 @@ import matplotlib.pylab as plt
 
 from Bio.Seq import Seq
 
-from .utils import Strand, log, flatten, panic, breakpoint
+from .utils import Strand, log, flatten, panic, breakpoint, rev_cmpl
 from .graph import Graph
 
 # ------------------------------------------------------------------------
@@ -61,7 +61,6 @@ def to_list(dmtx):
 # Node and Tree classes
 
 class Node(object):
-
     # ---------------------------------
     # Internal functions
 
@@ -313,23 +312,23 @@ class Tree(object):
 
                     for i in range(len(orig)//100):
                         if (orig[i*100:(i+1)*100] != rec[i*100:(i+1)*100]):
-                            print("-----------------")
-                            print("O:", i, orig[i*100:(i+1)*100])
-                            print("G:", i, rec[i*100:(i+1)*100])
+                            log("-----------------")
+                            log(f"O: {i} {orig[i*100:(i+1)*100]}")
+                            log(f"G: {i} {rec[i*100:(i+1)*100]}")
 
                             diffs = [i for i in range(len(rec)) if rec[i] != orig[i]]
                             pos   = [0]
-                            blks  = G.seqs[n.name]
-                            for b, strand, num in blks:
-                                pos.append(pos[-1] + len(G.blks[b].extract(n.name, num)))
+                            seq   = G.seqs[n.name]
+                            for nn in seq.nodes:
+                                pos.append(pos[-1] + len(G.blks[nn.id].extract(n.name, nn.num)))
                             pos = pos[1:]
 
                             testseqs = []
-                            for b in G.seqs[n.name]:
-                                if b[1] == Strand.Plus:
-                                    testseqs.append("".join(G.blks[b[0]].extract(n.name, b[2])))
+                            for nn in G.seqs[n.name].nodes:
+                                if nn.strand == Strand.Plus:
+                                    testseqs.append("".join(G.blks[nn.id].extract(n.name, nn.num)))
                                 else:
-                                    testseqs.append("".join(Seq.reverse_complement(G.blks[b[0]].extract(n.name, b[2]))))
+                                    testseqs.append("".join(rev_cmpl(G.blks[nn.id].extract(n.name, nn.num))))
 
             if nerror == 0:
                 log("all sequences correctly reconstructed")
@@ -338,7 +337,7 @@ class Tree(object):
                 log(f"--- total input sequence: {uncompressed_length}")
                 log(f"--- compression: {uncompressed_length/tlen:1.2f}")
             else:
-                raise ValueError("bad sequence reconstruction")
+                log("bad sequence reconstruction")
 
         def merge(node1, node2):
             if node1 != node2:
@@ -363,14 +362,11 @@ class Tree(object):
         # --------------------------------------------
         # body
 
-        log("inside tree")
-
         if self.num_leafs() == 1:
             return Graph()
 
         # fix trivial graphs onto the leafs
         for i, n in enumerate(self.get_leafs()):
-            log(f"--> leaf {n}")
             seq      = self.seqs[n]
             n.graph  = Graph.from_seq(n.name, str(seq).upper())
             n.fapath = f"{tmpdir}/{n.name}"

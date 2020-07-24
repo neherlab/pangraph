@@ -70,9 +70,9 @@ class Path(object):
                 continue
 
             if blks[n.id].is_empty(self.name, n.num):
-                if (iso, n) not in self.blks[b].muts:
+                if (self.name, n.num) not in blks[n.id].muts:
                     breakpoint("malformed mutation bookkeeping!")
-                blks[n.id].muts.pop((self.name, n.name))
+                blks[n.id].muts.pop((self.name, n.num))
             else:
                 good.append(i)
 
