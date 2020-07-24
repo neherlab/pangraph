@@ -43,7 +43,24 @@ def Complement(S):
     else:
         raise ValueError(f"expected type 'Strand', got '{type(S)}'")
 
-wcpair = {'A' : 'T', 'T': 'A', 'C' : 'G', 'G': 'C'}
+# Table from https://en.wikipedia.org/wiki/Nucleic_acid_notation
+wcpair = {
+    'A' : 'T',
+    'T' : 'A',
+    'C' : 'G',
+    'G' : 'C',
+    'W' : 'W',
+    'S' : 'S',
+    'M' : 'K',
+    'K' : 'M',
+    'R' : 'Y',
+    'Y' : 'R',
+    'B' : 'V',
+    'D' : 'H',
+    'H' : 'D',
+    'V' : 'B',
+    'Z' : 'Z',
+}
 
 def rev_cmpl(seq):
     return str(Seq.reverse_complement(Seq(seq)))
