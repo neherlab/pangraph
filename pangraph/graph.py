@@ -11,7 +11,7 @@ from Bio.SeqRecord import SeqRecord
 from .         import suffix
 from .block    import Block
 from .sequence import Node, Path
-from .utils    import Strand, as_string, parse_paf, panic, tryprint, as_record, new_strand, breakpoint
+from .utils    import Strand, as_string, parse_paf, panic, as_record, new_strand, breakpoint
 
 # ------------------------------------------------------------------------
 # Graph class
@@ -255,7 +255,6 @@ class Graph(object):
             or not accepted(hit):
                 continue
 
-            tryprint(f"------> merge {hit['ref']['name']} with {hit['qry']['name']}", False)
             self.merge(proc(hit))
             merged = True
             merged_blks.add(hit['ref']['name'])
