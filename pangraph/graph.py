@@ -96,25 +96,10 @@ class Graph(object):
     # methods
 
     def union(self, qpath, rpath, out, cutoff=0, alpha=10, beta=2, extensive=False):
-        # TODO: switch to pyopa
-        import warnings
-        from skbio.alignment import global_pairwise_align
-        from skbio import DNA
+        from seqanpy import align_global as align
 
         # ----------------------------------
         # internal functions
-
-        def global_aln(s1, s2):
-            M = {}
-            alphas = ['A', 'C', 'G', 'T', 'N']
-            for a in alphas:
-                M[a] = {}
-                for b in alphas:
-                    if a == b:
-                        M[a][b] = 2
-                    else:
-                        M[a][b] = -3
-            return global_pairwise_align(s1, s2, 5, 2, M)
 
         def energy(hit):
             l    = hit["aligned_bases"]
@@ -155,7 +140,7 @@ class Graph(object):
                 # -----------------------
                 # internal functions
 
-                def tocigar(aln):
+                def to_cigar(aln):
                     cigar = ""
                     s1, s2 = np.fromstring(aln[0], dtype=np.int8), np.fromstring(aln[1], dtype=np.int8)
                     M, I, D = 0, 0, 0
@@ -226,9 +211,10 @@ class Graph(object):
                     hit['ref']['start'] = 0
                 elif 0 < dS_q <= cutoff and 0 < dS_r <= cutoff:
                     qseq, rseq = getseqs()
-                    aln = global_aln(DNA(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[0:dS_q]), DNA(rseq[0:dS_r]))
-                    aln = tuple([str(v) for v in aln[0].to_dict().values()])
-                    hit['cigar'] = tocigar(aln) + hit['cigar']
+                    aln = align(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[0:dS_q], rseq[0:dS_r])[1:]
+                    print(aln)
+
+                    hit['cigar'] = to_cigar(aln) + hit['cigar']
                     hit['qry']['start'] = 0
                     hit['ref']['start'] = 0
                     hit['aligned_bases'] += len(aln[0])
@@ -242,10 +228,10 @@ class Graph(object):
                     hit['ref']['end'] = hit['ref']['len']
                 elif 0 < dE_q <= cutoff and 0 < dE_r <= cutoff:
                     qseq, rseq = getseqs()
-                    aln = global_aln(DNA(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[-dE_q:]), DNA(rseq[-dE_r:]))
-                    aln = tuple([str(v) for v in aln[0].to_dict().values()])
+                    aln = align(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[-dE_q:], rseq[-dE_r:])[1:]
+                    print(aln)
 
-                    hit['cigar'] = hit['cigar'] + tocigar(aln)
+                    hit['cigar'] = hit['cigar'] + to_cigar(aln)
                     hit['qry']['end'] = hit['qry']['len']
                     hit['ref']['end'] = hit['ref']['len']
                     hit['aligned_bases'] += len(aln[0])
