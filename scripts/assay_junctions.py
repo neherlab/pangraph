@@ -53,10 +53,10 @@ def do_align(s1, s2, aln_opts=default_opts):
 def align_score(s1, s2, aln_opts=default_opts):
     return do_align(s1, s2, aln_opts)['score']
 
-def align_seqs(seqs, *ticks):
+def align_seqs(seqs, *ticks, opt=default_opts):
     class Aln:
         def __init__(self, qry, ref):
-            aln = do_align(qry, ref)
+            aln = do_align(qry, ref, opt)
             self.score = aln['score']
             self.seqs  = aln['align']
     class Hit:
@@ -169,6 +169,9 @@ def main_align(args):
                 hits = parse_paf(fh)
 
             for hit in hits:
+                if hit['aligned_length'] < 1000:
+                    continue
+
                 s   = slice_seqs(seq[hit['qry']['name']], seq[hit['ref']['name']], hit)
                 aln = align_seqs(s, *ticks)
 
@@ -213,12 +216,10 @@ def main_scan(args):
                 hits = parse_paf(fh)
 
             for hit in hits:
-                qs, rs = seq[hit['qry']['name']], seq[hit['ref']['name']]
-                ql, rl = l_iv(hit['qry']), l_iv(hit['ref'])
-                qr, rr = r_iv(hit['qry']), r_iv(hit['ref'])
-                lscore = lambda qb, rb, opts: align_score(qs[max(qb,0):ql[1]], rs[max(rb,0):rl[1]], opts)
-                rscore = lambda qe, re, opts: align_score(qs[qr[0]:min(qe, len(qs))], rs[rr[0]:min(re,len(rs))], opts)
+                if hit['aligned_length'] < 1000:
+                    continue
 
+                s   = slice_seqs(seq[hit['qry']['name']], seq[hit['ref']['name']], hit)
                 def do(b):
                     good, bad = 0, 0
                     opt = {
@@ -228,12 +229,14 @@ def main_scan(args):
                         'score_gapopen'  : -5,
                         'score_gapext'   : -1,
                     }
-                    if lscore(ql[0]-EXTEND, rl[0]-EXTEND, opt) >= .75*lscore(ql[0], rl[0], opt):
+                    aln = align_seqs(s, 0, EXTEND, opt=opt)
+
+                    if aln[1].left.score >= .75*aln[0].left.score:
                         bad += 1
                     else:
                         good += 1
 
-                    if rscore(qr[1]+EXTEND, rr[1]+EXTEND, opt) >= .75*rscore(qr[1], rr[1], opt):
+                    if aln[1].right.score >= .75*aln[0].right.score:
                         bad += 1
                     else:
                         good += 1
