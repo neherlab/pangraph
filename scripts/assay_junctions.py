@@ -11,19 +11,21 @@ from glob import glob
 from sys  import exit, argv
 from Bio  import SeqIO
 
+from pathos.multiprocessing import ProcessingPool as Pool
+
 import numpy as np
 import matplotlib.pylab as plt
 
 from seqanpy import align_global as align
-from pathos.multiprocessing import ProcessingPool as Pool
 
 sys.path.insert(0, os.path.abspath('.')) # gross hack
 from pangraph.tree  import Tree
-from pangraph.utils import parse_paf
+from pangraph.utils import parse_paf, Strand
 
 # ------------------------------------------------------------------------
 # globals
 
+SEQLEN = 1000
 EXTEND = 5000
 
 # ------------------------------------------------------------------------
@@ -44,16 +46,75 @@ default_opts = {
     'score_gapopen'  : -5,
     'score_gapext'   : -1,
 }
-def align_score(s1, s2, aln_opts=default_opts):
+def do_align(s1, s2, aln_opts=default_opts):
     r   = align(s1, s2, **aln_opts)
-    return max(r[0], 0)/max(len(s1), len(s2))
+    return {'score':max(r[0], 0)/max(len(s1), len(s2)), 'align' : r[1:]}
+
+def align_score(s1, s2, aln_opts=default_opts):
+    return do_align(s1, s2, aln_opts)['score']
+
+def align_seqs(seqs, *ticks):
+    class Aln:
+        def __init__(self, qry, ref):
+            aln = do_align(qry, ref)
+            self.score = aln['score']
+            self.seqs  = aln['align']
+    class Hit:
+        def __init__(self, seqs, delta):
+            self.left  = Aln(seqs.left.qry(delta), seqs.left.ref(delta))
+            self.right = Aln(seqs.right.qry(delta), seqs.right.ref(delta))
+
+    def do(tick):
+        return Hit(seqs, tick)
+
+    with Pool(10) as jobs:
+        return jobs.map(do, ticks)
+
+def write(wtr, *seqs):
+    if len(seqs) == 0:
+        return False
+
+    for i, seq in enumerate(seqs):
+        wtr.write(f">isolate_{i:02d}\n")
+        wtr.write(f"{seq}\n")
+
+    return True
+
+def slice_seqs(qry, ref, hit):
+    class Aln:
+        def __init__(self):
+            self.qry = None
+            self.ref = None
+    class Seqs:
+        def __init__(self):
+            self.left  = Aln()
+            self.right = Aln()
+
+    seqs = Seqs()
+
+    qbeg, rbeg = hit['qry']['start'], hit['ref']['start']
+    qend, rend = hit['qry']['end'],   hit['ref']['end']
+    qlen, rlen = hit['qry']['len'],   hit['ref']['len']
+    if hit['orientation'] == Strand.Plus:
+        seqs.left.ref = lambda d: ref[max(rbeg-d, 0):min(rbeg+SEQLEN, qlen)]
+        seqs.left.qry = lambda d: qry[max(qbeg-d, 0):min(qbeg+SEQLEN, qlen)]
+
+        seqs.right.ref = lambda d: ref[max(rend-SEQLEN, 0):min(rend+d, rlen)]
+        seqs.right.qry = lambda d: qry[max(qend-SEQLEN, 0):min(qend+d, qlen)]
+    else:
+        seqs.left.ref = lambda d: ref[max(rbeg-d, 0):min(rbeg+SEQLEN, qlen)]
+        seqs.left.qry = lambda d: qry[max(qend-SEQLEN, 0):min(qend+d, qlen)]
+
+        seqs.right.ref = lambda d: ref[max(rend-SEQLEN, 0):min(rend+d, rlen)]
+        seqs.right.qry = lambda d: qry[max(qbeg-d, 0):min(qbeg+SEQLEN, qlen)]
+
+    return seqs
 
 def count_blocks_in(hits, hit, delta):
     lb    = max(0, hit['start']-delta)
     ub    = min(hit['len'], hit['end']+delta)
     name  = hit['name']
-    start = hit['start']
-    end   = hit['end']
+    start, end = hit['start'], hit['end']
 
     num = 0
     for h in hits:
@@ -96,25 +157,20 @@ def main_align(args):
             T = Tree.from_json(fd)
 
         path = lambda name, ext: f"{d}/tmp/{name}.{ext}"
-        l_iv = lambda h: (h['start'], min(h['start']+1000, h['len']))
-        r_iv = lambda h: (max(h['end']-1000, 0), h['end'])
-
         for n in T.preterminals():
             seq = {}
             for c in n.child:
                 seq.update(seq_dict(path(c.name, "fa")))
+
             with open(path(n.name, "paf")) as fh:
                 hits = parse_paf(fh)
 
             for hit in hits:
-                qs, rs = seq[hit['qry']['name']], seq[hit['ref']['name']]
-                ql, rl = l_iv(hit['qry']), l_iv(hit['ref'])
-                qr, rr = r_iv(hit['qry']), r_iv(hit['ref'])
-                lscore = lambda qb, rb: align_score(qs[max(qb,0):ql[1]], rs[max(rb,0):rl[1]])
-                rscore = lambda qe, re: align_score(qs[qr[0]:min(qe, len(qs))], rs[rr[0]:min(re,len(rs))])
+                s   = slice_seqs(seq[hit['qry']['name']], seq[hit['ref']['name']], hit)
+                aln = align_seqs(s, *ticks)
 
-                ljunctions.append([lscore(ql[0]-tick, rl[0]-tick) for tick in ticks])
-                rjunctions.append([rscore(qr[1]+tick, rr[1]+tick) for tick in ticks])
+                ljunctions.append([a.left.score for a in aln])
+                rjunctions.append([a.right.score for a in aln])
 
                 if ljunctions[-1][-1] >= .9*ljunctions[-1][0] or rjunctions[-1][-1] >= .9*rjunctions[-1][0]:
                     # count number of blocks in extended zone
@@ -193,11 +249,76 @@ def main_scan(args):
     ax.set_ylabel("fraction of 'uniform' extension junctions")
     fig.savefig('figs/scan_breakpoints_bandwidth.png')
 
+def main_gather(args):
+    ROOT = "align"
+    HI   = f"{ROOT}/1.5x"
+    EQ   = f"{ROOT}/1.0x"
+    LO   = f"{ROOT}/0.5x"
+
+    NL = {'lo':0, 'hi':0, 'eq':0}
+    NR = {'lo':0, 'hi':0, 'eq':0}
+    if not os.path.exists(ROOT):
+        os.mkdir(ROOT)
+        os.mkdir(HI)
+        os.mkdir(EQ)
+        os.mkdir(LO)
+
+    def proc(normal, extend, hit, prefix, N):
+        if len(extend.seqs[0]) < EXTEND:
+            return N
+
+        if extend.score >= 1.5*normal.score:
+            base = f"{HI}/{prefix}_{N['hi']}"
+            indx = 'hi'
+        elif extend.score == 1.0*normal.score:
+            base = f"{EQ}/{prefix}_{N['eq']}"
+            indx = 'eq'
+        elif extend.score <= 0.5*normal.score:
+            base = f"{LO}/{prefix}_{N['lo']}"
+            indx = 'lo'
+        else:
+            return N
+
+        print(f"--> outputting {base}")
+        with open(f"{base}.fa", 'w') as wtr:
+            if write(wtr, *extend.seqs):
+                N[indx] += 1
+                with open(f"{base}.json", 'w') as wtr:
+                    json.dump(hit, wtr, indent=4)
+        return N
+
+    for d in args:
+        print(f"analyzing {d}")
+        with open(f"{d}/guide.json") as fd:
+            T = Tree.from_json(fd)
+
+        path = lambda name, ext: f"{d}/tmp/{name}.{ext}"
+        l_iv = lambda h: (h['start'], min(h['start']+1000, h['len']))
+        r_iv = lambda h: (max(h['end']-1000, 0), h['end'])
+
+        for n in T.preterminals():
+            seq = {}
+            for c in n.child:
+                seq.update(seq_dict(path(c.name, "fa")))
+            with open(path(n.name, "paf")) as fh:
+                hits = parse_paf(fh)
+
+            for hit in hits:
+                if hit['aligned_length'] < 1000:
+                    continue
+
+                s   = slice_seqs(seq[hit['qry']['name']], seq[hit['ref']['name']], hit)
+                aln = align_seqs(s, 0, EXTEND)
+                NL  = proc(aln[0].left,  aln[1].left,  hit, 'left',  NL)
+                NR  = proc(aln[0].right, aln[1].right, hit, 'right', NR)
+
 def main(args):
     if args[0] == "align":
         main_align(args[1:])
     elif args[0] == "scan":
         main_scan(args[1:])
+    elif args[0] == "gather":
+        main_gather(args[1:])
 
     return 0
 
