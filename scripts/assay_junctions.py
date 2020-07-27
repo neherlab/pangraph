@@ -27,6 +27,13 @@ from pangraph.utils import parse_paf, Strand, rev_cmpl
 
 SEQLEN = 1000
 EXTEND = 5000
+default_opts = {
+    'band'           : +1000,
+    'score_match'    : +3,
+    'score_mismatch' : -3,
+    'score_gapopen'  : -5,
+    'score_gapext'   : -1,
+}
 
 # ------------------------------------------------------------------------
 # helpers
@@ -39,13 +46,6 @@ def seq_dict(path):
         d = {s.name:s.seq for s in SeqIO.parse(rdr, 'fasta')}
     return d
 
-default_opts = {
-    'band'           : +1000,
-    'score_match'    : +3,
-    'score_mismatch' : -3,
-    'score_gapopen'  : -5,
-    'score_gapext'   : -1,
-}
 def do_align(s1, s2, aln_opts=default_opts):
     r   = align(s1, s2, **aln_opts)
     return {'score':max(r[0], 0)/max(len(s1), len(s2)), 'align' : r[1:]}
@@ -254,7 +254,7 @@ def main_scan(args):
 
 def main_gather(args):
     ROOT = "align"
-    HI   = f"{ROOT}/1.5x"
+    HI   = f"{ROOT}/1.25x"
     EQ   = f"{ROOT}/1.0x"
     LO   = f"{ROOT}/0.5x"
 
@@ -270,10 +270,10 @@ def main_gather(args):
         if len(extend.seqs[0]) < EXTEND:
             return N
 
-        if extend.score >= 1.5*normal.score:
+        if extend.score >= 1.25*normal.score:
             base = f"{HI}/{prefix}_{N['hi']}"
             indx = 'hi'
-        elif extend.score >= 0.9*normal.score and extend.score <= 1.1*normal.score:
+        elif extend.score >= 0.95*normal.score and extend.score <= 1.05*normal.score:
             base = f"{EQ}/{prefix}_{N['eq']}"
             indx = 'eq'
         elif extend.score <= 0.5*normal.score:
