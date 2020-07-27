@@ -189,7 +189,7 @@ class Graph(object):
                     else:
                         return s
 
-                def getseqs():
+                def get_seqs():
                     return qfa[hit['qry']['name']], rfa[hit['ref']['name']]
 
                 # -----------------------
@@ -208,7 +208,7 @@ class Graph(object):
                     hit['cigar'] = f"{dS_r}D" + hit['cigar']
                     hit['ref']['start'] = 0
                 elif 0 < dS_q <= cutoff and 0 < dS_r <= cutoff:
-                    qseq, rseq = getseqs()
+                    qseq, rseq = get_seqs()
                     aln = align(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[0:dS_q], rseq[0:dS_r])[1:]
 
                     hit['cigar'] = to_cigar(aln) + hit['cigar']
@@ -224,7 +224,7 @@ class Graph(object):
                     hit['cigar'] += f"{dE_r}D"
                     hit['ref']['end'] = hit['ref']['len']
                 elif 0 < dE_q <= cutoff and 0 < dE_r <= cutoff:
-                    qseq, rseq = getseqs()
+                    qseq, rseq = get_seqs()
                     aln = align(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[-dE_q:], rseq[-dE_r:])[1:]
 
                     hit['cigar'] = hit['cigar'] + to_cigar(aln)
@@ -261,16 +261,16 @@ class Graph(object):
             merged_blks.add(hit['ref']['name'])
             merged_blks.add(hit['qry']['name'])
 
-        self.purge_empty()
+        self.pop_empty()
         return self, merged
 
-    def prune(self):
+    def prune_blks(self):
         blks = set()
         for path in self.seqs.values():
             blks.update(path.blocks())
         self.blks = {b:self.blks[b] for b in blks}
 
-    def purge_empty(self):
+    def pop_empty(self):
         for path in self.seqs.values():
             self.blks = path.rm_empty(self.blks)
 
@@ -324,7 +324,7 @@ class Graph(object):
 
         update(old_ref, new_refs, hit['ref'], Strand.Plus)
         update(old_qry, new_qrys, hit['qry'], hit['orientation'])
-        self.prune()
+        self.prune_blks()
 
     def extract(self, name, strip_gaps=True, verbose=False):
         seq = self.seqs[name].sequence(self.blks)
