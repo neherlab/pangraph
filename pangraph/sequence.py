@@ -20,7 +20,7 @@ class Node(object):
         return N
 
     def to_dict(self):
-        return {'id': self.id, 'num': self.num:, 'strand': int(self.strand)}
+        return {'id': self.id, 'num': self.num, 'strand': int(self.strand)}
 
 # ------------------------------------------------------------------------
 # Path class: (circular) list of blocks

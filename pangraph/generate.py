@@ -8,7 +8,7 @@ import json
 from Bio import SeqIO
 
 from .simulation import Population
-from .utils import mkdir, panic, asrecord
+from .utils import mkdir, panic, as_record
 
 def register_args(parser):
     parser.add_argument("-d", "--dir",
@@ -108,7 +108,7 @@ def main(args):
                 else:
                     seq = "".join(chr(c) for c in pop.anc[a][0][iv[1]:pop.L]) + \
                           "".join(chr(c) for c in pop.anc[a][0][0:iv[0]])
-            ancs.append(asrecord(seq, f"{nm}_{i:03d}"))
+            ancs.append(as_record(seq, f"{nm}_{i:03d}"))
 
     # date of contemporary breakpoints
     bps = pop.breakpoints()
