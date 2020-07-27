@@ -30,6 +30,7 @@ class Block(object):
 
     # ------------------
     # properties
+
     @property
     def length(self):
         return len(self.seq)

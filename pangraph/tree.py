@@ -378,7 +378,7 @@ class Tree(object):
                 continue
 
             n.fapath = f"{tmpdir}/{n.name}"
-            log(f"attempting to fuse {n.child[0].name} with {n.child[1].name} @ {n.name}")
+            log(f"fusing {n.child[0].name} with {n.child[1].name} @ {n.name}")
             n.graph = merge(*n.child)
             # delete references to children graphs for cleanup
             for c in n.child:
