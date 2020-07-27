@@ -58,9 +58,9 @@ def to_list(dmtx):
     return dlst
 
 # ------------------------------------------------------------------------
-# Node and Tree classes
+# Clade and Tree classes
 
-class Node(object):
+class Clade(object):
     # ---------------------------------
     # Internal functions
 
@@ -86,8 +86,8 @@ class Node(object):
 
     @classmethod
     def from_dict(cls, d, parent):
-        N = Node(d['name'], parent, d['dist'])
-        N.child = [Node.from_dict(child, N) for child in d['child']]
+        N = Clade(d['name'], parent, d['dist'])
+        N.child = [Clade.from_dict(child, N) for child in d['child']]
         N.fapath = d['fapath']
         N.graph  = Graph.from_dict(d['graph']) if d['graph'] is not None else None
 
@@ -143,7 +143,7 @@ class Tree(object):
     # ------------------- 
     # Class constructor
     def __init__(self, bare=False):
-        self.root   = Node("ROOT", None, 0) if not bare else None
+        self.root   = Clade("ROOT", None, 0) if not bare else None
         self.seqs   = None
         self.leaves = None
 
@@ -155,7 +155,7 @@ class Tree(object):
     def from_json(cls, rdr):
         data   = json.load(rdr)
         T      = Tree(bare=True)
-        T.root = Node.from_dict(data['tree'], None)
+        T.root = Clade.from_dict(data['tree'], None)
 
         leafs  = {n.name: n for n in T.get_leafs()}
         T.seqs = {leafs[k]:Seq(v) for k,v in data['seqs'].items()}
@@ -207,7 +207,7 @@ class Tree(object):
                 assert abs(qmin-q0min) < 1e-2, f"minimum not found correctly. returned {qmin}, expected {q0min}"
                 print(f"{D}\n--> Joining {i} and {j}. d={D[i,j]}")
 
-            node   = Node(f"NODE_{idx:05d}", T.root, None, [T.root.child[i], T.root.child[j]])
+            node   = Clade(f"NODE_{idx:05d}", T.root, None, [T.root.child[i], T.root.child[j]])
 
             d1, d2, dnew = pairdists(D, i, j)
             node.child[0].new_parent(node, d1)
@@ -231,7 +231,7 @@ class Tree(object):
 
         T = Tree()
         for name in names:
-            T.root.child.append(Node(name, T.root, None, children=[]))
+            T.root.child.append(Clade(name, T.root, None, children=[]))
         idx = 0
 
         while mtx.shape[0] > 2:
