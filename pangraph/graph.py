@@ -34,7 +34,7 @@ class Graph(object):
         blk  = Block.from_seq(name, seq)
         newg.name = name
         newg.blks = {blk.id : blk}
-        newg.seqs = {name : Path(name, Node(blk.id, 0, Strand.Plus), 0)}
+        newg.seqs = {name : Path(name, Node(blk, 0, Strand.Plus), 0)}
 
         return newg
 
@@ -44,7 +44,8 @@ class Graph(object):
         G.name = d['name']
         G.blks = [Block.from_dict(b) for b in d['blocks']]
         G.blks = {b.id : b for b in G.blks}
-        G.seqs = [Path.from_dict(seq) for seq in d['seqs']]
+        G.seqs = [Path.from_dict(seq, G.blks) for seq in d['seqs']]
+        G.seqs = {p.name : p for p in G.seqs}
         G.sfxt = None
         G.dmtx = None
         if d['suffix'] is not None:
@@ -260,18 +261,16 @@ class Graph(object):
             merged_blks.add(hit['ref']['name'])
             merged_blks.add(hit['qry']['name'])
 
-        self.pop_empty()
+        for path in self.seqs.values():
+            path.rm_nil_blks()
+
         return self, merged
 
     def prune_blks(self):
         blks = set()
         for path in self.seqs.values():
             blks.update(path.blocks())
-        self.blks = {b:self.blks[b] for b in blks}
-
-    def pop_empty(self):
-        for path in self.seqs.values():
-            self.blks = path.rm_empty(self.blks)
+        self.blks = {b.id:self.blks[b.id] for b in blks}
 
     def merge(self, hit):
         old_ref = self.blks[hit['ref']['name']]
@@ -303,19 +302,19 @@ class Graph(object):
         def update(blk, add_blks, hit, strand):
             new_blks = []
 
-            # The convention for the tuples are (block id, strand orientation, merged)
+            # The convention for the tuples are (block, strand orientation, merged)
             if hit['start'] > 0:
                 left = blk[0:hit['start']]
                 self.blks[left.id] = left
-                new_blks.append((left.id, Strand.Plus, False))
+                new_blks.append((left, Strand.Plus, False))
 
             for b in add_blks:
-                new_blks.append((b.id, strand, True))
+                new_blks.append((b, strand, True))
 
             if hit['end'] < len(blk):
                 right = blk[hit['end']:]
                 self.blks[right.id] = right
-                new_blks.append((right.id, Strand.Plus, False))
+                new_blks.append((right, Strand.Plus, False))
 
             for tag in blk.muts.keys():
                 path = self.seqs[tag[0]]
@@ -326,7 +325,7 @@ class Graph(object):
         self.prune_blks()
 
     def extract(self, name, strip_gaps=True, verbose=False):
-        seq = self.seqs[name].sequence(self.blks)
+        seq = self.seqs[name].sequence()
         if strip_gaps:
             seq = seq.replace('-', '')
         return seq
