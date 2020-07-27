@@ -200,8 +200,6 @@ class Graph(object):
                 dS_r = hit['ref']['start']
                 dE_r = hit['ref']['len'] - hit['ref']['end']
 
-                warnings.simplefilter("ignore")
-
                 # Left side of match
                 if 0 < dS_q <= cutoff and (dS_r > cutoff or dS_r == 0):
                     hit['cigar'] = f"{dS_q}I" + hit['cigar']
@@ -212,7 +210,6 @@ class Graph(object):
                 elif 0 < dS_q <= cutoff and 0 < dS_r <= cutoff:
                     qseq, rseq = getseqs()
                     aln = align(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[0:dS_q], rseq[0:dS_r])[1:]
-                    print(aln)
 
                     hit['cigar'] = to_cigar(aln) + hit['cigar']
                     hit['qry']['start'] = 0
@@ -229,7 +226,6 @@ class Graph(object):
                 elif 0 < dE_q <= cutoff and 0 < dE_r <= cutoff:
                     qseq, rseq = getseqs()
                     aln = align(revcmpl_if(qseq, hit['orientation']==Strand.Minus)[-dE_q:], rseq[-dE_r:])[1:]
-                    print(aln)
 
                     hit['cigar'] = hit['cigar'] + to_cigar(aln)
                     hit['qry']['end'] = hit['qry']['len']
