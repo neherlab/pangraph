@@ -337,7 +337,7 @@ class Tree(object):
                 log(f"--- total input sequence: {uncompressed_length}")
                 log(f"--- compression: {uncompressed_length/tlen:1.2f}")
             else:
-                log("bad sequence reconstruction")
+                raise ValueError("bad sequence reconstruction")
 
         def merge(node1, node2):
             if node1 != node2:
