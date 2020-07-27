@@ -85,6 +85,9 @@ def cat(*args):
 def asrecord(seq, name):
     return SeqRecord(Seq(seq), id=name, name=name, description="")
 
+def rev_cmpl(seq):
+    return str(Seq.reverse_complement(seq))
+
 # ------------------------------------------------------------------------
 # file handling
 

@@ -20,7 +20,7 @@ from seqanpy import align_global as align
 
 sys.path.insert(0, os.path.abspath('.')) # gross hack
 from pangraph.tree  import Tree
-from pangraph.utils import parse_paf, Strand
+from pangraph.utils import parse_paf, Strand, rev_cmpl
 
 # ------------------------------------------------------------------------
 # globals
@@ -67,8 +67,11 @@ def align_seqs(seqs, *ticks):
     def do(tick):
         return Hit(seqs, tick)
 
-    with Pool(10) as jobs:
-        return jobs.map(do, ticks)
+    if len(ticks) >= 5:
+        with Pool(10) as jobs:
+            return jobs.map(do, ticks)
+    else:
+        return [Hit(seqs, tick) for tick in ticks]
 
 def write(wtr, *seqs):
     if len(seqs) == 0:
@@ -103,10 +106,10 @@ def slice_seqs(qry, ref, hit):
         seqs.right.qry = lambda d: qry[max(qend-SEQLEN, 0):min(qend+d, qlen)]
     else:
         seqs.left.ref = lambda d: ref[max(rbeg-d, 0):min(rbeg+SEQLEN, qlen)]
-        seqs.left.qry = lambda d: qry[max(qend-SEQLEN, 0):min(qend+d, qlen)]
+        seqs.left.qry = lambda d: rev_cmpl(qry[max(qend-SEQLEN, 0):min(qend+d, qlen)])
 
         seqs.right.ref = lambda d: ref[max(rend-SEQLEN, 0):min(rend+d, rlen)]
-        seqs.right.qry = lambda d: qry[max(qbeg-d, 0):min(qbeg+SEQLEN, qlen)]
+        seqs.right.qry = lambda d: rev_cmpl(qry[max(qbeg-d, 0):min(qbeg+SEQLEN, qlen)])
 
     return seqs
 
@@ -270,7 +273,7 @@ def main_gather(args):
         if extend.score >= 1.5*normal.score:
             base = f"{HI}/{prefix}_{N['hi']}"
             indx = 'hi'
-        elif extend.score == 1.0*normal.score:
+        elif extend.score >= 0.9*normal.score and extend.score <= 1.1*normal.score:
             base = f"{EQ}/{prefix}_{N['eq']}"
             indx = 'eq'
         elif extend.score <= 0.5*normal.score:
