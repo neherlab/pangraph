@@ -136,16 +136,18 @@ def draw_figure(ticks, left, right):
     ax1.plot(ticks, Dl.T, color='r', alpha=.01)
     ax1.set_xlabel("extension (bp)")
     ax1.set_ylabel("alignment score (normalized)")
+    ax1.set_ylim([0, 2])
     ax1.set_title("left junction")
     ax1.set_ylim([0, 2])
 
     ax2.plot(ticks, Dr.T, color='b', alpha=.01)
     ax2.set_xlabel("extension (bp)")
     ax2.set_ylabel("alignment score (normalized)")
+    ax2.set_ylim([0, 2])
     ax2.set_title("right junction")
     ax2.set_ylim([0, 2])
 
-    fig.savefig("figs/alignment_score_extend_past_junction.png")
+    fig.savefig("figs/alignment_score_extend_past_junction.png", bbox_inches='tight')
 
 # ------------------------------------------------------------------------
 # main point of entry
@@ -168,6 +170,7 @@ def main_align(args):
             with open(path(n.name, "paf")) as fh:
                 hits = parse_paf(fh)
 
+            # TODO: use multiprocessing pool here...
             for hit in hits:
                 if hit['aligned_length'] < 1000:
                     continue
