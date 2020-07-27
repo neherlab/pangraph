@@ -14,12 +14,6 @@ from .sequence import Node, Path
 from .utils    import Strand, as_string, parse_paf, panic, tryprint, as_record, new_strand, breakpoint
 
 # ------------------------------------------------------------------------
-# Global variables
-
-outdir      = "data/graph"
-MAXSELFMAPS = 100
-
-# ------------------------------------------------------------------------
 # Graph class
 
 class Graph(object):
@@ -40,7 +34,7 @@ class Graph(object):
         blk  = Block.from_seq(name, seq)
         newg.name = name
         newg.blks = {blk.id : blk}
-        newg.seqs = {name : Path(Node(blk.id, 0, Strand.Plus), 0)}
+        newg.seqs = {name : Path(name, Node(blk.id, 0, Strand.Plus), 0)}
 
         return newg
 
@@ -92,12 +86,9 @@ class Graph(object):
     @classmethod
     def fuse(cls, g1, g2):
         ng = Graph()
-        merge = lambda d1, d2: {**d1, **d2}
+        merge   = lambda d1, d2: {**d1, **d2}
         ng.blks = merge(g1.blks, g2.blks)
         ng.seqs = merge(g1.seqs, g2.seqs)
-        print(g1.blks, g2.blks)
-        print(ng.blks)
-        breakpoint("debug")
 
         return ng
 
@@ -151,6 +142,7 @@ class Graph(object):
             def proc(hit):
                 # -----------------------
                 # load in sequences
+
                 with open(f"{qpath}.fa", 'r') as fd:
                     qfa = {s.id:str(s.seq) for s in SeqIO.parse(fd, 'fasta')}
 
@@ -293,12 +285,12 @@ class Graph(object):
     def prune(self):
         blks = set()
         for path in self.seqs.values():
-            blks.union_update(path.blocks)
-        self.blks = {b:self.blks[b] for b in blks_remain}
+            blks.update(path.blocks())
+        self.blks = {b:self.blks[b] for b in blks}
 
     def purge_empty(self):
         for path in self.seqs.values():
-            self.blks = path.rm_empty()
+            self.blks = path.rm_empty(self.blks)
 
     def merge(self, hit):
         old_ref = self.blks[hit['ref']['name']]
@@ -346,7 +338,7 @@ class Graph(object):
 
             for tag in blk.muts.keys():
                 path = self.seqs[tag[0]]
-                path.replace(tag, blk, new_blks, blk_map)
+                path.replace(blk, tag, new_blks, blk_map)
 
         update(old_ref, new_refs, hit['ref'], Strand.Plus)
         update(old_qry, new_qrys, hit['qry'], hit['orientation'])

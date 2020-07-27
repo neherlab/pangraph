@@ -57,6 +57,7 @@ def main(args):
     int
         returns 0 for success, 1 for general error
     '''
+    log("reading json")
     with open(args.input, 'r') as input:
         T = Tree.from_json(input)
 
@@ -67,6 +68,8 @@ def main(args):
         i += 1
         tmp = f"{root}/tmp{i:03d}"
     mkdir(tmp)
+
+    log("aligning")
     T.align(tmp, args.len, args.mu, args.beta, args.extensive, args.statistics)
     # TODO: when debugging phase is done, remove tmp directory
 

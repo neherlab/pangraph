@@ -9,7 +9,7 @@ import matplotlib.pylab as plt
 
 from Bio.Seq import Seq
 
-from .utils import Strand, log, flatten, tryprint, panic, breakpoint
+from .utils import Strand, log, flatten, panic, breakpoint
 from .graph import Graph
 
 # ------------------------------------------------------------------------
@@ -288,7 +288,6 @@ class Tree(object):
         leafs = {n.name: n for n in self.get_leafs()}
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
-    # TODO: move all tryprints to logging 
     def align(self, tmpdir, min_blk_len, mu, beta, extensive, log_stats=False, verbose=False):
         stats = {}
         # ---------------------------------------------
@@ -303,7 +302,6 @@ class Tree(object):
 
                 seq  = seqs[n]
                 orig = str(seq[:]).upper()
-                tryprint(f"--> Checking {n.name}", verbose=verbose)
                 rec  = G.extract(n.name)
                 uncompressed_length += len(orig)
                 if orig != rec:
@@ -333,15 +331,12 @@ class Tree(object):
                                 else:
                                     testseqs.append("".join(Seq.reverse_complement(G.blks[b[0]].extract(n.name, b[2]))))
 
-                else:
-                    tryprint(f"+++ Verified {n.name}", verbose=verbose)
-
             if nerror == 0:
-                tryprint("all sequences correctly reconstructed", verbose=verbose)
-                tlength = np.sum([len(x) for x in G.blks.values()])
-                tryprint(f"--- total graph length: {tlength}", verbose=verbose)
-                tryprint(f"--- total input sequence: {uncompressed_length}", verbose=verbose)
-                tryprint(f"--- compression: {uncompressed_length/tlength:1.2f}", verbose=verbose)
+                log("all sequences correctly reconstructed")
+                tlen = np.sum([len(x) for x in G.blks.values()])
+                log(f"--- total graph length: {tlen}")
+                log(f"--- total input sequence: {uncompressed_length}")
+                log(f"--- compression: {uncompressed_length/tlen:1.2f}")
             else:
                 raise ValueError("bad sequence reconstruction")
 
@@ -355,7 +350,7 @@ class Tree(object):
                 graph = node1.graph
 
             for i in range(MAXSELFMAPS):
-                tryprint(f"----> merge round {i}", verbose)
+                log(f"----> merge round {i}")
                 check(self.seqs, graph)
                 itr = f"{tmpdir}/{n.name}_iter_{i}"
                 with open(f"{itr}.fa", 'w') as fd:
@@ -368,42 +363,34 @@ class Tree(object):
         # --------------------------------------------
         # body
 
+        log("inside tree")
+
         if self.num_leafs() == 1:
             return Graph()
 
         # fix trivial graphs onto the leafs
         for i, n in enumerate(self.get_leafs()):
+            log(f"--> leaf {n}")
             seq      = self.seqs[n]
             n.graph  = Graph.from_seq(n.name, str(seq).upper())
             n.fapath = f"{tmpdir}/{n.name}"
-            tryprint(f"------> Outputting {n.fapath}", verbose=verbose)
             with open(f"{n.fapath}.fa", 'w') as fd:
                 n.graph.write_fasta(fd)
 
         for n in self.postorder():
             if n.is_leaf():
                 continue
-                # n.graph = merge(n, n)
-            else:
-                # NOTE: for debugging
-                # pre_terminal = True
-                # for c in n.child:
-                #     if not c.is_leaf():
-                #         pre_terminal = False
-                #         break
-                # if not pre_terminal:
-                #     continue
-                n.fapath = f"{tmpdir}/{n.name}"
-                log(f"attempting to fuse {n.child[0].name} with {n.child[1].name} @ {n.name}")
-                n.graph = merge(*n.child)
-                # delete references to children graphs for cleanup
-                for c in n.child:
-                    if log_stats:
-                        stats[c.name] = {
-                            'length' : [b.length for b in c.graph.blks.values()],
-                            'depth'  : [b.depth  for b in c.graph.blks.values()],
-                        }
-                    c.graph = None
+            n.fapath = f"{tmpdir}/{n.name}"
+            log(f"attempting to fuse {n.child[0].name} with {n.child[1].name} @ {n.name}")
+            n.graph = merge(*n.child)
+            # delete references to children graphs for cleanup
+            for c in n.child:
+                if log_stats:
+                    stats[c.name] = {
+                        'length' : [b.length for b in c.graph.blks.values()],
+                        'depth'  : [b.depth for b in c.graph.blks.values()],
+                    }
+                c.graph = None
 
             check(self.seqs, n.graph)
             with open(f"{n.fapath}.fa", 'w') as fd:

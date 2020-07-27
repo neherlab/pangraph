@@ -1,4 +1,4 @@
-from .utils import Strand, breakpoint, new_strand
+from .utils import Strand, log, breakpoint, new_strand, rev_cmpl
 
 # ------------------------------------------------------------------------
 # Node class: one visit along a path
@@ -28,7 +28,7 @@ class Node(object):
 class Path(object):
     """docstring for Path"""
 
-    def __init__(self, nodes, offset):
+    def __init__(self, name, nodes, offset):
         super(Path, self).__init__()
         self.name   = name
         self.nodes  = nodes if isinstance(nodes, list) else [nodes]
@@ -52,11 +52,11 @@ class Path(object):
     def sequence(self, blks, verbose=False):
         seq = ""
         for n in self.nodes:
-            tmp = blks[n.id].extract(name, num, strip_gaps=False, verbose=verbose)
-            if strand == Strand.Plus:
-                seq += tmp
+            s = blks[n.id].extract(self.name, n.num, strip_gaps=False, verbose=verbose)
+            if n.strand == Strand.Plus:
+                seq += s
             else:
-                seq += str(Seq.reverse_complement(Seq(tmp)))
+                seq += rev_cmpl(s)
 
         if self.offset != 0:
             seq = seq[self.offset:] + seq[:self.offset]
@@ -82,17 +82,17 @@ class Path(object):
         self.nodes = [self.nodes[i] for i in good]
         return blks
 
-    def replace(self, blk, tag, new_blks, blkmap):
+    def replace(self, blk, tag, new_blks, blk_map):
         new = []
-        for b in self.blks:
+        for b in self.nodes:
             if b.id == blk.id and b.num == tag[1]:
                 os  = b.strand
-                mk  = lambda id,ns,merged: Node(id, blkmap[id][blk.id][tag].num, new_strand(os, ns)) if merged else Node(id, b.num, new_strand(orig_strand, ns))
-                tmp = [mk(id,ns,flag) for id, ns, merged in new_blks]
-                if orig_strand == Strand.Minus:
+                mk  = lambda id,ns,merged: Node(id, blk_map[id][blk.id][tag][1], new_strand(os, ns)) if merged else Node(id, b.num, new_strand(os, ns))
+                tmp = [mk(id,ns,flag) for id, ns, flag in new_blks]
+                if os == Strand.Minus:
                     tmp = tmp[::-1]
                 new.extend(tmp)
             else:
                 new.append(b)
 
-        self.blks = new
+        self.nodes = new

@@ -45,6 +45,9 @@ def Complement(S):
 
 wcpair = {'A' : 'T', 'T': 'A', 'C' : 'G', 'G': 'C'}
 
+def rev_cmpl(seq):
+    return str(Seq.reverse_complement(Seq(seq)))
+
 # ------------------------------------------------------------------------
 # errors
 
