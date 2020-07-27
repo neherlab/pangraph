@@ -82,7 +82,7 @@ class Path(object):
         self.nodes = [self.nodes[i] for i in good]
         return blks
 
-    def replace(self, blk, tag, new_blks, blk_map):
+    def replace(self, blk, tag, new_blks, blk_map, blks):
         new = []
         for b in self.nodes:
             if b.id == blk.id and b.num == tag[1]:
