@@ -14,10 +14,6 @@ from Bio  import SeqIO
 import numpy as np
 import matplotlib.pylab as plt
 
-import pyopa
-from pyopa import Sequence as DNA
-from pyopa import align_double as align
-
 sys.path.insert(0, os.path.abspath('.')) # gross hack
 from pangraph.tree  import Tree
 from pangraph.utils import parse_paf
