@@ -3,6 +3,7 @@ build a pangenome alignment from an annotated guide tree
 """
 import os, sys
 import builtins
+import cProfile
 
 from .utils import mkdir, log
 from .tree import Tree
@@ -70,10 +71,12 @@ def main(args):
     mkdir(tmp)
 
     log("aligning")
-    T.align(tmp, args.len, args.mu, args.beta, args.extensive, args.statistics)
-    # TODO: when debugging phase is done, remove tmp directory
+    with cProfile.Profile() as pr:
+        T.align(tmp, args.len, args.mu, args.beta, args.extensive, args.statistics)
+        # TODO: when debugging phase is done, remove tmp directory
 
-    graphs = T.collect()
+        graphs = T.collect()
+    pr.dump_stats("perf.prof")
 
     for i, g in enumerate(graphs):
         log(f"graph {i}: nseqs: {len(g.seqs)} nblks: {len(g.blks)}")

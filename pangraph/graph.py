@@ -2,7 +2,7 @@ import os, sys
 import json
 import numpy as np
 
-from glob  import glob
+from glob import glob
 
 from Bio           import SeqIO, Phylo
 from Bio.Seq       import Seq
@@ -72,7 +72,7 @@ class Graph(object):
         # main body
         graphs, names = [], []
         for name, path in G.seqs.items():
-            blks = path.blocks()
+            blks = set([b.id for b in path.blocks()])
             gi   = [ i for i, g in enumerate(graphs) if overlaps(blks, g)]
             if len(gi) == 0:
                 graphs.append(blks)
