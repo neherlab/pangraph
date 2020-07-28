@@ -115,9 +115,9 @@ class Path(object):
 
     # TODO: debug cases w/ multiple runs
     def merge(self, start, stop, new):
-        ids  = [n.blk.id for n in self.nodes]
-        off, n  = 0, 0
+        N = 0
         while True:
+            ids = [n.blk.id for n in self.nodes]
             try:
                 i, j = ids.index(start[0]), ids.index(stop[0])
 
@@ -127,14 +127,13 @@ class Path(object):
                     beg, end, s = j, i, Strand.Minus
 
                 if beg < end:
-                    self.nodes = self.nodes[:beg] + [Node(new, 0, s)] + self.nodes[end+1:]
+                    self.nodes = self.nodes[:beg] + [Node(new, N, s)] + self.nodes[end+1:]
                 else:
-                    self.offset += sum(n.blk.len_of(self.name, 0) for n in self.nodes[beg:])
-                    self.nodes = [Node(new, 0, s)] + self.nodes[end+1:beg]
+                    self.offset += sum(n.blk.len_of(self.name, N) for n in self.nodes[beg:])
+                    self.nodes = [Node(new, N, s)] + self.nodes[end+1:beg]
                 self.position  = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
 
-                off = max(i, j)
-                n  += 1
+                N += 1
             except:
                 return
 

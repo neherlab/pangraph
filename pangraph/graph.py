@@ -407,6 +407,9 @@ class Graph(object):
             # TODO: check that isos is constant along the chain
             for iso in self.blks[c[0][0]].isolates.keys():
                 self.seqs[iso].merge(c[0], c[-1], new_blk)
+                for n in self.seqs[iso].nodes:
+                    if n.blk.id in [e[0] for e in c]:
+                        breakpoint("bad deletion")
 
             self.blks[new_blk.id] = new_blk
             for b, _ in c:
