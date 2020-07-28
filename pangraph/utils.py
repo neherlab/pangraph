@@ -43,7 +43,30 @@ def Complement(S):
     else:
         raise ValueError(f"expected type 'Strand', got '{type(S)}'")
 
-wcpair = {'A' : 'T', 'T': 'A', 'C' : 'G', 'G': 'C'}
+# Table from https://en.wikipedia.org/wiki/Nucleic_acid_notation
+wcpair = {
+    'A' : 'T',
+    'T' : 'A',
+    'C' : 'G',
+    'G' : 'C',
+    'W' : 'W',
+    'S' : 'S',
+    'M' : 'K',
+    'K' : 'M',
+    'R' : 'Y',
+    'Y' : 'R',
+    'B' : 'V',
+    'D' : 'H',
+    'H' : 'D',
+    'V' : 'B',
+    'Z' : 'Z',
+}
+
+def rev_cmpl(seq):
+    if isinstance(seq,Seq):
+        return str(Seq.reverse_complement(seq))
+    else:
+        return str(Seq.reverse_complement(Seq(seq)))
 
 # ------------------------------------------------------------------------
 # errors
@@ -70,10 +93,10 @@ def log(msg, file=sys.stderr):
 # ------------------------------------------------------------------------
 # simple conversions
 
-def asarray(x):
+def as_array(x):
     return np.array(list(x))
 
-def asstring(x):
+def as_string(x):
     return x.view(f'U{x.size}')[0]
 
 def flatten(x):
@@ -82,11 +105,8 @@ def flatten(x):
 def cat(*args):
     return np.concatenate(tuple(arg for arg in args))
 
-def asrecord(seq, name):
+def as_record(seq, name):
     return SeqRecord(Seq(seq), id=name, name=name, description="")
-
-def rev_cmpl(seq):
-    return str(Seq.reverse_complement(seq))
 
 # ------------------------------------------------------------------------
 # file handling
@@ -112,7 +132,7 @@ def openany(path, mode='r'):
 # ------------------------------------------------------------------------
 # misc
 
-def newstrand(s, t):
+def new_strand(s, t):
     if not isinstance(s, Strand) or not isinstance(t, Strand):
         raise TypeError(f"Expected an enum! Recieved {type(t)} and {type(s)}")
 

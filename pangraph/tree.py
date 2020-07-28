@@ -9,7 +9,7 @@ import matplotlib.pylab as plt
 
 from Bio.Seq import Seq
 
-from .utils import Strand, log, flatten, tryprint, panic, breakpoint
+from .utils import Strand, log, flatten, panic, breakpoint, rev_cmpl
 from .graph import Graph
 
 # ------------------------------------------------------------------------
@@ -58,10 +58,9 @@ def to_list(dmtx):
     return dlst
 
 # ------------------------------------------------------------------------
-# Node and Tree classes
+# Clade and Tree classes
 
-class Node(object):
-
+class Clade(object):
     # ---------------------------------
     # Internal functions
 
@@ -87,8 +86,8 @@ class Node(object):
 
     @classmethod
     def from_dict(cls, d, parent):
-        N = Node(d['name'], parent, d['dist'])
-        N.child = [Node.from_dict(child, N) for child in d['child']]
+        N = Clade(d['name'], parent, d['dist'])
+        N.child = [Clade.from_dict(child, N) for child in d['child']]
         N.fapath = d['fapath']
         N.graph  = Graph.from_dict(d['graph']) if d['graph'] is not None else None
 
@@ -144,7 +143,7 @@ class Tree(object):
     # ------------------- 
     # Class constructor
     def __init__(self, bare=False):
-        self.root   = Node("ROOT", None, 0) if not bare else None
+        self.root   = Clade("ROOT", None, 0) if not bare else None
         self.seqs   = None
         self.leaves = None
 
@@ -156,7 +155,7 @@ class Tree(object):
     def from_json(cls, rdr):
         data   = json.load(rdr)
         T      = Tree(bare=True)
-        T.root = Node.from_dict(data['tree'], None)
+        T.root = Clade.from_dict(data['tree'], None)
 
         leafs  = {n.name: n for n in T.get_leafs()}
         T.seqs = {leafs[k]:Seq(v) for k,v in data['seqs'].items()}
@@ -208,7 +207,7 @@ class Tree(object):
                 assert abs(qmin-q0min) < 1e-2, f"minimum not found correctly. returned {qmin}, expected {q0min}"
                 print(f"{D}\n--> Joining {i} and {j}. d={D[i,j]}")
 
-            node   = Node(f"NODE_{idx:05d}", T.root, None, [T.root.child[i], T.root.child[j]])
+            node   = Clade(f"NODE_{idx:05d}", T.root, None, [T.root.child[i], T.root.child[j]])
 
             d1, d2, dnew = pairdists(D, i, j)
             node.child[0].new_parent(node, d1)
@@ -232,7 +231,7 @@ class Tree(object):
 
         T = Tree()
         for name in names:
-            T.root.child.append(Node(name, T.root, None, children=[]))
+            T.root.child.append(Clade(name, T.root, None, children=[]))
         idx = 0
 
         while mtx.shape[0] > 2:
@@ -288,7 +287,6 @@ class Tree(object):
         leafs = {n.name: n for n in self.get_leafs()}
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
-    # TODO: move all tryprints to logging 
     def align(self, tmpdir, min_blk_len, mu, beta, extensive, log_stats=False, verbose=False):
         stats = {}
         # ---------------------------------------------
@@ -303,7 +301,6 @@ class Tree(object):
 
                 seq  = seqs[n]
                 orig = str(seq[:]).upper()
-                tryprint(f"--> Checking {n.name}", verbose=verbose)
                 rec  = G.extract(n.name)
                 uncompressed_length += len(orig)
                 if orig != rec:
@@ -315,33 +312,30 @@ class Tree(object):
 
                     for i in range(len(orig)//100):
                         if (orig[i*100:(i+1)*100] != rec[i*100:(i+1)*100]):
-                            print("-----------------")
-                            print("O:", i, orig[i*100:(i+1)*100])
-                            print("G:", i, rec[i*100:(i+1)*100])
+                            log("-----------------")
+                            log(f"O: {i} {orig[i*100:(i+1)*100]}")
+                            log(f"G: {i} {rec[i*100:(i+1)*100]}")
 
                             diffs = [i for i in range(len(rec)) if rec[i] != orig[i]]
                             pos   = [0]
-                            blks  = G.seqs[n.name]
-                            for b, strand, num in blks:
-                                pos.append(pos[-1] + len(G.blks[b].extract(n.name, num)))
+                            seq   = G.seqs[n.name]
+                            for nn in seq.nodes:
+                                pos.append(pos[-1] + len(G.blks[nn.id].extract(n.name, nn.num)))
                             pos = pos[1:]
 
                             testseqs = []
-                            for b in G.seqs[n.name]:
-                                if b[1] == Strand.Plus:
-                                    testseqs.append("".join(G.blks[b[0]].extract(n.name, b[2])))
+                            for nn in G.seqs[n.name].nodes:
+                                if nn.strand == Strand.Plus:
+                                    testseqs.append("".join(G.blks[nn.id].extract(n.name, nn.num)))
                                 else:
-                                    testseqs.append("".join(Seq.reverse_complement(G.blks[b[0]].extract(n.name, b[2]))))
-
-                else:
-                    tryprint(f"+++ Verified {n.name}", verbose=verbose)
+                                    testseqs.append("".join(rev_cmpl(G.blks[nn.id].extract(n.name, nn.num))))
 
             if nerror == 0:
-                tryprint("all sequences correctly reconstructed", verbose=verbose)
-                tlength = np.sum([len(x) for x in G.blks.values()])
-                tryprint(f"--- total graph length: {tlength}", verbose=verbose)
-                tryprint(f"--- total input sequence: {uncompressed_length}", verbose=verbose)
-                tryprint(f"--- compression: {uncompressed_length/tlength:1.2f}", verbose=verbose)
+                log("all sequences correctly reconstructed")
+                tlen = np.sum([len(x) for x in G.blks.values()])
+                log(f"--- total graph length: {tlen}")
+                log(f"--- total input sequence: {uncompressed_length}")
+                log(f"--- compression: {uncompressed_length/tlen:1.2f}")
             else:
                 raise ValueError("bad sequence reconstruction")
 
@@ -355,8 +349,8 @@ class Tree(object):
                 graph = node1.graph
 
             for i in range(MAXSELFMAPS):
-                tryprint(f"----> merge round {i}", verbose)
-                # check(self.seqs, graph)
+                log(f"----> merge round {i}")
+                check(self.seqs, graph)
                 itr = f"{tmpdir}/{n.name}_iter_{i}"
                 with open(f"{itr}.fa", 'w') as fd:
                     graph.write_fasta(fd)
@@ -376,39 +370,27 @@ class Tree(object):
             seq      = self.seqs[n]
             n.graph  = Graph.from_seq(n.name, str(seq).upper())
             n.fapath = f"{tmpdir}/{n.name}"
-            tryprint(f"------> Outputting {n.fapath}", verbose=verbose)
             with open(f"{n.fapath}.fa", 'w') as fd:
                 n.graph.write_fasta(fd)
 
         for n in self.postorder():
             if n.is_leaf():
                 continue
-                # n.graph = merge(n, n)
-            else:
-                # NOTE: for debugging
-                pre_terminal = True
-                for c in n.child:
-                    if not c.is_leaf():
-                        pre_terminal = False
-                        break
-                if not pre_terminal:
-                    continue
+            n.fapath = f"{tmpdir}/{n.name}"
+            log(f"fusing {n.child[0].name} with {n.child[1].name} @ {n.name}")
+            n.graph = merge(*n.child)
+            # delete references to children graphs for cleanup
+            for c in n.child:
+                if log_stats:
+                    stats[c.name] = {
+                        'length' : [b.length for b in c.graph.blks.values()],
+                        'depth'  : [b.depth for b in c.graph.blks.values()],
+                    }
+                c.graph = None
 
-                n.fapath = f"{tmpdir}/{n.name}"
-                log(f"attempting to fuse {n.child[0].name} with {n.child[1].name} @ {n.name}")
-                n.graph = merge(*n.child)
-                # delete references to children graphs for cleanup
-                for c in n.child:
-                    if log_stats:
-                        stats[c.name] = {
-                            'length' : [b.length for b in c.graph.blks.values()],
-                            'depth'  : [b.depth  for b in c.graph.blks.values()],
-                        }
-                    c.graph = None
-
-                # check(self.seqs, n.graph)
-                with open(f"{n.fapath}.fa", 'w+') as fd:
-                    n.graph.write_fasta(fd)
+            check(self.seqs, n.graph)
+            with open(f"{n.fapath}.fa", 'w') as fd:
+                n.graph.write_fasta(fd)
 
                 log((f"--> compression ratio: "
                        f"{n.graph.compress_ratio()}"))
@@ -428,8 +410,6 @@ class Tree(object):
         wtr.write(";")
 
     def write_json(self, wtr, no_seqs=False):
-        data = {
-            'tree' : self.root.to_json(),
-            'seqs' : None if no_seqs else {k.name:str(v) for k,v in self.seqs.items()},
-        }
+        data = {'tree' : self.root.to_json(),
+                'seqs' : None if no_seqs else {k.name:str(v) for k,v in self.seqs.items()}}
         wtr.write(json.dumps(data))

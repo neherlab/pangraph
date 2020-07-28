@@ -2,7 +2,7 @@ import numpy as np
 import numpy.random as rng
 
 from collections import defaultdict
-from .utils import parse_cigar, wcpair, asarray, asstring
+from .utils import parse_cigar, wcpair, as_array, as_string
 
 # ------------------------------------------------------------------------
 # Helper functions
@@ -30,6 +30,7 @@ class Block(object):
 
     # ------------------
     # properties
+
     @property
     def length(self):
         return len(self.seq)
@@ -38,13 +39,17 @@ class Block(object):
     def depth(self):
         return len(self.muts)
 
+    @property
+    def isolates(self):
+        return list(set([ k[0] for k in self.muts.keys() ]))
+
     # ------------------
     # static methods
 
     @classmethod
     def from_seq(cls, name, seq):
         new_blk      = cls()
-        new_blk.seq  = asarray(seq)
+        new_blk.seq  = as_array(seq)
         new_blk.muts = {(name, 0):{}}
 
         return new_blk
@@ -57,7 +62,7 @@ class Block(object):
 
         B      = Block()
         B.id   = d['id']
-        B.seq  = asarray(d['seq'])
+        B.seq  = as_array(d['seq'])
         B.muts = {unpack(k):v for k, v in d['muts'].items()}
 
         return B
@@ -85,7 +90,7 @@ class Block(object):
             isomap = {}
             for iso, muts in omuts.items():
                 # Shift position by indel #'s
-                opos = asarray(m for m in muts.keys() if m >= ival[0] and m < ival[1])
+                opos = as_array(m for m in muts.keys() if m >= ival[0] and m < ival[1])
                 npos = opos + xmap[1][np.searchsorted(xmap[0], opos, side='right')]
 
                 assert (np.max(npos) if len(npos) > 0 else 0) < len(seq)
@@ -151,11 +156,17 @@ class Block(object):
 
         assert len(tmp) > 0, "empty sequence"
         if strip_gaps:
-            return asstring(tmp[tmp != '-'])
+            return as_string(tmp[tmp != '-'])
         else:
-            return asstring(tmp)
+            return as_string(tmp)
 
-    def isempty(self, iso, num, strip_gaps=True):
+    def len_of(self, iso, num):
+        tag    = (iso, num)
+        length = len(self.seq)
+        gaplen = sum(1 for s in self.muts[tag].values() if s == '-')
+        return length - gaplen
+
+    def is_empty(self, iso, num, strip_gaps=True):
         tag = (iso, num)
         seq = np.copy(self.seq)
         # NOTE: This is a hack. Need to investigate the error that arises.
@@ -167,11 +178,11 @@ class Block(object):
 
         return len(seq) == 0 or all(nuc == "-" for nuc in seq)
 
-    def revcmpl(self):
+    def rev_cmpl(self):
         from Bio import Seq
 
         nblk     = Block()
-        nblk.seq = asarray(Seq.reverse_complement("".join(self.seq)))
+        nblk.seq = as_array(Seq.reverse_complement("".join(self.seq)))
         L        = len(self.seq)-1
         for s in self.muts:
             nblk.muts[s] = {L-p: wcpair.get(c,c) for p,c in self.muts[s].items()}
