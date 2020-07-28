@@ -104,4 +104,18 @@ class Path(object):
 
         self.nodes    = new
         self.position = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
-        print(self.position, file=sys.stderr)
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            beg = index.start or 0
+            end = index.stop or self.positions[-1]
+
+            i = np.searchsorted(self.positions, beg, side='right')
+            j = np.searchsorted(self.positions, end, side='right') + 1
+            assert i < j, "sorted"
+            return [n.blk for n in self.nodes[i:j]]
+        elif isinstance(index, int):
+            i = np.searchsorted(self.positions, index, side='left')
+            return self.nodes[i].blk
+        else:
+            raise ValueError(f"type '{type(index)}' not supported as index")

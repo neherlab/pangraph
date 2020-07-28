@@ -87,9 +87,9 @@ class Graph(object):
     @classmethod
     def fuse(cls, g1, g2):
         ng = Graph()
-        merge   = lambda d1, d2: {**d1, **d2}
-        ng.blks = merge(g1.blks, g2.blks)
-        ng.seqs = merge(g1.seqs, g2.seqs)
+        combine = lambda d1, d2: {**d1, **d2}
+        ng.blks = combine(g1.blks, g2.blks)
+        ng.seqs = combine(g1.seqs, g2.seqs)
 
         return ng
 
