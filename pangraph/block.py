@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.random as rng
 
-from collections import defaultdict
+from collections import defaultdict, Counter
 from .utils import parse_cigar, wcpair, as_array, as_string
 
 # ------------------------------------------------------------------------
@@ -47,7 +47,7 @@ class Block(object):
 
     @property
     def isolates(self):
-        return list(set([ k[0] for k in self.muts.keys() ]))
+        return dict(Counter([k[0] for k in self.muts]))
 
     # ------------------
     # static methods

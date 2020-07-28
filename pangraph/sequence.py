@@ -20,6 +20,12 @@ class Node(object):
     def __repr__(self):
         return str(self)
 
+    def __eq__(self, other):
+        return self.blk.id == other.blk.id and self.strand == other.strand
+
+    def __hash__(self):
+        return hash((self.blk.id, self.strand))
+
     @classmethod
     def from_dict(cls, d, blks):
         N = Node()

@@ -1,9 +1,10 @@
 import os, sys
 import json
 import numpy as np
+import pprint
 
 from glob        import glob
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 from Bio           import SeqIO, Phylo
 from Bio.Seq       import Seq
@@ -18,6 +19,7 @@ from .utils    import Strand, as_string, parse_paf, panic, as_record, new_strand
 # globals
 
 EXTEND = 2500
+pp = pprint.PrettyPrinter(indent=4)
 
 # ------------------------------------------------------------------------
 # Junction class
@@ -49,11 +51,30 @@ class Junction(object):
     def data(self):
         return ((self.left.blk.id, self.left.strand), (self.right.blk.id, self.right.strand))
 
+    @property
+    def right_id(self):
+        return self.right.blk.id
+
+    @property
+    def left_id(self):
+        return self.left.blk.id
+
+    @property
+    def left_blk(self):
+        return (self.left.blk.id, self.left.strand)
+
+    @property
+    def right_blk(self):
+        return (self.right.blk.id, self.right.strand)
+
     def reverse(self):
         return Junction(
             Node(self.right.blk, self.right.num, Strand(-1*self.right.strand)),
             Node(self.left.blk,  self.left.num,  Strand(-1*self.left.strand)),
         )
+
+def rev_blk(b):
+    return (b[0], Strand(-1*b[1]))
 
 # ------------------------------------------------------------------------
 # Graph class
@@ -311,24 +332,74 @@ class Graph(object):
             #         subpath = path[lb:ub]
             #         print(subpath, file=sys.stderr)
             #         breakpoint("stop")
+        self.remove_transitives()
 
-        js = self.junctions()
-        print(js)
-        breakpoint("junctions")
         for path in self.seqs.values():
             path.rm_nil_blks()
 
         return self, merged
 
     # a junction is a pair of adjacent blocks.
-    # by convention, we always have edges w/ + orientation for the first element
     def junctions(self):
         junctions = defaultdict(list)
         for iso, path in self.seqs.items():
             for i, n in enumerate(path.nodes):
                 j = Junction(path.nodes[i-1], n)
                 junctions[j].append(iso)
-        return dict(junctions)
+        return { k:dict(Counter(v)) for k, v in junctions.items() }
+
+    def remove_transitives(self):
+        js = self.junctions()
+        transitives = []
+        for j, isos in js.items():
+            left_eq_right = self.blks[j.left.blk.id].isolates == self.blks[j.right.blk.id].isolates
+            left_eq_isos  = isos == self.blks[j.left.blk.id].isolates
+            if left_eq_right and left_eq_isos:
+                transitives.append(j)
+
+        chains = {}
+        for j in transitives:
+            if j.left_id in chains and j.right_id in chains:
+                c1, c2 = chains[j.left_id], chains[j.right_id]
+                if c1 == c2:
+                    continue
+
+                if j.left_blk==c1[-1] and j.right_blk==c2[0]:
+                    new_chain = c1 + c2
+                elif j.left_blk==c1[-1] and rev_blk(j.right_blk)==c2[-1]:
+                    new_chain = c1 + [rev_blk(b) for b in c2[::-1]]
+                elif rev_blk(j.left_blk)==c1[0] and j.right_blk==c2[0]:
+                    new_chain = [rev_blk(b) for b in c1[::-1]] + c2
+                elif rev_blk(j.left_blk)==c1[0] and rev_blk(j.right_blk)==c2[-1]:
+                    new_chain = c2 + c1
+                else:
+                    breakpoint("case not covered")
+
+                for b, _ in new_chain:
+                    chains[b] = new_chain
+
+            elif j.left_id in chains:
+                c = chains[j.left_id]
+                if j.left_blk == c[-1]:
+                    c.append(j_right_blk)
+                elif rev_blk(j.left_blk) == c[0]:
+                    c.insert(0, rev_blk(j.right_blk))
+                else:
+                    breakpoint("chains should be linear")
+            elif j.right_id in chains:
+                c = chains[j.right_id]
+                if j.right_blk == c[-1]:
+                    c.append(rev_blk(j.left_blk))
+                elif j.right_blk == c[0]:
+                    c.insert(0, j.left_blk)
+                else:
+                    breakpoint("chains should be linear")
+            else:
+                chains[j.left_id]  = [j.left_blk, j.right_blk]
+                chains[j.right_id] = chains[j.left_id]
+
+        chains = set(chains.values())
+        print(chains)
 
     def prune_blks(self):
         blks = set()
