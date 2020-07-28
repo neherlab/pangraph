@@ -2,7 +2,8 @@ import os, sys
 import json
 import numpy as np
 
-from glob import glob
+from glob        import glob
+from collections import defaultdict
 
 from Bio           import SeqIO, Phylo
 from Bio.Seq       import Seq
@@ -17,6 +18,37 @@ from .utils    import Strand, as_string, parse_paf, panic, as_record, new_strand
 # globals
 
 EXTEND = 2500
+
+# ------------------------------------------------------------------------
+# Junction class
+# simple struct
+
+class Junction(object):
+    def __init__(self, left, right):
+        self.left  = (left.id, left.strand)
+        self.right = (right.id, right.strand)
+
+    def __eq__(self, other):
+        if self.left == other.left and self.right == other.right:
+            return True
+        revo = other.reverse()
+        if self.left == revo.left and self.right == revo.right:
+            return True
+
+        return False
+
+    @property
+    def data(self):
+        return (self.left, self.right)
+
+    def __hash__(self):
+        return hash(frozenset([self.data, self.reverse.data]))
+
+    def reverse(self):
+        return Junction(
+            Node(right.id, right.num, Strand(-1*right.strand)),
+            Node(left.id,  left.num,  Strand(-1*left.strand)),
+        )
 
 # ------------------------------------------------------------------------
 # Graph class
@@ -266,19 +298,30 @@ class Graph(object):
             merged_blks.add(hit['ref']['name'])
             merged_blks.add(hit['qry']['name'])
 
-            for blk in new_blks:
-                for iso in blk.isolates:
-                    path = self.seqs[iso]
-                    x,  n  = path.position_of(blk)
-                    lb, ub = max(0, x-EXTEND), min(x+blk.len_of(iso, n)+EXTEND, len(path))
-                    subpath = path[lb:ub]
-                    print(subpath, file=sys.stderr)
-                    breakpoint("stop")
+            # for blk in new_blks:
+            #     for iso in blk.isolates:
+            #         path = self.seqs[iso]
+            #         x,  n  = path.position_of(blk)
+            #         lb, ub = max(0, x-EXTEND), min(x+blk.len_of(iso, n)+EXTEND, len(path))
+            #         subpath = path[lb:ub]
+            #         print(subpath, file=sys.stderr)
+            #         breakpoint("stop")
 
         for path in self.seqs.values():
             path.rm_nil_blks()
 
         return self, merged
+
+    # a junction is a pair of adjacent blocks.
+    # by convention, we always have edges w/ + orientation for the first element
+    def junctions(self):
+        junctions = defaultdict(list)
+        for iso, path in self.seqs.items():
+            for i, n in path.nodes:
+                j = Junction(path.nodes[i-1], n)
+                junctions[j].append(iso)
+        print(junctions)
+        return junctions
 
     def prune_blks(self):
         blks = set()

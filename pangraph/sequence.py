@@ -15,7 +15,7 @@ class Node(object):
         self.strand = strand
 
     def __str__(self):
-        return f"({self.blk}, {self.num}, {self.strand})")
+        return f"({self.blk}, {self.num}, {self.strand})"
 
     def __repr__(self):
         return str(self)
