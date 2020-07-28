@@ -1,4 +1,6 @@
 import sys
+import numpy as np
+
 from .utils import Strand, log, breakpoint, new_strand, rev_cmpl
 
 # ------------------------------------------------------------------------
@@ -23,6 +25,9 @@ class Node(object):
     def to_dict(self):
         return {'id': self.blk.id, 'num': self.num, 'strand': int(self.strand)}
 
+    def length(self, name):
+        return self.blk.len_of(name, self.num)
+
 # ------------------------------------------------------------------------
 # Path class: (circular) list of blocks
 
@@ -31,9 +36,10 @@ class Path(object):
 
     def __init__(self, name, nodes, offset):
         super(Path, self).__init__()
-        self.name   = name
-        self.nodes  = nodes if isinstance(nodes, list) else [nodes]
-        self.offset = offset
+        self.name     = name
+        self.nodes    = nodes if isinstance(nodes, list) else [nodes]
+        self.offset   = offset
+        self.position = np.cumsum([0] + [n.length(name) for n in self.nodes])
 
     @classmethod
     def from_dict(cls, d):
@@ -80,7 +86,8 @@ class Path(object):
             if not n.blk.has(self.name):
                 popped.add(n.blk.id)
 
-        self.nodes = [self.nodes[i] for i in good]
+        self.nodes    = [self.nodes[i] for i in good]
+        self.position = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
 
     def replace(self, blk, tag, new_blks, blk_map):
         new = []
@@ -95,4 +102,6 @@ class Path(object):
             else:
                 new.append(n)
 
-        self.nodes = new
+        self.nodes    = new
+        self.position = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
+        print(self.position, file=sys.stderr)
