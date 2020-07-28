@@ -75,7 +75,7 @@ class Block(object):
 
     @classmethod
     def cat(cls, blks):
-        nblk = cls()
+        nblk = Block()
         assert all([blks[0].muts.keys() == b2.muts.keys() for b2 in blks[1:]])
 
         nblk.seq  = np.concatenate([b.seq for b in blks])

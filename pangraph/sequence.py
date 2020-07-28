@@ -113,6 +113,23 @@ class Path(object):
         self.nodes    = [self.nodes[i] for i in good]
         self.position = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
 
+    # TODO: deal w/ multiple runs!!
+    def merge(self, start, stop, new):
+        ids  = [n.blk.id for n in self.nodes]
+        i, j = ids.index(start[0]), ids.index(stop[0])
+
+        if self.nodes[i].strand == start[1]:
+            beg, end, s = i, j, Strand.Plus
+        else:
+            beg, end, s = j, i, Strand.Minus
+
+        if beg < end:
+            self.nodes = self.nodes[:beg] + [Node(new, 0, s)] + self.nodes[end+1:]
+        else:
+            self.offset += sum(n.blk.len_of(self.name, 0) for n in self.nodes[beg:])
+            self.nodes = [Node(new, 0, s)] + self.nodes[end+1:beg]
+        self.position = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
+
     def replace(self, blk, tag, new_blks, blk_map):
         new = []
         for n in self.nodes:

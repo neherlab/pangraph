@@ -403,9 +403,14 @@ class Graph(object):
 
         chains = list({id(c):c for c in chains.values()}.values())
         for c in chains:
-            print(c)
-        if len(chains) > 0:
-            breakpoint('test')
+            new_blk = Block.cat([self.blks[id] if s == Strand.Plus else self.blks[id].rev_cmpl() for id, s in c])
+            # TODO: check that isos is constant along the chain
+            for iso in self.blks[c[0][0]].isolates.keys():
+                self.seqs[iso].merge(c, new_blk)
+
+            self.blks[new_blk.id] = new_blk
+            for id, _ in c:
+                self.blks.pop(id)
 
     def prune_blks(self):
         blks = set()
