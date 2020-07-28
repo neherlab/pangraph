@@ -14,6 +14,12 @@ class Node(object):
         self.num    = num
         self.strand = strand
 
+    def __str__(self):
+        return f"({self.blk}, {self.num}, {self.strand})")
+
+    def __repr__(self):
+        return str(self)
+
     @classmethod
     def from_dict(cls, d, blks):
         N = Node()
@@ -40,6 +46,12 @@ class Path(object):
         self.nodes    = nodes if isinstance(nodes, list) else [nodes]
         self.offset   = offset
         self.position = np.cumsum([0] + [n.length(name) for n in self.nodes])
+
+    def __str__(self):
+        return f"{self.name}: {[str(n) for n in self.nodes]}"
+
+    def __repr__(self):
+        return str(self)
 
     @classmethod
     def from_dict(cls, d):
