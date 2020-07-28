@@ -114,17 +114,17 @@ class Path(object):
     def __getitem__(self, index):
         if isinstance(index, slice):
             beg = index.start or 0
-            end = index.stop or self.positions[-1]
+            end = index.stop or self.position[-1]
 
-            i = np.searchsorted(self.positions, beg, side='right')
-            j = np.searchsorted(self.positions, end, side='right') + 1
+            i = np.searchsorted(self.position, beg, side='right')
+            j = np.searchsorted(self.position, end, side='right') + 1
             assert i < j, "sorted"
             return [n.blk for n in self.nodes[i:j]]
         elif isinstance(index, int):
-            i = np.searchsorted(self.positions, index, side='left')
+            i = np.searchsorted(self.position, index, side='left')
             return self.nodes[i].blk
         else:
             raise ValueError(f"type '{type(index)}' not supported as index")
 
     def __len__(self):
-        return self.positions[-1]
+        return self.position[-1]

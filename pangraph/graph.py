@@ -267,7 +267,7 @@ class Graph(object):
             merged_blks.add(hit['qry']['name'])
 
             for blk in new_blks:
-                for iso in blk.isolates():
+                for iso in blk.isolates:
                     path = self.seqs[iso]
                     x,  n  = path.position_of(blk)
                     lb, ub = max(0, x-EXTEND), min(x+blk.len_of(iso, n)+EXTEND, len(path))
@@ -341,7 +341,7 @@ class Graph(object):
         new_blocks.extend(update(old_qry, new_qrys, hit['qry'], hit['orientation']))
         self.prune_blks()
 
-        return new_blocks
+        return [b[0] for b in new_blocks]
 
     def extract(self, name, strip_gaps=True, verbose=False):
         seq = self.seqs[name].sequence()

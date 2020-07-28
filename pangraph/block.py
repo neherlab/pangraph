@@ -41,7 +41,7 @@ class Block(object):
 
     @property
     def isolates(self):
-        return list(self.muts.keys())
+        return list(set([ k[0] for k in self.muts.keys() ]))
 
     # ------------------
     # static methods
