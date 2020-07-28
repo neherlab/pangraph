@@ -381,7 +381,7 @@ class Graph(object):
             elif j.left_id in chains:
                 c = chains[j.left_id]
                 if j.left_blk == c[-1]:
-                    c.append(j_right_blk)
+                    c.append(j.right_blk)
                 elif rev_blk(j.left_blk) == c[0]:
                     c.insert(0, rev_blk(j.right_blk))
                 else:
@@ -398,7 +398,7 @@ class Graph(object):
                 chains[j.left_id]  = [j.left_blk, j.right_blk]
                 chains[j.right_id] = chains[j.left_id]
 
-        chains = set(chains.values())
+        chains = list({id(c):c for c in chains.values()}.values())
         print(chains)
 
     def prune_blks(self):
