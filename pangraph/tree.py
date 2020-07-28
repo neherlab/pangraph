@@ -304,6 +304,7 @@ class Tree(object):
                 rec  = G.extract(n.name)
                 uncompressed_length += len(orig)
                 if orig != rec:
+                    breakpoint("inconsistency")
                     nerror += 1
 
                     with open("test.fa", "w+") as out:

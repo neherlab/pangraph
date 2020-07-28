@@ -77,7 +77,7 @@ class Path(object):
     def sequence(self, verbose=False):
         seq = ""
         for n in self.nodes:
-            s = n.blk.extract(self.name, n.num, strip_gaps=False, verbose=verbose)
+            s = n.blk.extract(self.name, n.num, strip_gaps=True, verbose=verbose)
             if n.strand == Strand.Plus:
                 seq += s
             else:
@@ -120,8 +120,6 @@ class Path(object):
             ids = [n.blk.id for n in self.nodes]
             try:
                 i, j = ids.index(start[0]), ids.index(stop[0])
-            except:
-                return
 
                 if self.nodes[i].strand == start[1]:
                     beg, end, s = i, j, Strand.Plus
@@ -136,6 +134,8 @@ class Path(object):
                 self.position  = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
 
                 N += 1
+            except:
+                return
 
     def replace(self, blk, tag, new_blks, blk_map):
         new = []
