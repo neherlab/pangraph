@@ -28,10 +28,6 @@ class Junction(object):
         self.left  = left
         self.right = right
 
-    @property
-    def data(self):
-        return ((self.left.blk.id, self.left.strand), (self.right.blk.id, self.right.strand))
-
     def __eq__(self, other):
         if self.data == other.data:
             return True
@@ -42,6 +38,16 @@ class Junction(object):
 
     def __hash__(self):
         return hash(frozenset([self.data, self.reverse().data]))
+
+    def __str__(self):
+        return f"({self.left}, {self.right})"
+
+    def __repr__(self):
+        return str(self)
+
+    @property
+    def data(self):
+        return ((self.left.blk.id, self.left.strand), (self.right.blk.id, self.right.strand))
 
     def reverse(self):
         return Junction(
@@ -307,6 +313,8 @@ class Graph(object):
             #         breakpoint("stop")
 
         js = self.junctions()
+        print(js)
+        breakpoint("junctions")
         for path in self.seqs.values():
             path.rm_nil_blks()
 
@@ -320,8 +328,7 @@ class Graph(object):
             for i, n in enumerate(path.nodes):
                 j = Junction(path.nodes[i-1], n)
                 junctions[j].append(iso)
-        print(junctions)
-        return junctions
+        return dict(junctions)
 
     def prune_blks(self):
         blks = set()
