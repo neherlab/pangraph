@@ -343,6 +343,9 @@ class Graph(object):
     def junctions(self):
         junctions = defaultdict(list)
         for iso, path in self.seqs.items():
+            if len(path.nodes) == 1:
+                continue
+
             for i, n in enumerate(path.nodes):
                 j = Junction(path.nodes[i-1], n)
                 junctions[j].append(iso)
@@ -399,7 +402,10 @@ class Graph(object):
                 chains[j.right_id] = chains[j.left_id]
 
         chains = list({id(c):c for c in chains.values()}.values())
-        print(chains)
+        for c in chains:
+            print(c)
+        if len(chains) > 0:
+            breakpoint('test')
 
     def prune_blks(self):
         blks = set()
