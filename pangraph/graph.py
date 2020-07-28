@@ -320,9 +320,14 @@ class Graph(object):
                 path = self.seqs[tag[0]]
                 path.replace(blk, tag, new_blks, blk_map)
 
-        update(old_ref, new_refs, hit['ref'], Strand.Plus)
-        update(old_qry, new_qrys, hit['qry'], hit['orientation'])
+            return new_blks
+
+        new_blocks = []
+        new_blocks.extend(update(old_ref, new_refs, hit['ref'], Strand.Plus))
+        new_blocks.extend(update(old_qry, new_qrys, hit['qry'], hit['orientation']))
         self.prune_blks()
+
+        return new_blocks
 
     def extract(self, name, strip_gaps=True, verbose=False):
         seq = self.seqs[name].sequence()
