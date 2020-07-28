@@ -14,6 +14,11 @@ from .sequence import Node, Path
 from .utils    import Strand, as_string, parse_paf, panic, as_record, new_strand, breakpoint
 
 # ------------------------------------------------------------------------
+# globals
+
+EXTEND = 2500
+
+# ------------------------------------------------------------------------
 # Graph class
 
 class Graph(object):
@@ -256,10 +261,19 @@ class Graph(object):
             or not accepted(hit):
                 continue
 
-            self.merge(proc(hit))
-            merged = True
+            merged   = True
+            new_blks = self.merge(proc(hit))
             merged_blks.add(hit['ref']['name'])
             merged_blks.add(hit['qry']['name'])
+
+            for blk in new_blks:
+                for iso in blk.isolates():
+                    path = self.seqs[iso]
+                    x,  n  = path.position_of(blk)
+                    lb, ub = max(0, x-EXTEND), min(x+blk.len_of(iso, n)+EXTEND, len(path))
+                    subpath = path[lb:ub]
+                    print(subpath, file=sys.stderr)
+                    breakpoint("stop")
 
         for path in self.seqs.values():
             path.rm_nil_blks()

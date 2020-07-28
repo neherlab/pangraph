@@ -70,6 +70,12 @@ class Path(object):
 
         return seq
 
+    def position_of(self, blk):
+        for i, n in enumerate(self.nodes):
+            if n.blk == blk:
+                return i, n.num
+        raise ValueError("block not found in path")
+
     def rm_nil_blks(self):
         good, popped = [], set()
         for i, n in enumerate(self.nodes):
@@ -119,3 +125,6 @@ class Path(object):
             return self.nodes[i].blk
         else:
             raise ValueError(f"type '{type(index)}' not supported as index")
+
+    def __len__(self):
+        return self.positions[-1]

@@ -39,6 +39,10 @@ class Block(object):
     def depth(self):
         return len(self.muts)
 
+    @property
+    def isolates(self):
+        return list(self.muts.keys())
+
     # ------------------
     # static methods
 
