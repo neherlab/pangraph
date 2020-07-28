@@ -25,29 +25,28 @@ EXTEND = 2500
 
 class Junction(object):
     def __init__(self, left, right):
-        self.left  = (left.id, left.strand)
-        self.right = (right.id, right.strand)
-
-    def __eq__(self, other):
-        if self.left == other.left and self.right == other.right:
-            return True
-        revo = other.reverse()
-        if self.left == revo.left and self.right == revo.right:
-            return True
-
-        return False
+        self.left  = left
+        self.right = right
 
     @property
     def data(self):
-        return (self.left, self.right)
+        return ((self.left.blk.id, self.left.strand), (self.right.blk.id, self.right.strand))
+
+    def __eq__(self, other):
+        if self.data == other.data:
+            return True
+        elif self.data == other.reverse().data:
+            return False
+        else:
+            return False
 
     def __hash__(self):
-        return hash(frozenset([self.data, self.reverse.data]))
+        return hash(frozenset([self.data, self.reverse().data]))
 
     def reverse(self):
         return Junction(
-            Node(right.id, right.num, Strand(-1*right.strand)),
-            Node(left.id,  left.num,  Strand(-1*left.strand)),
+            Node(self.right.blk, self.right.num, Strand(-1*self.right.strand)),
+            Node(self.left.blk,  self.left.num,  Strand(-1*self.left.strand)),
         )
 
 # ------------------------------------------------------------------------
@@ -307,6 +306,7 @@ class Graph(object):
             #         print(subpath, file=sys.stderr)
             #         breakpoint("stop")
 
+        js = self.junctions()
         for path in self.seqs.values():
             path.rm_nil_blks()
 
@@ -317,7 +317,7 @@ class Graph(object):
     def junctions(self):
         junctions = defaultdict(list)
         for iso, path in self.seqs.items():
-            for i, n in path.nodes:
+            for i, n in enumerate(path.nodes):
                 j = Junction(path.nodes[i-1], n)
                 junctions[j].append(iso)
         print(junctions)
