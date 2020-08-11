@@ -419,13 +419,13 @@ class Graph(object):
         ref = old_ref[hit['ref']['start']:hit['ref']['end']]
         qry = old_qry[hit['qry']['start']:hit['qry']['end']]
 
-        # print(ref.positions)
-        # print(qry.positions)
-        # # TODO: check for out of bounds accesses
-        # for tag, item in ref.positions.items():
-        #     blks = self.seqs[tag[0]][item-EXTEND:item+EXTEND]
-        #     print(f"Isolate: {tag[0]} blocks: {blks}")
-        # breakpoint("test positions")
+        print(ref.positions)
+        print(qry.positions)
+        for tag, item in ref.positions.items():
+            blks = self.seqs[tag[0]][item[0]-EXTEND:item[1]+EXTEND]
+            if len(blks) >= 3:
+                print(f"Isolate: {tag[0]} blocks: {','.join(b.id for b in blks)}")
+                breakpoint("test positions")
 
         if hit["orientation"] == Strand.Minus:
             qry = qry.rev_cmpl()

@@ -158,8 +158,14 @@ class Path(object):
             beg = index.start or 0
             end = index.stop or self.position[-1]
 
-            i = np.searchsorted(self.position, beg, side='right')
-            j = np.searchsorted(self.position, end, side='right') + 1
+            # TODO: circular slicing
+            beg = max(0, beg)
+            end = min(end, self.position[-1])
+            # if index.start < 0 or end > self.position[-1]:
+                # breakpoint(f"{index}:: need to implement circular slicing")
+
+            i = np.searchsorted(self.position, beg, side='right') - 1
+            j = np.searchsorted(self.position, end, side='left')
             assert i < j, "sorted"
             return [n.blk for n in self.nodes[i:j]]
         elif isinstance(index, int):
