@@ -319,19 +319,11 @@ class Graph(object):
             or not accepted(hit):
                 continue
 
-            merged   = True
-            new_blks = self.merge(proc(hit))
+            merged = True
+            self.merge(proc(hit))
             merged_blks.add(hit['ref']['name'])
             merged_blks.add(hit['qry']['name'])
 
-            # for blk in new_blks:
-            #     for iso in blk.isolates:
-            #         path = self.seqs[iso]
-            #         x,  n  = path.position_of(blk)
-            #         lb, ub = max(0, x-EXTEND), min(x+blk.len_of(iso, n)+EXTEND, len(path))
-            #         subpath = path[lb:ub]
-            #         print(subpath, file=sys.stderr)
-            #         breakpoint("stop")
         self.remove_transitives()
 
         for path in self.seqs.values():
@@ -407,9 +399,6 @@ class Graph(object):
             # TODO: check that isos is constant along the chain
             for iso in self.blks[c[0][0]].isolates.keys():
                 self.seqs[iso].merge(c[0], c[-1], new_blk)
-                # for n in self.seqs[iso].nodes:
-                #     if n.blk.id in [e[0] for e in c]:
-                #         breakpoint("bad deletion")
 
             self.blks[new_blk.id] = new_blk
             for b, _ in c:
@@ -429,6 +418,9 @@ class Graph(object):
         # This is why in from_aln(aln) we set the start index to 0
         ref = old_ref[hit['ref']['start']:hit['ref']['end']]
         qry = old_qry[hit['qry']['start']:hit['qry']['end']]
+        print(ref.positions)
+        print(qry.positions)
+        breakpoint("test positions")
 
         if hit["orientation"] == Strand.Minus:
             qry = qry.rev_cmpl()
