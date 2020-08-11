@@ -88,11 +88,11 @@ class Path(object):
 
         return seq
 
-    def position_of(self, blk):
-        for i, n in enumerate(self.nodes):
-            if n.blk == blk:
-                return i, n.num
-        raise ValueError("block not found in path")
+    # def position_of(self, blk):
+    #     for i, n in enumerate(self.nodes):
+    #         if n.blk == blk:
+    #             return i, n.num
+    #     raise ValueError("block not found in path")
 
     def rm_nil_blks(self):
         good, popped = [], set()
@@ -153,6 +153,17 @@ class Path(object):
         self.nodes    = new
         self.position = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
 
+    def position_of(self, blk, num):
+        index = [i for i, n in enumerate(self.nodes) if n.blk == blk]
+        if len(index) <= num:
+            # print(f"NODES: {self.nodes}")
+            # print(f"BLOCK: {blk}")
+            # print(f"POSITION: {self.position}")
+            # print(f"INDEX: {index}")
+            # breakpoint("break")
+            return None
+        return (self.position[index[num]], self.position[index[num]+1])
+
     def __getitem__(self, index):
         if isinstance(index, slice):
             beg = index.start or 0
@@ -164,12 +175,14 @@ class Path(object):
                 beg = 0
             if end > self.position[-1]:
                 if len(self.nodes) > 1:
-                    r   = self[0:end-self.position[-1]]
+                    r = self[0:(end-self.position[-1])]
                 end = self.position[-1]
+            if beg > end:
+                beg, end = end, beg
 
             i = np.searchsorted(self.position, beg, side='right') - 1
             j = np.searchsorted(self.position, end, side='left')
-            assert i < j, "sorted"
+            assert i < j, f"not sorted, {beg}-{end}"
             return l + [n.blk for n in self.nodes[i:j]] + r
         elif isinstance(index, int):
             i = np.searchsorted(self.position, index, side='right') - 1

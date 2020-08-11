@@ -419,14 +419,6 @@ class Graph(object):
         ref = old_ref[hit['ref']['start']:hit['ref']['end']]
         qry = old_qry[hit['qry']['start']:hit['qry']['end']]
 
-        for tag, item in ref.positions.items():
-            blks = self.seqs[tag[0]][item[0]-EXTEND:item[1]+EXTEND]
-            if len(blks) >= 3:
-                print(ref.positions)
-                print(qry.positions)
-                print(f"Isolate: {tag[0]} blocks: {','.join(b.id for b in blks)}")
-                breakpoint("test positions")
-
         if hit["orientation"] == Strand.Minus:
             qry = qry.rev_cmpl()
 
@@ -473,6 +465,29 @@ class Graph(object):
         new_blocks.extend(update(old_qry, new_qrys, hit['qry'], hit['orientation']))
         self.prune_blks()
 
+        shared_blks = set()
+        first = True
+        for tag in ref.muts.keys():
+            pos  = self.seqs[tag[0]].position_of(new_refs[0], tag[1])
+            blks = self.seqs[tag[0]][pos[0]-EXTEND:pos[1]+EXTEND]
+            if first:
+                shared_blks = set([b.id for b in blks])
+                first = False
+            else:
+                shared_blks.intersection_update(set([b.id for b in blks]))
+        first = True
+        for tag in qry.muts.keys():
+            pos  = self.seqs[tag[0]].position_of(new_qrys[0], tag[1])
+            blks = self.seqs[tag[0]][pos[0]-EXTEND:pos[1]+EXTEND]
+            if first:
+                shared_blks = set([b.id for b in blks])
+                first = False
+            else:
+                shared_blks.intersection_update(set([b.id for b in blks]))
+
+        print(f"LEN: {len(shared_blks)}")
+        if len(shared_blks) > 20:
+            breakpoint("big number of blocks")
         return [b[0] for b in new_blocks]
 
     def extract(self, name, strip_gaps=True, verbose=False):

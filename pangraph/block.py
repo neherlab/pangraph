@@ -92,6 +92,7 @@ class Block(object):
             for s in nblk.muts:
                 nblk.muts[s].update({p+offset:c for p,c in b.muts[s].items()})
             offset += len(b)
+        nblk.pos = { k:v for k,v in blks[0].pos.items() }
 
         return nblk
 
