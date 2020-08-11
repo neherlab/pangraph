@@ -75,7 +75,7 @@ class Block(object):
         B      = Block()
         B.id   = d['id']
         B.seq  = as_array(d['seq'])
-        B.pos  = d['pos']
+        B.pos  = {unpack(k):tuple(v) for k, v in d['pos'].items()}
         B.muts = {unpack(k):v for k, v in d['muts'].items()}
 
         return B
@@ -229,7 +229,7 @@ class Block(object):
 
         return {'id'   : self.id,
                 'seq'  : "".join(str(n) for n in self.seq),
-                'pos'  : self.pos,
+                'pos'  : {pack(k) : v for k,v in self.pos.items()},
                 'muts' : {pack(k) : fix(v) for k, v in self.muts.items()}}
 
     def __len__(self):
