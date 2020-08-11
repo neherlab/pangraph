@@ -419,11 +419,11 @@ class Graph(object):
         ref = old_ref[hit['ref']['start']:hit['ref']['end']]
         qry = old_qry[hit['qry']['start']:hit['qry']['end']]
 
-        print(ref.positions)
-        print(qry.positions)
         for tag, item in ref.positions.items():
             blks = self.seqs[tag[0]][item[0]-EXTEND:item[1]+EXTEND]
             if len(blks) >= 3:
+                print(ref.positions)
+                print(qry.positions)
                 print(f"Isolate: {tag[0]} blocks: {','.join(b.id for b in blks)}")
                 breakpoint("test positions")
 

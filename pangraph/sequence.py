@@ -157,19 +157,22 @@ class Path(object):
         if isinstance(index, slice):
             beg = index.start or 0
             end = index.stop or self.position[-1]
-
-            # TODO: circular slicing
-            beg = max(0, beg)
-            end = min(end, self.position[-1])
-            # if index.start < 0 or end > self.position[-1]:
-                # breakpoint(f"{index}:: need to implement circular slicing")
+            l, r = [], []
+            if beg < 0:
+                if len(self.nodes) > 1:
+                    l   = self[self.position[-1] + beg:self.position[-1]]
+                beg = 0
+            if end > self.position[-1]:
+                if len(self.nodes) > 1:
+                    r   = self[0:end-self.position[-1]]
+                end = self.position[-1]
 
             i = np.searchsorted(self.position, beg, side='right') - 1
             j = np.searchsorted(self.position, end, side='left')
             assert i < j, "sorted"
-            return [n.blk for n in self.nodes[i:j]]
+            return l + [n.blk for n in self.nodes[i:j]] + r
         elif isinstance(index, int):
-            i = np.searchsorted(self.position, index, side='left')
+            i = np.searchsorted(self.position, index, side='right') - 1
             return self.nodes[i].blk
         else:
             raise ValueError(f"type '{type(index)}' not supported as index")
