@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.random as rng
 
-from collections import defaultdict
+from collections import defaultdict, Counter
 from .utils import parse_cigar, wcpair, as_array, as_string
 
 # ------------------------------------------------------------------------
@@ -28,6 +28,12 @@ class Block(object):
         self.seq  = None
         self.muts = {}
 
+    def __str__(self):
+        return str(self.id)
+
+    def __repr__(self):
+        return str(self)
+
     # ------------------
     # properties
 
@@ -41,7 +47,7 @@ class Block(object):
 
     @property
     def isolates(self):
-        return list(set([ k[0] for k in self.muts.keys() ]))
+        return dict(Counter([k[0] for k in self.muts]))
 
     # ------------------
     # static methods
@@ -69,7 +75,7 @@ class Block(object):
 
     @classmethod
     def cat(cls, blks):
-        nblk = cls()
+        nblk = Block()
         assert all([blks[0].muts.keys() == b2.muts.keys() for b2 in blks[1:]])
 
         nblk.seq  = np.concatenate([b.seq for b in blks])

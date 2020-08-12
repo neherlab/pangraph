@@ -14,6 +14,18 @@ class Node(object):
         self.num    = num
         self.strand = strand
 
+    def __str__(self):
+        return f"({self.blk}, {self.num}, {self.strand})"
+
+    def __repr__(self):
+        return str(self)
+
+    def __eq__(self, other):
+        return self.blk.id == other.blk.id and self.strand == other.strand
+
+    def __hash__(self):
+        return hash((self.blk.id, self.strand))
+
     @classmethod
     def from_dict(cls, d, blks):
         N = Node()
@@ -41,6 +53,12 @@ class Path(object):
         self.offset   = offset
         self.position = np.cumsum([0] + [n.length(name) for n in self.nodes])
 
+    def __str__(self):
+        return f"{self.name}: {[str(n) for n in self.nodes]}"
+
+    def __repr__(self):
+        return str(self)
+
     @classmethod
     def from_dict(cls, d):
         P = Path()
@@ -59,7 +77,7 @@ class Path(object):
     def sequence(self, verbose=False):
         seq = ""
         for n in self.nodes:
-            s = n.blk.extract(self.name, n.num, strip_gaps=False, verbose=verbose)
+            s = n.blk.extract(self.name, n.num, strip_gaps=True, verbose=verbose)
             if n.strand == Strand.Plus:
                 seq += s
             else:
@@ -94,6 +112,30 @@ class Path(object):
 
         self.nodes    = [self.nodes[i] for i in good]
         self.position = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
+
+    # TODO: debug cases w/ multiple runs
+    def merge(self, start, stop, new):
+        N = 0
+        while True:
+            ids = [n.blk.id for n in self.nodes]
+            try:
+                i, j = ids.index(start[0]), ids.index(stop[0])
+
+                if self.nodes[i].strand == start[1]:
+                    beg, end, s = i, j, Strand.Plus
+                else:
+                    beg, end, s = j, i, Strand.Minus
+
+                if beg < end:
+                    self.nodes = self.nodes[:beg] + [Node(new, N, s)] + self.nodes[end+1:]
+                else:
+                    self.offset += sum(n.blk.len_of(self.name, N) for n in self.nodes[beg:])
+                    self.nodes = [Node(new, N, s)] + self.nodes[end+1:beg]
+                self.position  = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
+
+                N += 1
+            except:
+                return
 
     def replace(self, blk, tag, new_blks, blk_map):
         new = []

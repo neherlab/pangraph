@@ -304,6 +304,7 @@ class Tree(object):
                 rec  = G.extract(n.name)
                 uncompressed_length += len(orig)
                 if orig != rec:
+                    breakpoint("inconsistency")
                     nerror += 1
 
                     with open("test.fa", "w+") as out:
@@ -320,15 +321,15 @@ class Tree(object):
                             pos   = [0]
                             seq   = G.seqs[n.name]
                             for nn in seq.nodes:
-                                pos.append(pos[-1] + len(G.blks[nn.id].extract(n.name, nn.num)))
+                                pos.append(pos[-1] + len(G.blks[nn.blk.id].extract(n.name, nn.num)))
                             pos = pos[1:]
 
                             testseqs = []
                             for nn in G.seqs[n.name].nodes:
                                 if nn.strand == Strand.Plus:
-                                    testseqs.append("".join(G.blks[nn.id].extract(n.name, nn.num)))
+                                    testseqs.append("".join(G.blks[nn.blk.id].extract(n.name, nn.num)))
                                 else:
-                                    testseqs.append("".join(rev_cmpl(G.blks[nn.id].extract(n.name, nn.num))))
+                                    testseqs.append("".join(rev_cmpl(G.blks[nn.blk.id].extract(n.name, nn.num))))
 
             if nerror == 0:
                 log("all sequences correctly reconstructed")
