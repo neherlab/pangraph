@@ -3,7 +3,6 @@ build a pangenome alignment from an annotated guide tree
 """
 import os, sys
 import builtins
-import cProfile
 
 from .utils import mkdir, log
 from .tree import Tree
