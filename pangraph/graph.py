@@ -1,12 +1,13 @@
-import os, sys
+import io, os, sys
 import json
 import numpy as np
 import pprint
+import subprocess
+import tempfile
 
 from glob        import glob
 from collections import defaultdict, Counter
 from itertools   import chain
-import subprocess
 
 from Bio           import SeqIO, Phylo
 from Bio.Seq       import Seq
@@ -468,6 +469,7 @@ class Graph(object):
 
         blk_list = set()
         first    = True
+        num_seqs = 0
         for tag in ref.muts.keys():
             # NOTE: this is a hack to deal with flipped orientations
             pos  = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in new_refs], key=lambda x: x[0])
@@ -478,6 +480,7 @@ class Graph(object):
                 first = False
             else:
                 blk_list.intersection_update(set([b.id for b in blks]))
+            num_seqs += 1
 
         for tag in qry.muts.keys():
             try:
@@ -487,21 +490,30 @@ class Graph(object):
             beg, end  = pos[0], pos[-1]
             blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
             blk_list.intersection_update(set([b.id for b in blks]))
+            num_seqs += 1
 
         delta = len(blk_list)-len(shared_blks)
-        if delta > 0:
-            print(f"LEN: {delta}")
-            buf = ""
-            for i, tag in enumerate(chain(ref.muts.keys(), qry.muts.keys())):
-                buf += ">isolate_{i:04d}\n"
-                blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
-                for b in blks:
-                    buf += b.extract(*tag)
-                buf += '\n'
-            proc = subprocess.run(["mafft", "-"], stdout=subprocess.PIPE, input=buf, encoding='ascii')
-            print(proc.stdout)
-            print(proc.stderr)
-            breakpoint('test')
+        if delta > 0 and num_seqs > 1:
+            print(f"LEN: {delta}", end="\t")
+            fd, path = tempfile.mkstemp()
+            try:
+                with os.fdopen(fd, 'w') as tmp:
+                    for i, tag in enumerate(chain(ref.muts.keys(), qry.muts.keys())):
+                        tmp.write(f">isolate_{i:04d}\n")
+                        blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
+                        for b in blks:
+                            tmp.write(b.extract(*tag))
+                        tmp.write('\n')
+                    tmp.flush()
+                    proc = subprocess.Popen(f"mafft --auto --quiet {path} | fasttree",
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                shell=True)
+                    out, err = proc.communicate()
+                    tree = Phylo.read(io.StringIO(out.decode('utf-8')), format='newick')
+                    print(tree.total_branch_length())
+            finally:
+                os.remove(path)
         else:
             print(f"NO MATCH")
 
