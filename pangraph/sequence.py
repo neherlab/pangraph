@@ -156,11 +156,6 @@ class Path(object):
     def position_of(self, blk, num):
         index = [i for i, n in enumerate(self.nodes) if n.blk == blk]
         if len(index) <= num:
-            # print(f"NODES: {self.nodes}")
-            # print(f"BLOCK: {blk}")
-            # print(f"POSITION: {self.position}")
-            # print(f"INDEX: {index}")
-            # breakpoint("break")
             return None
         return (self.position[index[num]], self.position[index[num]+1])
 

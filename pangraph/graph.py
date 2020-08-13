@@ -467,8 +467,9 @@ class Graph(object):
         blk_list = set()
         first    = True
         for tag in ref.muts.keys():
-            beg  = self.seqs[tag[0]].position_of(new_refs[0], tag[1])
-            end  = self.seqs[tag[0]].position_of(new_refs[-1], tag[1])
+            # NOTE: this is a hack to deal with flipped orientations
+            pos  = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in new_refs], key=lambda x: x[0])
+            beg, end  = pos[0], pos[-1]
             blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
             if first:
                 blk_list = set([b.id for b in blks])
@@ -477,13 +478,37 @@ class Graph(object):
                 blk_list.intersection_update(set([b.id for b in blks]))
 
         for tag in qry.muts.keys():
-            beg  = self.seqs[tag[0]].position_of(new_qrys[0], tag[1])
-            end  = self.seqs[tag[0]].position_of(new_qrys[-1], tag[1])
+            pos  = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in new_qrys], key=lambda x: x[0])
+            beg, end  = pos[0], pos[-1]
             blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
             blk_list.intersection_update(set([b.id for b in blks]))
 
         print(f"LEN: {len(blk_list)-len(shared_blks)}")
         if len(blk_list) < len(shared_blks):
+            ref_list = set()
+            first    = True
+            for tag in ref.muts.keys():
+                beg  = self.seqs[tag[0]].position_of(new_refs[0], tag[1])
+                end  = self.seqs[tag[0]].position_of(new_refs[-1], tag[1])
+                blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
+                if first:
+                    ref_list = set([b.id for b in blks])
+                    first = False
+                else:
+                    ref_list.intersection_update(set([b.id for b in blks]))
+
+            qry_list = set()
+            first    = True
+            for tag in qry.muts.keys():
+                beg  = self.seqs[tag[0]].position_of(new_qrys[0], tag[1])
+                end  = self.seqs[tag[0]].position_of(new_qrys[-1], tag[1])
+                blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
+                if first:
+                    qry_list = set([b.id for b in blks])
+                    first = False
+                else:
+                    qry_list.intersection_update(set([b.id for b in blks]))
+
             breakpoint("inconsistent number of blocks")
 
         self.prune_blks()
