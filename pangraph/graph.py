@@ -478,7 +478,10 @@ class Graph(object):
                 blk_list.intersection_update(set([b.id for b in blks]))
 
         for tag in qry.muts.keys():
-            pos  = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in new_qrys], key=lambda x: x[0])
+            try:
+                pos  = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in new_qrys], key=lambda x: x[0])
+            except:
+                breakpoint("bad find")
             beg, end  = pos[0], pos[-1]
             blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
             blk_list.intersection_update(set([b.id for b in blks]))

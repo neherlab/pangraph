@@ -88,12 +88,6 @@ class Path(object):
 
         return seq
 
-    # def position_of(self, blk):
-    #     for i, n in enumerate(self.nodes):
-    #         if n.blk == blk:
-    #             return i, n.num
-    #     raise ValueError("block not found in path")
-
     def rm_nil_blks(self):
         good, popped = [], set()
         for i, n in enumerate(self.nodes):
@@ -121,6 +115,8 @@ class Path(object):
             try:
                 i, j = ids.index(start[0]), ids.index(stop[0])
 
+                if N > 0:
+                    breakpoint("HIT")
                 if self.nodes[i].strand == start[1]:
                     beg, end, s = i, j, Strand.Plus
                 else:
@@ -154,8 +150,8 @@ class Path(object):
         self.position = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
 
     def position_of(self, blk, num):
-        index = [i for i, n in enumerate(self.nodes) if n.blk == blk]
-        if len(index) <= num:
+        index = { n.num:i for i, n in enumerate(self.nodes) if n.blk == blk }
+        if not num in index:
             return None
         return (self.position[index[num]], self.position[index[num]+1])
 
