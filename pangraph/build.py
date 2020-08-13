@@ -85,6 +85,7 @@ def main(args):
         with open(f"{root}/graph_{i:03d}.fa", 'w') as fd:
             g.write_fasta(fd)
 
-    T.write_json(sys.stdout, no_seqs=True)
+    # NOTE: uncomment when done debugging
+    # T.write_json(sys.stdout, no_seqs=True)
 
     return 0

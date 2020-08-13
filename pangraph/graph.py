@@ -5,6 +5,8 @@ import pprint
 
 from glob        import glob
 from collections import defaultdict, Counter
+from itertools   import chain
+import subprocess
 
 from Bio           import SeqIO, Phylo
 from Bio.Seq       import Seq
@@ -486,7 +488,24 @@ class Graph(object):
             blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
             blk_list.intersection_update(set([b.id for b in blks]))
 
-        print(f"LEN: {len(blk_list)-len(shared_blks)}")
+        delta = len(blk_list)-len(shared_blks)
+        if delta > 0:
+            print(f"LEN: {delta}")
+            buf = ""
+            for i, tag in enumerate(chain(ref.muts.keys(), qry.muts.keys())):
+                buf += ">isolate_{i:04d}\n"
+                blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
+                for b in blks:
+                    buf += b.extract(*tag)
+                buf += '\n'
+            proc = subprocess.run(["mafft", "-"], stdout=subprocess.PIPE, input=buf, encoding='ascii')
+            print(proc.stdout)
+            print(proc.stderr)
+            breakpoint('test')
+        else:
+            print(f"NO MATCH")
+
+        # NOTE: debugging code
         if len(blk_list) < len(shared_blks):
             ref_list = set()
             first    = True
