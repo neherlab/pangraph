@@ -148,7 +148,9 @@ class Block(object):
             qryblks = qryblks[::-1]
         refblks = [nb for i, nb in enumerate(newblks) if refs[i] is not None]
 
-        return newblks, qryblks, refblks, isomap
+        sharedblks = [nb for i, nb in enumerate(newblks) if refs[i] is not None and qrys[i] is not None]
+
+        return newblks, qryblks, refblks, sharedblks, isomap
 
     # --------------
     # methods

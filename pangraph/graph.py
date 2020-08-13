@@ -433,7 +433,7 @@ class Graph(object):
                "qry_name"    : hit["qry"]["name"],
                "orientation" : hit["orientation"]}
 
-        merged_blks, new_qrys, new_refs, blk_map = Block.from_aln(aln)
+        merged_blks, new_qrys, new_refs, shared_blks, blk_map = Block.from_aln(aln)
         for merged_blk in merged_blks:
             self.blks[merged_blk.id] = merged_blk
 
@@ -463,31 +463,31 @@ class Graph(object):
         new_blocks = []
         new_blocks.extend(update(old_ref, new_refs, hit['ref'], Strand.Plus))
         new_blocks.extend(update(old_qry, new_qrys, hit['qry'], hit['orientation']))
+
+        blk_list = set()
+        first    = True
+        for tag in ref.muts.keys():
+            beg  = self.seqs[tag[0]].position_of(new_refs[0], tag[1])
+            end  = self.seqs[tag[0]].position_of(new_refs[-1], tag[1])
+            blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
+            if first:
+                blk_list = set([b.id for b in blks])
+                first = False
+            else:
+                blk_list.intersection_update(set([b.id for b in blks]))
+
+        for tag in qry.muts.keys():
+            beg  = self.seqs[tag[0]].position_of(new_qrys[0], tag[1])
+            end  = self.seqs[tag[0]].position_of(new_qrys[-1], tag[1])
+            blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
+            blk_list.intersection_update(set([b.id for b in blks]))
+
+        print(f"LEN: {len(blk_list)-len(shared_blks)}")
+        if len(blk_list) < len(shared_blks):
+            breakpoint("inconsistent number of blocks")
+
         self.prune_blks()
 
-        shared_blks = set()
-        first = True
-        for tag in ref.muts.keys():
-            pos  = self.seqs[tag[0]].position_of(new_refs[0], tag[1])
-            blks = self.seqs[tag[0]][pos[0]-EXTEND:pos[1]+EXTEND]
-            if first:
-                shared_blks = set([b.id for b in blks])
-                first = False
-            else:
-                shared_blks.intersection_update(set([b.id for b in blks]))
-        first = True
-        for tag in qry.muts.keys():
-            pos  = self.seqs[tag[0]].position_of(new_qrys[0], tag[1])
-            blks = self.seqs[tag[0]][pos[0]-EXTEND:pos[1]+EXTEND]
-            if first:
-                shared_blks = set([b.id for b in blks])
-                first = False
-            else:
-                shared_blks.intersection_update(set([b.id for b in blks]))
-
-        print(f"LEN: {len(shared_blks)}")
-        if len(shared_blks) > 20:
-            breakpoint("big number of blocks")
         return [b[0] for b in new_blocks]
 
     def extract(self, name, strip_gaps=True, verbose=False):

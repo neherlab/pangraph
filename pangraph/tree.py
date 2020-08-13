@@ -139,6 +139,11 @@ class Clade(object):
                 'fapath'   : self.fapath,
                 'graph'    : serialize(self.graph) if self.graph is not None else None }
 
+    def set_level(self, level):
+        for c in self.child:
+            c.set_level(level+1)
+        self.level = level
+
 class Tree(object):
     # ------------------- 
     # Class constructor
@@ -288,6 +293,7 @@ class Tree(object):
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
     def align(self, tmpdir, min_blk_len, mu, beta, extensive, log_stats=False, verbose=False):
+        self.root.set_level(0) # NOTE: for debug logging
         stats = {}
         # ---------------------------------------------
         # internal functions
@@ -377,6 +383,7 @@ class Tree(object):
         for n in self.postorder():
             if n.is_leaf():
                 continue
+            print(f"---NODE LEVEL {n.level}---")
             n.fapath = f"{tmpdir}/{n.name}"
             log(f"fusing {n.child[0].name} with {n.child[1].name} @ {n.name}")
             n.graph = merge(*n.child)
