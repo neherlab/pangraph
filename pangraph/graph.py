@@ -496,27 +496,30 @@ class Graph(object):
         delta = len(blk_list)-len(shared_blks)
         if delta > 0 and num_seqs > 1:
             print(f"LEN: {delta}", end="\t")
-            for n, (left, right) in enumerate([(beg[0]-EXTEND,beg[0]+WINDOW), (end[1]-WINDOW,end[1]+EXTEND)]):
+            try:
                 fd, path = tempfile.mkstemp()
-                try:
-                    with os.fdopen(fd, 'w') as tmp:
-                        for i, tag in enumerate(chain(ref.muts.keys(), qry.muts.keys())):
-                            tmp.write(f">isolate_{i:04d}\n")
-                            if left == right:
-                                breakpoint("no difference")
-                            tmp.write(self.seqs[tag[0]].sequence_range(left,right))
-                            tmp.write('\n')
-                        tmp.flush()
-                        print(f"aligning {num_seqs} seqs")
-                        proc = subprocess.Popen(f"mafft --auto {path} | fasttree",
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
-                                    shell=True)
-                        out, err = proc.communicate()
-                        tree = Phylo.read(io.StringIO(out.decode('utf-8')), format='newick')
-                        print(f"-> NUM {n}: {tree.total_branch_length()}")
-                finally:
-                    os.remove(path)
+                with os.fdopen(fd, 'w') as tmp:
+                    for i, tag in enumerate(chain(ref.muts.keys(), qry.muts.keys())):
+                        pos = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks], key=lambda x: x[0])
+                        beg, end = pos[0], pos[-1]
+
+                        tmp.write(f">isolate_{i:04d}\n")
+                        for n, (left, right) in enumerate([(beg[0]-EXTEND,beg[0]+WINDOW)]): #, (end[1]-WINDOW,end[1]+EXTEND)]):
+                            s = self.seqs[tag[0]].sequence_range(left,right)
+                            if len(s) > EXTEND + WINDOW:
+                                breakpoint(f"bad sequence slicing: {len(s)}")
+                            tmp.write(s + '\n')
+                    tmp.flush()
+                    print(f"aligning {num_seqs} seqs")
+                    proc = subprocess.Popen(f"mafft --auto {path} | fasttree",
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                shell=True)
+                    out, err = proc.communicate()
+                    tree = Phylo.read(io.StringIO(out.decode('utf-8')), format='newick')
+                    print(f"-> NUM {n}: {tree.total_branch_length()}")
+            finally:
+                os.remove(path)
         else:
             print(f"NO MATCH")
 

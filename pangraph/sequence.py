@@ -161,6 +161,8 @@ class Path(object):
         beg = start or 0
         end = stop or self.position[-1]
         l, r = "", ""
+        # if start == 159 and stop == 3659:
+        #     breakpoint("test")
         if beg < 0:
             if len(self.nodes) > 1:
                 l = self.sequence_range(self.position[-1]+beg,self.position[-1])
@@ -176,16 +178,17 @@ class Path(object):
         j = np.searchsorted(self.position, end, side='left')
         m = ""
         if i < j:
-            if beg < self.position[i]:
-                breakpoint("bad start search")
-            if end > self.position[j]:
-                breakpoint("bad end search")
-            m = self.nodes[i].blk.extract(self.name, self.nodes[i].num)[(beg-self.position[i]):]
-            for n in self.nodes[i+1:j-1]:
-                m += n.blk.extract(self.name, n.num)
-            if j < len(self.nodes):
-                b  = self.nodes[j].blk.extract(self.name, self.nodes[j].num)
-                m += b[0:(len(b)+self.position[j]-end)]
+            if j >= len(self.position):
+                breakpoint("what?")
+            if i == j - 1:
+                m = self.nodes[i].blk.extract(self.name, self.nodes[i].num)[(beg-self.position[i]):(end-self.position[i])]
+            else:
+                m = self.nodes[i].blk.extract(self.name, self.nodes[i].num)[(beg-self.position[i]):]
+                for n in self.nodes[i+1:j-1]:
+                    m += n.blk.extract(self.name, n.num)
+                n  = self.nodes[j-1]
+                b  = n.blk.extract(self.name, n.num)
+                m += b[0:(end-self.position[j-1])]
         return l + m + r
 
     def __getitem__(self, index):
