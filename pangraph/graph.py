@@ -504,13 +504,11 @@ class Graph(object):
                             tmp.write(f">isolate_{i:04d}\n")
                             if left == right:
                                 breakpoint("no difference")
-                            blks = self.seqs[tag[0]][left:right]
-                            for b in blks:
-                                tmp.write(b.extract(*tag))
+                            tmp.write(self.seqs[tag[0]].sequence_range(left,right))
                             tmp.write('\n')
                         tmp.flush()
                         print(f"aligning {num_seqs} seqs")
-                        proc = subprocess.Popen(f"mafft --auto --quiet {path} | fasttree",
+                        proc = subprocess.Popen(f"mafft --auto {path} | fasttree",
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
                                     shell=True)

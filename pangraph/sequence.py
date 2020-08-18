@@ -155,6 +155,39 @@ class Path(object):
             return None
         return (self.position[index[num]], self.position[index[num]+1])
 
+    # TODO: pull out common functionality into a helper function
+    # TODO: merge with other sequence function
+    def sequence_range(self, start=None, stop=None):
+        beg = start or 0
+        end = stop or self.position[-1]
+        l, r = "", ""
+        if beg < 0:
+            if len(self.nodes) > 1:
+                l = self.sequence_range(self.position[-1]+beg,self.position[-1])
+            beg = 0
+        if end > self.position[-1]:
+            if len(self.nodes) > 1:
+                r = self.sequence_range(0,end-self.position[-1])
+            end = self.position[-1]
+        if beg > end:
+            beg, end = end, beg
+
+        i = np.searchsorted(self.position, beg, side='right') - 1
+        j = np.searchsorted(self.position, end, side='left')
+        m = ""
+        if i < j:
+            if beg < self.position[i]:
+                breakpoint("bad start search")
+            if end > self.position[j]:
+                breakpoint("bad end search")
+            m = self.nodes[i].blk.extract(self.name, self.nodes[i].num)[(beg-self.position[i]):]
+            for n in self.nodes[i+1:j-1]:
+                m += n.blk.extract(self.name, n.num)
+            if j < len(self.nodes):
+                b  = self.nodes[j].blk.extract(self.name, self.nodes[j].num)
+                m += b[0:(len(b)+self.position[j]-end)]
+        return l + m + r
+
     def __getitem__(self, index):
         if isinstance(index, slice):
             beg = index.start or 0
@@ -162,7 +195,7 @@ class Path(object):
             l, r = [], []
             if beg < 0:
                 if len(self.nodes) > 1:
-                    l   = self[self.position[-1] + beg:self.position[-1]]
+                    l = self[(self.position[-1]+beg):self.position[-1]]
                 beg = 0
             if end > self.position[-1]:
                 if len(self.nodes) > 1:
