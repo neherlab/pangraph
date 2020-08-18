@@ -97,7 +97,10 @@ def as_array(x):
     return np.array(list(x))
 
 def as_string(x):
-    return x.view(f'U{x.size}')[0]
+    try:
+        return x.view(f'U{x.size}')[0]
+    except:
+        return "".join(str(c) for c in x)
 
 def flatten(x):
     return np.ndarray.flatten(x[:])
