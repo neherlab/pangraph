@@ -21,6 +21,7 @@ from .utils    import Strand, as_string, parse_paf, panic, as_record, new_strand
 # ------------------------------------------------------------------------
 # globals
 
+WINDOW = 1000
 EXTEND = 2500
 pp = pprint.PrettyPrinter(indent=4)
 
@@ -495,12 +496,14 @@ class Graph(object):
         delta = len(blk_list)-len(shared_blks)
         if delta > 0 and num_seqs > 1:
             print(f"LEN: {delta}", end="\t")
-            for i, (left, right) in enumerate([(beg[0]-EXTEND,beg[0]), (end[1],end[1]+EXTEND)]):
+            for n, (left, right) in enumerate([(beg[0]-EXTEND,beg[0]+WINDOW), (end[1]-WINDOW,end[1]+EXTEND)]):
                 fd, path = tempfile.mkstemp()
                 try:
                     with os.fdopen(fd, 'w') as tmp:
                         for i, tag in enumerate(chain(ref.muts.keys(), qry.muts.keys())):
                             tmp.write(f">isolate_{i:04d}\n")
+                            if left == right:
+                                breakpoint("no difference")
                             blks = self.seqs[tag[0]][left:right]
                             for b in blks:
                                 tmp.write(b.extract(*tag))
@@ -513,7 +516,7 @@ class Graph(object):
                                     shell=True)
                         out, err = proc.communicate()
                         tree = Phylo.read(io.StringIO(out.decode('utf-8')), format='newick')
-                        print(f"-> NUM {i}: {tree.total_branch_length()}")
+                        print(f"-> NUM {n}: {tree.total_branch_length()}")
                 finally:
                     os.remove(path)
         else:

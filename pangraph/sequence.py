@@ -173,7 +173,8 @@ class Path(object):
 
             i = np.searchsorted(self.position, beg, side='right') - 1
             j = np.searchsorted(self.position, end, side='left')
-            assert i < j, f"not sorted, {beg}-{end}"
+            if i > j:
+                breakpoint(f"not sorted, {beg}-{end}")
             return l + [n.blk for n in self.nodes[i:j]] + r
         elif isinstance(index, int):
             i = np.searchsorted(self.position, index, side='right') - 1
