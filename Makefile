@@ -55,7 +55,7 @@ staph:
 	@echo "cluster    staph"; \
 	pangraph cluster -d data/staph data/staph/assemblies/*.fna.gz
 	@echo "build      staph"; \
-	pangraph build -d data/staph -m 500 -b 0 data/staph/guide.json 2>/dev/null #1>staph.log
+	pangraph build -d data/staph -m 500 -b 0 data/staph/guide.json #1>staph.log
 
 # figures
 

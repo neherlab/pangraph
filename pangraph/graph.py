@@ -495,55 +495,57 @@ class Graph(object):
         delta = len(blk_list)-len(shared_blks)
         if delta > 0 and num_seqs > 1:
             print(f"LEN: {delta}", end="\t")
-            fd, path = tempfile.mkstemp()
-            try:
-                with os.fdopen(fd, 'w') as tmp:
-                    for i, tag in enumerate(chain(ref.muts.keys(), qry.muts.keys())):
-                        tmp.write(f">isolate_{i:04d}\n")
-                        blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
-                        for b in blks:
-                            tmp.write(b.extract(*tag))
-                        tmp.write('\n')
-                    tmp.flush()
-                    proc = subprocess.Popen(f"mafft --auto --quiet {path} | fasttree",
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                shell=True)
-                    out, err = proc.communicate()
-                    tree = Phylo.read(io.StringIO(out.decode('utf-8')), format='newick')
-                    print(tree.total_branch_length())
-            finally:
-                os.remove(path)
+            for i, (left, right) in enumerate([(beg[0]-EXTEND,beg[0]), (end[1],end[1]+EXTEND)]):
+                fd, path = tempfile.mkstemp()
+                try:
+                    with os.fdopen(fd, 'w') as tmp:
+                        for i, tag in enumerate(chain(ref.muts.keys(), qry.muts.keys())):
+                            tmp.write(f">isolate_{i:04d}\n")
+                            blks = self.seqs[tag[0]][left:right]
+                            for b in blks:
+                                tmp.write(b.extract(*tag))
+                            tmp.write('\n')
+                        tmp.flush()
+                        print(f"aligning {num_seqs} seqs")
+                        proc = subprocess.Popen(f"mafft --auto --quiet {path} | fasttree",
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    shell=True)
+                        out, err = proc.communicate()
+                        tree = Phylo.read(io.StringIO(out.decode('utf-8')), format='newick')
+                        print(f"-> NUM {i}: {tree.total_branch_length()}")
+                finally:
+                    os.remove(path)
         else:
             print(f"NO MATCH")
 
         # NOTE: debugging code
-        if len(blk_list) < len(shared_blks):
-            ref_list = set()
-            first    = True
-            for tag in ref.muts.keys():
-                beg  = self.seqs[tag[0]].position_of(new_refs[0], tag[1])
-                end  = self.seqs[tag[0]].position_of(new_refs[-1], tag[1])
-                blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
-                if first:
-                    ref_list = set([b.id for b in blks])
-                    first = False
-                else:
-                    ref_list.intersection_update(set([b.id for b in blks]))
+        # if len(blk_list) < len(shared_blks):
+        #     ref_list = set()
+        #     first    = True
+        #     for tag in ref.muts.keys():
+        #         beg  = self.seqs[tag[0]].position_of(new_refs[0], tag[1])
+        #         end  = self.seqs[tag[0]].position_of(new_refs[-1], tag[1])
+        #         blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
+        #         if first:
+        #             ref_list = set([b.id for b in blks])
+        #             first = False
+        #         else:
+        #             ref_list.intersection_update(set([b.id for b in blks]))
 
-            qry_list = set()
-            first    = True
-            for tag in qry.muts.keys():
-                beg  = self.seqs[tag[0]].position_of(new_qrys[0], tag[1])
-                end  = self.seqs[tag[0]].position_of(new_qrys[-1], tag[1])
-                blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
-                if first:
-                    qry_list = set([b.id for b in blks])
-                    first = False
-                else:
-                    qry_list.intersection_update(set([b.id for b in blks]))
+        #     qry_list = set()
+        #     first    = True
+        #     for tag in qry.muts.keys():
+        #         beg  = self.seqs[tag[0]].position_of(new_qrys[0], tag[1])
+        #         end  = self.seqs[tag[0]].position_of(new_qrys[-1], tag[1])
+        #         blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
+        #         if first:
+        #             qry_list = set([b.id for b in blks])
+        #             first = False
+        #         else:
+        #             qry_list.intersection_update(set([b.id for b in blks]))
 
-            breakpoint("inconsistent number of blocks")
+        #     breakpoint("inconsistent number of blocks")
 
         self.prune_blks()
 
