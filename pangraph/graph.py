@@ -524,7 +524,7 @@ class Graph(object):
                                     shell=True)
                         out, err = proc.communicate()
                         tree = Phylo.read(io.StringIO(out.decode('utf-8')), format='newick')
-                        print(f"-> {n} SCORE: {tree.total_branch_length()/(2*{num_seqs})}")
+                        print(f"-> {n} SCORE: {tree.total_branch_length()/(2*num_seqs)}")
 
                     make_tree(0)
                     make_tree(1)
