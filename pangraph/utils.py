@@ -160,6 +160,30 @@ def getnwk(node, newick, parentdist, leaf_names):
 # ------------------------------------------------------------------------
 # parsers
 
+def parse_fasta(fh):
+    class Record:
+        def __init__(self, name=None, meta=None, seq=None):
+            self.seq  = seq
+            self.name = name
+            self.meta = meta
+
+    header = fh.readline()
+    while True:
+        if header == "":
+            return 1, None
+        if header[0] != '>':
+            return 0, "improper fasta file syntax"
+
+        name = header[1:].split()
+        seq  = ""
+        for line in fh:
+            if line == "" or line[0] == ">":
+                break
+            seq += line
+
+        header = line
+        yield Record(name=name[0], meta=" ".join(name[1:]), seq=seq)
+
 def parse_paf(fh):
     hits = []
     for line in fh:
