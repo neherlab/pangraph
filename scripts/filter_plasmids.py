@@ -7,6 +7,7 @@ import os
 import sys
 import gzip
 import builtins
+import argparse
 
 from glob import glob
 
@@ -19,14 +20,18 @@ def open(path, *args, **kwargs):
     else:
         return builtins.open(path, *args, **kwargs)
 
-def main(args):
-    for arg in args:
-        in_dir = f"data/{arg}/assemblies"
+def main(dirs, plasmids=True):
+    for d in dirs:
+        in_dir = f"data/{d}/assemblies"
         if not os.path.exists(in_dir):
             print(f"{in_dir} doesn't exist. skipping...")
             continue
 
-        out_dir = f"data/{arg}-plasmid/assemblies"
+        if plasmids:
+            out_dir = f"data/{d}-plasmid/assemblies"
+        else:
+            out_dir = f"data/{d}-chromosome/assemblies"
+
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
 
@@ -34,9 +39,19 @@ def main(args):
             with open(path, 'rt') as fd, open(f"{out_dir}/{os.path.basename(path).replace('.gz', '')}", 'w') as wtr:
                 for i, rec in enumerate(parse_fasta(fd)):
                     if i == 0:
+                        if not plasmids:
+                            wtr.write(str(rec))
+                            wtr.write('\n')
+                            break
                         continue
+
                     wtr.write(str(rec))
                     wtr.write('\n')
 
+parser = argparse.ArgumentParser(description='seperate plasmids from chromosomes')
+parser.add_argument('directories', metavar='dirs', nargs='+')
+parser.add_argument('--chromosomes', default=False, action='store_true')
+
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    args = parser.parse_args()
+    main(args.directories, plasmids=not args.chromosomes)
