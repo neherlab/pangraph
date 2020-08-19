@@ -157,6 +157,11 @@ def getnwk(node, newick, parentdist, leaf_names):
         newick = "(%s" % (newick)
         return newick
 
+def as_str(s):
+    if isinstance(s, bytes):
+        return s.decode('utf-8')
+    return s
+
 # ------------------------------------------------------------------------
 # parsers
 
@@ -167,21 +172,23 @@ def parse_fasta(fh):
             self.name = name
             self.meta = meta
 
-    header = fh.readline()
-    while True:
-        if header == "":
-            return 1, None
-        if header[0] != '>':
-            return 0, "improper fasta file syntax"
+        def __str__(self):
+            return f">{self.name} {self.meta}\n{self.seq[:77]}...\n"
 
+        def __repr__(self):
+            return str(self)
+
+    header = as_str(fh.readline())
+    while header != "" and header[0] == ">":
         name = header[1:].split()
         seq  = ""
         for line in fh:
+            line = as_str(line)
             if line == "" or line[0] == ">":
                 break
             seq += line
 
-        header = line
+        header = as_str(line)
         yield Record(name=name[0], meta=" ".join(name[1:]), seq=seq)
 
 def parse_paf(fh):
