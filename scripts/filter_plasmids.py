@@ -28,7 +28,7 @@ def main(args):
 
         out_dir = f"data/{arg}-plasmid/assemblies"
         if not os.path.exists(out_dir):
-            os.mkdirs(out_dir)
+            os.makedirs(out_dir)
 
         for path in glob(f"{in_dir}/*.f?a*"):
             with open(path, 'rt') as fd, open(f"{out_dir}/{os.path.basename(path).replace('.gz', '')}", 'w') as wtr:
