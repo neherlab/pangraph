@@ -174,7 +174,9 @@ def parse_fasta(fh):
             self.meta = meta
 
         def __str__(self):
-            return f">{self.name} {self.meta}\n{self.seq[:77]}...\n"
+            NL = '\n'
+            nc = 80
+            return f">{self.name} {self.meta}\n{NL.join([self.seq[i:(i+nc)] for i in range(0, len(self.seq), nc)])}"
 
         def __repr__(self):
             return str(self)
@@ -187,7 +189,7 @@ def parse_fasta(fh):
             line = as_str(line)
             if line == "" or line[0] == ">":
                 break
-            seq.write(line)
+            seq.write(line[:-1])
 
         header = as_str(line)
         yield Record(name=name[0], meta=" ".join(name[1:]), seq=seq.getvalue())

@@ -13,8 +13,6 @@ from glob import glob
 sys.path.insert(0, os.path.abspath('.')) # gross hack
 from pangraph.utils import parse_fasta, breakpoint
 
-from Bio import SeqIO
-
 def open(path, *args, **kwargs):
     if path.endswith('.gz'):
         return gzip.open(path, *args, **kwargs)
@@ -26,18 +24,13 @@ def open(path, *args, **kwargs):
 
 from time import time
 if __name__ == "__main__":
-    t0 = time()
     for path in glob("data/staph/assemblies/*.fna.gz"):
-        with open(path, 'rt') as fd:
-            seqs = [record for record in SeqIO.parse(fd, 'fasta')]
-    t1 = time()
-    print(f"bio parser took {t1 - t0} seconds")
-
-    t0 = time()
-    for path in glob("data/staph/assemblies/*.fna.gz"):
-        with open(path, 'rt') as fd:
+        with open(path, 'rt') as fd, open("test.fa", 'w') as wtr:
+            for rec in parse_fasta(fd):
+                # print(str(rec))
+                wtr.write(str(rec))
+                wtr.write('\n')
             seqs = [record for record in parse_fasta(fd)]
-    t1 = time()
-    print(f"my parser took {t1 - t0} seconds")
+        break
 
     # main(sys.argv[1:])
