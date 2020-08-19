@@ -3,6 +3,7 @@ import csv
 import gzip
 import numpy as np
 
+from io   import StringIO
 from enum import IntEnum
 
 from Bio import SeqIO
@@ -181,15 +182,16 @@ def parse_fasta(fh):
     header = as_str(fh.readline())
     while header != "" and header[0] == ">":
         name = header[1:].split()
-        seq  = ""
+        seq  = StringIO()
         for line in fh:
             line = as_str(line)
             if line == "" or line[0] == ">":
                 break
-            seq += line
+            seq.write(line)
 
         header = as_str(line)
-        yield Record(name=name[0], meta=" ".join(name[1:]), seq=seq)
+        yield Record(name=name[0], meta=" ".join(name[1:]), seq=seq.getvalue())
+        seq.close()
 
 def parse_paf(fh):
     hits = []
