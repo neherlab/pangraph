@@ -19,18 +19,24 @@ def open(path, *args, **kwargs):
     else:
         return builtins.open(path, *args, **kwargs)
 
-# def main(args):
-#     for d in args:
+def main(args):
+    for arg in args:
+        in_dir = f"data/{arg}/assemblies"
+        if not os.path.exists(in_dir):
+            print(f"{in_dir} doesn't exist. skipping...")
+            continue
 
-from time import time
+        out_dir = f"data/{arg}-plasmid/assemblies"
+        if not os.path.exists(out_dir):
+            os.mkdirs(out_dir)
+
+        for path in glob(f"{in_dir}/*.f?a*"):
+            with open(path, 'rt') as fd, open(f"{out_dir}/{os.path.basename(path).replace('.gz', '')}", 'w') as wtr:
+                for i, rec in enumerate(parse_fasta(fd)):
+                    if i == 0:
+                        continue
+                    wtr.write(str(rec))
+                    wtr.write('\n')
+
 if __name__ == "__main__":
-    for path in glob("data/staph/assemblies/*.fna.gz"):
-        with open(path, 'rt') as fd, open("test.fa", 'w') as wtr:
-            for rec in parse_fasta(fd):
-                # print(str(rec))
-                wtr.write(str(rec))
-                wtr.write('\n')
-            seqs = [record for record in parse_fasta(fd)]
-        break
-
-    # main(sys.argv[1:])
+    main(sys.argv[1:])
