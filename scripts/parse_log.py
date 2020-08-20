@@ -19,21 +19,23 @@ def main(args):
             for line in log:
                 line.rstrip('\n')
                 if line[0] == "+":
-                    assert line.startwith(level_preset), "check syntax in log file"
+                    assert line.startswith(level_preset), "check syntax in log file"
                     level = int(line[level_offset:line.find("+++", level_offset)])
                     continue
                 if line[0] == ">":
-                    if line[1:] == "NO MATCH":
+                    if line[1:].startswith("NO MATCH"):
                         stats[level]['miss'] += 1
                         continue
                     if line[1:].startswith("LEN="):
                         offset = [line.find(";")]
                         offset.append(line.find(";", offset[0]))
-                        score[0] = int(line[line.find(score_preset, offset[0])+1+score_offset:offset[1])
-                        score[1] = int(line[line.find(score_preset, offset[1])+1+score_offset:)
+                        score[0] = int(line[line.find(score_preset, offset[0])+1+score_offset:offset[1]])
+                        score[1] = int(line[line.find(score_preset, offset[1])+1+score_offset:])
                         stats[level]['hits'].extend(score)
+                        continue
 
-                raise ValueError(f"invalid syntax: {line}")
+                raise ValueError(f"invalid syntax: {line[1:]}")
+
         print(stats)
 
 parser = argparse.ArgumentParser(description='process our data log files on end repair')
