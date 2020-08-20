@@ -21,8 +21,8 @@ from .utils    import Strand, as_string, parse_paf, panic, as_record, new_strand
 # ------------------------------------------------------------------------
 # globals
 
-WINDOW = 1000
-EXTEND = 2500
+# WINDOW = 1000
+# EXTEND = 2500
 pp = pprint.PrettyPrinter(indent=4)
 
 # ------------------------------------------------------------------------
@@ -140,7 +140,7 @@ class Graph(object):
         graphs, names = [], []
         for name, path in G.seqs.items():
             blks = set([b.id for b in path.blocks()])
-            gi   = [ i for i, g in enumerate(graphs) if overlaps(blks, g)]
+            gi   = [i for i, g in enumerate(graphs) if overlaps(blks, g)]
             if len(gi) == 0:
                 graphs.append(blks)
                 names.append(set([name]))
@@ -163,7 +163,7 @@ class Graph(object):
     # ---------------
     # methods
 
-    def union(self, qpath, rpath, out, cutoff=0, alpha=10, beta=2, extensive=False):
+    def union(self, qpath, rpath, out, cutoff=0, alpha=10, beta=2, edge_window=100, edge_extend=2500, extensive=False):
         from seqanpy import align_global as align
 
         # ----------------------------------
@@ -324,7 +324,7 @@ class Graph(object):
                 continue
 
             merged = True
-            self.merge(proc(hit))
+            self.merge(proc(hit), edge_window, edge_extend)
             merged_blks.add(hit['ref']['name'])
             merged_blks.add(hit['qry']['name'])
 
@@ -414,7 +414,7 @@ class Graph(object):
             blks.update(path.blocks())
         self.blks = {b.id:self.blks[b.id] for b in blks}
 
-    def merge(self, hit):
+    def merge(self, hit, window, extend):
         old_ref = self.blks[hit['ref']['name']]
         old_qry = self.blks[hit['qry']['name']]
 
@@ -475,7 +475,7 @@ class Graph(object):
             # NOTE: this is a hack to deal with flipped orientations
             pos  = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in new_refs], key=lambda x: x[0])
             beg, end  = pos[0], pos[-1]
-            blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
+            blks = self.seqs[tag[0]][beg[0]-extend:end[1]+extend]
             if first:
                 blk_list = set([b.id for b in blks])
                 first = False
@@ -489,7 +489,7 @@ class Graph(object):
             except:
                 breakpoint("bad find")
             beg, end  = pos[0], pos[-1]
-            blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
+            blks = self.seqs[tag[0]][beg[0]-extend:end[1]+extend]
             blk_list.intersection_update(set([b.id for b in blks]))
             num_seqs += 1
 
@@ -507,10 +507,10 @@ class Graph(object):
                         pos = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks], key=lambda x: x[0])
                         beg, end = pos[0], pos[-1]
 
-                        for n, (left, right) in enumerate([(beg[0]-EXTEND,beg[0]+WINDOW), (end[1]-WINDOW,end[1]+EXTEND)]):
+                        for n, (left, right) in enumerate([(beg[0]-extend,beg[0]+window), (end[1]-window,end[1]+extend)]):
                             tmp[n].write(f">isolate_{i:04d}\n")
                             s = self.seqs[tag[0]].sequence_range(left,right)
-                            if len(s) > EXTEND + WINDOW:
+                            if len(s) > extend + window:
                                 breakpoint(f"bad sequence slicing: {len(s)}")
                             tmp[n].write(s + '\n')
 

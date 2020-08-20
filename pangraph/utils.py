@@ -3,6 +3,7 @@ import csv
 import gzip
 import numpy as np
 
+from io   import StringIO
 from enum import IntEnum
 
 from Bio import SeqIO
@@ -157,8 +158,42 @@ def getnwk(node, newick, parentdist, leaf_names):
         newick = "(%s" % (newick)
         return newick
 
+def as_str(s):
+    if isinstance(s, bytes):
+        return s.decode('utf-8')
+    return s
+
 # ------------------------------------------------------------------------
 # parsers
+
+def parse_fasta(fh):
+    class Record:
+        def __init__(self, name=None, meta=None, seq=None):
+            self.seq  = seq
+            self.name = name
+            self.meta = meta
+
+        def __str__(self):
+            NL = '\n'
+            nc = 80
+            return f">{self.name} {self.meta}\n{NL.join([self.seq[i:(i+nc)] for i in range(0, len(self.seq), nc)])}"
+
+        def __repr__(self):
+            return str(self)
+
+    header = as_str(fh.readline())
+    while header != "" and header[0] == ">":
+        name = header[1:].split()
+        seq  = StringIO()
+        for line in fh:
+            line = as_str(line)
+            if line == "" or line[0] == ">":
+                break
+            seq.write(line[:-1])
+
+        header = as_str(line)
+        yield Record(name=name[0], meta=" ".join(name[1:]), seq=seq.getvalue())
+        seq.close()
 
 def parse_paf(fh):
     hits = []

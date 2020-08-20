@@ -38,6 +38,16 @@ def register_args(parser):
                         type=int,
                         default=22,
                         help="energy cost for mutations (used during block merges)")
+    parser.add_argument("-w", "--window",
+                        metavar="edge window",
+                        type=int,
+                        default=1000,
+                        help="amount of sequence to align from for end repair")
+    parser.add_argument("-e", "--extend",
+                        metavar="edge extend",
+                        type=int,
+                        default=1000,
+                        help="amount of sequence to extend for end repair")
     parser.add_argument("-s", "--statistics",
                         default=False,
                         action='store_true',
@@ -71,12 +81,10 @@ def main(args):
     mkdir(tmp)
 
     log("aligning")
-    with cProfile.Profile() as pr:
-        T.align(tmp, args.len, args.mu, args.beta, args.extensive, args.statistics)
-        # TODO: when debugging phase is done, remove tmp directory
+    T.align(tmp, args.len, args.mu, args.beta, args.extensive, args.statistics)
+    # TODO: when debugging phase is done, remove tmp directory
 
-        graphs = T.collect()
-    pr.dump_stats("perf.prof")
+    graphs = T.collect()
 
     for i, g in enumerate(graphs):
         log(f"graph {i}: nseqs: {len(g.seqs)} nblks: {len(g.blks)}")
