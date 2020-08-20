@@ -52,7 +52,7 @@ def register_args(parser):
                         default=False,
                         action='store_true',
                         help="boolean flag that toggles whether the graph statistics are computed for intermediate graphs")
-    parser.add_argument("-n", "--tmp-dir-num",
+    parser.add_argument("-n", "--num",
                         type=int,
                         default=-1,
                         help="manually sets the tmp directory number. internal use only.")
@@ -78,7 +78,7 @@ def main(args):
 
     root = args.dir.rstrip('/')
     tmp  = f"{root}/tmp"
-    if args.n == -1:
+    if args.num == -1:
         i    = 0
         while os.path.isdir(tmp) and i < 64:
             i += 1
