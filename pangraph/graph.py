@@ -163,7 +163,7 @@ class Graph(object):
     # ---------------
     # methods
 
-    def union(self, qpath, rpath, out, cutoff=0, alpha=10, beta=2, edge_window=100, edge_extend=2500, extensive=False):
+    def union(self, qpath, rpath, out, cutoff=0, alpha=10, beta=2, extensive=False, edge_window=1000, edge_extend=2500):
         from seqanpy import align_global as align
 
         # ----------------------------------

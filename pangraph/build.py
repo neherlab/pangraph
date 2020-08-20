@@ -81,7 +81,7 @@ def main(args):
     mkdir(tmp)
 
     log("aligning")
-    T.align(tmp, args.len, args.mu, args.beta, args.extensive, args.statistics)
+    T.align(tmp, args.len, args.mu, args.beta, args.extensive, args.window, args.extend, args.statistics)
     # TODO: when debugging phase is done, remove tmp directory
 
     graphs = T.collect()
