@@ -84,7 +84,7 @@ def main(args):
             i += 1
             tmp = f"{root}/tmp{i:03d}"
     else:
-            tmp = f"{root}/tmp{args.n:03d}"
+            tmp = f"{root}/tmp{args.num:03d}"
     mkdir(tmp)
 
     log("aligning")
