@@ -383,7 +383,7 @@ class Tree(object):
         for n in self.postorder():
             if n.is_leaf():
                 continue
-            print(f"---NODE LEVEL {n.level}---")
+            print(f"+++LEVEL={n.level}+++")
             n.fapath = f"{tmpdir}/{n.name}"
             log(f"fusing {n.child[0].name} with {n.child[1].name} @ {n.name}")
             n.graph = merge(*n.child)
