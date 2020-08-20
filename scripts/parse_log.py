@@ -28,15 +28,15 @@ def main(args):
                         continue
                     if line[1:].startswith("LEN="):
                         offset = [line.find(";")]
-                        offset.append(line.find(";", offset[0]))
-                        score[0] = int(line[line.find(score_preset, offset[0])+1+score_offset:offset[1]])
-                        score[1] = int(line[line.find(score_preset, offset[1])+1+score_offset:])
+                        offset.append(line.find(";", offset[0]+1))
+                        offset.append(line.find(";", offset[1]+1))
+
+                        score    = [None, None]
+                        score[0] = float(line[offset[0]+1+score_offset:offset[1]])
+                        score[1] = float(line[offset[1]+1+score_offset:offset[2]])
                         stats[level]['hits'].extend(score)
                         continue
-
                 raise ValueError(f"invalid syntax: {line[1:]}")
-
-        print(stats)
 
 parser = argparse.ArgumentParser(description='process our data log files on end repair')
 parser.add_argument('files', type=str, nargs='+')

@@ -495,7 +495,7 @@ class Graph(object):
 
         delta = len(blk_list)-len(shared_blks)
         if delta > 0 and num_seqs > 1:
-            print(f">LEN: {delta}", end=';')
+            print(f">LEN={delta}", end=';')
             fd   = [None, None]
             path = [None, None]
             try:
@@ -524,7 +524,7 @@ class Graph(object):
                                     shell=True)
                         out, err = proc.communicate()
                         tree = Phylo.read(io.StringIO(out.decode('utf-8')), format='newick')
-                        print(f"{n} SCORE={tree.total_branch_length()/(2*num_seqs)}", end=";")
+                        print(f"SCORE={tree.total_branch_length()/(2*num_seqs)}", end=";")
 
                     make_tree(0)
                     make_tree(1)
