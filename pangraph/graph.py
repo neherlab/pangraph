@@ -518,12 +518,22 @@ class Graph(object):
                     tmp[1].flush()
 
                     def make_tree(n):
-                        proc = subprocess.Popen(f"mafft --auto {path[n]} | fasttree",
+                        proc = [None, None]
+                        out  = [None, None]
+                        err  = [None, None]
+                        proc[0] = subprocess.Popen(f"mafft --auto {path[n]}",
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
                                     shell=True)
-                        out, err = proc.communicate()
-                        tree = Phylo.read(io.StringIO(out.decode('utf-8')), format='newick')
+                        proc[1] = subprocess.Popen(f"fasttree",
+                                    stdin =subprocess.PIPE,
+                                    stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE,
+                                    shell=True)
+                        out[0], err[0] = proc[0].communicate()
+                        out[1], err[1] = proc[1].communicate(input=out[0])
+                        tree = Phylo.read(io.StringIO(out[1].decode('utf-8')), format='newick')
+                        print(f"ALIGNMENT=\n{out[0]}")
                         print(f"SCORE={tree.total_branch_length()/(2*num_seqs)}", end=";")
 
                     make_tree(0)

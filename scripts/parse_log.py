@@ -12,10 +12,11 @@ score_preset = "SCORE="
 score_offset = len(score_preset)
 
 def main(args):
+    results = {}
     for log_path in args:
+        stats = defaultdict(lambda: {'hits':[], 'miss': 0})
+        level = -1
         with open(log_path) as log:
-            level = -1
-            stats = defaultdict(lambda: {'hits':[], 'miss': 0})
             for line in log:
                 line.rstrip('\n')
                 if line[0] == "+":
@@ -37,10 +38,15 @@ def main(args):
                         stats[level]['hits'].extend(score)
                         continue
                 raise ValueError(f"invalid syntax: {line[1:]}")
+        if len(stats) > 0:
+            path = log_path.replace(".log", "").split("-")
+            e, w = int(path[1][1:]), int(path[2][1:])
+            results[(e,w)] = dict(stats)
+    return results
 
 parser = argparse.ArgumentParser(description='process our data log files on end repair')
 parser.add_argument('files', type=str, nargs='+')
 
 if __name__ == "__main__":
     args = parser.parse_args()
-    main(args.files)
+    results = main(args.files)
