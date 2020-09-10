@@ -5,11 +5,12 @@ import pprint
 import subprocess
 import tempfile
 
+from io          import StringIO
 from glob        import glob
 from collections import defaultdict, Counter
 from itertools   import chain
 
-from Bio           import SeqIO, Phylo
+from Bio           import AlignIO, SeqIO, Phylo
 from Bio.Seq       import Seq
 from Bio.SeqRecord import SeqRecord
 
@@ -24,6 +25,22 @@ from .utils    import Strand, as_string, parse_paf, panic, as_record, new_strand
 # WINDOW = 1000
 # EXTEND = 2500
 pp = pprint.PrettyPrinter(indent=4)
+
+# ------------------------------------------------------------------------
+# utility
+
+def entropy(s):
+    S = 0
+    c = Counter(s)
+    S = sum((v/len(s))*np.log(len(s)/v) for v in c.values())
+    return S
+
+def alignment_entropy(rdr):
+    aln = AlignIO.read(rdr, 'fasta')
+    S = 0
+    for i in range(aln.get_alignment_length()):
+        S += entropy(aln[:,i])
+    return S/aln.get_alignment_length()
 
 # ------------------------------------------------------------------------
 # Junction class
@@ -581,10 +598,13 @@ class Graph(object):
                                     stderr=subprocess.PIPE,
                                     shell=True)
                         out[0], err[0] = proc[0].communicate()
-                        out[1], err[1] = proc[1].communicate(input=out[0])
-                        tree = Phylo.read(io.StringIO(out[1].decode('utf-8')), format='newick')
-                        print(f"ALIGNMENT=\n{out[0]}", end=";")
-                        print(f"SCORE={tree.total_branch_length()/(2*num_seqs)}", end=";")
+                        # out[1], err[1] = proc[1].communicate(input=out[0])
+                        # tree = Phylo.read(io.StringIO(out[1].decode('utf-8')), format='newick')
+                        print(f"ALIGNMENT=\n{out[0].decode('utf-8')}", end=";")
+                        rdr = StringIO(out[0].decode('utf-8'))
+                        print(f"SCORE={alignment_entropy(rdr)}", end=";")
+                        rdr.close()
+                        # print(f"SCORE={tree.total_branch_length()/(2*num_seqs)}", end=";")
                         print("\n", end="")
                 finally:
                     os.remove(path)
