@@ -468,60 +468,77 @@ class Graph(object):
         new_blocks.extend(update(old_ref, new_refs, hit['ref'], Strand.Plus))
         new_blocks.extend(update(old_qry, new_qrys, hit['qry'], hit['orientation']))
 
-        blk_list = set()
+        lblks_set_x, rblks_set_x = set(), set()
+        lblks_set_s, rblks_set_s = set(), set()
         first    = True
         num_seqs = 0
-        for tag in ref.muts.keys():
+        for tag in shared_blks[0].muts.keys():
             # NOTE: this is a hack to deal with flipped orientations
-            pos  = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in new_refs], key=lambda x: x[0])
+            pos  = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks], key=lambda x: x[0])
             beg, end  = pos[0], pos[-1]
-            blks = self.seqs[tag[0]][beg[0]-extend:end[1]+extend]
+            lblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+window]
+            rblks_x = self.seqs[tag[0]][end[1]-window:end[1]+extend]
+
+            lblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
+            rblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
             if first:
-                blk_list = set([b.id for b in blks])
+                lblks_set_x = set([b.id for b in lblks_x])
+                rblks_set_x = set([b.id for b in rblks_x])
+
+                lblks_set_s = set([b.id for b in lblks_s])
+                rblks_set_s = set([b.id for b in rblks_s])
+
                 first = False
             else:
-                blk_list.intersection_update(set([b.id for b in blks]))
+                lblks_set_x.intersection_update(set([b.id for b in lblks_x]))
+                rblks_set_x.intersection_update(set([b.id for b in rblks_x]))
+
+                lblks_set_s.intersection_update(set([b.id for b in lblks_s]))
+                rblks_set_s.intersection_update(set([b.id for b in rblks_s]))
             num_seqs += 1
 
-        for tag in qry.muts.keys():
-            try:
-                pos  = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in new_qrys], key=lambda x: x[0])
-            except:
-                breakpoint("bad find")
-            beg, end  = pos[0], pos[-1]
-            blks = self.seqs[tag[0]][beg[0]-extend:end[1]+extend]
-            blk_list.intersection_update(set([b.id for b in blks]))
-            num_seqs += 1
+        def emit(side):
+            if side == 'left':
+                delta = len(lblks_set_x)-len(lblks_set_s)
+            elif side == 'right':
+                delta = len(rblks_set_x)-len(rblks_set_s)
+            else:
+                raise ValueError(f"unrecognized argument '{side}' for side")
 
-        delta = len(blk_list)-len(shared_blks)
-        if delta > 0 and num_seqs > 1:
-            print(f">LEN={delta}", end=';')
-            fd   = [None, None]
-            path = [None, None]
-            try:
-                fd[0], path[0] = tempfile.mkstemp()
-                fd[1], path[1] = tempfile.mkstemp()
-                with os.fdopen(fd[0], 'w') as tmp1, os.fdopen(fd[1], 'w') as tmp2:
-                    tmp = [tmp1, tmp2]
-                    for i, tag in enumerate(chain(ref.muts.keys(), qry.muts.keys())):
-                        pos = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks], key=lambda x: x[0])
-                        beg, end = pos[0], pos[-1]
+            if delta > 0 and num_seqs > 1:
+                print(f">LEN={delta}", end=';')
+                try:
+                    fd, path = tempfile.mkstemp()
+                    with os.fdopen(fd, 'w') as tmp:
+                        for i, tag in enumerate(merged_blks[0].muts.keys()):
+                            pos = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks], key=lambda x: x[0])
+                            beg, end = pos[0], pos[-1]
 
-                        for n, (left, right) in enumerate([(beg[0]-extend,beg[0]+window), (end[1]-window,end[1]+extend)]):
-                            tmp[n].write(f">isolate_{i:04d}\n")
+                            if side == 'left':
+                                left, right = beg[0]-extend,beg[0]+window
+                            elif side == 'right':
+                                left, right = end[1]-window,end[1]+extend
+                            else:
+                                raise ValueError(f"unrecognized argument '{side}' for side")
+
+                            iso_blks = self.seqs[tag[0]][left:right]
+                            print("POSITIONS", pos)
+                            print("LIST", lblks_set_x if side == 'left' else rblks_set_x)
+                            print("SHARED", lblks_set_s if side == 'left' else rblks_set_s)
+                            print("ISO", iso_blks)
+                            breakpoint("stop")
+                            tmp.write(f">isolate_{i:04d} {','.join(b.id for b in iso_blks)}\n")
                             s = self.seqs[tag[0]].sequence_range(left,right)
                             if len(s) > extend + window:
                                 breakpoint(f"bad sequence slicing: {len(s)}")
-                            tmp[n].write(s + '\n')
+                            tmp.write(s + '\n')
 
-                    tmp[0].flush()
-                    tmp[1].flush()
+                        tmp.flush()
 
-                    def make_tree(n):
                         proc = [None, None]
                         out  = [None, None]
                         err  = [None, None]
-                        proc[0] = subprocess.Popen(f"mafft --auto {path[n]}",
+                        proc[0] = subprocess.Popen(f"mafft --auto {path}",
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
                                     shell=True)
@@ -533,45 +550,16 @@ class Graph(object):
                         out[0], err[0] = proc[0].communicate()
                         out[1], err[1] = proc[1].communicate(input=out[0])
                         tree = Phylo.read(io.StringIO(out[1].decode('utf-8')), format='newick')
-                        print(f"ALIGNMENT=\n{out[0]}")
+                        print(f"ALIGNMENT=\n{out[0]}", end=";")
                         print(f"SCORE={tree.total_branch_length()/(2*num_seqs)}", end=";")
+                        print("\n", end="")
+                finally:
+                    os.remove(path)
+            else:
+                print(f">NO MATCH")
 
-                    make_tree(0)
-                    make_tree(1)
-                    print("\n", end="")
-            finally:
-                os.remove(path[0])
-                os.remove(path[1])
-        else:
-            print(f">NO MATCH")
-
-        # NOTE: debugging code
-        # if len(blk_list) < len(shared_blks):
-        #     ref_list = set()
-        #     first    = True
-        #     for tag in ref.muts.keys():
-        #         beg  = self.seqs[tag[0]].position_of(new_refs[0], tag[1])
-        #         end  = self.seqs[tag[0]].position_of(new_refs[-1], tag[1])
-        #         blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
-        #         if first:
-        #             ref_list = set([b.id for b in blks])
-        #             first = False
-        #         else:
-        #             ref_list.intersection_update(set([b.id for b in blks]))
-
-        #     qry_list = set()
-        #     first    = True
-        #     for tag in qry.muts.keys():
-        #         beg  = self.seqs[tag[0]].position_of(new_qrys[0], tag[1])
-        #         end  = self.seqs[tag[0]].position_of(new_qrys[-1], tag[1])
-        #         blks = self.seqs[tag[0]][beg[0]-EXTEND:end[1]+EXTEND]
-        #         if first:
-        #             qry_list = set([b.id for b in blks])
-        #             first = False
-        #         else:
-        #             qry_list.intersection_update(set([b.id for b in blks]))
-
-        #     breakpoint("inconsistent number of blocks")
+        emit('left')
+        emit('right')
 
         self.prune_blks()
 
