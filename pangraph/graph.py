@@ -473,14 +473,27 @@ class Graph(object):
         first    = True
         num_seqs = 0
         for tag in shared_blks[0].muts.keys():
-            # NOTE: this is a hack to deal with flipped orientations
-            pos  = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks], key=lambda x: x[0])
-            beg, end  = pos[0], pos[-1]
-            lblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+window]
-            rblks_x = self.seqs[tag[0]][end[1]-window:end[1]+extend]
+            pos    = [self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks]
+            strand = [self.seqs[tag[0]].orientation_of(b, tag[1]) for b in shared_blks]
+            if strand[0] == Strand.Plus:
+                beg, end = pos[0], pos[-1]
 
-            lblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
-            rblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
+                lblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+window]
+                rblks_x = self.seqs[tag[0]][end[1]-window:end[1]+extend]
+
+                lblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
+                rblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
+            elif strand[0] == Strand.Minus:
+                beg, end = pos[0], pos[-1]
+
+                rblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+window]
+                lblks_x = self.seqs[tag[0]][end[1]-window:end[1]+extend]
+
+                rblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
+                lblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
+            else:
+                raise ValueError("unrecognized strand polarity")
+
             if first:
                 lblks_set_x = set([b.id for b in lblks_x])
                 rblks_set_x = set([b.id for b in rblks_x])
@@ -511,7 +524,8 @@ class Graph(object):
                     fd, path = tempfile.mkstemp()
                     with os.fdopen(fd, 'w') as tmp:
                         for i, tag in enumerate(merged_blks[0].muts.keys()):
-                            pos = sorted([self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks], key=lambda x: x[0])
+                            pos    = [self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks]
+                            strand = [self.seqs[tag[0]].orientation_of(b, tag[1]) for b in shared_blks]
                             beg, end = pos[0], pos[-1]
 
                             if side == 'left':
@@ -523,6 +537,7 @@ class Graph(object):
 
                             iso_blks = self.seqs[tag[0]][left:right]
                             print("POSITIONS", pos)
+                            print("STRAND", strand)
                             print("LIST", lblks_set_x if side == 'left' else rblks_set_x)
                             print("SHARED", lblks_set_s if side == 'left' else rblks_set_s)
                             print("ISO", iso_blks)

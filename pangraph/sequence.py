@@ -155,6 +155,12 @@ class Path(object):
             return None
         return (self.position[index[num]], self.position[index[num]+1])
 
+    def orientation_of(self, blk, num):
+        orientation = { n.num:n.strand for i, n in enumerate(self.nodes) if n.blk == blk }
+        if not num in orientation:
+            return None
+        return orientation[num]
+
     # TODO: pull out common functionality into a helper function
     # TODO: merge with other sequence function
     def sequence_range(self, start=None, stop=None):
