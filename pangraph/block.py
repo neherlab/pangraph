@@ -146,8 +146,8 @@ class Block(object):
         qryblks = [nb for i, nb in enumerate(newblks) if qrys[i] is not None]
         if aln['orientation'] == -1:
             qryblks = qryblks[::-1]
-        refblks = [nb for i, nb in enumerate(newblks) if refs[i] is not None]
 
+        refblks    = [nb for i, nb in enumerate(newblks) if refs[i] is not None]
         sharedblks = [nb for i, nb in enumerate(newblks) if refs[i] is not None and qrys[i] is not None]
 
         return newblks, qryblks, refblks, sharedblks, isomap

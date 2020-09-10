@@ -167,8 +167,6 @@ class Path(object):
         beg = start or 0
         end = stop or self.position[-1]
         l, r = "", ""
-        # if start == 159 and stop == 3659:
-        #     breakpoint("test")
         if beg < 0:
             if len(self.nodes) > 1:
                 l = self.sequence_range(self.position[-1]+beg,self.position[-1])

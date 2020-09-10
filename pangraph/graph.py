@@ -475,22 +475,24 @@ class Graph(object):
         for tag in shared_blks[0].muts.keys():
             pos    = [self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks]
             strand = [self.seqs[tag[0]].orientation_of(b, tag[1]) for b in shared_blks]
+            beg, end = pos[0], pos[-1]
             if strand[0] == Strand.Plus:
-                beg, end = pos[0], pos[-1]
+                lwindow = min(window, shared_blks[0].len_of(*tag))
+                rwindow = min(window, shared_blks[-1].len_of(*tag))
 
-                lblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+window]
-                rblks_x = self.seqs[tag[0]][end[1]-window:end[1]+extend]
+                lblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+lwindow]
+                rblks_x = self.seqs[tag[0]][end[1]-rwindow:end[1]+extend]
 
-                lblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
-                rblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
+                # lblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
+                # rblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
             elif strand[0] == Strand.Minus:
-                beg, end = pos[0], pos[-1]
+                lwindow = min(window, shared_blks[-1].len_of(*tag))
+                rwindow = min(window, shared_blks[0].len_of(*tag))
+                rblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+rwindow]
+                lblks_x = self.seqs[tag[0]][end[1]-lwindow:end[1]+extend]
 
-                rblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+window]
-                lblks_x = self.seqs[tag[0]][end[1]-window:end[1]+extend]
-
-                rblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
-                lblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
+                # rblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
+                # lblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
             else:
                 raise ValueError("unrecognized strand polarity")
 
@@ -498,23 +500,28 @@ class Graph(object):
                 lblks_set_x = set([b.id for b in lblks_x])
                 rblks_set_x = set([b.id for b in rblks_x])
 
-                lblks_set_s = set([b.id for b in lblks_s])
-                rblks_set_s = set([b.id for b in rblks_s])
+                # lblks_set_s = set([b.id for b in lblks_s])
+                # rblks_set_s = set([b.id for b in rblks_s])
+
+                lblks_set_s = set([b.id for b in lblks_x])
+                rblks_set_s = set([b.id for b in rblks_x])
 
                 first = False
             else:
                 lblks_set_x.intersection_update(set([b.id for b in lblks_x]))
                 rblks_set_x.intersection_update(set([b.id for b in rblks_x]))
 
-                lblks_set_s.intersection_update(set([b.id for b in lblks_s]))
-                rblks_set_s.intersection_update(set([b.id for b in rblks_s]))
+                lblks_set_s.update(set([b.id for b in lblks_x]))
+                rblks_set_s.update(set([b.id for b in rblks_x]))
+                # lblks_set_s.intersection_update(set([b.id for b in lblks_s]))
+                # rblks_set_s.intersection_update(set([b.id for b in rblks_s]))
             num_seqs += 1
 
         def emit(side):
             if side == 'left':
-                delta = len(lblks_set_x)-len(lblks_set_s)
+                delta  = len(lblks_set_s)-len(lblks_set_x)
             elif side == 'right':
-                delta = len(rblks_set_x)-len(rblks_set_s)
+                delta = len(lblks_set_s)-len(rblks_set_x)
             else:
                 raise ValueError(f"unrecognized argument '{side}' for side")
 
@@ -528,18 +535,29 @@ class Graph(object):
                             strand = [self.seqs[tag[0]].orientation_of(b, tag[1]) for b in shared_blks]
                             beg, end = pos[0], pos[-1]
 
-                            if side == 'left':
-                                left, right = beg[0]-extend,beg[0]+window
-                            elif side == 'right':
-                                left, right = end[1]-window,end[1]+extend
-                            else:
-                                raise ValueError(f"unrecognized argument '{side}' for side")
+                            if strand[0] == Strand.Plus:
+                                if side == 'left':
+                                    left, right = beg[0]-extend,beg[0]+min(window,shared_blks[0].len_of(*tag))
+                                elif side == 'right':
+                                    left, right = end[1]-min(window,shared_blks[-1].len_of(*tag)),end[1]+extend
+                                else:
+                                    raise ValueError(f"unrecognized argument '{side}' for side")
+
+                            elif strand[0] == Strand.Minus:
+                                if side == 'left':
+                                    left, right = end[1]-min(window,shared_blks[-1].len_of(*tag)),end[1]+extend
+                                elif side == 'right':
+                                    left, right = beg[0]-extend,beg[0]+min(window, shared_blks[0].len_of(*tag))
+                                else:
+                                    raise ValueError(f"unrecognized argument '{side}' for side")
 
                             iso_blks = self.seqs[tag[0]][left:right]
                             print("POSITIONS", pos)
                             print("STRAND", strand)
-                            print("LIST", lblks_set_x if side == 'left' else rblks_set_x)
-                            print("SHARED", lblks_set_s if side == 'left' else rblks_set_s)
+                            print("LIST", shared_blks)
+                            print("MERGED", merged_blks)
+                            print("INTERSECTION", lblks_set_x if side == 'left' else rblks_set_x)
+                            print("UNION", lblks_set_s if side == 'left' else rblks_set_s)
                             print("ISO", iso_blks)
                             breakpoint("stop")
                             tmp.write(f">isolate_{i:04d} {','.join(b.id for b in iso_blks)}\n")
