@@ -355,13 +355,14 @@ class Graph(object):
             if len(path.nodes) == 1:
                 continue
 
-            nodes = path.nodes if not path.circular else path.nodes + [path.nodes[0]]
-            for i, n in enumerate(nodes):
-                j = Junction(nodes[i-1], n)
-                junctions[j].append(iso)
+            for i, n in enumerate(path.nodes):
+                if path.circular or i > 0:
+                    j = Junction(nodes[i-1], n)
+                    junctions[j].append(iso)
         return { k:dict(Counter(v)) for k, v in junctions.items() }
 
     def remove_transitives(self):
+        breakpoint("debug")
         js = self.junctions()
         transitives = []
         for j, isos in js.items():
@@ -478,6 +479,7 @@ class Graph(object):
 
             return new_blks
 
+        # NOTE: This has repeated blocks...
         new_blocks = []
         new_blocks.extend(update(old_ref, new_refs, hit['ref'], Strand.Plus))
         new_blocks.extend(update(old_qry, new_qrys, hit['qry'], hit['orientation']))
@@ -489,6 +491,8 @@ class Graph(object):
         for tag in shared_blks[0].muts.keys():
             pos    = [self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks]
             strand = [self.seqs[tag[0]].orientation_of(b, tag[1]) for b in shared_blks]
+            if strand[0] is None:
+                breakpoint("bad block")
             beg, end = pos[0], pos[-1]
             if strand[0] == Strand.Plus:
                 lwindow = min(window, shared_blks[0].len_of(*tag))
@@ -503,7 +507,7 @@ class Graph(object):
                 rblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+rwindow]
                 lblks_x = self.seqs[tag[0]][end[1]-lwindow:end[1]+extend]
             else:
-                raise ValueError("unrecognized strand polarity")
+                raise ValueError(f"unrecognized strand polarity {strand[0]}")
 
             if first:
                 lblks_set_x = set([b.id for b in lblks_x])
