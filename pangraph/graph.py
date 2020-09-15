@@ -36,11 +36,15 @@ def entropy(s):
     return S
 
 def alignment_entropy(rdr):
-    aln = AlignIO.read(rdr, 'fasta')
-    S = 0
-    for i in range(aln.get_alignment_length()):
-        S += entropy(aln[:,i])
-    return S/aln.get_alignment_length()
+    try:
+        aln = np.array([list(rec) for rec in AlignIO.read(rdr, 'fasta')], np.character)
+        S = 0
+        for i in range(aln.shape[1]):
+            S += entropy(aln[:,i])
+        return S/aln.shape[1]
+    except Exception as msg:
+        print(f"ERROR: {msg}")
+        return None
 
 # ------------------------------------------------------------------------
 # Junction class
@@ -569,14 +573,14 @@ class Graph(object):
                                     raise ValueError(f"unrecognized argument '{side}' for side")
 
                             iso_blks = self.seqs[tag[0]][left:right]
-                            print("POSITIONS", pos)
-                            print("STRAND", strand)
-                            print("LIST", shared_blks)
-                            print("MERGED", merged_blks)
-                            print("INTERSECTION", lblks_set_x if side == 'left' else rblks_set_x)
-                            print("UNION", lblks_set_s if side == 'left' else rblks_set_s)
-                            print("ISO", iso_blks)
-                            breakpoint("stop")
+                            # print("POSITIONS", pos)
+                            # print("STRAND", strand)
+                            # print("LIST", shared_blks)
+                            # print("MERGED", merged_blks)
+                            # print("INTERSECTION", lblks_set_x if side == 'left' else rblks_set_x)
+                            # print("UNION", lblks_set_s if side == 'left' else rblks_set_s)
+                            # print("ISO", iso_blks)
+                            # breakpoint("stop")
                             tmp.write(f">isolate_{i:04d} {','.join(b.id for b in iso_blks)}\n")
                             s = self.seqs[tag[0]].sequence_range(left,right)
                             if len(s) > extend + window:
@@ -585,23 +589,20 @@ class Graph(object):
 
                         tmp.flush()
 
-                        proc = [None, None]
-                        out  = [None, None]
-                        err  = [None, None]
-                        proc[0] = subprocess.Popen(f"mafft --auto {path}",
+                        proc = subprocess.Popen(f"mafft --auto {path}",
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
                                     shell=True)
-                        proc[1] = subprocess.Popen(f"fasttree",
-                                    stdin =subprocess.PIPE,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
-                                    shell=True)
-                        out[0], err[0] = proc[0].communicate()
+                        # proc[1] = subprocess.Popen(f"fasttree",
+                        #             stdin =subprocess.PIPE,
+                        #             stdout=subprocess.PIPE,
+                        #             stderr=subprocess.PIPE,
+                        #             shell=True)
+                        out, err = proc.communicate()
                         # out[1], err[1] = proc[1].communicate(input=out[0])
                         # tree = Phylo.read(io.StringIO(out[1].decode('utf-8')), format='newick')
-                        print(f"ALIGNMENT=\n{out[0].decode('utf-8')}", end=";")
-                        rdr = StringIO(out[0].decode('utf-8'))
+                        print(f"ALIGNMENT={out}", end=";")
+                        rdr = StringIO(out.decode('utf-8'))
                         print(f"SCORE={alignment_entropy(rdr)}", end=";")
                         rdr.close()
                         # print(f"SCORE={tree.total_branch_length()/(2*num_seqs)}", end=";")
