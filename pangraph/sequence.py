@@ -88,12 +88,6 @@ class Path(object):
 
         return seq
 
-    def position_of(self, blk):
-        for i, n in enumerate(self.nodes):
-            if n.blk == blk:
-                return i, n.num
-        raise ValueError("block not found in path")
-
     def rm_nil_blks(self):
         good, popped = [], set()
         for i, n in enumerate(self.nodes):
@@ -121,6 +115,8 @@ class Path(object):
             try:
                 i, j = ids.index(start[0]), ids.index(stop[0])
 
+                if N > 0:
+                    breakpoint("HIT")
                 if self.nodes[i].strand == start[1]:
                     beg, end, s = i, j, Strand.Plus
                 else:
@@ -153,17 +149,75 @@ class Path(object):
         self.nodes    = new
         self.position = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
 
+    def position_of(self, blk, num):
+        index = { n.num:i for i, n in enumerate(self.nodes) if n.blk == blk }
+        if not num in index:
+            return None
+        return (self.position[index[num]], self.position[index[num]+1])
+
+    def orientation_of(self, blk, num):
+        orientation = { n.num:n.strand for i, n in enumerate(self.nodes) if n.blk == blk }
+        if not num in orientation:
+            return None
+        return orientation[num]
+
+    # TODO: pull out common functionality into a helper function
+    # TODO: merge with other sequence function
+    def sequence_range(self, start=None, stop=None):
+        beg = start or 0
+        end = stop or self.position[-1]
+        l, r = "", ""
+        if beg < 0:
+            if len(self.nodes) > 1:
+                l = self.sequence_range(self.position[-1]+beg,self.position[-1])
+            beg = 0
+        if end > self.position[-1]:
+            if len(self.nodes) > 1:
+                r = self.sequence_range(0,end-self.position[-1])
+            end = self.position[-1]
+        if beg > end:
+            beg, end = end, beg
+
+        i = np.searchsorted(self.position, beg, side='right') - 1
+        j = np.searchsorted(self.position, end, side='left')
+        m = ""
+        if i < j:
+            if j >= len(self.position):
+                breakpoint("what?")
+            if i == j - 1:
+                m = self.nodes[i].blk.extract(self.name, self.nodes[i].num)[(beg-self.position[i]):(end-self.position[i])]
+            else:
+                m = self.nodes[i].blk.extract(self.name, self.nodes[i].num)[(beg-self.position[i]):]
+                for n in self.nodes[i+1:j-1]:
+                    m += n.blk.extract(self.name, n.num)
+                n  = self.nodes[j-1]
+                b  = n.blk.extract(self.name, n.num)
+                m += b[0:(end-self.position[j-1])]
+        return l + m + r
+
     def __getitem__(self, index):
         if isinstance(index, slice):
             beg = index.start or 0
             end = index.stop or self.position[-1]
+            l, r = [], []
+            if beg < 0:
+                if len(self.nodes) > 1:
+                    l = self[(self.position[-1]+beg):self.position[-1]]
+                beg = 0
+            if end > self.position[-1]:
+                if len(self.nodes) > 1:
+                    r = self[0:(end-self.position[-1])]
+                end = self.position[-1]
+            if beg > end:
+                beg, end = end, beg
 
-            i = np.searchsorted(self.position, beg, side='right')
-            j = np.searchsorted(self.position, end, side='right') + 1
-            assert i < j, "sorted"
-            return [n.blk for n in self.nodes[i:j]]
+            i = np.searchsorted(self.position, beg, side='right') - 1
+            j = np.searchsorted(self.position, end, side='left')
+            if i > j:
+                breakpoint(f"not sorted, {beg}-{end}")
+            return l + [n.blk for n in self.nodes[i:j]] + r
         elif isinstance(index, int):
-            i = np.searchsorted(self.position, index, side='left')
+            i = np.searchsorted(self.position, index, side='right') - 1
             return self.nodes[i].blk
         else:
             raise ValueError(f"type '{type(index)}' not supported as index")

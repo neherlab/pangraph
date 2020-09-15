@@ -37,10 +37,24 @@ def register_args(parser):
                         type=int,
                         default=22,
                         help="energy cost for mutations (used during block merges)")
+    parser.add_argument("-w", "--window",
+                        metavar="edge window",
+                        type=int,
+                        default=1000,
+                        help="amount of sequence to align from for end repair")
+    parser.add_argument("-e", "--extend",
+                        metavar="edge extend",
+                        type=int,
+                        default=1000,
+                        help="amount of sequence to extend for end repair")
     parser.add_argument("-s", "--statistics",
                         default=False,
                         action='store_true',
                         help="boolean flag that toggles whether the graph statistics are computed for intermediate graphs")
+    parser.add_argument("-n", "--num",
+                        type=int,
+                        default=-1,
+                        help="manually sets the tmp directory number. internal use only.")
     parser.add_argument("input",
                         type=str,
                         default="-",
@@ -63,14 +77,17 @@ def main(args):
 
     root = args.dir.rstrip('/')
     tmp  = f"{root}/tmp"
-    i    = 0
-    while os.path.isdir(tmp) and i < 32:
-        i += 1
-        tmp = f"{root}/tmp{i:03d}"
+    if args.num == -1:
+        i    = 0
+        while os.path.isdir(tmp) and i < 64:
+            i += 1
+            tmp = f"{root}/tmp{i:03d}"
+    else:
+            tmp = f"{root}/tmp{args.num:03d}"
     mkdir(tmp)
 
     log("aligning")
-    T.align(tmp, args.len, args.mu, args.beta, args.extensive, args.statistics)
+    T.align(tmp, args.len, args.mu, args.beta, args.extensive, args.window, args.extend, args.statistics)
     # TODO: when debugging phase is done, remove tmp directory
 
     graphs = T.collect()
@@ -82,6 +99,7 @@ def main(args):
         with open(f"{root}/graph_{i:03d}.fa", 'w') as fd:
             g.write_fasta(fd)
 
-    T.write_json(sys.stdout, no_seqs=True)
+    # NOTE: uncomment when done debugging
+    # T.write_json(sys.stdout, no_seqs=True)
 
     return 0

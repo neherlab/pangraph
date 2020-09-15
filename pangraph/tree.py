@@ -139,6 +139,11 @@ class Clade(object):
                 'fapath'   : self.fapath,
                 'graph'    : serialize(self.graph) if self.graph is not None else None }
 
+    def set_level(self, level):
+        for c in self.child:
+            c.set_level(level+1)
+        self.level = level
+
 class Tree(object):
     # ------------------- 
     # Class constructor
@@ -287,7 +292,8 @@ class Tree(object):
         leafs = {n.name: n for n in self.get_leafs()}
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
-    def align(self, tmpdir, min_blk_len, mu, beta, extensive, log_stats=False, verbose=False):
+    def align(self, tmpdir, min_blk_len, mu, beta, extensive, edge_window, edge_extend, log_stats=False, verbose=False):
+        self.root.set_level(0) # NOTE: for debug logging
         stats = {}
         # ---------------------------------------------
         # internal functions
@@ -345,7 +351,7 @@ class Tree(object):
                 graph1, fapath1 = node1.graph, node1.fapath
                 graph2, fapath2 = node2.graph, node2.fapath
                 graph    = Graph.fuse(graph1, graph2)
-                graph, _ = graph.union(fapath1, fapath2, f"{tmpdir}/{n.name}", min_blk_len, mu, beta, extensive)
+                graph, _ = graph.union(fapath1, fapath2, f"{tmpdir}/{n.name}", min_blk_len, mu, beta, extensive, edge_window, edge_extend)
             else:
                 graph = node1.graph
 
@@ -355,7 +361,7 @@ class Tree(object):
                 itr = f"{tmpdir}/{n.name}_iter_{i}"
                 with open(f"{itr}.fa", 'w') as fd:
                     graph.write_fasta(fd)
-                graph, contin = graph.union(itr, itr, f"{tmpdir}/{n.name}_iter_{i}", min_blk_len, mu, beta, extensive)
+                graph, contin = graph.union(itr, itr, f"{tmpdir}/{n.name}_iter_{i}", min_blk_len, mu, beta, extensive, edge_window, edge_extend)
                 if not contin:
                     return graph
             return graph
@@ -377,6 +383,7 @@ class Tree(object):
         for n in self.postorder():
             if n.is_leaf():
                 continue
+            print(f"+++LEVEL={n.level}+++")
             n.fapath = f"{tmpdir}/{n.name}"
             log(f"fusing {n.child[0].name} with {n.child[1].name} @ {n.name}")
             n.graph = merge(*n.child)
