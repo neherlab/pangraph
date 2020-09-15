@@ -357,12 +357,11 @@ class Graph(object):
 
             for i, n in enumerate(path.nodes):
                 if path.circular or i > 0:
-                    j = Junction(nodes[i-1], n)
+                    j = Junction(path.nodes[i-1], n)
                     junctions[j].append(iso)
         return { k:dict(Counter(v)) for k, v in junctions.items() }
 
     def remove_transitives(self):
-        breakpoint("debug")
         js = self.junctions()
         transitives = []
         for j, isos in js.items():
