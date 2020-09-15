@@ -496,26 +496,18 @@ class Graph(object):
 
                 lblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+lwindow]
                 rblks_x = self.seqs[tag[0]][end[1]-rwindow:end[1]+extend]
-
-                # lblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
-                # rblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
             elif strand[0] == Strand.Minus:
                 lwindow = min(window, shared_blks[-1].len_of(*tag))
                 rwindow = min(window, shared_blks[0].len_of(*tag))
+
                 rblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+rwindow]
                 lblks_x = self.seqs[tag[0]][end[1]-lwindow:end[1]+extend]
-
-                # rblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
-                # lblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
             else:
                 raise ValueError("unrecognized strand polarity")
 
             if first:
                 lblks_set_x = set([b.id for b in lblks_x])
                 rblks_set_x = set([b.id for b in rblks_x])
-
-                # lblks_set_s = set([b.id for b in lblks_s])
-                # rblks_set_s = set([b.id for b in rblks_s])
 
                 lblks_set_s = set([b.id for b in lblks_x])
                 rblks_set_s = set([b.id for b in rblks_x])
@@ -527,8 +519,6 @@ class Graph(object):
 
                 lblks_set_s.update(set([b.id for b in lblks_x]))
                 rblks_set_s.update(set([b.id for b in rblks_x]))
-                # lblks_set_s.intersection_update(set([b.id for b in lblks_s]))
-                # rblks_set_s.intersection_update(set([b.id for b in rblks_s]))
             num_seqs += 1
 
         def emit(side):
