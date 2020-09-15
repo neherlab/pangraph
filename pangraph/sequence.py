@@ -46,12 +46,16 @@ class Node(object):
 class Path(object):
     """docstring for Path"""
 
-    def __init__(self, name, nodes, offset):
+    def __init__(self, name, nodes, offset, circular):
         super(Path, self).__init__()
         self.name     = name
         self.nodes    = nodes if isinstance(nodes, list) else [nodes]
         self.offset   = offset
         self.position = np.cumsum([0] + [n.length(name) for n in self.nodes])
+        self.circular = circular
+
+        if offset > 0 and not circular:
+            raise ValueError("sequence path cannot have non-zero offset if it corresponds to linear genome")
 
     def __str__(self):
         return f"{self.name}: {[str(n) for n in self.nodes]}"
