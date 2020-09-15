@@ -24,8 +24,6 @@ from .utils    import Strand, as_string, parse_paf, panic, as_record, new_strand
 # ------------------------------------------------------------------------
 # globals
 
-# WINDOW = 1000
-# EXTEND = 2500
 pp = pprint.PrettyPrinter(indent=4)
 
 # ------------------------------------------------------------------------
@@ -357,8 +355,9 @@ class Graph(object):
             if len(path.nodes) == 1:
                 continue
 
-            for i, n in enumerate(path.nodes):
-                j = Junction(path.nodes[i-1], n)
+            nodes = path.nodes if not path.circular else path.nodes + [path.nodes[0]]
+            for i, n in enumerate(nodes):
+                j = Junction(nodes[i-1], n)
                 junctions[j].append(iso)
         return { k:dict(Counter(v)) for k, v in junctions.items() }
 
