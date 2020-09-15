@@ -47,6 +47,11 @@ def register_args(parser):
                         type=int,
                         default=1000,
                         help="amount of sequence to extend for end repair")
+    parser.add_argument("-c", "--circular",
+                        metavar="circular genomes",
+                        default=False
+                        action='store_true'
+                        help="toggle to consider a set of circular genomes")
     parser.add_argument("-s", "--statistics",
                         default=False,
                         action='store_true',
@@ -87,7 +92,7 @@ def main(args):
     mkdir(tmp)
 
     log("aligning")
-    T.align(tmp, args.len, args.mu, args.beta, args.extensive, args.window, args.extend, args.statistics)
+    T.align(tmp, args.len, args.circular, args.mu, args.beta, args.extensive, args.window, args.extend, args.statistics)
     # TODO: when debugging phase is done, remove tmp directory
 
     graphs = T.collect()

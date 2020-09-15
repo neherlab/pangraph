@@ -109,12 +109,12 @@ class Graph(object):
     # --- Class methods ---
 
     @classmethod
-    def from_seq(cls, name, seq):
+    def from_seq(cls, name, seq, circular):
         newg = cls()
         blk  = Block.from_seq(name, seq)
         newg.name = name
         newg.blks = {blk.id : blk}
-        newg.seqs = {name : Path(name, Node(blk, 0, Strand.Plus), 0)}
+        newg.seqs = {name : Path(name, Node(blk, 0, Strand.Plus), 0, circular)}
 
         return newg
 
