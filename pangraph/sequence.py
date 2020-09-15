@@ -66,14 +66,16 @@ class Path(object):
     @classmethod
     def from_dict(cls, d):
         P = Path()
-        P.name   = d['name']
-        P.offset = d['offset']
-        P.nodes  = [Node.from_dict(n) for n in d['nodes']]
+        P.name     = d['name']
+        P.offset   = d['offset']
+        P.nodes    = [Node.from_dict(n) for n in d['nodes']]
+        P.position = np.cumsum([0] + [n.length(name) for n in P.nodes])
+        P.circular = d['circular']
 
         return P
 
     def to_dict(self):
-        return {'name': self.name, 'offset': self.offset, 'nodes': [n.to_dict() for n in self.nodes]}
+        return {'name': self.name, 'offset': self.offset, 'nodes': [n.to_dict() for n in self.nodes], 'circular': self.circular}
 
     def blocks(self):
         return set([n.blk for n in self.nodes])
@@ -88,6 +90,8 @@ class Path(object):
                 seq += rev_cmpl(s)
 
         if self.offset != 0:
+            if not self.circular:
+                raise ValueError("invalid sequence path: non-zero offset for linear genome")
             seq = seq[self.offset:] + seq[:self.offset]
 
         return seq
@@ -111,7 +115,6 @@ class Path(object):
         self.nodes    = [self.nodes[i] for i in good]
         self.position = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
 
-    # TODO: debug cases w/ multiple runs
     def merge(self, start, stop, new):
         N = 0
         while True:
@@ -129,6 +132,8 @@ class Path(object):
                 if beg < end:
                     self.nodes = self.nodes[:beg] + [Node(new, N, s)] + self.nodes[end+1:]
                 else:
+                    if not self.circular:
+                        raise ValueError("attempted to rotate non-circular sequence")
                     self.offset += sum(n.blk.len_of(self.name, N) for n in self.nodes[beg:])
                     self.nodes = [Node(new, N, s)] + self.nodes[end+1:beg]
                 self.position  = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
@@ -172,11 +177,11 @@ class Path(object):
         end = stop or self.position[-1]
         l, r = "", ""
         if beg < 0:
-            if len(self.nodes) > 1:
+            if len(self.nodes) > 1 and self.circular:
                 l = self.sequence_range(self.position[-1]+beg,self.position[-1])
             beg = 0
         if end > self.position[-1]:
-            if len(self.nodes) > 1:
+            if len(self.nodes) > 1 and self.circular:
                 r = self.sequence_range(0,end-self.position[-1])
             end = self.position[-1]
         if beg > end:
@@ -205,10 +210,10 @@ class Path(object):
             end = index.stop or self.position[-1]
             l, r = [], []
             if beg < 0:
-                if len(self.nodes) > 1:
+                if len(self.nodes) > 1 and self.circular:
                     l = self[(self.position[-1]+beg):self.position[-1]]
                 beg = 0
-            if end > self.position[-1]:
+            if end > self.position[-1] and self.circular:
                 if len(self.nodes) > 1:
                     r = self[0:(end-self.position[-1])]
                 end = self.position[-1]

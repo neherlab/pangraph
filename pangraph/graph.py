@@ -567,14 +567,6 @@ class Graph(object):
                                     raise ValueError(f"unrecognized argument '{side}' for side")
 
                             iso_blks = self.seqs[tag[0]][left:right]
-                            # print("POSITIONS", pos)
-                            # print("STRAND", strand)
-                            # print("LIST", shared_blks)
-                            # print("MERGED", merged_blks)
-                            # print("INTERSECTION", lblks_set_x if side == 'left' else rblks_set_x)
-                            # print("UNION", lblks_set_s if side == 'left' else rblks_set_s)
-                            # print("ISO", iso_blks)
-                            # breakpoint("stop")
                             tmp.write(f">isolate_{i:04d} {','.join(b.id for b in iso_blks)}\n")
                             s = self.seqs[tag[0]].sequence_range(left,right)
                             if len(s) > extend + window:
@@ -587,19 +579,11 @@ class Graph(object):
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
                                     shell=True)
-                        # proc[1] = subprocess.Popen(f"fasttree",
-                        #             stdin =subprocess.PIPE,
-                        #             stdout=subprocess.PIPE,
-                        #             stderr=subprocess.PIPE,
-                        #             shell=True)
                         out, err = proc.communicate()
-                        # out[1], err[1] = proc[1].communicate(input=out[0])
-                        # tree = Phylo.read(io.StringIO(out[1].decode('utf-8')), format='newick')
                         print(f"ALIGNMENT={out}", end=";")
                         rdr = StringIO(out.decode('utf-8'))
                         print(f"SCORE={alignment_entropy(rdr)}", end=";")
                         rdr.close()
-                        # print(f"SCORE={tree.total_branch_length()/(2*num_seqs)}", end=";")
                         print("\n", end="")
                 finally:
                     os.remove(path)
