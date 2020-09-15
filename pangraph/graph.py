@@ -14,6 +14,8 @@ from Bio           import AlignIO, SeqIO, Phylo
 from Bio.Seq       import Seq
 from Bio.SeqRecord import SeqRecord
 
+from scipy.stats import entropy
+
 from .         import suffix
 from .block    import Block
 from .sequence import Node, Path
@@ -29,18 +31,10 @@ pp = pprint.PrettyPrinter(indent=4)
 # ------------------------------------------------------------------------
 # utility
 
-def entropy(s):
-    S = 0
-    c = Counter(s)
-    S = sum((v/len(s))*np.log(len(s)/v) for v in c.values())
-    return S
-
 def alignment_entropy(rdr):
     try:
-        aln = np.array([list(rec) for rec in AlignIO.read(rdr, 'fasta')], np.character)
-        S = 0
-        for i in range(aln.shape[1]):
-            S += entropy(aln[:,i])
+        aln = np.array([list(rec) for rec in AlignIO.read(rdr, 'fasta')], np.character).view(np.uint8)
+        S   = sum(entropy(np.bincount(aln[:,i])/aln.shape[0]) for i in range(aln.shape[1]))
         return S/aln.shape[1]
     except Exception as msg:
         print(f"ERROR: {msg}")
