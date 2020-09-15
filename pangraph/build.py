@@ -48,9 +48,8 @@ def register_args(parser):
                         default=1000,
                         help="amount of sequence to extend for end repair")
     parser.add_argument("-c", "--circular",
-                        metavar="circular genomes",
-                        default=False
-                        action='store_true'
+                        default=False,
+                        action='store_true',
                         help="toggle to consider a set of circular genomes")
     parser.add_argument("-s", "--statistics",
                         default=False,
