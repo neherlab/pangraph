@@ -49,7 +49,7 @@ ecoli:
 	@echo "cluster    ecoli"; \
 	pangraph cluster -d data/ecoli data/ecoli/assemblies/*.fna.gz
 	@echo "build      ecoli"; \
-	pangraph build -d data/ecoli -m 500 -b 0 data/ecoli/guide.json 1>data/ecoli/pangraph.json
+	pangraph build -d data/ecoli -m 500 -b 0 -e 2500 -w 1000 --circular data/ecoli/guide.json 1>data/ecoli/pangraph.json
 
 staph:
 	@echo "cluster    staph"; \
