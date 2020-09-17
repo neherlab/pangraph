@@ -634,20 +634,22 @@ class Graph(object):
     def contains(self, other):
         return set(other.seqs.keys()).issubset(set(self.seqs.keys()))
 
-    def compile_suffix(self, force=False):
-        if self.sfxt is None or force:
-            self.sfxt = suffix.Tree({k: [c[0:2] for c in v] for k, v in self.seqs.items()})
+    def pairwise_distance(self):
+        for iso, path in self.seqs.items():
+            print(iso)
 
-    def compute_pdist(self, force=False):
-        if self.dmtx is None or force:
-            nms, N = sorted(list(self.seqs.keys())), len(self.seqs)
-            self.dmtx = np.zeros((N*(N-1))//2)
+        strings     = {iso: [(n.blk.id,n.strand) for n in path.nodes] for iso,path in self.seqs.items()}
+        suffix_tree = suffix.Tree(strings)
+        isos        = sorted(list(self.seqs.keys()))
+        N           = len(self.seqs)
+        D           = np.zeros((N,N))
 
-            n = 0
-            for i, nm1 in enumerate(nms):
-                for nm2 in nms[:i]:
-                    self.dmtx[n] = len(self.sfxt.matches(nm1, nm2))
-                    n += 1
+        for i, iso1 in enumerate(isos):
+            for j, iso2 in enumerate(isos[:i]):
+                D[i,j] = len(suffix_tree.matches(iso1, iso2))
+                D[j,i] = D[i,j]
+
+        return D
 
     def to_json(self, wtr, minlen=500):
         J = {}
