@@ -26,7 +26,7 @@ class Block(object):
         super(Block, self).__init__()
         self.id   = randomid() if gen else 0
         self.seq  = None
-        self.pos  = {}
+        # self.pos  = {}
         self.muts = {}
 
     def __str__(self):
@@ -50,9 +50,9 @@ class Block(object):
     def isolates(self):
         return dict(Counter([k[0] for k in self.muts]))
 
-    @property
-    def positions(self):
-        return { tag:(pos, pos+self.len_of(*tag)) for tag, pos in self.pos.items() }
+    # @property
+    # def positions(self):
+    #     return { tag:(pos, pos+self.len_of(*tag)) for tag, pos in self.pos.items() }
 
     # ------------------
     # static methods
@@ -61,7 +61,7 @@ class Block(object):
     def from_seq(cls, name, seq):
         new_blk      = cls()
         new_blk.seq  = as_array(seq)
-        new_blk.pos  = {(name, 0): 0}
+        # new_blk.pos  = {(name, 0): 0}
         new_blk.muts = {(name, 0):{}}
 
         return new_blk
@@ -75,7 +75,7 @@ class Block(object):
         B      = Block()
         B.id   = d['id']
         B.seq  = as_array(d['seq'])
-        B.pos  = {unpack(k):tuple(v) for k, v in d['pos'].items()}
+        # B.pos  = {unpack(k):tuple(v) for k, v in d['pos'].items()}
         B.muts = {unpack(k):v for k, v in d['muts'].items()}
 
         return B
@@ -92,7 +92,7 @@ class Block(object):
             for s in nblk.muts:
                 nblk.muts[s].update({p+offset:c for p,c in b.muts[s].items()})
             offset += len(b)
-        nblk.pos = { k:v for k,v in blks[0].pos.items() }
+        # nblk.pos = { k:v for k,v in blks[0].pos.items() }
 
         return nblk
 
@@ -244,7 +244,7 @@ class Block(object):
             start = val.start or 0
             stop  = val.stop or len(self.seq)
             b.seq = self.seq[start:stop]
-            b.pos = { iso : start+val.start for iso,start in self.pos.items() }
+            # b.pos = { iso : start+val.start for iso,start in self.pos.items() }
             for s, _ in self.muts.items():
                 b.muts[s] = {p-start:c for p,c in self.muts[s].items() if p>=start and p<stop}
             return b

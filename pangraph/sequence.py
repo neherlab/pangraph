@@ -28,11 +28,7 @@ class Node(object):
 
     @classmethod
     def from_dict(cls, d, blks):
-        N = Node()
-        N.blk    = blks[d['id']]
-        N.num    = d['num']
-        N.strand = Strand(d['strand'])
-        return N
+        return Node(blks[d['id']], d['num'], Strand(d['strand']))
 
     def to_dict(self):
         return {'id': self.blk.id, 'num': self.num, 'strand': int(self.strand)}
@@ -60,13 +56,8 @@ class Path(object):
         return str(self)
 
     @classmethod
-    def from_dict(cls, d):
-        P = Path()
-        P.name   = d['name']
-        P.offset = d['offset']
-        P.nodes  = [Node.from_dict(n) for n in d['nodes']]
-
-        return P
+    def from_dict(cls, d, blks):
+        return Path(d['name'], [Node.from_dict(n, blks) for n in d['nodes']], d['offset'])
 
     def to_dict(self):
         return {'name': self.name, 'offset': self.offset, 'nodes': [n.to_dict() for n in self.nodes]}
