@@ -635,9 +635,6 @@ class Graph(object):
         return set(other.seqs.keys()).issubset(set(self.seqs.keys()))
 
     def pairwise_distance(self):
-        for iso, path in self.seqs.items():
-            print(iso)
-
         strings     = {iso: [(n.blk.id,n.strand) for n in path.nodes] for iso,path in self.seqs.items()}
         suffix_tree = suffix.Tree(strings)
         isos        = sorted(list(self.seqs.keys()))
@@ -646,7 +643,11 @@ class Graph(object):
 
         for i, iso1 in enumerate(isos):
             for j, iso2 in enumerate(isos[:i]):
-                D[i,j] = len(suffix_tree.matches(iso1, iso2))
+                num_events = len(suffix_tree.matches(iso1, iso2))
+                if num_events > 0:
+                    D[i,j] = num_events
+                else:
+                    D[i,j] = np.infty
                 D[j,i] = D[i,j]
 
         return D
