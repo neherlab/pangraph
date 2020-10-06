@@ -75,8 +75,7 @@ class Block(object):
         B      = Block()
         B.id   = d['id']
         B.seq  = as_array(d['seq'])
-        # B.pos  = {unpack(k):tuple(v) for k, v in d['pos'].items()}
-        B.muts = {unpack(k):v for k, v in d['muts'].items()}
+        B.muts = {unpack(k):{int(x):sub for x, sub in v.items()} for k, v in d['muts'].items()}
 
         return B
 
@@ -92,7 +91,6 @@ class Block(object):
             for s in nblk.muts:
                 nblk.muts[s].update({p+offset:c for p,c in b.muts[s].items()})
             offset += len(b)
-        # nblk.pos = { k:v for k,v in blks[0].pos.items() }
 
         return nblk
 
@@ -166,7 +164,7 @@ class Block(object):
 
     def marginalize(self, *isolates):
         isolates = set(isolates)
-        self.muts = {iso:m for iso, m in self.muts.items() if iso in isolates}
+        self.muts = {tag:m for tag, m in self.muts.items() if tag[0] in isolates}
         return self
 
     def extract(self, iso, num, strip_gaps=True, verbose=False):
