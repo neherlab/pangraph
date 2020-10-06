@@ -383,6 +383,9 @@ class Graph(object):
 
         chains = {}
         for j in transitives:
+            if j.left_id == "MEWBEEGKKD" or j.right_id == "MEWBEEGKKD":
+                import ipdb; ipdb.set_trace()
+
             if j.left_id in chains and j.right_id in chains:
                 c1, c2 = chains[j.left_id], chains[j.right_id]
                 if c1 == c2:
@@ -410,6 +413,7 @@ class Graph(object):
                     c.insert(0, rev_blk(j.right_blk))
                 else:
                     breakpoint("chains should be linear")
+                chains[j.right_id] = c
             elif j.right_id in chains:
                 c = chains[j.right_id]
                 if j.right_blk == c[-1]:
@@ -418,11 +422,15 @@ class Graph(object):
                     c.insert(0, j.left_blk)
                 else:
                     breakpoint("chains should be linear")
+                chains[j.left_id] = c
             else:
                 chains[j.left_id]  = [j.left_blk, j.right_blk]
                 chains[j.right_id] = chains[j.left_id]
 
         chains = list({id(c):c for c in chains.values()}.values())
+
+        import ipdb; ipdb.set_trace()
+
         for c in chains:
             new_blk = Block.cat([self.blks[b] if s == Strand.Plus else self.blks[b].rev_cmpl() for b, s in c])
             # TODO: check that isos is constant along the chain
