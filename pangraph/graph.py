@@ -185,7 +185,6 @@ class Graph(object):
         G.seqs   = {iso:deepcopy(path) for iso, path in self.seqs.items() if iso in isolates}
         G.blks   = {blk.id:blk.marginalize(*isolates) for blk in set.union(*[p.blocks() for p in G.seqs.values()])}
         G.remove_transitives()
-        import ipdb; ipdb.set_trace()
         return G
 
     def union(self, qpath, rpath, out, cutoff=0, alpha=10, beta=2, extensive=False, edge_window=1000, edge_extend=2500):
@@ -383,9 +382,6 @@ class Graph(object):
 
         chains = {}
         for j in transitives:
-            if j.left_id == "MEWBEEGKKD" or j.right_id == "MEWBEEGKKD":
-                import ipdb; ipdb.set_trace()
-
             if j.left_id in chains and j.right_id in chains:
                 c1, c2 = chains[j.left_id], chains[j.right_id]
                 if c1 == c2:
@@ -428,8 +424,6 @@ class Graph(object):
                 chains[j.right_id] = chains[j.left_id]
 
         chains = list({id(c):c for c in chains.values()}.values())
-
-        import ipdb; ipdb.set_trace()
 
         for c in chains:
             new_blk = Block.cat([self.blks[b] if s == Strand.Plus else self.blks[b].rev_cmpl() for b, s in c])
@@ -501,105 +495,105 @@ class Graph(object):
         new_blocks.extend(update(old_ref, new_refs, hit['ref'], Strand.Plus))
         new_blocks.extend(update(old_qry, new_qrys, hit['qry'], hit['orientation']))
 
-        lblks_set_x, rblks_set_x = set(), set()
-        lblks_set_s, rblks_set_s = set(), set()
-        first    = True
-        num_seqs = 0
-        for tag in shared_blks[0].muts.keys():
-            pos    = [self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks]
-            strand = [self.seqs[tag[0]].orientation_of(b, tag[1]) for b in shared_blks]
-            beg, end = pos[0], pos[-1]
-            if strand[0] == Strand.Plus:
-                lwindow = min(window, shared_blks[0].len_of(*tag))
-                rwindow = min(window, shared_blks[-1].len_of(*tag))
+        # lblks_set_x, rblks_set_x = set(), set()
+        # lblks_set_s, rblks_set_s = set(), set()
+        # first    = True
+        # num_seqs = 0
+        # for tag in shared_blks[0].muts.keys():
+        #     pos    = [self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks]
+        #     strand = [self.seqs[tag[0]].orientation_of(b, tag[1]) for b in shared_blks]
+        #     beg, end = pos[0], pos[-1]
+        #     if strand[0] == Strand.Plus:
+        #         lwindow = min(window, shared_blks[0].len_of(*tag))
+        #         rwindow = min(window, shared_blks[-1].len_of(*tag))
 
-                lblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+lwindow]
-                rblks_x = self.seqs[tag[0]][end[1]-rwindow:end[1]+extend]
-            elif strand[0] == Strand.Minus:
-                lwindow = min(window, shared_blks[-1].len_of(*tag))
-                rwindow = min(window, shared_blks[0].len_of(*tag))
+        #         lblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+lwindow]
+        #         rblks_x = self.seqs[tag[0]][end[1]-rwindow:end[1]+extend]
+        #     elif strand[0] == Strand.Minus:
+        #         lwindow = min(window, shared_blks[-1].len_of(*tag))
+        #         rwindow = min(window, shared_blks[0].len_of(*tag))
 
-                rblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+rwindow]
-                lblks_x = self.seqs[tag[0]][end[1]-lwindow:end[1]+extend]
-            else:
-                raise ValueError("unrecognized strand polarity")
+        #         rblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+rwindow]
+        #         lblks_x = self.seqs[tag[0]][end[1]-lwindow:end[1]+extend]
+        #     else:
+        #         raise ValueError("unrecognized strand polarity")
 
-            if first:
-                lblks_set_x = set([b.id for b in lblks_x])
-                rblks_set_x = set([b.id for b in rblks_x])
+        #     if first:
+        #         lblks_set_x = set([b.id for b in lblks_x])
+        #         rblks_set_x = set([b.id for b in rblks_x])
 
-                lblks_set_s = set([b.id for b in lblks_x])
-                rblks_set_s = set([b.id for b in rblks_x])
+        #         lblks_set_s = set([b.id for b in lblks_x])
+        #         rblks_set_s = set([b.id for b in rblks_x])
 
-                first = False
-            else:
-                lblks_set_x.intersection_update(set([b.id for b in lblks_x]))
-                rblks_set_x.intersection_update(set([b.id for b in rblks_x]))
+        #         first = False
+        #     else:
+        #         lblks_set_x.intersection_update(set([b.id for b in lblks_x]))
+        #         rblks_set_x.intersection_update(set([b.id for b in rblks_x]))
 
-                lblks_set_s.update(set([b.id for b in lblks_x]))
-                rblks_set_s.update(set([b.id for b in rblks_x]))
-            num_seqs += 1
+        #         lblks_set_s.update(set([b.id for b in lblks_x]))
+        #         rblks_set_s.update(set([b.id for b in rblks_x]))
+        #     num_seqs += 1
 
-        def emit(side):
-            if side == 'left':
-                delta  = len(lblks_set_s)-len(lblks_set_x)
-            elif side == 'right':
-                delta = len(lblks_set_s)-len(rblks_set_x)
-            else:
-                raise ValueError(f"unrecognized argument '{side}' for side")
+        # def emit(side):
+        #     if side == 'left':
+        #         delta  = len(lblks_set_s)-len(lblks_set_x)
+        #     elif side == 'right':
+        #         delta = len(lblks_set_s)-len(rblks_set_x)
+        #     else:
+        #         raise ValueError(f"unrecognized argument '{side}' for side")
 
-            if delta > 0 and num_seqs > 1:
-                print(f">LEN={delta}", end=';')
-                try:
-                    fd, path = tempfile.mkstemp()
-                    with os.fdopen(fd, 'w') as tmp:
-                        for i, tag in enumerate(merged_blks[0].muts.keys()):
-                            pos    = [self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks]
-                            strand = [self.seqs[tag[0]].orientation_of(b, tag[1]) for b in shared_blks]
-                            beg, end = pos[0], pos[-1]
+        #     if delta > 0 and num_seqs > 1:
+        #         print(f">LEN={delta}", end=';')
+        #         try:
+        #             fd, path = tempfile.mkstemp()
+        #             with os.fdopen(fd, 'w') as tmp:
+        #                 for i, tag in enumerate(merged_blks[0].muts.keys()):
+        #                     pos    = [self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks]
+        #                     strand = [self.seqs[tag[0]].orientation_of(b, tag[1]) for b in shared_blks]
+        #                     beg, end = pos[0], pos[-1]
 
-                            if strand[0] == Strand.Plus:
-                                if side == 'left':
-                                    left, right = beg[0]-extend,beg[0]+min(window,shared_blks[0].len_of(*tag))
-                                elif side == 'right':
-                                    left, right = end[1]-min(window,shared_blks[-1].len_of(*tag)),end[1]+extend
-                                else:
-                                    raise ValueError(f"unrecognized argument '{side}' for side")
+        #                     if strand[0] == Strand.Plus:
+        #                         if side == 'left':
+        #                             left, right = beg[0]-extend,beg[0]+min(window,shared_blks[0].len_of(*tag))
+        #                         elif side == 'right':
+        #                             left, right = end[1]-min(window,shared_blks[-1].len_of(*tag)),end[1]+extend
+        #                         else:
+        #                             raise ValueError(f"unrecognized argument '{side}' for side")
 
-                            elif strand[0] == Strand.Minus:
-                                if side == 'left':
-                                    left, right = end[1]-min(window,shared_blks[-1].len_of(*tag)),end[1]+extend
-                                elif side == 'right':
-                                    left, right = beg[0]-extend,beg[0]+min(window, shared_blks[0].len_of(*tag))
-                                else:
-                                    raise ValueError(f"unrecognized argument '{side}' for side")
+        #                     elif strand[0] == Strand.Minus:
+        #                         if side == 'left':
+        #                             left, right = end[1]-min(window,shared_blks[-1].len_of(*tag)),end[1]+extend
+        #                         elif side == 'right':
+        #                             left, right = beg[0]-extend,beg[0]+min(window, shared_blks[0].len_of(*tag))
+        #                         else:
+        #                             raise ValueError(f"unrecognized argument '{side}' for side")
 
-                            iso_blks = self.seqs[tag[0]][left:right]
-                            tmp.write(f">isolate_{i:04d} {','.join(b.id for b in iso_blks)}\n")
-                            s = self.seqs[tag[0]].sequence_range(left,right)
-                            if len(s) > extend + window:
-                                breakpoint(f"bad sequence slicing: {len(s)}")
-                            tmp.write(s + '\n')
+        #                     iso_blks = self.seqs[tag[0]][left:right]
+        #                     tmp.write(f">isolate_{i:04d} {','.join(b.id for b in iso_blks)}\n")
+        #                     s = self.seqs[tag[0]].sequence_range(left,right)
+        #                     if len(s) > extend + window:
+        #                         breakpoint(f"bad sequence slicing: {len(s)}")
+        #                     tmp.write(s + '\n')
 
-                        tmp.flush()
+        #                 tmp.flush()
 
-                        proc = subprocess.Popen(f"mafft --auto {path}",
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.PIPE,
-                                    shell=True)
-                        out, err = proc.communicate()
-                        print(f"ALIGNMENT={out}", end=";")
-                        rdr = StringIO(out.decode('utf-8'))
-                        print(f"SCORE={alignment_entropy(rdr)}", end=";")
-                        rdr.close()
-                        print("\n", end="")
-                finally:
-                    os.remove(path)
-            else:
-                print(f">NO MATCH")
+        #                 proc = subprocess.Popen(f"mafft --auto {path}",
+        #                             stdout=subprocess.PIPE,
+        #                             stderr=subprocess.PIPE,
+        #                             shell=True)
+        #                 out, err = proc.communicate()
+        #                 print(f"ALIGNMENT={out}", end=";")
+        #                 rdr = StringIO(out.decode('utf-8'))
+        #                 print(f"SCORE={alignment_entropy(rdr)}", end=";")
+        #                 rdr.close()
+        #                 print("\n", end="")
+        #         finally:
+        #             os.remove(path)
+        #     else:
+        #         print(f">NO MATCH")
 
-        emit('left')
-        emit('right')
+        # emit('left')
+        # emit('right')
 
         self.prune_blks()
 

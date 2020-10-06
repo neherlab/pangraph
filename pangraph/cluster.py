@@ -15,7 +15,7 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
 from .tree  import Tree
-from .utils import openany
+from .utils import openany, parse_fasta
 
 def register_args(parser):
     parser.add_argument("-d", "--dir",
@@ -28,13 +28,15 @@ def register_args(parser):
                         type=str,
                         nargs='?',
                         default="mash",
-                        choices=['mash'],
+                        choices=['mash', 'random'],
                         help="backend used to estimate inter-sequence distance")
     parser.add_argument("input",
                         type=str,
                         nargs='*',
                         default="-",
                         help="fasta file(s) to cluster")
+
+# TODO: make backends just a single function...
 
 # ------------------------------------------------------------------------
 # mash backend
@@ -59,6 +61,22 @@ def parse_mash(input):
     return M, np.array(names)
 
 # ------------------------------------------------------------------------
+# random matrix backend
+
+def nop(input):
+    return input
+
+def random_matrix(input):
+    with openany(input) as fh:
+        names = [rec.name for rec in parse_fasta(fh)]
+
+    M = np.abs(np.random.randn(len(names),len(names)))
+    M = M + M.T
+
+    return M, np.array(names)
+
+
+# ------------------------------------------------------------------------
 # backends perform the pairwise distance approximation
 
 class Backend(object):
@@ -67,7 +85,8 @@ class Backend(object):
         self.parse = parse
 
 backends = {
-    "mash" : Backend(run=run_mash, parse=parse_mash),
+    "mash"   : Backend(run=run_mash, parse=parse_mash),
+    "random" : Backend(run=nop, parse=random_matrix),
     # add more backends here...
 }
 
