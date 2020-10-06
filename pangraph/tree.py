@@ -292,7 +292,7 @@ class Tree(object):
         leafs = {n.name: n for n in self.get_leafs()}
         self.seqs = {leafs[name]:seq for name,seq in seqs.items()}
 
-    def align(self, tmpdir, min_blk_len, mu, beta, extensive, edge_window, edge_extend, log_stats=False, verbose=False):
+    def align(self, tmpdir, min_blk_len, circular, mu, beta, extensive, edge_window, edge_extend, log_stats=False, verbose=False):
         self.root.set_level(0) # NOTE: for debug logging
         stats = {}
         # ---------------------------------------------
@@ -375,7 +375,7 @@ class Tree(object):
         # fix trivial graphs onto the leafs
         for i, n in enumerate(self.get_leafs()):
             seq      = self.seqs[n]
-            n.graph  = Graph.from_seq(n.name, str(seq).upper())
+            n.graph  = Graph.from_seq(n.name, str(seq).upper(), circular)
             n.fapath = f"{tmpdir}/{n.name}"
             with open(f"{n.fapath}.fa", 'w') as fd:
                 n.graph.write_fasta(fd)

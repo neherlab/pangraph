@@ -24,8 +24,6 @@ from .utils    import Strand, as_string, parse_paf, panic, as_record, new_strand
 # ------------------------------------------------------------------------
 # globals
 
-# WINDOW = 1000
-# EXTEND = 2500
 pp = pprint.PrettyPrinter(indent=4)
 
 # ------------------------------------------------------------------------
@@ -111,12 +109,12 @@ class Graph(object):
     # --- Class methods ---
 
     @classmethod
-    def from_seq(cls, name, seq):
+    def from_seq(cls, name, seq, circular):
         newg = cls()
         blk  = Block.from_seq(name, seq)
         newg.name = name
         newg.blks = {blk.id : blk}
-        newg.seqs = {name : Path(name, Node(blk, 0, Strand.Plus), 0)}
+        newg.seqs = {name : Path(name, Node(blk, 0, Strand.Plus), 0, circular)}
 
         return newg
 
@@ -358,8 +356,9 @@ class Graph(object):
                 continue
 
             for i, n in enumerate(path.nodes):
-                j = Junction(path.nodes[i-1], n)
-                junctions[j].append(iso)
+                if path.circular or i > 0:
+                    j = Junction(path.nodes[i-1], n)
+                    junctions[j].append(iso)
         return { k:dict(Counter(v)) for k, v in junctions.items() }
 
     def remove_transitives(self):
@@ -479,6 +478,7 @@ class Graph(object):
 
             return new_blks
 
+        # NOTE: This has repeated blocks...
         new_blocks = []
         new_blocks.extend(update(old_ref, new_refs, hit['ref'], Strand.Plus))
         new_blocks.extend(update(old_qry, new_qrys, hit['qry'], hit['orientation']))
@@ -490,6 +490,8 @@ class Graph(object):
         for tag in shared_blks[0].muts.keys():
             pos    = [self.seqs[tag[0]].position_of(b, tag[1]) for b in shared_blks]
             strand = [self.seqs[tag[0]].orientation_of(b, tag[1]) for b in shared_blks]
+            if strand[0] is None:
+                breakpoint("bad block")
             beg, end = pos[0], pos[-1]
             if strand[0] == Strand.Plus:
                 lwindow = min(window, shared_blks[0].len_of(*tag))
@@ -497,26 +499,18 @@ class Graph(object):
 
                 lblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+lwindow]
                 rblks_x = self.seqs[tag[0]][end[1]-rwindow:end[1]+extend]
-
-                # lblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
-                # rblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
             elif strand[0] == Strand.Minus:
                 lwindow = min(window, shared_blks[-1].len_of(*tag))
                 rwindow = min(window, shared_blks[0].len_of(*tag))
+
                 rblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+rwindow]
                 lblks_x = self.seqs[tag[0]][end[1]-lwindow:end[1]+extend]
-
-                # rblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
-                # lblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
             else:
-                raise ValueError("unrecognized strand polarity")
+                raise ValueError(f"unrecognized strand polarity {strand[0]}")
 
             if first:
                 lblks_set_x = set([b.id for b in lblks_x])
                 rblks_set_x = set([b.id for b in rblks_x])
-
-                # lblks_set_s = set([b.id for b in lblks_s])
-                # rblks_set_s = set([b.id for b in rblks_s])
 
                 lblks_set_s = set([b.id for b in lblks_x])
                 rblks_set_s = set([b.id for b in rblks_x])
@@ -528,8 +522,6 @@ class Graph(object):
 
                 lblks_set_s.update(set([b.id for b in lblks_x]))
                 rblks_set_s.update(set([b.id for b in rblks_x]))
-                # lblks_set_s.intersection_update(set([b.id for b in lblks_s]))
-                # rblks_set_s.intersection_update(set([b.id for b in rblks_s]))
             num_seqs += 1
 
         def emit(side):
@@ -567,14 +559,6 @@ class Graph(object):
                                     raise ValueError(f"unrecognized argument '{side}' for side")
 
                             iso_blks = self.seqs[tag[0]][left:right]
-                            # print("POSITIONS", pos)
-                            # print("STRAND", strand)
-                            # print("LIST", shared_blks)
-                            # print("MERGED", merged_blks)
-                            # print("INTERSECTION", lblks_set_x if side == 'left' else rblks_set_x)
-                            # print("UNION", lblks_set_s if side == 'left' else rblks_set_s)
-                            # print("ISO", iso_blks)
-                            # breakpoint("stop")
                             tmp.write(f">isolate_{i:04d} {','.join(b.id for b in iso_blks)}\n")
                             s = self.seqs[tag[0]].sequence_range(left,right)
                             if len(s) > extend + window:
@@ -587,19 +571,11 @@ class Graph(object):
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
                                     shell=True)
-                        # proc[1] = subprocess.Popen(f"fasttree",
-                        #             stdin =subprocess.PIPE,
-                        #             stdout=subprocess.PIPE,
-                        #             stderr=subprocess.PIPE,
-                        #             shell=True)
                         out, err = proc.communicate()
-                        # out[1], err[1] = proc[1].communicate(input=out[0])
-                        # tree = Phylo.read(io.StringIO(out[1].decode('utf-8')), format='newick')
                         print(f"ALIGNMENT={out}", end=";")
                         rdr = StringIO(out.decode('utf-8'))
                         print(f"SCORE={alignment_entropy(rdr)}", end=";")
                         rdr.close()
-                        # print(f"SCORE={tree.total_branch_length()/(2*num_seqs)}", end=";")
                         print("\n", end="")
                 finally:
                     os.remove(path)
