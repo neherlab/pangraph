@@ -9,6 +9,7 @@ from io          import StringIO
 from glob        import glob
 from collections import defaultdict, Counter
 from itertools   import chain
+from copy        import deepcopy
 
 from Bio           import AlignIO, SeqIO, Phylo
 from Bio.Seq       import Seq
@@ -177,6 +178,15 @@ class Graph(object):
 
     # ---------------
     # methods
+
+    def marginalize(self, *isolates):
+        G = Graph()
+        isolates = set(isolates)
+        G.seqs   = {iso:deepcopy(path) for iso, path in self.seqs.items() if iso in isolates}
+        G.blks   = {blk.id:blk.marginalize(*isolates) for blk in set.union(*[p.blocks() for p in G.seqs.values()])}
+        G.remove_transitives()
+        import ipdb; ipdb.set_trace()
+        return G
 
     def union(self, qpath, rpath, out, cutoff=0, alpha=10, beta=2, extensive=False, edge_window=1000, edge_extend=2500):
         from seqanpy import align_global as align
@@ -497,26 +507,18 @@ class Graph(object):
 
                 lblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+lwindow]
                 rblks_x = self.seqs[tag[0]][end[1]-rwindow:end[1]+extend]
-
-                # lblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
-                # rblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
             elif strand[0] == Strand.Minus:
                 lwindow = min(window, shared_blks[-1].len_of(*tag))
                 rwindow = min(window, shared_blks[0].len_of(*tag))
+
                 rblks_x = self.seqs[tag[0]][beg[0]-extend:beg[0]+rwindow]
                 lblks_x = self.seqs[tag[0]][end[1]-lwindow:end[1]+extend]
-
-                # rblks_s = self.seqs[tag[0]][beg[0]:beg[0]+window]
-                # lblks_s = self.seqs[tag[0]][end[1]-window:end[1]]
             else:
                 raise ValueError("unrecognized strand polarity")
 
             if first:
                 lblks_set_x = set([b.id for b in lblks_x])
                 rblks_set_x = set([b.id for b in rblks_x])
-
-                # lblks_set_s = set([b.id for b in lblks_s])
-                # rblks_set_s = set([b.id for b in rblks_s])
 
                 lblks_set_s = set([b.id for b in lblks_x])
                 rblks_set_s = set([b.id for b in rblks_x])
@@ -528,8 +530,6 @@ class Graph(object):
 
                 lblks_set_s.update(set([b.id for b in lblks_x]))
                 rblks_set_s.update(set([b.id for b in rblks_x]))
-                # lblks_set_s.intersection_update(set([b.id for b in lblks_s]))
-                # rblks_set_s.intersection_update(set([b.id for b in rblks_s]))
             num_seqs += 1
 
         def emit(side):
@@ -567,14 +567,6 @@ class Graph(object):
                                     raise ValueError(f"unrecognized argument '{side}' for side")
 
                             iso_blks = self.seqs[tag[0]][left:right]
-                            # print("POSITIONS", pos)
-                            # print("STRAND", strand)
-                            # print("LIST", shared_blks)
-                            # print("MERGED", merged_blks)
-                            # print("INTERSECTION", lblks_set_x if side == 'left' else rblks_set_x)
-                            # print("UNION", lblks_set_s if side == 'left' else rblks_set_s)
-                            # print("ISO", iso_blks)
-                            # breakpoint("stop")
                             tmp.write(f">isolate_{i:04d} {','.join(b.id for b in iso_blks)}\n")
                             s = self.seqs[tag[0]].sequence_range(left,right)
                             if len(s) > extend + window:
@@ -587,19 +579,11 @@ class Graph(object):
                                     stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE,
                                     shell=True)
-                        # proc[1] = subprocess.Popen(f"fasttree",
-                        #             stdin =subprocess.PIPE,
-                        #             stdout=subprocess.PIPE,
-                        #             stderr=subprocess.PIPE,
-                        #             shell=True)
                         out, err = proc.communicate()
-                        # out[1], err[1] = proc[1].communicate(input=out[0])
-                        # tree = Phylo.read(io.StringIO(out[1].decode('utf-8')), format='newick')
                         print(f"ALIGNMENT={out}", end=";")
                         rdr = StringIO(out.decode('utf-8'))
                         print(f"SCORE={alignment_entropy(rdr)}", end=";")
                         rdr.close()
-                        # print(f"SCORE={tree.total_branch_length()/(2*num_seqs)}", end=";")
                         print("\n", end="")
                 finally:
                     os.remove(path)
@@ -634,23 +618,42 @@ class Graph(object):
     def contains(self, other):
         return set(other.seqs.keys()).issubset(set(self.seqs.keys()))
 
-    def pairwise_distance(self):
+    def pairwise_distance(self, weighted=False):
         strings     = {iso: [(n.blk.id,n.strand) for n in path.nodes] for iso,path in self.seqs.items()}
         suffix_tree = suffix.Tree(strings)
         isos        = sorted(list(self.seqs.keys()))
         N           = len(self.seqs)
-        D           = np.zeros((N,N))
 
-        for i, iso1 in enumerate(isos):
-            for j, iso2 in enumerate(isos[:i]):
-                num_events = len(suffix_tree.matches(iso1, iso2))
-                if num_events > 0:
-                    D[i,j] = num_events
-                else:
-                    D[i,j] = np.infty
-                D[j,i] = D[i,j]
+        if not weighted:
+            def kernel():
+                D = np.zeros((N,N))
+                for i, iso1 in enumerate(isos):
+                    for j, iso2 in enumerate(isos[:i]):
+                        matches    = suffix_tree.matches(iso1, iso2)
+                        num_events = len(matches)
+                        if num_events > 0:
+                            D[i,j] = num_events
+                        else:
+                            D[i,j] = np.infty
+                        D[j,i] = D[i,j]
+                return D
+        else:
+            def kernel():
+                D = np.zeros((N,N))
+                for i, iso1 in enumerate(isos):
+                    L1 = len(self.seqs[iso1])
+                    for j, iso2 in enumerate(isos[:i]):
+                        L2 = len(self.seqs[iso2])
 
-        return D
+                        matches = suffix_tree.matches(iso1, iso2)
+                        length  = lambda name: sum(self.blks[b[0]].len_of(name, 0) for m in matches for b in m)
+                        f1, f2  = length(iso1)/L1, length(iso2)/L2
+
+                        D[i,j] = np.sqrt(f1*f2)
+                        D[j,i] = D[i,j]
+                return D
+
+        return (kernel(), isos)
 
     def to_json(self, wtr, minlen=500):
         J = {}

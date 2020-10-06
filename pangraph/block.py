@@ -164,6 +164,11 @@ class Block(object):
 
         return b
 
+    def marginalize(self, *isolates):
+        isolates = set(isolates)
+        self.muts = {iso:m for iso, m in self.muts.items() if iso in isolates}
+        return self
+
     def extract(self, iso, num, strip_gaps=True, verbose=False):
         tag = (iso, num)
         tmp = np.copy(self.seq)
