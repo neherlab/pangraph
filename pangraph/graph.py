@@ -436,12 +436,11 @@ class Graph(object):
 
             # TODO: check that isos is constant along the chain
             for iso in self.blks[c[0][0]].isolates.keys():
-                print(f"MERGING {iso}. Chain {[x[0] for x in c]} -> {new_blk}")
                 self.seqs[iso].merge(c[0], c[-1], new_blk)
 
             new_blk.muts = {key:val for key,val in new_blk.muts.items() if isinstance(key,tuple)}
-            if set(self.blks[c[0][0]].isolates.keys()) != set(new_blk.isolates.keys()):
-                breakpoint("bad mutation keys")
+            # if set(self.blks[c[0][0]].isolates.keys()) != set(new_blk.isolates.keys()):
+            #     breakpoint("bad mutation keys")
 
             self.blks[new_blk.id] = new_blk
 

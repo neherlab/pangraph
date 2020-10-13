@@ -122,18 +122,18 @@ class Path(object):
                 key = (self.name,N)
 
                 if beg < end:
-                    print(f"----> case 1: {self.nodes[beg:end+1]} ({beg}, {end})")
-                    s0  = "".join(n.blk.extract(self.name, n.num) for n in self.nodes[beg:end+1])
+                    # print(f"----> case 1: {self.nodes[beg:end+1]} ({beg}, {end})")
+                    # s0  = "".join(n.blk.extract(self.name, n.num) for n in self.nodes[beg:end+1])
                     val = dict(ChainMap(*[new.muts[n.blk][(self.name,n.num)] for n in self.nodes[beg:end+1]]))
                     new.muts.update({key:val})
                     self.nodes = self.nodes[:beg] + [Node(new, N, s)] + self.nodes[end+1:]
 
-                    s1 = new.extract(self.name,N)
-                    if s0 != s1:
-                        breakpoint("bad fwd-ordered mutations")
+                    # s1 = new.extract(self.name,N)
+                    # if s0 != s1:
+                    #     breakpoint("bad fwd-ordered mutations")
                 else:
-                    print(f"----> case 2: {self.nodes[beg:] + self.nodes[:end+1]} ({beg}, {end})")
-                    s0 = "".join(n.blk.extract(self.name, n.num) for n in self.nodes[beg:] + self.nodes[:end+1])
+                    # print(f"----> case 2: {self.nodes[beg:] + self.nodes[:end+1]} ({beg}, {end})")
+                    # s0 = "".join(n.blk.extract(self.name, n.num) for n in self.nodes[beg:] + self.nodes[:end+1])
                     if not self.circular:
                         raise ValueError("attempted to rotate non-circular sequence")
                     self.offset += sum(n.blk.len_of(self.name, N) for n in self.nodes[beg:])
@@ -141,9 +141,9 @@ class Path(object):
                     new.muts.update({key:val})
                     self.nodes   = [Node(new, N, s)] + self.nodes[end+1:beg]
 
-                    s1 = new.extract(self.name, N)
-                    if s0 != s1:
-                        breakpoint("bad rev-ordered mutations")
+                    # s1 = new.extract(self.name, N)
+                    # if s0 != s1:
+                    #     breakpoint("bad rev-ordered mutations")
                 self.position  = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
                 N += 1
             except ValueError as err:
