@@ -44,12 +44,16 @@ class Node(object):
 class Path(object):
     """docstring for Path"""
 
-    def __init__(self, name, nodes, offset):
+    def __init__(self, name, nodes, offset, circular):
         super(Path, self).__init__()
         self.name     = name
         self.nodes    = nodes if isinstance(nodes, list) else [nodes]
         self.offset   = offset
         self.position = np.cumsum([0] + [n.length(name) for n in self.nodes])
+        self.circular = circular
+
+        if offset > 0 and not circular:
+            raise ValueError("sequence path cannot have non-zero offset if it corresponds to linear genome")
 
     def __str__(self):
         return f"{self.name}: {[str(n) for n in self.nodes]}"
@@ -62,7 +66,7 @@ class Path(object):
         return Path(d['name'], [Node.from_dict(n, blks) for n in d['nodes']], d['offset'])
 
     def to_dict(self):
-        return {'name': self.name, 'offset': self.offset, 'nodes': [n.to_dict() for n in self.nodes]}
+        return {'name': self.name, 'offset': self.offset, 'nodes': [n.to_dict() for n in self.nodes], 'circular': self.circular}
 
     def blocks(self):
         return set([n.blk for n in self.nodes])
@@ -77,6 +81,8 @@ class Path(object):
                 seq += rev_cmpl(s)
 
         if self.offset != 0:
+            if not self.circular:
+                raise ValueError("invalid sequence path: non-zero offset for linear genome")
             seq = seq[self.offset:] + seq[:self.offset]
 
         return seq
@@ -128,6 +134,8 @@ class Path(object):
                 else:
                     print(f"----> case 2: {self.nodes[beg:] + self.nodes[:end+1]} ({beg}, {end})")
                     s0 = "".join(n.blk.extract(self.name, n.num) for n in self.nodes[beg:] + self.nodes[:end+1])
+                    if not self.circular:
+                        raise ValueError("attempted to rotate non-circular sequence")
                     self.offset += sum(n.blk.len_of(self.name, N) for n in self.nodes[beg:])
                     val = dict(ChainMap(*[new.muts[n.blk][(self.name,n.num)] for n in self.nodes[beg:] + self.nodes[:end+1]]))
                     new.muts.update({key:val})
@@ -177,11 +185,11 @@ class Path(object):
         end = stop or self.position[-1]
         l, r = "", ""
         if beg < 0:
-            if len(self.nodes) > 1:
+            if len(self.nodes) > 1 and self.circular:
                 l = self.sequence_range(self.position[-1]+beg,self.position[-1])
             beg = 0
         if end > self.position[-1]:
-            if len(self.nodes) > 1:
+            if len(self.nodes) > 1 and self.circular:
                 r = self.sequence_range(0,end-self.position[-1])
             end = self.position[-1]
         if beg > end:
@@ -210,10 +218,10 @@ class Path(object):
             end = index.stop or self.position[-1]
             l, r = [], []
             if beg < 0:
-                if len(self.nodes) > 1:
+                if len(self.nodes) > 1 and self.circular:
                     l = self[(self.position[-1]+beg):self.position[-1]]
                 beg = 0
-            if end > self.position[-1]:
+            if end > self.position[-1] and self.circular:
                 if len(self.nodes) > 1:
                     r = self[0:(end-self.position[-1])]
                 end = self.position[-1]

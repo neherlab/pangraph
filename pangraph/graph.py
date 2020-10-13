@@ -25,8 +25,6 @@ from .utils    import Strand, as_string, parse_paf, panic, as_record, new_strand
 # ------------------------------------------------------------------------
 # globals
 
-# WINDOW = 1000
-# EXTEND = 2500
 pp = pprint.PrettyPrinter(indent=4)
 
 # ------------------------------------------------------------------------
@@ -112,12 +110,12 @@ class Graph(object):
     # --- Class methods ---
 
     @classmethod
-    def from_seq(cls, name, seq):
+    def from_seq(cls, name, seq, circular):
         newg = cls()
         blk  = Block.from_seq(name, seq)
         newg.name = name
         newg.blks = {blk.id : blk}
-        newg.seqs = {name : Path(name, Node(blk, 0, Strand.Plus), 0)}
+        newg.seqs = {name : Path(name, Node(blk, 0, Strand.Plus), 0, circular)}
 
         return newg
 
@@ -374,8 +372,9 @@ class Graph(object):
                 continue
 
             for i, n in enumerate(path.nodes):
-                j = Junction(path.nodes[i-1], n)
-                junctions[j].append(iso)
+                if path.circular or i > 0:
+                    j = Junction(path.nodes[i-1], n)
+                    junctions[j].append(iso)
         return { k:dict(Counter(v)) for k, v in junctions.items() }
 
     def remove_transitives(self):
@@ -505,6 +504,7 @@ class Graph(object):
 
             return new_blks
 
+        # NOTE: This has repeated blocks...
         new_blocks = []
         new_blocks.extend(update(old_ref, new_refs, hit['ref'], Strand.Plus))
         new_blocks.extend(update(old_qry, new_qrys, hit['qry'], hit['orientation']))
@@ -608,7 +608,6 @@ class Graph(object):
 
         # emit('left')
         # emit('right')
-
         self.prune_blks()
 
         return [b[0] for b in new_blocks]
