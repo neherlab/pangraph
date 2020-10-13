@@ -89,7 +89,13 @@ class Clade(object):
         N = Clade(d['name'], parent, d['dist'])
         N.child = [Clade.from_dict(child, N) for child in d['child']]
         N.fapath = d['fapath']
-        N.graph  = Graph.from_dict(d['graph']) if d['graph'] is not None else None
+        if d['graph'] is not None:
+            if isinstance(d['graph'], list):
+                N.graph  = [Graph.from_dict(elt) for elt in d['graph']]
+            else:
+                N.graph  = Graph.from_dict(d['graph'])
+        else:
+            N.graph = None
 
         return N
 
@@ -163,7 +169,8 @@ class Tree(object):
         T.root = Clade.from_dict(data['tree'], None)
 
         leafs  = {n.name: n for n in T.get_leafs()}
-        T.seqs = {leafs[k]:Seq(v) for k,v in data['seqs'].items()}
+        if data['seqs'] is not None:
+            T.seqs = {leafs[k]:Seq(v) for k,v in data['seqs'].items()}
 
         return T
 

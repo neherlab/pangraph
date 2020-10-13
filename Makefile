@@ -51,6 +51,12 @@ ecoli:
 	@echo "build      ecoli"; \
 	pangraph build -d data/ecoli -m 500 -b 0 -e 2500 -w 1000 --circular data/ecoli/guide.json 1>data/ecoli/pangraph.json
 
+ecoli-plasmid:
+	@echo "cluster    ecoli-plasmid"; \
+	pangraph cluster -d data/ecoli-plasmid data/ecoli-plasmid/assemblies/*.fna.gz
+	@echo "build      ecoli-plasmid"; \
+	pangraph build -d data/ecoli-plasmid -m 500 -b 0 -e 2500 -w 1000 data/ecoli-plasmid/guide.json
+
 staph:
 	@echo "cluster    staph"; \
 	pangraph cluster -d data/staph data/staph/assemblies/*.fna.gz
@@ -65,5 +71,4 @@ staph:
 
 clean:
 	rm -rf $(ROOT_DIR)/*
-	rm -rf data/ecoli/tmp*
-	rm -rf data/staph/tmp*
+	rm -rf data/*/tmp*

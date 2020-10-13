@@ -1,6 +1,8 @@
 import sys
 import numpy as np
 
+from collections import ChainMap
+
 from .utils import Strand, log, breakpoint, new_strand, rev_cmpl
 
 # ------------------------------------------------------------------------
@@ -28,11 +30,7 @@ class Node(object):
 
     @classmethod
     def from_dict(cls, d, blks):
-        N = Node()
-        N.blk    = blks[d['id']]
-        N.num    = d['num']
-        N.strand = Strand(d['strand'])
-        return N
+        return Node(blks[d['id']], d['num'], Strand(d['strand']))
 
     def to_dict(self):
         return {'id': self.blk.id, 'num': self.num, 'strand': int(self.strand)}
@@ -64,15 +62,8 @@ class Path(object):
         return str(self)
 
     @classmethod
-    def from_dict(cls, d):
-        P = Path()
-        P.name     = d['name']
-        P.offset   = d['offset']
-        P.nodes    = [Node.from_dict(n) for n in d['nodes']]
-        P.position = np.cumsum([0] + [n.length(name) for n in P.nodes])
-        P.circular = d['circular']
-
-        return P
+    def from_dict(cls, d, blks):
+        return Path(d['name'], [Node.from_dict(n, blks) for n in d['nodes']], d['offset'])
 
     def to_dict(self):
         return {'name': self.name, 'offset': self.offset, 'nodes': [n.to_dict() for n in self.nodes], 'circular': self.circular}
@@ -119,27 +110,44 @@ class Path(object):
         N = 0
         while True:
             ids = [n.blk.id for n in self.nodes]
+            print(f"--> Iteration {N}: ids={ids}, New block={new}")
             try:
                 i, j = ids.index(start[0]), ids.index(stop[0])
 
-                if N > 0:
-                    breakpoint("HIT")
                 if self.nodes[i].strand == start[1]:
                     beg, end, s = i, j, Strand.Plus
                 else:
                     beg, end, s = j, i, Strand.Minus
 
+                key = (self.name,N)
+
                 if beg < end:
+                    print(f"----> case 1: {self.nodes[beg:end+1]} ({beg}, {end})")
+                    s0  = "".join(n.blk.extract(self.name, n.num) for n in self.nodes[beg:end+1])
+                    val = dict(ChainMap(*[new.muts[n.blk][(self.name,n.num)] for n in self.nodes[beg:end+1]]))
+                    new.muts.update({key:val})
                     self.nodes = self.nodes[:beg] + [Node(new, N, s)] + self.nodes[end+1:]
+
+                    s1 = new.extract(self.name,N)
+                    if s0 != s1:
+                        breakpoint("bad fwd-ordered mutations")
                 else:
+                    print(f"----> case 2: {self.nodes[beg:] + self.nodes[:end+1]} ({beg}, {end})")
+                    s0 = "".join(n.blk.extract(self.name, n.num) for n in self.nodes[beg:] + self.nodes[:end+1])
                     if not self.circular:
                         raise ValueError("attempted to rotate non-circular sequence")
                     self.offset += sum(n.blk.len_of(self.name, N) for n in self.nodes[beg:])
-                    self.nodes = [Node(new, N, s)] + self.nodes[end+1:beg]
-                self.position  = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
+                    val = dict(ChainMap(*[new.muts[n.blk][(self.name,n.num)] for n in self.nodes[beg:] + self.nodes[:end+1]]))
+                    new.muts.update({key:val})
+                    self.nodes   = [Node(new, N, s)] + self.nodes[end+1:beg]
 
+                    s1 = new.extract(self.name, N)
+                    if s0 != s1:
+                        breakpoint("bad rev-ordered mutations")
+                self.position  = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
                 N += 1
-            except:
+            except ValueError as err:
+                print(f"Error: {err}")
                 return
 
     def replace(self, blk, tag, new_blks, blk_map):
