@@ -50,10 +50,6 @@ class Block(object):
     def isolates(self):
         return dict(Counter([k[0] for k in self.muts]))
 
-    # @property
-    # def positions(self):
-    #     return { tag:(pos, pos+self.len_of(*tag)) for tag, pos in self.pos.items() }
-
     # ------------------
     # static methods
 
@@ -61,7 +57,6 @@ class Block(object):
     def from_seq(cls, name, seq):
         new_blk      = cls()
         new_blk.seq  = as_array(seq)
-        # new_blk.pos  = {(name, 0): 0}
         new_blk.muts = {(name, 0):{}}
 
         return new_blk
@@ -82,14 +77,15 @@ class Block(object):
     @classmethod
     def cat(cls, blks):
         nblk = Block()
-        assert all([blks[0].muts.keys() == b2.muts.keys() for b2 in blks[1:]])
+        assert all([blks[0].muts.keys() == b.muts.keys() for b in blks[1:]])
 
         nblk.seq  = np.concatenate([b.seq for b in blks])
-        nblk.muts = { s:dict(x) for s,x in blks[0].muts.items() }
+        nblk.muts = { blks[0]: { s:dict(x) for s,x in blks[0].muts.items() }}
         offset    = len(blks[0])
         for b in blks[1:]:
-            for s in nblk.muts:
-                nblk.muts[s].update({p+offset:c for p,c in b.muts[s].items()})
+            nblk.muts[b] = {}
+            for s in b.muts.keys():
+                nblk.muts[b][s] = {(x+offset):snp for x,snp in b.muts[s].items()}
             offset += len(b)
 
         return nblk
@@ -170,10 +166,18 @@ class Block(object):
     def extract(self, iso, num, strip_gaps=True, verbose=False):
         tag = (iso, num)
         tmp = np.copy(self.seq)
+        for key, muts in self.muts.items():
+            if not isinstance(key, tuple):
+                continue
+            for x in muts.keys():
+                if x >= len(tmp):
+                    import ipdb; ipdb.set_trace()
+
         for p, s in self.muts[tag].items():
             tmp[p] = s
 
         assert len(tmp) > 0, "empty sequence"
+
         if strip_gaps:
             return as_string(tmp[tmp != '-'])
         else:
@@ -235,7 +239,6 @@ class Block(object):
 
         return {'id'   : self.id,
                 'seq'  : "".join(str(n) for n in self.seq),
-                'pos'  : {pack(k) : v for k,v in self.pos.items()},
                 'muts' : {pack(k) : fix(v) for k, v in self.muts.items()}}
 
     def __len__(self):

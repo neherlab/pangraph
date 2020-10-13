@@ -1,6 +1,8 @@
 import sys
 import numpy as np
 
+from collections import ChainMap
+
 from .utils import Strand, log, breakpoint, new_strand, rev_cmpl
 
 # ------------------------------------------------------------------------
@@ -98,30 +100,46 @@ class Path(object):
         self.nodes    = [self.nodes[i] for i in good]
         self.position = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
 
-    # TODO: debug cases w/ multiple runs
     def merge(self, start, stop, new):
         N = 0
         while True:
             ids = [n.blk.id for n in self.nodes]
+            print(f"--> Iteration {N}: ids={ids}, New block={new}")
             try:
                 i, j = ids.index(start[0]), ids.index(stop[0])
 
-                if N > 0:
-                    breakpoint("HIT")
                 if self.nodes[i].strand == start[1]:
                     beg, end, s = i, j, Strand.Plus
                 else:
                     beg, end, s = j, i, Strand.Minus
 
-                if beg < end:
-                    self.nodes = self.nodes[:beg] + [Node(new, N, s)] + self.nodes[end+1:]
-                else:
-                    self.offset += sum(n.blk.len_of(self.name, N) for n in self.nodes[beg:])
-                    self.nodes = [Node(new, N, s)] + self.nodes[end+1:beg]
-                self.position  = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
+                key = (self.name,N)
 
+                if beg < end:
+                    print(f"----> case 1: {self.nodes[beg:end+1]} ({beg}, {end})")
+                    s0  = "".join(n.blk.extract(self.name, n.num) for n in self.nodes[beg:end+1])
+                    val = dict(ChainMap(*[new.muts[n.blk][(self.name,n.num)] for n in self.nodes[beg:end+1]]))
+                    new.muts.update({key:val})
+                    self.nodes = self.nodes[:beg] + [Node(new, N, s)] + self.nodes[end+1:]
+
+                    s1 = new.extract(self.name,N)
+                    if s0 != s1:
+                        breakpoint("bad fwd-ordered mutations")
+                else:
+                    print(f"----> case 2: {self.nodes[beg:] + self.nodes[:end+1]} ({beg}, {end})")
+                    s0 = "".join(n.blk.extract(self.name, n.num) for n in self.nodes[beg:] + self.nodes[:end+1])
+                    self.offset += sum(n.blk.len_of(self.name, N) for n in self.nodes[beg:])
+                    val = dict(ChainMap(*[new.muts[n.blk][(self.name,n.num)] for n in self.nodes[beg:] + self.nodes[:end+1]]))
+                    new.muts.update({key:val})
+                    self.nodes   = [Node(new, N, s)] + self.nodes[end+1:beg]
+
+                    s1 = new.extract(self.name, N)
+                    if s0 != s1:
+                        breakpoint("bad rev-ordered mutations")
+                self.position  = np.cumsum([0] + [n.length(self.name) for n in self.nodes])
                 N += 1
-            except:
+            except ValueError as err:
+                print(f"Error: {err}")
                 return
 
     def replace(self, blk, tag, new_blks, blk_map):

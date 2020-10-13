@@ -352,6 +352,13 @@ class Graph(object):
             merged_blks.add(hit['ref']['name'])
             merged_blks.add(hit['qry']['name'])
 
+        for b in self.blks.values():
+            L = len(b.seq)
+            for mut in b.muts.values():
+                for x in mut.keys():
+                    if x >= L:
+                        import ipdb; ipdb.set_trace()
+
         self.remove_transitives()
 
         for path in self.seqs.values():
@@ -425,13 +432,20 @@ class Graph(object):
 
         chains = list({id(c):c for c in chains.values()}.values())
 
-        for c in chains:
+        for i, c in enumerate(chains):
             new_blk = Block.cat([self.blks[b] if s == Strand.Plus else self.blks[b].rev_cmpl() for b, s in c])
+
             # TODO: check that isos is constant along the chain
             for iso in self.blks[c[0][0]].isolates.keys():
+                print(f"MERGING {iso}. Chain {[x[0] for x in c]} -> {new_blk}")
                 self.seqs[iso].merge(c[0], c[-1], new_blk)
 
+            new_blk.muts = {key:val for key,val in new_blk.muts.items() if isinstance(key,tuple)}
+            if set(self.blks[c[0][0]].isolates.keys()) != set(new_blk.isolates.keys()):
+                breakpoint("bad mutation keys")
+
             self.blks[new_blk.id] = new_blk
+
             for b, _ in c:
                 self.blks.pop(b)
 

@@ -53,10 +53,9 @@ ecoli:
 
 ecoli-plasmid:
 	@echo "cluster    ecoli-plasmid"; \
-	pangraph cluster -d data/ecoli-plasmid --backend random data/ecoli-plasmid/assemblies/*.fna.gz
+	pangraph cluster -d data/ecoli-plasmid data/ecoli-plasmid/assemblies/*.fna.gz
 	@echo "build      ecoli-plasmid"; \
-	pangraph build -d data/ecoli-plasmid -m 500 -b 0 -e 2500 -w 1000 data/ecoli-plasmid/guide.json 1>data/ecoli-plasmid/pangraph.json
-
+	pangraph build -d data/ecoli-plasmid -m 500 -b 0 -e 2500 -w 1000 data/ecoli-plasmid/guide.json
 
 staph:
 	@echo "cluster    staph"; \
