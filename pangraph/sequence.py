@@ -63,7 +63,7 @@ class Path(object):
 
     @classmethod
     def from_dict(cls, d, blks):
-        return Path(d['name'], [Node.from_dict(n, blks) for n in d['nodes']], d['offset'])
+        return Path(d['name'], [Node.from_dict(n, blks) for n in d['nodes']], d['offset'], d['circular'] if 'circular' in d else False)
 
     def to_dict(self):
         return {'name': self.name, 'offset': self.offset, 'nodes': [n.to_dict() for n in self.nodes], 'circular': self.circular}
