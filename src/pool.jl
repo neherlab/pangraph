@@ -3,7 +3,8 @@ module Pool
 include("util.jl")
 using .Utility: random_id
 
-export pool, shutdown, path
+export Fifo, delete, path
+export pool, shutdown
 
 # ------------------------------------------------------------------------
 # Named Pipes
@@ -24,7 +25,7 @@ struct Fifo
         err  = ccall(:mkfifo, Cint, (Cstring, Cuint), path, mode)
         systemerror("failed to make fifo at $(repr(path))", err != 0)
 
-        return new(root, path, mode)
+        return new(root, base, mode)
     end
 end
 
@@ -35,6 +36,8 @@ function delete(f::Fifo)
     systemerror("failed to delete fifo at $(repr(f.base))", err != 0)
 end
 
+Base.open(f::Fifo, mode::AbstractString; lock = true) = Base.open(path(f), mode; lock=lock)
+
 # --------------------------------
 # worker queues
 
@@ -42,7 +45,7 @@ function pool(size)
     chan = Channel{Fifo}(size)
     for i in 1:size
         f = Fifo(random_id())
-        while !isnothing(f)
+        while isnothing(f)
             f = Fifo(random_id())
         end
         put!(chan, f)
@@ -52,10 +55,10 @@ function pool(size)
 end
 
 function shutdown(fifos::Channel{Fifo})
+    close(fifos)
     for f in fifos
         delete(f)
     end
-    close(fifos)
 end
 
 end

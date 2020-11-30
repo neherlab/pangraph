@@ -28,7 +28,7 @@ struct Record
     meta::String
 end
 
-name(r::Record) = r.name * " " * r.meta
+name(r::Record) = isempty(r.meta) ? r.name : r.name * " " * r.meta 
 
 NL = '\n'
 Base.show(io::IO, rec::Record) = print(io, f">{rec.name} {rec.meta}{NL}{String(rec.seq[1:40])}...{String(rec.seq[end-40:end])}")

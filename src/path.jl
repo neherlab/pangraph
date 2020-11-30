@@ -1,7 +1,6 @@
 module Paths
 
-include("block.jl")
-using .Blocks
+using ..Blocks
 
 export Node, Path
 
@@ -11,7 +10,7 @@ struct Node
     strand::Bool
 end
 
-Node(b::Block) = Node(b,0,true)
+Node(b) = Node(b,0,true)
 
 struct Path
     name::String

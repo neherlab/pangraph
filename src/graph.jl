@@ -3,21 +3,22 @@ module Pangraph
 using Match, FStrings
 
 # NOTE: commented out during debugging stage
-# include("util.jl")
+include("util.jl")
 # include("pool.jl")
 # include("align.jl")
 include("block.jl")
 include("path.jl")
 
+using .Utility: read_fasta, name
 using .Blocks, .Paths
 
-export Graph, write
+export Graph, Graphs, marshal, serialize
 
 # ------------------------------------------------------------------------
 # graph data structure
 
 struct Graph
-    blocks::Dict{String,Block}
+    block::Dict{String,Block}
     sequence::Dict{String,Path}
     # TODO: add edge data structure
 end
@@ -30,27 +31,58 @@ function Graph(name::String, sequence::Array{Char})
     path  = Path(name, Node(block))
 
     return Graph(
-         Dict([(block.id, block)]), 
+         Dict([(block.uuid, block)]), 
          Dict([(path.name, path)])
     )
 end
 
+Graphs(io::IO) = [Graph(name(record), record.seq) for record in read_fasta(io)]
+
+# --------------------------------
+# operators
+
+# TODO: think of better names
+Nₛ(G::Graph) = length(G.sequence)
+Nᵥ(G::Graph) = length(G.block)
+
 # ------------------------------------------------------------------------
 # serialization
 
-function write_fasta(io, G::Graph; numcols=80)
-    NL = '\n'
-    for block in values(G.blocks)
-        write(io, "f>{block.uuid}{NL}")
-        write(io, join([block.sequence[1+numcols*i:numcols*(i+1)] for i in 1:ceil(length(block),numcols)], NL))
+# helper functions w/ common functionality
+function columns(s; nc=80)
+    nr = ceil(Int64, length(s)/nc)
+    return join([String(s[(1+nc*i):min(nc*(i+1), length(s))]) for i in 1:nr], '\n')
+end
+
+function write_fasta(io, name, seq)
+    write(io, '>', name, '\n')
+    write(io, columns(seq), '\n')
+end
+
+function marshal_fasta(io, G::Graph)
+    for b in values(G.block)
+        write_fasta(io, b.uuid, b.sequence)
     end
 end
 
-function write(io, G::Graph; fmt=:fasta)
+function marshal(io, G::Graph; fmt=:fasta)
     @match fmt begin
-        :fasta || :fa => write_fasta(io, G)
+        :fasta || :fa => marshal_fasta(io, G)
         _ => error(f"{format} not a recognized output format")
     end
+end
+
+# TODO: can we generalize to multiple individuals
+#       equivalent to "highway" detection
+function serialize(io, G::Graph)
+    if length(G.sequence) != 1
+        error("only singleton graphs implemented")
+    end
+
+    name = collect(keys(G.sequence))[1]
+    seq  = collect(values(G.block))[1].sequence
+
+    write_fasta(io, name, seq)
 end
 
 end

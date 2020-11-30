@@ -3,6 +3,9 @@ module Align
 using FStrings, Match
 using LinearAlgebra
 
+import GZip # NOTE: only for debugging
+import Base.Threads.@spawn
+
 # NOTE: this is temporary
 include("pool.jl")
 using .Pool
@@ -14,7 +17,7 @@ using .Pangraph
 # global variables
 # TODO: move to a better location
 
-fifos = pool(10)
+fifos = pool(2)
 getio()     = take!(fifos)
 putio(fifo) = put!(fifos, fifo)
 
@@ -157,7 +160,8 @@ function nj(distance, names)
         distance = join!(distance)
     end
 
-    return Clade(nodes[1], nodes[2]) end
+    return Clade(nodes[1], nodes[2])
+end
 
 # ---------------------------
 # operators
@@ -215,40 +219,43 @@ end
 # ordering functions
 
 # TODO: assumes the input graphs are singletons! generalize
-function ordering(Gs...)
+function ordering(Gs...; compare=mash)
+    println("--> ordering...")
     fifo = getio()
+
+    task = @async compare(path(fifo))
+
     @spawn begin
-        open(path(fifo)) do io
+        open(fifo,"w") do io
             for G in Gs
-                write(io, G)
+                serialize(io, G)
             end
         end
     end
 
-    # TODO: allow for other pairwise comparisons besides mash
-    distance, names = mash(path(fifo))
+    distance, names = fetch(task)
     root = Clade(distance, names; algo=:nj)
 
     putio(fifo)
-
+    println("--> done")
     return root
 end
 
 # ------------------------------------------------------------------------
 # align functions
 
-module Minimap2
-
+# TODO: fill in actual implementation
 function merge(G1::Graph, G2::Graph)
     return G1
 end
 
 # TODO: the associate array is a bit hacky...
 function align(Gs::Graph...)
-    tips  = Dict([(keys(G.sequence)[1],G) for G in Gs])
+    tips  = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
     tree  = ordering(Gs...)
 
-    merge = Dict{Clade,Graph}()
+    println("--> aligning...")
+    merged = Dict{Clade,Graph}()
     for clade in tree
         if isleaf(clade)
             merged[clade] = tips[clade.name]
@@ -260,8 +267,7 @@ function align(Gs::Graph...)
         delete!(merged, clade.left)
         delete!(merged, clade.right)
     end
-end
-
+    println("--> done!")
 end
 
 # ------------------------------------------------------------------------
@@ -275,6 +281,10 @@ function test()
     println("done!")
 
     println("testing alignment...")
+    GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
+        graphs = Graphs(io)
+        graph  = align(graphs...)
+    end
 
     shutdown(fifos)
 end
