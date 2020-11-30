@@ -1,5 +1,12 @@
+module Blocks
+
 using Match, FStrings
 using Random, StatsBase
+
+include("util.jl")
+using .Utility: random_id
+
+export Block, sequence
 
 # ------------------------------------------------------------------------
 # Tag data structure
@@ -23,9 +30,9 @@ end
 # constructors
 
 # simple helpers
-Block() = Block(id(), "", {}, {}, {})
-Block(name::String, sequence::Array{Char}) = Block(id(),sequence, {Tag(name,0):{}}, {Tag(name,0):{}})
-Block(sequence,mutation,indel) = Block(id(),sequence,mutation,indel)
+Block() = Block(random_id(), "", Dict(), Dict())
+Block(name::String, sequence::Array{Char}) = Block(random_id(),sequence, Dict(Tag(name,0)=>Dict()), Dict(Tag(name,0)=>Dict()))
+Block(sequence,mutation,indel) = Block(random_id(),sequence,mutation,indel)
 
 # serial concatenate list of blocks
 function Block(bs::Block...)
@@ -41,7 +48,6 @@ function Block(bs::Block...)
     for b in bs[2:end]
         δ += length(b)
     end
-
 
     return Block(sequence,mutation,indel)
 end
@@ -87,20 +93,22 @@ function sequence(b::Block, tag::Tag; gaps=false)
     for (locus, snp) in b.mutation[tag]
         seq[locus] = snp
     end
+
     # indels
+    indel(seq, locus, insert::Array{Char}) = cat(seq[1:locus], insert, seq[locus+1:end])
+    indel(seq, locus, delete::Int)         = cat(seq[1:locus], seq[locus+delete:end])
+
     # TODO: deal with case of gaps=true and return explicit gap characters!
     for locus in sort(keys(b.indel),rev=true)
         indel = b.indel[locus]
-        @match typeof(indel) begin
-            Array{Char} => seq = cat(seq[1:locus], indel, seq[locus+1:end])
-            Int         => seq = cat(seq[1:locus], seq[locus+indel:end])
-            _ => error(f"unrecognized type of indel = {typeof(indel)}") 
-        end
+        seq   = indel!(seq, locus, indel)
     end
 
     return seq
 end
 
 function test()
-    println(id())
+    println(random_id())
+end
+
 end

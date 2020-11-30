@@ -6,7 +6,8 @@ using  StatsBase
 import Base.Threads.@spawn
 
 export random_id, log
-export read_fasta, read_paf
+export read_fasta, name
+export read_paf
 
 # random string of fixed length
 function random_id(;length=10)
@@ -26,6 +27,8 @@ struct Record
     name::String
     meta::String
 end
+
+name(r::Record) = r.name * " " * r.meta
 
 NL = '\n'
 Base.show(io::IO, rec::Record) = print(io, f">{rec.name} {rec.meta}{NL}{String(rec.seq[1:40])}...{String(rec.seq[end-40:end])}")

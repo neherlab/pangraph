@@ -3,7 +3,7 @@ module Align
 using FStrings, Match
 using LinearAlgebra
 
-
+# NOTE: this is temporary
 include("pool.jl")
 using .Pool
 
@@ -67,6 +67,7 @@ end
 # ------------------------------------------------------------------------
 # guide tree for order of pairwise comparison for multiple alignments
 
+# TODO: distance?
 mutable struct Clade
     name  ::String
     parent::Union{Clade,Nothing}
@@ -213,6 +214,7 @@ end
 # ------------------------------------------------------------------------
 # ordering functions
 
+# TODO: assumes the input graphs are singletons! generalize
 function ordering(Gs...)
     fifo = getio()
     @spawn begin
@@ -237,8 +239,27 @@ end
 
 module Minimap2
 
+function merge(G1::Graph, G2::Graph)
+    return G1
+end
+
+# TODO: the associate array is a bit hacky...
 function align(Gs::Graph...)
-    tree = ordering(Gs...)
+    tips  = Dict([(keys(G.sequence)[1],G) for G in Gs])
+    tree  = ordering(Gs...)
+
+    merge = Dict{Clade,Graph}()
+    for clade in tree
+        if isleaf(clade)
+            merged[clade] = tips[clade.name]
+            continue
+        end
+
+        merged[clade] = merge(merged[clade.left], merged[clade.right])
+
+        delete!(merged, clade.left)
+        delete!(merged, clade.right)
+    end
 end
 
 end
@@ -247,10 +268,13 @@ end
 # testing
 
 function test()
-    println("testing mash")
+    println("testing mash...")
     distance, names = mash("data/generated/assemblies/isolates.fna.gz")
     tree = Clade(distance, names; algo=:nj) 
     println(tree)
+    println("done!")
+
+    println("testing alignment...")
 
     shutdown(fifos)
 end

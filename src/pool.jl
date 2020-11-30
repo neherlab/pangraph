@@ -1,5 +1,8 @@
 module Pool
 
+include("util.jl")
+using .Utility: random_id
+
 export pool, shutdown, path
 
 # ------------------------------------------------------------------------
@@ -36,7 +39,7 @@ end
 # worker queues
 
 function pool(size)
-    chan = Channel{Fifo}(size=size)
+    chan = Channel{Fifo}(size)
     for i in 1:size
         f = Fifo(random_id())
         while !isnothing(f)

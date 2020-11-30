@@ -1,10 +1,15 @@
 module Pangraph
 
+using Match, FStrings
+
+# NOTE: commented out during debugging stage
 # include("util.jl")
 # include("pool.jl")
 # include("align.jl")
-# include("block.jl")
-# include("path.jl")
+include("block.jl")
+include("path.jl")
+
+using .Blocks, .Paths
 
 export Graph, write
 
@@ -15,6 +20,19 @@ struct Graph
     blocks::Dict{String,Block}
     sequence::Dict{String,Path}
     # TODO: add edge data structure
+end
+
+# --------------------------------
+# constructors
+
+function Graph(name::String, sequence::Array{Char})
+    block = Block(name, sequence)
+    path  = Path(name, Node(block))
+
+    return Graph(
+         Dict([(block.id, block)]), 
+         Dict([(path.name, path)])
+    )
 end
 
 # ------------------------------------------------------------------------

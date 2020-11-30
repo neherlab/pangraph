@@ -1,12 +1,26 @@
+module Paths
+
+include("block.jl")
+using .Blocks
+
+export Node, Path
+
 struct Node
     block::Block
     number::Int
     strand::Bool
 end
 
+Node(b::Block) = Node(b,0,true)
+
 struct Path
-    isolate::String
+    name::String
     nodes::Array{Node}
     offset::Integer
     circular::Bool
+end
+
+Path(name::String,node::Node,circular::Bool) = Path(name,[node],0,circular)
+Path(name::String,node::Node) = Path(name,[node],0,false)
+
 end
