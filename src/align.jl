@@ -3,6 +3,21 @@ module Align
 using FStrings, Match
 using LinearAlgebra
 
+
+include("pool.jl")
+using .Pool
+
+include("graph.jl")
+using .Pangraph
+
+# ------------------------------------------------------------------------
+# global variables
+# TODO: move to a better location
+
+fifos = pool(10)
+getio()     = take!(fifos)
+putio(fifo) = put!(fifos, fifo)
+
 # ------------------------------------------------------------------------
 # helper functions
 
@@ -46,7 +61,7 @@ function mash(input)
 end
 
 function minimap2(qry::String, ref::String)
-    return execute(`minimap2 -t 2 -x asm20 -m 10 -n 2 -s 30 -D -c $ref $qry`)
+    return execute(`minimap2 -x asm20 -m 10 -n 2 -s 30 -D -c $ref $qry`)
 end
 
 # ------------------------------------------------------------------------
@@ -196,11 +211,34 @@ function Base.iterate(root::Clade)
 end
 
 # ------------------------------------------------------------------------
+# ordering functions
+
+function ordering(Gs...)
+    fifo = getio()
+    @spawn begin
+        open(path(fifo)) do io
+            for G in Gs
+                write(io, G)
+            end
+        end
+    end
+
+    # TODO: allow for other pairwise comparisons besides mash
+    distance, names = mash(path(fifo))
+    root = Clade(distance, names; algo=:nj)
+
+    putio(fifo)
+
+    return root
+end
+
+# ------------------------------------------------------------------------
 # align functions
 
 module Minimap2
 
-function align(Gs...)
+function align(Gs::Graph...)
+    tree = ordering(Gs...)
 end
 
 end
@@ -213,6 +251,8 @@ function test()
     distance, names = mash("data/generated/assemblies/isolates.fna.gz")
     tree = Clade(distance, names; algo=:nj) 
     println(tree)
+
+    shutdown(fifos)
 end
 
 end

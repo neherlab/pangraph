@@ -1,8 +1,10 @@
-module PanGraph
+module Pangraph
 
-include("block.jl")
-include("path.jl")
-include("align.jl")
+# include("util.jl")
+# include("pool.jl")
+# include("align.jl")
+# include("block.jl")
+# include("path.jl")
 
 export Graph, write
 
@@ -19,7 +21,7 @@ end
 # serialization
 
 function write_fasta(io, G::Graph; numcols=80)
-    NL = "\n"
+    NL = '\n'
     for block in values(G.blocks)
         write(io, "f>{block.uuid}{NL}")
         write(io, join([block.sequence[1+numcols*i:numcols*(i+1)] for i in 1:ceil(length(block),numcols)], NL))

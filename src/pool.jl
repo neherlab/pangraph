@@ -1,4 +1,6 @@
-using StatsBase
+module Pool
+
+export pool, shutdown, path
 
 # ------------------------------------------------------------------------
 # Named Pipes
@@ -23,17 +25,17 @@ struct Fifo
     end
 end
 
-abspath(f::Fifo) = joinpath(f.root, f.base)
+path(f::Fifo) = joinpath(f.root, f.base)
 
 function delete(f::Fifo)
-    err = ccall(:remove, Cint, (Cstring,), abspath(f))
+    err = ccall(:remove, Cint, (Cstring,), path(f))
     systemerror("failed to delete fifo at $(repr(f.base))", err != 0)
 end
 
 # --------------------------------
 # worker queues
 
-function fifos(size)
+function pool(size)
     chan = Channel{Fifo}(size=size)
     for i in 1:size
         f = Fifo(random_id())
@@ -51,4 +53,6 @@ function shutdown(fifos::Channel{Fifo})
         delete(f)
     end
     close(fifos)
+end
+
 end
