@@ -50,8 +50,11 @@ Nᵥ(G::Graph) = length(G.block)
 
 # helper functions w/ common functionality
 function columns(s; nc=80)
-    nr = ceil(Int64, length(s)/nc)
-    return join([String(s[(1+nc*i):min(nc*(i+1), length(s))]) for i in 1:nr], '\n')
+    nr   = ceil(Int64, length(s)/nc)
+    l(i) = 1+(nc*(i-1)) 
+    r(i) = min(nc*i, length(s))
+    rows = [String(s[l(i):r(i)]) for i in 1:nr]
+    return join(rows,'\n')
 end
 
 function write_fasta(io, name, seq)

@@ -2,11 +2,15 @@ module Align
 
 using FStrings, Match
 using LinearAlgebra
+using Infiltrator
 
 import GZip # NOTE: only for debugging
 import Base.Threads.@spawn
 
 # NOTE: this is temporary
+include("util.jl")
+using .Utility: read_paf
+
 include("pool.jl")
 using .Pool
 
@@ -29,19 +33,29 @@ function execute(cmd::Cmd)
     out = Pipe()
     err = Pipe()
 
-    proc = run(pipeline(ignorestatus(cmd), stdout=out, stderr=err))
+    # println("-----> pipeline...")
+    proc = run(pipeline(ignorestatus(cmd), stdout=out, stderr=err); wait=false)
 
+    # println("-----> closing ...")
     close(out.in)
     close(err.in)
 
+    # println("-----> asyncing...")
     stdout = @async String(read(out))
     stderr = @async String(read(err))
 
-    wait(proc)
+    # println("-----> waiting...")
+    err = success(proc)
+
+    # println("-----> out...")
+    fₒ = fetch(stdout)
+    # println("-----> err...")
+    fₑ = fetch(stderr)
+    # println("-----> done!")
     return (
-        out  = fetch(stdout),
-        err  = fetch(stderr),
-        code = proc.exitcode
+        out  = fₒ,
+        err  = fₑ,
+        code = err,
     )
 end
 
@@ -220,7 +234,7 @@ end
 
 # TODO: assumes the input graphs are singletons! generalize
 function ordering(Gs...; compare=mash)
-    println("--> ordering...")
+    # println("--> ordering...")
     fifo = getio()
 
     task = @async compare(path(fifo))
@@ -237,7 +251,7 @@ function ordering(Gs...; compare=mash)
     root = Clade(distance, names; algo=:nj)
 
     putio(fifo)
-    println("--> done")
+    # println("--> done")
     return root
 end
 
@@ -245,8 +259,32 @@ end
 # align functions
 
 # TODO: fill in actual implementation
-function merge(G1::Graph, G2::Graph)
-    return G1
+function merge(G₁::Graph, G₂::Graph)
+    function write(fifo, G)
+        open(fifo, "w") do io
+            marshal(io, G)
+        end
+    end
+
+    io₁ = getio()
+    io₂ = getio()
+
+    proc = @async minimap2(path(io₁), path(io₂))
+    @sync begin
+        @spawn write(io₁, G₁)
+        @spawn write(io₂, G₂)
+    end
+    # println("-->fetching...")
+    aln  = fetch(proc)
+    # println("-->reading...")
+    hits = read_paf(IOBuffer(aln.out))
+
+    # println("-->putting...")
+    putio(io₁)
+    putio(io₂)
+
+    # println("-->done!")
+    return G₁
 end
 
 # TODO: the associate array is a bit hacky...
@@ -256,7 +294,8 @@ function align(Gs::Graph...)
 
     println("--> aligning...")
     merged = Dict{Clade,Graph}()
-    for clade in tree
+    for (i, clade) in enumerate(tree)
+        println("---> node ", i)
         if isleaf(clade)
             merged[clade] = tips[clade.name]
             continue
@@ -274,13 +313,12 @@ end
 # testing
 
 function test()
-    println("testing mash...")
+    println("> testing mash...")
     distance, names = mash("data/generated/assemblies/isolates.fna.gz")
     tree = Clade(distance, names; algo=:nj) 
-    println(tree)
     println("done!")
 
-    println("testing alignment...")
+    println("> testing alignment...")
     GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
         graphs = Graphs(io)
         graph  = align(graphs...)

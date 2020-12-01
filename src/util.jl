@@ -1,7 +1,7 @@
 module Utility
 
-using  FStrings
-using  StatsBase
+using FStrings
+using StatsBase
 
 import Base.Threads.@spawn
 
@@ -45,10 +45,9 @@ function read_fasta(io)
             line=readline(io)
 
             while !isempty(line) && line[1] != '>'
-                write(buf,line)
+                write(buf,rstrip(line))
                 line=readline(io)
             end
-
             put!(chan, Record(take!(buf), name, meta))
         end
 
@@ -124,11 +123,20 @@ function read_paf(io)
     return chan
 end
 
+function columns(s; nc=80)
+    nr   = ceil(Int64, length(s)/nc)
+    l(i) = 1+(nc*(i-1)) 
+    r(i) = min(nc*i, length(s))
+    rows = [String(s[l(i):r(i)]) for i in 1:nr]
+    return join(rows, '\n')
+end
+
 function test()
     println("testing fasta parse...")
     open("data/test.fna") do io
         for record in read_fasta(io)
-            println(record)
+            println(String(record.seq))
+            println(columns(record.seq))
         end
     end
     println("done!")
