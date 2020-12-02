@@ -1,6 +1,6 @@
 module Utility
 
-using FStrings
+using FStrings, Match
 using StatsBase
 
 import Base.Threads.@spawn
@@ -9,11 +9,74 @@ export random_id, log
 export read_fasta, name
 export read_paf
 
+# ------------------------------------------------------------------------
+# random functions
+
 # random string of fixed length
 function random_id(;length=10)
     alphabet = ['A','B','C','D','E','F','G','H','I','J','K','L','M',
                 'N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
     return join(sample(alphabet, length))
+end
+
+# ------------------------------------------------------------------------
+# cigar/alignment functions
+
+function cigar(seq₁::Array{Char}, seq₂::Array{Char})
+    if length(seq₁) != length(seq₂)
+        error("not an alignment")
+    end
+
+    aln = IOBuffer()
+    M, I, D = 0, 0, 0
+    for (c₁, c₂) in zip(seq₁, seq₂)
+        @match (c₁, c₂) begin
+            ('-','-') => error("both columns are gaps")
+            ('-', _ ) => begin
+                if I > 0
+                    write(aln, f"{I}I")
+                    I = 0
+                elseif M > 0
+                    write(aln, f"{M}M")
+                    M = 0
+                end
+                D += 1
+            end
+            ( _ ,'-') => begin
+                if D > 0
+                    write(aln, f"{D}D")
+                    D = 0
+                elseif M > 0
+                    write(aln, f"{M}M")
+                    M = 0
+                end
+                I += 1
+            end
+            ( _ , _ ) => begin
+                if D > 0
+                    write(aln, f"{D}D")
+                    D = 0
+                elseif I > 0
+                    write(aln, f"{I}I")
+                    I = 0
+                end
+                M += 1
+            end
+        end
+    end
+
+    if I > 0
+        write(aln, f"{I}I")
+        I = 0
+    elseif M > 0
+        write(aln, f"{M}M")
+        M = 0
+    elseif D > 0
+        write(aln, f"{D}D")
+        D = 0
+    end
+
+    return String(take!(aln))
 end
 
 # ------------------------------------------------------------------------
@@ -123,31 +186,30 @@ function read_paf(io)
     return chan
 end
 
-function columns(s; nc=80)
-    nr   = ceil(Int64, length(s)/nc)
-    l(i) = 1+(nc*(i-1)) 
-    r(i) = min(nc*i, length(s))
-    rows = [String(s[l(i):r(i)]) for i in 1:nr]
-    return join(rows, '\n')
-end
-
 function test()
-    println("testing fasta parse...")
+    println(">testing fasta parse...")
     open("data/test.fna") do io
         for record in read_fasta(io)
             println(String(record.seq))
-            println(columns(record.seq))
+            println(record.seq)
         end
     end
-    println("done!")
+    println(">done!")
 
-    println("testing paf parse")
+    println(">testing paf parse")
     open("data/test.paf") do io
         for aln in read_paf(io)
             println(aln)
         end
     end
     println("done!")
+
+    println(">testing cigar serialization...")
+    s₁ = collect("A-TCGT-GTCA-TAGC")
+    s₂ = collect("AGG-GTCGTCAGT-GC")
+    cg = cigar(s₁, s₂)
+    println("-->", cg)
+    println(">done!")
 end
 
 end

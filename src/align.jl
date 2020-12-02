@@ -310,6 +310,7 @@ function merge(G₁::Graph, G₂::Graph)
             marshal(io, G)
         end
     end
+
     io₁, io₂ = getios()
 
     cmd = minimap2(path(io₁), path(io₂))
@@ -339,12 +340,12 @@ function align(Gs::Graph...)
     tree = ordering(Gs...)
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
-    for (i, clade) in enumerate(postorder(tree))
+    for clade in postorder(tree)
         if isleaf(clade)
             put!(clade.graph, tips[clade.name])
             close(clade.graph)
         else
-            @sync begin
+            @spawn begin
                 kernel(clade)
                 close(clade.graph)
             end
