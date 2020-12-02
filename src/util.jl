@@ -43,33 +43,99 @@ struct Alignment
     align::Union{Float64,Nothing}
 end
 
+struct Score <: AbstractArray{Float64,2}
+    rows::Int
+    cols::Int
+    band::NamedTuple{(:lower, :upper)}
+    data::Array{Float64}
+    offset::Array{Int}
+    starts::Array{Int}
+end
+
+function Score(rows, cols; band=(lower=Inf,upper=Inf))
+    num_elts = [(r == 0) ? 0 : min(r+band.upper, cols) - max(r-band.lower, 1) + 1 for r in 0:rows]
+    offset   = round.(Int, cumsum(num_elts))
+    starts   = round.([max(r-band.lower, 1) for r in 1:rows])
+    return Score(rows, cols, band, zeros(offset[end]), offset, starts)
+end
+
+# data stored in row-major form
+function index(S::Score, i, j) 
+    return (j-S.starts[i]+1) + S.offset[i]
+end
+data(S::Score, i, j)  = S.data[index(S,i,j)]
+
+# --------------------------------
+# overloads of base operators
+
+Base.size(S::Score)        = (S.rows, S.cols)
+Base.ndims(T::Type{Score}) = 2
+
+Base.BroadcastStyle(::Type{Score})              = Base.Broadcast.ArrayStyle{Score}()
+Base.show(io::IO, S::Score)                     = Base.show(io, reshape(S.data, S.rows, S.cols))
+Base.show(io::IO, ::MIME"text/plain", S::Score) = Base.show(io, reshape(S.data, S.rows, S.cols))
+Base.display(S::Score)                          = Base.display(reshape(S.data, S.rows, S.cols))
+
+function Base.lastindex(S::Score, d)
+    if d == 1
+        return S.rows
+    elseif d == 2
+        return S.cols
+    else
+        error("incorrect number of dimensions")
+    end
+end
+
+# TODO: better (less-explicit) indexing
+#       would be nice to keep as abstract ranges if we could, e.g. 1:2:10
+#       right now we allocate memory every time
+function Base.getindex(S::Score, inds...)
+    rows, cols = inds
+    ι = [index(S,r,c) for r in rows for c in cols]
+    if length(ι) == 1
+        return Base.getindex(S.data, ι[1])
+    else
+        return Base.getindex(S.data, ι)
+    end
+end
+
+function Base.setindex!(S::Score, X, inds...)
+    i, j = inds
+    Base.setindex!(S.data, X, index(S,i,j))
+end
 
 # dynamic programming
-# NOTE: assumes not banded for now
-#       will need to have a matrix-like object but with bands
 function align(seq₁::Array{Char}, seq₂::Array{Char}, cost)
+    if length(seq₁) > length(seq₂)
+        seq₁, seq₂ = seq₂, seq₁
+    end
+
     L₁, L₂ = length(seq₁)+1, length(seq₂)+1
 
     # initialize matrices
     score = (
-         M = zeros(L₁, L₂),
-         I = zeros(L₁, L₂),
-         D = zeros(L₁, L₂),
+         M = Score(L₁,L₂,band=cost.band),
+         I = Score(L₁,L₂,band=cost.band),
+         D = Score(L₁,L₂,band=cost.band),
     )
 
-    for j in 1:size(score.M,2)
+    # NOTE: upper and lower could be flipped
+    for j in 1:min(size(score.M,2),cost.band.upper)
         score.M[1,j] = cost.gap(j-1)
     end
-    for i in 1:size(score.M,1)
+    for i in 1:min(size(score.M,1),cost.band.lower)
         score.M[i,1] = cost.gap(i-1)
     end
 
-    score.I[1,:] .= -Inf
-    score.D[:,1] .= -Inf
+    score.I[1,1:cost.band.upper] .= -Inf
+    score.D[1:cost.band.lower,1] .= -Inf
 
     # fill in bulk
     for i in 2:L₁
-        for j in 2:L₂
+        lb = max(i-cost.band.lower, 2)
+        ub = min(i+cost.band.upper, L₂)
+        for j in lb:ub
+            println("i:", i, " j:", j)
             score.I[i,j] = max(
                score.M[i-1,j]+cost.open,
                score.I[i-1,j]+cost.extend,
@@ -319,14 +385,17 @@ function test()
     println("-->", cg)
     println(">done!")
 
-    s₁ = collect("MASSivvvvvvey")
-    s₂ = collect("MISSivey")
-
+    s₁ = collect("MSS")
+    s₂ = collect("MISS")
     cost = (
-        open   = -1,
+        open   = -0.75,
         extend = -0.5,
-        gap = k -> k == 0 ? 0 : cost.open + cost.extend*(k-1),
-        match = (c₁, c₂) -> 2.0*(c₁ == c₂) - 1.0,
+        band   = (
+            lower = 1,
+            upper = 1,
+        ),
+        gap    = k -> k == 0 ? 0 : cost.open + cost.extend*(k-1),
+        match  = (c₁, c₂) -> 2.0*(c₁ == c₂) - 1.0,
     )
 
     a₁, a₂ = align(s₁, s₂, cost)
