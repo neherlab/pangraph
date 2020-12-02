@@ -31,18 +31,18 @@ atexit(finalize)
 # TODO: generalize to n > 2
 function getios(i)
     @label getlock
-    log("-----> getting io 1", i)
+    # log("-----> getting io 1", i)
     io₁ = getio()
     lock(fifos)
     if !hasio()
         putio(io₁)
-        log("-----> resetting io 1", i)
+        # log("-----> resetting io 1", i)
         unlock(fifos)
         @goto getlock
     end
-    log("-----> getting io 2", i)
+    # log("-----> getting io 2", i)
     io₂ = getio()
-    log("-----> obtained ios", i, path(io₁), path(io₂))
+    # log("-----> obtained ios", i, path(io₁), path(io₂))
     unlock(fifos)
 
     return io₁, io₂
@@ -61,26 +61,26 @@ function execute(cmd::Cmd; now=true)
     out = Pipe()
     err = Pipe()
 
-    log("-------> pipeline...")
+    # log("-------> pipeline...")
     proc = run(pipeline(ignorestatus(cmd), stdout=out, stderr=err); wait=now)
 
-    log("-------> closing...")
+    # log("-------> closing...")
     close(out.in)
     close(err.in)
 
-    log("-------> output...")
+    # log("-------> output...")
     stdout = @async String(read(out))
     stderr = @async String(read(err))
 
     if now
-        log("-------> fetching...")
+        # log("-------> fetching...")
         return (
             out  = fetch(stdout),
             err  = fetch(stderr),
             code = proc.exitcode, #err,
         )
     else
-        log("-------> started...", process_running(proc))
+        # log("-------> started...", process_running(proc))
         return (
             out  = stdout,
             err  = stderr,
@@ -226,6 +226,25 @@ function Base.show(io::IO, c::Clade)
     end
 end
 
+function leaves(root::Clade)
+    itr = Channel{Clade}(0)
+    function traverse(node::Clade)
+        if isleaf(node)
+            put!(itr, node)
+        else
+            traverse(node.left)
+            traverse(node.right)
+        end
+    end
+
+    @async begin
+        traverse(root)
+        close(itr)
+    end
+
+    return itr
+end
+
 function postorder(root::Clade)
     itr = Channel{Clade}(0)
     function traverse(node::Clade)
@@ -246,40 +265,61 @@ function postorder(root::Clade)
     return itr
 end
 
+function preorder(root::Clade)
+    itr = Channel{Clade}(0)
+    function traverse(node::Clade)
+        if isleaf(node)
+            put!(itr, node)
+        else
+            put!(itr,node)
+            traverse(node.left)
+            traverse(node.right)
+        end
+    end
+
+    @async begin
+        traverse(root)
+        close(itr)
+    end
+
+    return itr
+end
+
 # TODO: need to fix. skips right branch of root
-function Base.iterate(root::Clade, state)
-    node, last = state
+#       maybe we just deprecate in favor of postorder?
+# function Base.iterate(root::Clade, state)
+#     node, last = state
 
-    if isnothing(node)
-        return nothing
-    end
+#     if isnothing(node)
+#         return nothing
+#     end
 
-    if isleaf(node)
-        @goto yield
-    end
+#     if isleaf(node)
+#         @goto yield
+#     end
 
-    if isnothing(last) || last == root
-        return iterate(node, (node.left, node))
-    end
+#     if isnothing(last) || last == root
+#         return iterate(node, (node.left, node))
+#     end
 
-    if last == node.left
-        return iterate(node, (node.right, node))
-    end
+#     if last == node.left
+#         return iterate(node, (node.right, node))
+#     end
 
-    if last == node.right
-        @goto yield
-    end
+#     if last == node.right
+#         @goto yield
+#     end
 
-    # if we reach here, we have a serious problem!
-    error("invalid iteration case")
+#     # if we reach here, we have a serious problem!
+#     error("invalid iteration case")
 
-    @label yield
-    return node, (node.parent, node)
-end
+#     @label yield
+#     return node, (node.parent, node)
+# end
 
-function Base.iterate(root::Clade)
-    return iterate(root, (root, nothing))
-end
+# function Base.iterate(root::Clade)
+#     return iterate(root, (root, nothing))
+# end
 
 # ------------------------------------------------------------------------
 # ordering functions
@@ -315,23 +355,25 @@ function merge(G₁::Graph, G₂::Graph, i)
             marshal(io, G)
         end
     end
-    log("-----> grabbing fifos", i)
+    # log("-----> grabbing fifos", i)
     io₁, io₂ = getios(i)
 
-    log("-----> starting minimap2", i)
+    # log("-----> starting minimap2", i)
     cmd = minimap2(path(io₁), path(io₂))
 
-    log("-----> opening ios", i)
+    # NOTE: minimap2 opens up file descriptors in order!
+    #       must process 2 before 1
+    # log("-----> opening ios", i)
     write(io₂, G₂)
-    log("-----> wrote 2", i)
+    # log("-----> wrote 2", i)
     write(io₁, G₁)
 
-    log("-----> parsing minimap2", i)
+    # log("-----> parsing minimap2", i)
     hits = read_paf(IOBuffer(fetch(cmd.out)))
 
-    log("-----> putting io 1", i)
+    # log("-----> putting io 1", i)
     putio(io₁)
-    log("-----> putting io 2", i)
+    # log("-----> putting io 2", i)
     putio(io₂)
 
     return G₁
@@ -343,27 +385,27 @@ function align(Gs::Graph...)
     function kernel(i, clade)
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
-        log("--> merging", i, clade == tree, clade == tree.left, clade == tree.right)
+        # log("--> merging", i, clade == tree, clade == tree.left, clade == tree.right)
         put!(clade.graph, merge(Gₗ, Gᵣ, i))
     end
 
     tree = ordering(Gs...)
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
-    log("--> aligning...")
+    # log("--> aligning...")
     for (i, clade) in enumerate(postorder(tree))
         if isleaf(clade)
             put!(clade.graph, tips[clade.name])
             close(clade.graph)
         else
-            @spawn begin
+            @sync begin
                 kernel(i, clade)
                 close(clade.graph)
             end
         end
     end
 
-    log("--> waiting on root")
+    # log("--> waiting on root")
     return take!(tree.graph)
 end
 
