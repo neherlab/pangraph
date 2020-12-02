@@ -341,7 +341,6 @@ end
 #       can we push it directly into the channel?
 function align(Gs::Graph...)
     function kernel(i, clade)
-        log("--> waiting for children")
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
         log("--> merging", i, clade == tree, clade == tree.left, clade == tree.right)
@@ -355,10 +354,13 @@ function align(Gs::Graph...)
     for (i, clade) in enumerate(postorder(tree))
         if isleaf(clade)
             put!(clade.graph, tips[clade.name])
+            close(clade.graph)
         else
-            kernel(i, clade)
+            @spawn begin
+                kernel(i, clade)
+                close(clade.graph)
+            end
         end
-        close(clade.graph)
     end
 
     log("--> waiting on root")
