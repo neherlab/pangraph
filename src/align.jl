@@ -1,6 +1,6 @@
 module Align
 
-using FStrings, Match
+using FStrings, Match, Dates
 using LinearAlgebra
 using Infiltrator
 
@@ -23,40 +23,70 @@ using .Pangraph
 
 fifos = pool(2)
 getio()     = take!(fifos)
+hasio()     = isready(fifos)
 putio(fifo) = put!(fifos, fifo)
+finalize()  = shutdown(fifos)
+atexit(finalize)
+
+# TODO: generalize to n > 2
+function getios(i)
+    @label getlock
+    log("-----> getting io 1", i)
+    io₁ = getio()
+    lock(fifos)
+    if !hasio()
+        putio(io₁)
+        log("-----> resetting io 1", i)
+        unlock(fifos)
+        @goto getlock
+    end
+    log("-----> getting io 2", i)
+    io₂ = getio()
+    log("-----> obtained ios", i, path(io₁), path(io₂))
+    unlock(fifos)
+
+    return io₁, io₂
+end
 
 # ------------------------------------------------------------------------
 # helper functions
 
+function log(msg...)
+    println(now(), " ", join(msg, " ")...)
+    flush(stdout)
+end
+
 # command line execution
-function execute(cmd::Cmd)
+function execute(cmd::Cmd; now=true)
     out = Pipe()
     err = Pipe()
 
-    # println("-----> pipeline...")
-    proc = run(pipeline(ignorestatus(cmd), stdout=out, stderr=err); wait=false)
+    log("-------> pipeline...")
+    proc = run(pipeline(ignorestatus(cmd), stdout=out, stderr=err); wait=now)
 
-    # println("-----> closing ...")
+    log("-------> closing...")
     close(out.in)
     close(err.in)
 
-    # println("-----> asyncing...")
+    log("-------> output...")
     stdout = @async String(read(out))
     stderr = @async String(read(err))
 
-    # println("-----> waiting...")
-    err = success(proc)
-
-    # println("-----> out...")
-    fₒ = fetch(stdout)
-    # println("-----> err...")
-    fₑ = fetch(stderr)
-    # println("-----> done!")
-    return (
-        out  = fₒ,
-        err  = fₑ,
-        code = err,
-    )
+    if now
+        log("-------> fetching...")
+        return (
+            out  = fetch(stdout),
+            err  = fetch(stderr),
+            code = proc.exitcode, #err,
+        )
+    else
+        log("-------> started...", process_running(proc))
+        return (
+            out  = stdout,
+            err  = stderr,
+            proc = proc,
+        )
+    end
 end
 
 function mash(input)
@@ -78,7 +108,7 @@ function mash(input)
 end
 
 function minimap2(qry::String, ref::String)
-    return execute(`minimap2 -x asm20 -m 10 -n 2 -s 30 -D -c $ref $qry`)
+    return execute(`minimap2 -x asm20 -m 10 -n 2 -s 30 -D -c $ref $qry`; now=false)
 end
 
 # ------------------------------------------------------------------------
@@ -90,14 +120,15 @@ mutable struct Clade
     parent::Union{Clade,Nothing}
     left  ::Union{Clade,Nothing}
     right ::Union{Clade,Nothing}
+    graph ::Channel{Graph}
 end
 
 # ---------------------------
 # constructors
 
-Clade()     = Clade("",nothing,nothing,nothing)
-Clade(name) = Clade(name,nothing,nothing,nothing)
-Clade(left::Clade, right::Clade) = Clade("",nothing,left,right)
+Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(1))
+Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(1))
+Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(1))
 
 function Clade(distance, names; algo=:nj)
     @match algo begin
@@ -195,6 +226,27 @@ function Base.show(io::IO, c::Clade)
     end
 end
 
+function postorder(root::Clade)
+    itr = Channel{Clade}(0)
+    function traverse(node::Clade)
+        if isleaf(node)
+            put!(itr, node)
+        else
+            traverse(node.left)
+            traverse(node.right)
+            put!(itr,node)
+        end
+    end
+
+    @async begin
+        traverse(root)
+        close(itr)
+    end
+
+    return itr
+end
+
+# TODO: need to fix. skips right branch of root
 function Base.iterate(root::Clade, state)
     node, last = state
 
@@ -234,7 +286,6 @@ end
 
 # TODO: assumes the input graphs are singletons! generalize
 function ordering(Gs...; compare=mash)
-    # println("--> ordering...")
     fifo = getio()
 
     task = @async compare(path(fifo))
@@ -251,7 +302,6 @@ function ordering(Gs...; compare=mash)
     root = Clade(distance, names; algo=:nj)
 
     putio(fifo)
-    # println("--> done")
     return root
 end
 
@@ -259,72 +309,76 @@ end
 # align functions
 
 # TODO: fill in actual implementation
-function merge(G₁::Graph, G₂::Graph)
+function merge(G₁::Graph, G₂::Graph, i)
     function write(fifo, G)
         open(fifo, "w") do io
             marshal(io, G)
         end
     end
+    log("-----> grabbing fifos", i)
+    io₁, io₂ = getios(i)
 
-    io₁ = getio()
-    io₂ = getio()
+    log("-----> starting minimap2", i)
+    cmd = minimap2(path(io₁), path(io₂))
 
-    proc = @async minimap2(path(io₁), path(io₂))
-    @sync begin
-        @spawn write(io₁, G₁)
-        @spawn write(io₂, G₂)
-    end
-    # println("-->fetching...")
-    aln  = fetch(proc)
-    # println("-->reading...")
-    hits = read_paf(IOBuffer(aln.out))
+    log("-----> opening ios", i)
+    write(io₂, G₂)
+    log("-----> wrote 2", i)
+    write(io₁, G₁)
 
-    # println("-->putting...")
+    log("-----> parsing minimap2", i)
+    hits = read_paf(IOBuffer(fetch(cmd.out)))
+
+    log("-----> putting io 1", i)
     putio(io₁)
+    log("-----> putting io 2", i)
     putio(io₂)
 
-    # println("-->done!")
     return G₁
 end
 
 # TODO: the associate array is a bit hacky...
+#       can we push it directly into the channel?
 function align(Gs::Graph...)
-    tips  = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
-    tree  = ordering(Gs...)
-
-    println("--> aligning...")
-    merged = Dict{Clade,Graph}()
-    for (i, clade) in enumerate(tree)
-        println("---> node ", i)
-        if isleaf(clade)
-            merged[clade] = tips[clade.name]
-            continue
-        end
-
-        merged[clade] = merge(merged[clade.left], merged[clade.right])
-
-        delete!(merged, clade.left)
-        delete!(merged, clade.right)
+    function kernel(i, clade)
+        log("--> waiting for children")
+        Gₗ = take!(clade.left.graph)
+        Gᵣ = take!(clade.right.graph)
+        log("--> merging", i, clade == tree, clade == tree.left, clade == tree.right)
+        put!(clade.graph, merge(Gₗ, Gᵣ, i))
     end
-    println("--> done!")
+
+    tree = ordering(Gs...)
+    tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
+
+    log("--> aligning...")
+    for (i, clade) in enumerate(postorder(tree))
+        if isleaf(clade)
+            put!(clade.graph, tips[clade.name])
+        else
+            kernel(i, clade)
+        end
+        close(clade.graph)
+    end
+
+    log("--> waiting on root")
+    return take!(tree.graph)
 end
 
 # ------------------------------------------------------------------------
 # testing
 
 function test()
-    println("> testing mash...")
+    log("> testing mash...")
     distance, names = mash("data/generated/assemblies/isolates.fna.gz")
     tree = Clade(distance, names; algo=:nj) 
-    println("done!")
+    log("done!")
 
-    println("> testing alignment...")
+    log("> testing alignment...")
     GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
         graphs = Graphs(io)
         graph  = align(graphs...)
     end
-
-    shutdown(fifos)
 end
 
 end

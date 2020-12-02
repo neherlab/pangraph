@@ -63,7 +63,7 @@ function write_fasta(io, name, seq)
 end
 
 function marshal_fasta(io, G::Graph)
-    for b in values(G.block)
+    for (i, b) in enumerate(values(G.block))
         write_fasta(io, b.uuid, b.sequence)
     end
 end
