@@ -29,20 +29,16 @@ finalize()  = shutdown(fifos)
 atexit(finalize)
 
 # TODO: generalize to n > 2
-function getios(i)
+function getios()
     @label getlock
-    # log("-----> getting io 1", i)
     io₁ = getio()
     lock(fifos)
     if !hasio()
         putio(io₁)
-        # log("-----> resetting io 1", i)
         unlock(fifos)
         @goto getlock
     end
-    # log("-----> getting io 2", i)
     io₂ = getio()
-    # log("-----> obtained ios", i, path(io₁), path(io₂))
     unlock(fifos)
 
     return io₁, io₂
@@ -61,26 +57,21 @@ function execute(cmd::Cmd; now=true)
     out = Pipe()
     err = Pipe()
 
-    # log("-------> pipeline...")
     proc = run(pipeline(ignorestatus(cmd), stdout=out, stderr=err); wait=now)
 
-    # log("-------> closing...")
     close(out.in)
     close(err.in)
 
-    # log("-------> output...")
     stdout = @async String(read(out))
     stderr = @async String(read(err))
 
     if now
-        # log("-------> fetching...")
         return (
             out  = fetch(stdout),
             err  = fetch(stderr),
             code = proc.exitcode, #err,
         )
     else
-        # log("-------> started...", process_running(proc))
         return (
             out  = stdout,
             err  = stderr,
@@ -285,42 +276,6 @@ function preorder(root::Clade)
     return itr
 end
 
-# TODO: need to fix. skips right branch of root
-#       maybe we just deprecate in favor of postorder?
-# function Base.iterate(root::Clade, state)
-#     node, last = state
-
-#     if isnothing(node)
-#         return nothing
-#     end
-
-#     if isleaf(node)
-#         @goto yield
-#     end
-
-#     if isnothing(last) || last == root
-#         return iterate(node, (node.left, node))
-#     end
-
-#     if last == node.left
-#         return iterate(node, (node.right, node))
-#     end
-
-#     if last == node.right
-#         @goto yield
-#     end
-
-#     # if we reach here, we have a serious problem!
-#     error("invalid iteration case")
-
-#     @label yield
-#     return node, (node.parent, node)
-# end
-
-# function Base.iterate(root::Clade)
-#     return iterate(root, (root, nothing))
-# end
-
 # ------------------------------------------------------------------------
 # ordering functions
 
@@ -349,31 +304,24 @@ end
 # align functions
 
 # TODO: fill in actual implementation
-function merge(G₁::Graph, G₂::Graph, i)
+function merge(G₁::Graph, G₂::Graph)
     function write(fifo, G)
         open(fifo, "w") do io
             marshal(io, G)
         end
     end
-    # log("-----> grabbing fifos", i)
-    io₁, io₂ = getios(i)
+    io₁, io₂ = getios()
 
-    # log("-----> starting minimap2", i)
     cmd = minimap2(path(io₁), path(io₂))
 
     # NOTE: minimap2 opens up file descriptors in order!
     #       must process 2 before 1
-    # log("-----> opening ios", i)
     write(io₂, G₂)
-    # log("-----> wrote 2", i)
     write(io₁, G₁)
 
-    # log("-----> parsing minimap2", i)
     hits = read_paf(IOBuffer(fetch(cmd.out)))
 
-    # log("-----> putting io 1", i)
     putio(io₁)
-    # log("-----> putting io 2", i)
     putio(io₂)
 
     return G₁
@@ -382,30 +330,27 @@ end
 # TODO: the associate array is a bit hacky...
 #       can we push it directly into the channel?
 function align(Gs::Graph...)
-    function kernel(i, clade)
+    function kernel(clade)
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
-        # log("--> merging", i, clade == tree, clade == tree.left, clade == tree.right)
-        put!(clade.graph, merge(Gₗ, Gᵣ, i))
+        put!(clade.graph, merge(Gₗ, Gᵣ))
     end
 
     tree = ordering(Gs...)
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
-    # log("--> aligning...")
     for (i, clade) in enumerate(postorder(tree))
         if isleaf(clade)
             put!(clade.graph, tips[clade.name])
             close(clade.graph)
         else
             @sync begin
-                kernel(i, clade)
+                kernel(clade)
                 close(clade.graph)
             end
         end
     end
 
-    # log("--> waiting on root")
     return take!(tree.graph)
 end
 
