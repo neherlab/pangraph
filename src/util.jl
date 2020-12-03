@@ -17,7 +17,7 @@ export read_paf
 # random functions
 
 # random string of fixed length
-function random_id(;len=10, alphabet=Char[])
+function random_id(;len=10, alphabet=UInt8[])
     if length(alphabet) == 0
         alphabet = ['A','B','C','D','E','F','G','H','I','J','K','L','M',
                     'N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
@@ -95,10 +95,12 @@ end
 #       would be nice to keep as abstract ranges if we could, e.g. 1:2:10
 #       right now we allocate memory every time
 function Base.getindex(S::Score, inds...)
-    # rows, cols = inds
     r, c = inds
     return Base.getindex(S.data, index(S,r,c))
+
     # TODO: make this faster!
+    #       causes huge slow down
+    # rows, cols = inds
     # ι = [index(S,r,c) for r in rows for c in cols]
     # if length(ι) == 1
     #     # if cols < S.starts[rows] || cols > S.stops[rows]
@@ -118,7 +120,7 @@ function Base.setindex!(S::Score, X, inds...)
 end
 
 # dynamic programming
-function align(seq₁::Array{Char}, seq₂::Array{Char}, cost)
+function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
     if length(seq₁) > length(seq₂)
         seq₁, seq₂ = seq₂, seq₁
     end
@@ -201,10 +203,12 @@ function align(seq₁::Array{Char}, seq₂::Array{Char}, cost)
         write(a₂,seq₂[j-1:-1:1])
     end
 
-    return collect(reverse(String(take!(a₁)))), collect(reverse(String(take!(a₂))))
+    b₁ = reverse(take!(a₁))
+    b₂ = reverse(take!(a₂))
+    return b₁, b₂
 end
 
-function cigar(seq₁::Array{Char}, seq₂::Array{Char})
+function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
     if length(seq₁) != length(seq₂)
         error("not an alignment")
     end
@@ -262,7 +266,7 @@ function cigar(seq₁::Array{Char}, seq₂::Array{Char})
 end
 
 include("static/watson-crick.jl")
-function reverse_complement(seq::Array{Char})
+function reverse_complement(seq::Array{UInt8})
     cmpl = [wcpair[nuc] for nuc in seq]
     reverse!(cmpl)
     return cmpl
@@ -292,7 +296,7 @@ log(msg) = println(stderr, msg)
 
 # fasta sequence record
 struct Record
-    seq::Array{Char}
+    seq::Array{UInt8}
     name::String
     meta::String
 end
@@ -392,8 +396,8 @@ function test()
     # println("done!")
 
     println(">testing cigar serialization...")
-    s₁ = collect("A-TCGT-GTCA-TAGC")
-    s₂ = collect("AGG-GTCGTCAGT-GC")
+    s₁ = Vector{UInt8}("A-TCGT-GTCA-TAGC")
+    s₂ = Vector{UInt8}("AGG-GTCGTCAGT-GC")
     cg = cigar(s₁, s₂)
     println("-->", cg)
     println(">done!")
@@ -409,14 +413,14 @@ function test()
         match  = (c₁, c₂) -> 2.0*(c₁ == c₂) - 1.0,
     )
 
-    seq = (N) -> collect(random_id(;len=N, alphabet=['A','C','G','T']))
+    seq = (N) -> Vector{UInt8}(random_id(;len=N, alphabet=['A','C','G','T']))
     @benchmark align($seq(100), $seq(100), $cost)
 
     # s = [ (seq(100), seq(100)) for i in 1:100 ]
     # @profile for (s₁, s₂) in s
     #     align(s₁, s₂, cost)
     # end
-    # Profile.print()
+    # Profile.print(format=:flat, sortedby=:count)
     # println("1: ", String(a₁))
     # println("2: ", String(a₂))
 end
