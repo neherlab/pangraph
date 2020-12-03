@@ -50,13 +50,15 @@ struct Score <: AbstractArray{Float64,2}
     data::Array{Float64}
     offset::Array{Int}
     starts::Array{Int}
+    stops::Array{Int}
 end
 
 function Score(rows, cols; band=(lower=Inf,upper=Inf))
     num_elts = [(r == 0) ? 0 : min(r+band.upper, cols) - max(r-band.lower, 1) + 1 for r in 0:rows]
     offset   = round.(Int, cumsum(num_elts))
     starts   = round.([max(r-band.lower, 1) for r in 1:rows])
-    return Score(rows, cols, band, zeros(offset[end]), offset, starts)
+    stops    = round.([min(r+band.upper, cols) for r in 1:rows])
+    return Score(rows, cols, band, zeros(offset[end]), offset, starts, stops)
 end
 
 # data stored in row-major form
@@ -93,7 +95,12 @@ function Base.getindex(S::Score, inds...)
     rows, cols = inds
     ι = [index(S,r,c) for r in rows for c in cols]
     if length(ι) == 1
-        return Base.getindex(S.data, ι[1])
+        if cols < S.starts[rows] || cols > S.stops[rows]
+            println("out of bound access: (", rows, ",", cols, ")" )
+            return -Inf
+        else
+            return Base.getindex(S.data, ι[1])
+        end
     else
         return Base.getindex(S.data, ι)
     end
@@ -120,30 +127,33 @@ function align(seq₁::Array{Char}, seq₂::Array{Char}, cost)
     )
 
     # NOTE: upper and lower could be flipped
-    for j in 1:min(size(score.M,2),cost.band.upper)
+    bound(x,d) = isinf(x) ? size(score.M,d) : min(size(score.M,d),x)
+    for j in 1:bound(cost.band.upper,2)
         score.M[1,j] = cost.gap(j-1)
     end
-    for i in 1:min(size(score.M,1),cost.band.lower)
+    for i in 1:bound(cost.band.lower,1)
         score.M[i,1] = cost.gap(i-1)
     end
 
-    score.I[1,1:cost.band.upper] .= -Inf
-    score.D[1:cost.band.lower,1] .= -Inf
+    score.I[1,1:bound(cost.band.upper,2)] .= -Inf
+    score.D[1:bound(cost.band.lower,1),1] .= -Inf
 
     # fill in bulk
     for i in 2:L₁
-        lb = max(i-cost.band.lower, 2)
-        ub = min(i+cost.band.upper, L₂)
+        lb = round(Int, max(i-cost.band.lower, 2))
+        ub = round(Int, min(i+cost.band.upper, L₂))
         for j in lb:ub
-            println("i:", i, " j:", j)
+            println("I")
             score.I[i,j] = max(
                score.M[i-1,j]+cost.open,
                score.I[i-1,j]+cost.extend,
             )
+            println("D")
             score.D[i,j] = max(
                score.M[i,j-1]+cost.open,
                score.D[i,j-1]+cost.extend,
             )
+            println("M")
             score.M[i,j] = max(
                score.M[i-1,j-1]+cost.match(seq₁[i-1],seq₂[j-1]),
                score.I[i,j],
@@ -386,13 +396,13 @@ function test()
     println(">done!")
 
     s₁ = collect("MSS")
-    s₂ = collect("MISS")
+    s₂ = collect("MIIISS")
     cost = (
         open   = -0.75,
         extend = -0.5,
         band   = (
-            lower = 1,
-            upper = 1,
+            lower = Inf,
+            upper = Inf,
         ),
         gap    = k -> k == 0 ? 0 : cost.open + cost.extend*(k-1),
         match  = (c₁, c₂) -> 2.0*(c₁ == c₂) - 1.0,
