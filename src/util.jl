@@ -5,7 +5,7 @@ using StatsBase
 
 # NOTE: for debugging/benchmarking
 using BenchmarkTools, Infiltrator
-using Profile
+using Profile, ProfileView
 
 import Base.Threads.@spawn
 
@@ -97,7 +97,6 @@ end
 function Base.getindex(S::Score, inds...)
     r, c = inds
     return Base.getindex(S.data, index(S,r,c))
-
     # TODO: make this faster!
     #       causes huge slow down
     # rows, cols = inds
@@ -216,7 +215,7 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
     aln = IOBuffer()
     M, I, D = 0, 0, 0
     for (c₁, c₂) in zip(seq₁, seq₂)
-        @match (c₁, c₂) begin
+        @match (Char(c₁), Char(c₂)) begin
             ('-','-') => error("both columns are gaps")
             ('-', _ ) => begin
                 if I > 0
@@ -416,11 +415,11 @@ function test()
     seq = (N) -> Vector{UInt8}(random_id(;len=N, alphabet=['A','C','G','T']))
     @benchmark align($seq(100), $seq(100), $cost)
 
-    # s = [ (seq(100), seq(100)) for i in 1:100 ]
-    # @profile for (s₁, s₂) in s
-    #     align(s₁, s₂, cost)
-    # end
-    # Profile.print(format=:flat, sortedby=:count)
+    s = [ (seq(100), seq(100)) for i in 1:100 ]
+    @profile for (s₁, s₂) in s
+        align(s₁, s₂, cost)
+    end
+    ProfileView.view()
     # println("1: ", String(a₁))
     # println("2: ", String(a₂))
 end
