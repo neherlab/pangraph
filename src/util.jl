@@ -79,6 +79,7 @@ end
 #       right now we allocate memory every time
 @inline Base.getindex(S::Score, inds...) = Base.getindex(S.data, index(S,r,c))
     # TODO: make this faster!
+    # close(out)
     #       causes huge slow down
     # rows, cols = inds
     # ι = [index(S,r,c) for r in rows for c in cols]
@@ -302,10 +303,10 @@ function enforce_cutoff!(a::Alignment, χ)
     # left side of match
     if (0 < δqₗ <= χ) && (δrₗ == 0 || δrₗ > χ)
         a.qry.start = 0
-        a.cigar     = δqₗ * "I" * a.cigar
+        a.cigar     = string(δqₗ) * "I" * a.cigar
     elseif (δrₗ <= χ) && (δqₗ == 0 || δqₗ > χ)
         a.ref.start = 0
-        a.cigar     = δrₗ * "D" * a.cigar
+        a.cigar     = string(δrₗ) * "D" * a.cigar
     elseif (δqₗ <= χ) && (δrₗ <= χ)
         a₁, a₂ = align(s₁[1:δqₗ], s₂[1:δrₗ])
         cg     = cigar(a₁, a₂)
@@ -319,10 +320,10 @@ function enforce_cutoff!(a::Alignment, χ)
     # right side of match
     if (0 < δqᵣ <= χ) && (δrᵣ == 0 || δrᵣ > χ)
         a.qry.stop  = a.qry.length
-        a.cigar     = a.cigar * δqₗ * "I"
+        a.cigar     = a.cigar * string(δqₗ) * "I"
     elseif (δrᵣ <= χ) && (δqᵣ == 0 || δqᵣ > χ)
         a.ref.stop  = a.ref.length
-        a.cigar     = a.cigar * δrₗ * "D"
+        a.cigar     = a.cigar * string(δrₗ) * "D"
     elseif (δqᵣ <= χ) && (δrᵣ <= χ)
         a₁, a₂ = align(s₁[end-δqᵣ:end], s₂[end-δrᵣ:end])
         cg     = cigar(a₁, a₂)
@@ -353,7 +354,7 @@ Base.show(io::IO, rec::Record) = print(io, f">{rec.name} {rec.meta}{NL}{String(r
 
 function read_fasta(io)
     chan = Channel{Record}(0)
-    @spawn begin
+    @async begin
         buf=IOBuffer()
         line=readline(io)
         while !isempty(line) && line[1] == '>'
@@ -366,7 +367,6 @@ function read_fasta(io)
                 write(buf,rstrip(line))
                 line=readline(io)
             end
-            println(">send record")
             put!(chan, Record(take!(buf), name, meta))
         end
 
@@ -392,12 +392,11 @@ function read_paf(io)
 
     int(x)   = parse(Int,x)
     float(x) = parse(Float64,x)
-    last(x)  = split(x)[end]
+    last(x)  = split(x,':')[end]
 
-    @spawn begin
+    @async begin
         for row in eachline(io)
             elt = split(strip(row))
-
             cg = nothing
             dv = nothing
             as = nothing
@@ -416,7 +415,6 @@ function read_paf(io)
                                  int(elt[10]), int(elt[11]), int(elt[12]),
                                  elt[5] == "+",cg,dv,as))
         end
-
         close(chan)
     end
 

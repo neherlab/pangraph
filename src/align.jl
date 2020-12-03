@@ -4,18 +4,17 @@ using FStrings, Match, Dates
 using LinearAlgebra
 using Infiltrator
 
-import GZip # NOTE: only for debugging
 import Base.Threads.@spawn
 
-# NOTE: this is temporary
-include("util.jl")
-using .Utility: read_paf, extend
+using ..Utility: read_paf, enforce_cutoff!
+using ..Blocks
+using ..Graphs
 
+# Pool belongs only to the alignment module!
 include("pool.jl")
 using .Pool
 
-include("graph.jl")
-using .Pangraph
+export align
 
 # ------------------------------------------------------------------------
 # global variables
@@ -310,48 +309,61 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
         end
     end
 
+    # log("----> opening...")
     io₁, io₂ = getios()
 
+    # log("----> spawning...")
     cmd = minimap2(path(io₁), path(io₂))
 
     # NOTE: minimap2 opens up file descriptors in order!
     #       must process 2 before 1 otherwise we deadlock
+    # log("----> writing...")
     write(io₂, G₂) # ref
     write(io₁, G₁) # qry
 
-    hits = collect(read_paf(IOBuffer(fetch(cmd.out))))
+    # log("----> fetching...")
+    out  = IOBuffer(fetch(cmd.out))
+    # log("----> collecting...")
+    hits = collect(read_paf(out))
+    # log("----> sorting...")
     sort!(hits; by=energy)
 
+    # log("----> closing...")
+    close(out)
     putio(io₁)
     putio(io₂)
 
     # NOTE: we could turn this section into its own function
+    # log("----> merging...")
     blocks   = Dict{String,Block}()
     sequence = merge(G₁.sequence, G₂.sequence)
+    # log("----> iterating...")
     for hit in hits
+        log(hit)
         if energy(hit) >= 0
             break
         end
 
-        if !(hit.qry.name in G₁.block) || !(hit.ref.name in G₂.block)
+        if !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block))
             continue
         end
 
         enforce_cutoff!(hit, 100) # TODO: remove hard-coded parameter
 
-        qry  = pop!(G₁, hit.qry.name)
-        ref  = pop!(G₂, hit.ref.name)
+        qry  = pop!(G₁.block, hit.qry.name)
+        ref  = pop!(G₂.block, hit.ref.name)
 
-        blks = merge(qry, ref, hit)
+        blks = combine(qry, ref, hit)
     end
 
     # TODO: remove transitives
+    # log("----> finishing...")
     return Graph(blocks, sequence)
 end
 
 # TODO: the associate array is a bit hacky...
 #       can we push it directly into the channel?
-function align(Gs::Graph...; energy=𝔼)
+function align(Gs::Graph...; energy=(hit)->(-Inf))
     function kernel(clade)
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
@@ -362,6 +374,7 @@ function align(Gs::Graph...; energy=𝔼)
         put!(clade.graph, G₀)
     end
 
+    log("--> ordering")
     tree = ordering(Gs...)
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
@@ -370,7 +383,7 @@ function align(Gs::Graph...; energy=𝔼)
             put!(clade.graph, tips[clade.name])
             close(clade.graph)
         else
-            @spawn begin
+            @sync begin
                 kernel(clade)
                 close(clade.graph)
             end
@@ -388,12 +401,6 @@ function test()
     distance, names = mash("data/generated/assemblies/isolates.fna.gz")
     tree = Clade(distance, names; algo=:nj) 
     log("done!")
-
-    log("> testing alignment...")
-    GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
-        graphs = Graphs(io)
-        graph  = align(graphs...)
-    end
 end
 
 end

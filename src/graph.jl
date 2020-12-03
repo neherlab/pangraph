@@ -10,7 +10,6 @@ function pair(item) end
 #       will move to a module file later
 include("util.jl")
 # include("pool.jl")
-# include("align.jl")
 include("node.jl")
 include("block.jl")
 include("path.jl")
@@ -32,18 +31,18 @@ struct Graph
     # TODO: add edge/junction data structure
 end
 
+include("align.jl")
+using .Align
+
 # --------------------------------
 # constructors
 
 function Graph(name::String, sequence::Array{UInt8}; circular=false)
-    println(">", name)
     block = Block(sequence)
     path  = Path(name, Node{Block}(block); circular=circular)
 
-    println("> adding...")
     add!(block, path.node[1], SNPMap(), IndelMap())
 
-    println("> building...")
     return Graph(
          Dict([pair(block)]), 
          Dict([pair(path)]),
@@ -98,7 +97,8 @@ end
 function test()
     GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
         isolates = graphs(io)
-        # graph    = align(isolates...)
+        println(">aligning...")
+        graph    = align(isolates[1], isolates[2])
     end
 end
 

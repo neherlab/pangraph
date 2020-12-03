@@ -9,7 +9,7 @@ import ..Graphs: pair
 
 export SNPMap, IndelMap #aux types
 export Block 
-export sequence, add! #operators
+export sequence, merge, add! #operators
 
 # ------------------------------------------------------------------------
 # Block data structure
