@@ -2,7 +2,10 @@ module Utility
 
 using FStrings, Match
 using StatsBase
-using Infiltrator
+
+# NOTE: for debugging/benchmarking
+using BenchmarkTools, Infiltrator
+using Profile
 
 import Base.Threads.@spawn
 
@@ -14,10 +17,12 @@ export read_paf
 # random functions
 
 # random string of fixed length
-function random_id(;length=10)
-    alphabet = ['A','B','C','D','E','F','G','H','I','J','K','L','M',
-                'N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
-    return join(sample(alphabet, length))
+function random_id(;len=10, alphabet=Char[])
+    if length(alphabet) == 0
+        alphabet = ['A','B','C','D','E','F','G','H','I','J','K','L','M',
+                    'N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
+    end
+    return join(sample(alphabet, len))
 end
 
 # ------------------------------------------------------------------------
@@ -62,10 +67,8 @@ function Score(rows, cols; band=(lower=Inf,upper=Inf))
 end
 
 # data stored in row-major form
-function index(S::Score, i, j) 
-    return (j-S.starts[i]+1) + S.offset[i]
-end
-data(S::Score, i, j)  = S.data[index(S,i,j)]
+@inline index(S::Score, i, j) = (j-S.starts[i]+1) + S.offset[i]
+@inline data(S::Score, i, j)  = S.data[index(S,i,j)]
 
 # --------------------------------
 # overloads of base operators
@@ -92,18 +95,21 @@ end
 #       would be nice to keep as abstract ranges if we could, e.g. 1:2:10
 #       right now we allocate memory every time
 function Base.getindex(S::Score, inds...)
-    rows, cols = inds
-    ι = [index(S,r,c) for r in rows for c in cols]
-    if length(ι) == 1
-        if cols < S.starts[rows] || cols > S.stops[rows]
-            println("out of bound access: (", rows, ",", cols, ")" )
-            return -Inf
-        else
-            return Base.getindex(S.data, ι[1])
-        end
-    else
-        return Base.getindex(S.data, ι)
-    end
+    # rows, cols = inds
+    r, c = inds
+    return Base.getindex(S.data, index(S,r,c))
+    # TODO: make this faster!
+    # ι = [index(S,r,c) for r in rows for c in cols]
+    # if length(ι) == 1
+    #     # if cols < S.starts[rows] || cols > S.stops[rows]
+    #     #     println("out of bound access: (", rows, ",", cols, ")" )
+    #     #     return -Inf
+    #     # else
+    #     return Base.getindex(S.data, ι[1])
+    #     # end
+    # else
+    #     return Base.getindex(S.data, ι)
+    # end
 end
 
 function Base.setindex!(S::Score, X, inds...)
@@ -143,17 +149,14 @@ function align(seq₁::Array{Char}, seq₂::Array{Char}, cost)
         lb = round(Int, max(i-cost.band.lower, 2))
         ub = round(Int, min(i+cost.band.upper, L₂))
         for j in lb:ub
-            println("I")
             score.I[i,j] = max(
                score.M[i-1,j]+cost.open,
                score.I[i-1,j]+cost.extend,
             )
-            println("D")
             score.D[i,j] = max(
                score.M[i,j-1]+cost.open,
                score.D[i,j-1]+cost.extend,
             )
-            println("M")
             score.M[i,j] = max(
                score.M[i-1,j-1]+cost.match(seq₁[i-1],seq₂[j-1]),
                score.I[i,j],
@@ -395,8 +398,6 @@ function test()
     println("-->", cg)
     println(">done!")
 
-    s₁ = collect("MSS")
-    s₂ = collect("MIIISS")
     cost = (
         open   = -0.75,
         extend = -0.5,
@@ -408,9 +409,16 @@ function test()
         match  = (c₁, c₂) -> 2.0*(c₁ == c₂) - 1.0,
     )
 
-    a₁, a₂ = align(s₁, s₂, cost)
-    println("1: ", String(a₁))
-    println("2: ", String(a₂))
+    seq = (N) -> collect(random_id(;len=N, alphabet=['A','C','G','T']))
+    @benchmark align($seq(100), $seq(100), $cost)
+
+    # s = [ (seq(100), seq(100)) for i in 1:100 ]
+    # @profile for (s₁, s₂) in s
+    #     align(s₁, s₂, cost)
+    # end
+    # Profile.print()
+    # println("1: ", String(a₁))
+    # println("2: ", String(a₂))
 end
 
 end
