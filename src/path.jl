@@ -1,25 +1,27 @@
 module Paths
 
+using ..Nodes
 using ..Blocks
 
-export Node, Path
+import ..Graphs: pair
 
-struct Node
-    block::Block
-    number::Int
-    strand::Bool
-end
-
-Node(b) = Node(b,0,true)
+export Path
 
 struct Path
     name::String
-    nodes::Array{Node}
-    offset::Integer
+    node::Array{Node{Block}}
+    offset::Union{Int,Nothing}
     circular::Bool
 end
 
-Path(name::String,node::Node,circular::Bool) = Path(name,[node],0,circular)
-Path(name::String,node::Node) = Path(name,[node],0,false)
+# --------------------------------
+# constructors
+
+Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],circular ? 0 : nothing,circular)
+
+# --------------------------------
+# operators
+
+pair(p::Path) = p.name => p
 
 end

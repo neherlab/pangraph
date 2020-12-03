@@ -10,6 +10,8 @@ using Profile, ProfileView
 import Base.Threads.@spawn
 
 export random_id, log
+export enforce_cutoff, cigar
+
 export read_fasta, name
 export read_paf
 
@@ -26,27 +28,7 @@ function random_id(;len=10, alphabet=UInt8[])
 end
 
 # ------------------------------------------------------------------------
-# cigar/alignment functions
-
-# paf alignment pair
-struct Hit
-    name::String
-    length::Int
-    start::Int
-    stop::Int
-end
-
-struct Alignment
-    qry::Hit
-    ref::Hit
-    matches::Int
-    length::Int
-    quality::Int
-    orientation::Bool
-    cigar::Union{String,Nothing}
-    divergence::Union{Float64,Nothing}
-    align::Union{Float64,Nothing}
-end
+# banded alignment data structure
 
 struct Score <: AbstractArray{Float64,2}
     rows::Int
@@ -67,7 +49,8 @@ function Score(rows, cols; band=(lower=Inf,upper=Inf))
 end
 
 # data stored in row-major form
-@inline index(S::Score, i, j) = (j-S.starts[i]+1) + S.offset[i]
+# @inline index(S::Score, i, j) = (j-S.starts[i]+1) + S.offset[i]
+@inline index(S::Score, i, j) = j + S.cols*(i-1)
 @inline data(S::Score, i, j)  = S.data[index(S,i,j)]
 
 # --------------------------------
@@ -94,9 +77,7 @@ end
 # TODO: better (less-explicit) indexing
 #       would be nice to keep as abstract ranges if we could, e.g. 1:2:10
 #       right now we allocate memory every time
-function Base.getindex(S::Score, inds...)
-    r, c = inds
-    return Base.getindex(S.data, index(S,r,c))
+@inline Base.getindex(S::Score, inds...) = Base.getindex(S.data, index(S,r,c))
     # TODO: make this faster!
     #       causes huge slow down
     # rows, cols = inds
@@ -111,11 +92,35 @@ function Base.getindex(S::Score, inds...)
     # else
     #     return Base.getindex(S.data, ι)
     # end
-end
+# end
 
 function Base.setindex!(S::Score, X, inds...)
     i, j = inds
     Base.setindex!(S.data, X, index(S,i,j))
+end
+
+# ------------------------------------------------------------------------
+# cigar/alignment functions
+
+# paf alignment pair
+mutable struct Hit
+    name::String
+    length::Int
+    start::Int
+    stop::Int
+    seq::Union{Array{UInt8},Nothing}
+end
+
+mutable struct Alignment
+    qry::Hit
+    ref::Hit
+    matches::Int
+    length::Int
+    quality::Int
+    orientation::Bool
+    cigar::Union{String,Nothing}
+    divergence::Union{Float64,Nothing}
+    align::Union{Float64,Nothing}
 end
 
 # dynamic programming
@@ -132,6 +137,11 @@ function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
          I = zeros(L₁,L₂), #Score(L₁,L₂,band=cost.band),
          D = zeros(L₁,L₂), #Score(L₁,L₂,band=cost.band),
     )
+    # score = (
+    #      M = Score(L₁,L₂,band=cost.band),
+    #      I = Score(L₁,L₂,band=cost.band),
+    #      D = Score(L₁,L₂,band=cost.band),
+    # )
 
     # NOTE: upper and lower could be flipped
     bound(x,d) = isinf(x) ? size(score.M,d) : min(size(score.M,d),x)
@@ -271,21 +281,57 @@ function reverse_complement(seq::Array{UInt8})
     return cmpl
 end
 
-function extend!(a::Alignment, χ)
+cost = (
+    open   = -6.0,
+    extend = -1.0,
+    band   = (
+        lower = Inf,
+        upper = Inf,
+    ),
+    gap    = k -> k == 0 ? 0 : cost.open + cost.extend*(k-1),
+    match  = (c₁, c₂) -> 6.0*(c₁ == c₂) - 3.0,
+)
+# TODO: come up with a better function name
+function enforce_cutoff!(a::Alignment, χ)
     δqₗ, δqᵣ = a.qry.start, a.qry.length - a.qry.stop
     δrₗ, δrᵣ = a.ref.start, a.ref.length - a.ref.stop
 
+    s₁ = a.orientation ? a.qry.seq : reverse_complement(a.qry.seq)
+    s₂ = a.ref.seq
+
     # left side of match
-    if     (δqₗ <= χ) && (δrₗ > χ || δrₗ == 0)
+    if (0 < δqₗ <= χ) && (δrₗ == 0 || δrₗ > χ)
         a.qry.start = 0
         a.cigar     = δqₗ * "I" * a.cigar
-    elseif (δrₗ <= χ) && (δqₗ > χ || δqₗ == 0)
+    elseif (δrₗ <= χ) && (δqₗ == 0 || δqₗ > χ)
         a.ref.start = 0
         a.cigar     = δrₗ * "D" * a.cigar
     elseif (δqₗ <= χ) && (δrₗ <= χ)
+        a₁, a₂ = align(s₁[1:δqₗ], s₂[1:δrₗ])
+        cg     = cigar(a₁, a₂)
+
+        a.qry.start = 0
+        a.ref.start = 0
+        a.cigar   = cg * a.cigar
+        a.length += len(a₁)
     end
 
     # right side of match
+    if (0 < δqᵣ <= χ) && (δrᵣ == 0 || δrᵣ > χ)
+        a.qry.stop  = a.qry.length
+        a.cigar     = a.cigar * δqₗ * "I"
+    elseif (δrᵣ <= χ) && (δqᵣ == 0 || δqᵣ > χ)
+        a.ref.stop  = a.ref.length
+        a.cigar     = a.cigar * δrₗ * "D"
+    elseif (δqᵣ <= χ) && (δrᵣ <= χ)
+        a₁, a₂ = align(s₁[end-δqᵣ:end], s₂[end-δrᵣ:end])
+        cg     = cigar(a₁, a₂)
+
+        a.qry.start = a.qry.length
+        a.ref.start = a.ref.length
+        a.cigar   = a.cigar * cg
+        a.length += len(a₁)
+    end
 end
 
 # ------------------------------------------------------------------------
@@ -320,6 +366,7 @@ function read_fasta(io)
                 write(buf,rstrip(line))
                 line=readline(io)
             end
+            println(">send record")
             put!(chan, Record(take!(buf), name, meta))
         end
 
@@ -364,8 +411,8 @@ function read_paf(io)
                 end
             end
 
-            put!(chan, Alignment(Hit(elt[1],int(elt[2]),int(elt[3]),int(elt[4])),
-                                 Hit(elt[6],int(elt[7]),int(elt[8]),int(elt[9])),
+            put!(chan, Alignment(Hit(elt[1],int(elt[2]),int(elt[3]),int(elt[4]),nothing),
+                                 Hit(elt[6],int(elt[7]),int(elt[8]),int(elt[9]),nothing),
                                  int(elt[10]), int(elt[11]), int(elt[12]),
                                  elt[5] == "+",cg,dv,as))
         end
@@ -375,6 +422,18 @@ function read_paf(io)
 
     return chan
 end
+
+# ------------------------------------------------------------------------
+# string processing functions
+
+function columns(s; nc=80)
+    nr   = ceil(Int64, length(s)/nc)
+    l(i) = 1+(nc*(i-1)) 
+    r(i) = min(nc*i, length(s))
+    rows = [String(s[l(i):r(i)]) for i in 1:nr]
+    return join(rows,'\n')
+end
+
 
 function test()
     # println(">testing fasta parse...")
@@ -415,11 +474,12 @@ function test()
     seq = (N) -> Vector{UInt8}(random_id(;len=N, alphabet=['A','C','G','T']))
     @benchmark align($seq(100), $seq(100), $cost)
 
-    # s = [ (seq(100), seq(100)) for i in 1:100 ]
-    # @profile for (s₁, s₂) in s
-    #     align(s₁, s₂, cost)
-    # end
-    # ProfileView.view()
+    s = [ (seq(100), seq(100)) for i in 1:100 ]
+    Profile.clear()
+    @profile for (s₁, s₂) in s
+        align(s₁, s₂, cost)
+    end
+    ProfileView.view()
     # println("1: ", String(a₁))
     # println("2: ", String(a₂))
 end

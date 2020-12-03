@@ -1,37 +1,36 @@
 module Blocks
 
 using Match, FStrings
-using Random, StatsBase
 
-include("util.jl")
-using .Utility: random_id
+using ..Utility: random_id
+using ..Nodes
 
-export Block, sequence
+import ..Graphs: pair
 
-# ------------------------------------------------------------------------
-# Tag data structure
-
-struct Tag
-    isolate::String
-    number::Int
-end
+export SNPMap, IndelMap #aux types
+export Block 
+export sequence, add! #operators
 
 # ------------------------------------------------------------------------
 # Block data structure
 
+# aliases
+SNPMap   = Dict{Int,UInt8}
+IndelMap = Dict{Int,Union{Array{UInt8},Int}} # array = insertion; integer = deletion
+
 struct Block
     uuid::String
-    sequence::Array{Char}
-    mutation::Dict{Tag,Dict{Int,Char}}
-    indel::Dict{Tag,Dict{Int,Union{Array{Char},Int}}}
+    sequence::Array{UInt8}
+    mutation::Dict{Node{Block},SNPMap}
+    indel::Dict{Node{Block},IndelMap}
 end
 
 # ---------------------------
 # constructors
 
 # simple helpers
-Block() = Block(random_id(), "", Dict(), Dict())
-Block(name::String, sequence::Array{Char}) = Block(random_id(),sequence, Dict(Tag(name,0)=>Dict()), Dict(Tag(name,0)=>Dict()))
+Block() = Block(random_id(), UInt8[], Dict{Node{Block},SNPMap}(), Dict{Node{Block},IndelMap}())
+Block(sequence) = Block(random_id(), sequence, Dict{Node{Block},SNPMap}(), Dict{Node{Block},IndelMap}())
 Block(sequence,mutation,indel) = Block(random_id(),sequence,mutation,indel)
 
 # serial concatenate list of blocks
@@ -69,46 +68,53 @@ end
 # simple operations
 length(b::Block) = length(b.sequence)
 depth(b::Block)  = length(b.mutation)
+pair(b::Block)   = b.uuid => b
 
 # complex operations
 
-# returns the count of isolates within the block
-function isolates(b::Block)
-    count = Dict{String,Int}()
-    for tag in b.mutation
-        if tag.isolate in keys(count)
-            count[tag.isolate] += 1
-        else
-            count[tag.isolate]  = 1
-        end
-    end
+# NOTE: this is deprecated now that we switched from tags to nodes as keys!
+#       when do we use this? do we need it anymore since the switch?
+#
+# # returns the count of isolates within the block
+# function isolates(b::Block)
+#     count = Dict{String,Int}()
+#     for node in b.mutation
+#         if node.isolate in keys(count)
+#             count[tag.isolate] += 1
+#         else
+#             count[tag.isolate]  = 1
+#         end
+#     end
 
-    return count
-end
+#     return count
+# end
 
 # returns the sequence WITH mutations and indels applied to the consensus for a given tag 
-function sequence(b::Block, tag::Tag; gaps=false)
+function sequence(b::Block, node::Node{Block}; gaps=false)
     seq = copy(b.sequence)
     # mutations
-    for (locus, snp) in b.mutation[tag]
+    for (locus, snp) in b.mutation[node]
         seq[locus] = snp
     end
 
     # indels
-    indel(seq, locus, insert::Array{Char}) = cat(seq[1:locus], insert, seq[locus+1:end])
-    indel(seq, locus, delete::Int)         = cat(seq[1:locus], seq[locus+delete:end])
+    indel(seq, locus, insert::Array{UInt8}) = cat(seq[1:locus], insert, seq[locus+1:end])
+    indel(seq, locus, delete::Int) = (gaps ? cat(seq[1:locus], '-'^delete, seq[locus+delete:end])
+                                           : cat(seq[1:locus], seq[locus+delete:end]))
 
-    # TODO: deal with case of gaps=true and return explicit gap characters!
-    for locus in sort(keys(b.indel),rev=true)
-        indel = b.indel[locus]
-        seq   = indel!(seq, locus, indel)
+    for locus in sort(keys(b.indel[node]),rev=true)
+        indel = b.indel[node][locus]
+        seq   = indel(seq, locus, indel)
     end
 
     return seq
 end
 
-function test()
-    println(random_id())
+function add!(b::Block, node::Node{Block}, snp::SNPMap, indel::IndelMap)
+    @assert node ∉ keys(b.mutation)
+    @assert node ∉ keys(b.indel)
+    b.mutation[node] = snp
+    b.indel[node]    = indel
 end
 
 end

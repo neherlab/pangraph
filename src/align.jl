@@ -9,7 +9,7 @@ import Base.Threads.@spawn
 
 # NOTE: this is temporary
 include("util.jl")
-using .Utility: read_paf
+using .Utility: read_paf, extend
 
 include("pool.jl")
 using .Pool
@@ -99,7 +99,7 @@ function mash(input)
 end
 
 function minimap2(qry::String, ref::String)
-    return execute(`minimap2 -x asm20 -m 10 -n 2 -s 30 -D -c $ref $qry`; now=false)
+    return execute(`minimap2 -x asm10 -m 10 -n 2 -s 30 -D -c $ref $qry`; now=false)
 end
 
 # ------------------------------------------------------------------------
@@ -303,8 +303,7 @@ end
 # ------------------------------------------------------------------------
 # align functions
 
-# TODO: fill in actual implementation
-function merge(G₁::Graph, G₂::Graph)
+function align_pair(G₁::Graph, G₂::Graph, energy::Function)
     function write(fifo, G)
         open(fifo, "w") do io
             marshal(io, G)
@@ -316,25 +315,51 @@ function merge(G₁::Graph, G₂::Graph)
     cmd = minimap2(path(io₁), path(io₂))
 
     # NOTE: minimap2 opens up file descriptors in order!
-    #       must process 2 before 1
-    write(io₂, G₂)
-    write(io₁, G₁)
+    #       must process 2 before 1 otherwise we deadlock
+    write(io₂, G₂) # ref
+    write(io₁, G₁) # qry
 
-    hits = read_paf(IOBuffer(fetch(cmd.out)))
+    hits = collect(read_paf(IOBuffer(fetch(cmd.out))))
+    sort!(hits; by=energy)
 
     putio(io₁)
     putio(io₂)
 
-    return G₁
+    # NOTE: we could turn this section into its own function
+    blocks   = Dict{String,Block}()
+    sequence = merge(G₁.sequence, G₂.sequence)
+    for hit in hits
+        if energy(hit) >= 0
+            break
+        end
+
+        if !(hit.qry.name in G₁.block) || !(hit.ref.name in G₂.block)
+            continue
+        end
+
+        enforce_cutoff!(hit, 100) # TODO: remove hard-coded parameter
+
+        qry  = pop!(G₁, hit.qry.name)
+        ref  = pop!(G₂, hit.ref.name)
+
+        blks = merge(qry, ref, hit)
+    end
+
+    # TODO: remove transitives
+    return Graph(blocks, sequence)
 end
 
 # TODO: the associate array is a bit hacky...
 #       can we push it directly into the channel?
-function align(Gs::Graph...)
+function align(Gs::Graph...; energy=𝔼)
     function kernel(clade)
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
-        put!(clade.graph, merge(Gₗ, Gᵣ))
+        G₀ = align_pair(Gₗ, Gᵣ, energy)
+
+        # TODO: self-maps!
+
+        put!(clade.graph, G₀)
     end
 
     tree = ordering(Gs...)
