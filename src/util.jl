@@ -128,9 +128,9 @@ function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
 
     # initialize matrices
     score = (
-         M = Score(L₁,L₂,band=cost.band),
-         I = Score(L₁,L₂,band=cost.band),
-         D = Score(L₁,L₂,band=cost.band),
+         M = zeros(L₁,L₂), #Score(L₁,L₂,band=cost.band),
+         I = zeros(L₁,L₂), #Score(L₁,L₂,band=cost.band),
+         D = zeros(L₁,L₂), #Score(L₁,L₂,band=cost.band),
     )
 
     # NOTE: upper and lower could be flipped
@@ -415,11 +415,11 @@ function test()
     seq = (N) -> Vector{UInt8}(random_id(;len=N, alphabet=['A','C','G','T']))
     @benchmark align($seq(100), $seq(100), $cost)
 
-    s = [ (seq(100), seq(100)) for i in 1:100 ]
-    @profile for (s₁, s₂) in s
-        align(s₁, s₂, cost)
-    end
-    ProfileView.view()
+    # s = [ (seq(100), seq(100)) for i in 1:100 ]
+    # @profile for (s₁, s₂) in s
+    #     align(s₁, s₂, cost)
+    # end
+    # ProfileView.view()
     # println("1: ", String(a₁))
     # println("2: ", String(a₂))
 end
