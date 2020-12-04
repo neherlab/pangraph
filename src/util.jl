@@ -10,10 +10,13 @@ using Profile, ProfileView
 import Base.Threads.@spawn
 
 export random_id, log
+export Alignment
 export enforce_cutoff, cigar
 
 export read_fasta, name
 export read_paf
+
+Maybe{T} = Union{Nothing,T}
 
 # ------------------------------------------------------------------------
 # random functions
@@ -101,7 +104,212 @@ function Base.setindex!(S::Score, X, inds...)
 end
 
 # ------------------------------------------------------------------------
-# cigar/alignment functions
+# cigar functions
+
+# alignment -> cigar
+function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
+    if length(seq₁) != length(seq₂)
+        error("not an alignment")
+    end
+
+    aln = IOBuffer()
+    M, I, D = 0, 0, 0
+    for (c₁, c₂) in zip(seq₁, seq₂)
+        @match (Char(c₁), Char(c₂)) begin
+            ('-','-') => error("both columns are gaps")
+            ('-', _ ) => begin
+                if I > 0
+                    write(aln, f"{I}I")
+                    I = 0
+                elseif M > 0
+                    write(aln, f"{M}M")
+                    M = 0
+                end
+                D += 1
+            end
+            ( _ ,'-') => begin
+                if D > 0
+                    write(aln, f"{D}D")
+                    D = 0
+                elseif M > 0
+                    write(aln, f"{M}M")
+                    M = 0
+                end
+                I += 1
+            end
+            ( _ , _ ) => begin
+                if D > 0
+                    write(aln, f"{D}D")
+                    D = 0
+                elseif I > 0
+                    write(aln, f"{I}I")
+                    I = 0
+                end
+                M += 1
+            end
+        end
+    end
+
+    if I > 0
+        write(aln, f"{I}I")
+        I = 0
+    elseif M > 0
+        write(aln, f"{M}M")
+        M = 0
+    elseif D > 0
+        write(aln, f"{D}D")
+        D = 0
+    end
+
+    return String(take!(aln))
+end
+
+function unpack(cigar::String)
+    chan = Channel{Tuple{Int, Char}}(0)
+    @async begin
+        i₁, i₂ = 1, 1
+        while i₁ <= length(cigar)
+            while isdigit(cigar[i₂])
+                i₂ += 1
+            end
+            put!(chan, (parse(Int,cigar[i₁:i₂-1]),cigar[i₂]))
+            i₁ = i₂ + 1
+            i₂ = i₁
+        end
+        close(chan)
+    end
+
+    return chan
+end
+
+# TODO: relax hardcoded cutoff
+# cigar -> alignment
+function uncigar(cg::String, qry::Array{UInt8}, ref::Array{UInt8}; cutoff=500)
+    # ----------------------------
+    # internal type needed for iteration
+    
+    SNPMap   = Dict{Int,UInt8}
+    IndelMap = Dict{Int, Union{Array{UInt8, Int}}}
+    
+    mutable struct Pos
+        start::Int
+        stop::Int
+    end
+
+    to_index(x::Pos) = x.start:x.stop
+    advance!(x::Pos) = x.start=x.stop
+
+    qryₓ = Pos(1,1)
+    refₓ = Pos(1,1)
+
+    # ----------------------------
+    # list of blocks and their mutations
+    
+    seq   = Array{UInt8}[]                                              # all blocks of alignment cigar
+    pos   = Union{NamedTuple(:qry,:ref),Tuple(Maybe{Pos},Maybe{Pos})}[] # position corresponding to each block
+    snp   = Union{SNPMap,Nothing}[]                                     # snps of qry relative to ref
+    indel = Union{IndelMap,Nothing}[]                                   # indels of qry relative to ref
+
+    # current block being constructed
+    block = (
+        len   = 0
+        seq   = IOBuffer(),
+        snp   = SNPMap(),
+        indel = IndelMap(),
+    )
+
+    # ----------------------------
+    # list of blocks and their mutations
+    
+    function finalize_block!()
+        if block.len <= 0
+            @goto advance
+        end
+        push!(pos, (qry = copy(qryₓ), ref = copy(refₓ)))
+        push!(seq, take!(block.seq))
+        push!(snp, block.snp)
+        push!(indel, block.indel)
+
+        block.len   = 0
+        block.snp   = SNPMap()
+        block.indel = IndelMap()
+        # block.seq is cleared by take! above
+        
+        @label advance
+        advance!(qryₓ)
+        advance!(refₓ)
+    end
+
+    # ----------------------------
+    # main bulk of algorithm
+    for (len, type) in unpack(cg)
+        @match type begin
+        # TODO: treat soft clips differently?
+        'S' || 'H' => begin
+            # TODO: implement
+            error("need to implement soft/hard clipping")
+        end
+        'M' => begin
+            x = Pos(refₓ.stop, refₓ.stop+len)
+            y = Pos(qryₓ.stop, qryₓ.stop+len)
+
+            write(block.seq, ref[x])
+
+            for locus in findall(qry[y] .!= ref[x])
+                block.snp[block.len+locus] = qry[qryₓ.stop+locus]
+            end
+
+            qryₓ.stop += len
+            refₓ.stop += len
+            block.len += len
+        end
+        'D' => begin
+            if len >= cutoff
+                finalize_block!()
+
+                x = Pos(refₓ.start,refₓ.stop+len)
+
+                push!(pos, (qry=nothing, ref=x))
+                push!(seq, ref[x])
+                push!(snp, nothing)
+                push!(indel, nothing)
+
+                advance!(refₓ)
+            else
+                block.indel[block.len] = len
+                refₓ.stop += len
+            end
+        end
+        'I' => begin
+            if len >= cutoff
+                finalize_block!()
+
+                x = Pos(qryₓ.start,qryₓ.stop+len)
+
+                push!(pos, (qry=x, ref=nothing))
+                push!(seq, qry[x])
+                push!(snp, nothing)
+                push!(indel, nothing)
+
+                advance!(qryₓ)
+            else
+                x = Pos(qryₓ.stop,qryₓ.stop+len)
+                block.indel[block.len] = qry[x]
+                qryₓ.stop += len
+            end
+        end
+         _  => error("unrecognized cigar string suffix")
+        end
+    end
+
+    finalize_block!()
+
+    return seq, pos
+end
+
+
+# ------------------------------------------------------------------------
+# alignment functions
 
 # paf alignment pair
 mutable struct Hit
@@ -216,63 +424,6 @@ function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
     b₁ = reverse(take!(a₁))
     b₂ = reverse(take!(a₂))
     return b₁, b₂
-end
-
-function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
-    if length(seq₁) != length(seq₂)
-        error("not an alignment")
-    end
-
-    aln = IOBuffer()
-    M, I, D = 0, 0, 0
-    for (c₁, c₂) in zip(seq₁, seq₂)
-        @match (Char(c₁), Char(c₂)) begin
-            ('-','-') => error("both columns are gaps")
-            ('-', _ ) => begin
-                if I > 0
-                    write(aln, f"{I}I")
-                    I = 0
-                elseif M > 0
-                    write(aln, f"{M}M")
-                    M = 0
-                end
-                D += 1
-            end
-            ( _ ,'-') => begin
-                if D > 0
-                    write(aln, f"{D}D")
-                    D = 0
-                elseif M > 0
-                    write(aln, f"{M}M")
-                    M = 0
-                end
-                I += 1
-            end
-            ( _ , _ ) => begin
-                if D > 0
-                    write(aln, f"{D}D")
-                    D = 0
-                elseif I > 0
-                    write(aln, f"{I}I")
-                    I = 0
-                end
-                M += 1
-            end
-        end
-    end
-
-    if I > 0
-        write(aln, f"{I}I")
-        I = 0
-    elseif M > 0
-        write(aln, f"{M}M")
-        M = 0
-    elseif D > 0
-        write(aln, f"{D}D")
-        D = 0
-    end
-
-    return String(take!(aln))
 end
 
 include("static/watson-crick.jl")

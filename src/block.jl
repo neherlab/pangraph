@@ -2,14 +2,14 @@ module Blocks
 
 using Match, FStrings
 
-using ..Utility: random_id
+using ..Utility: random_id, Alignment
 using ..Nodes
 
 import ..Graphs: pair
 
 export SNPMap, IndelMap #aux types
 export Block 
-export sequence, merge, add! #operators
+export sequence, combine, add! #operators
 
 # ------------------------------------------------------------------------
 # Block data structure
@@ -115,6 +115,9 @@ function add!(b::Block, node::Node{Block}, snp::SNPMap, indel::IndelMap)
     @assert node ∉ keys(b.indel)
     b.mutation[node] = snp
     b.indel[node]    = indel
+end
+
+function combine(qry::Block, ref::Block, hit::Alignment)
 end
 
 end

@@ -348,10 +348,13 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
             continue
         end
 
-        enforce_cutoff!(hit, 100) # TODO: remove hard-coded parameter
-
         qry  = pop!(G₁.block, hit.qry.name)
         ref  = pop!(G₂.block, hit.ref.name)
+
+        hit.qry.seq = qry.sequence
+        hit.ref.seq = ref.sequence
+
+        enforce_cutoff!(hit, 100) # TODO: remove hard-coded parameter
 
         blks = combine(qry, ref, hit)
     end
