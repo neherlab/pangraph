@@ -2,7 +2,7 @@ module Blocks
 
 using Match, FStrings
 
-using ..Utility: random_id, Alignment
+using ..Utility: random_id, unpack_cigar, homologous, Alignment
 using ..Nodes
 
 import ..Graphs: pair

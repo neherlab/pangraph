@@ -11,7 +11,7 @@ import Base.Threads.@spawn
 
 export random_id, log
 export Alignment
-export enforce_cutoff, cigar
+export enforce_cutoff, cigar, unpack_cigar, homologous
 
 export read_fasta, name
 export read_paf
@@ -164,15 +164,15 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
     return String(take!(aln))
 end
 
-function unpack(cigar::String)
+function unpack_cigar(cg::String)
     chan = Channel{Tuple{Int, Char}}(0)
     @async begin
         i₁, i₂ = 1, 1
-        while i₁ <= length(cigar)
-            while isdigit(cigar[i₂])
+        while i₁ <= length(cg)
+            while isdigit(cg[i₂])
                 i₂ += 1
             end
-            put!(chan, (parse(Int,cigar[i₁:i₂-1]),cigar[i₂]))
+            put!(chan, (parse(Int,cg[i₁:i₂-1]),cg[i₂]))
             i₁ = i₂ + 1
             i₂ = i₁
         end
@@ -183,8 +183,9 @@ function unpack(cigar::String)
 end
 
 # TODO: relax hardcoded cutoff
-# cigar -> alignment
-function uncigar(cg::String, qry::Array{UInt8}, ref::Array{UInt8}; cutoff=500)
+# TODO: relax hardcoded reliance on cigar suffixes. make symbols instead
+# chunk alignment 
+function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     # ----------------------------
     # internal type needed for iteration
     
@@ -242,7 +243,7 @@ function uncigar(cg::String, qry::Array{UInt8}, ref::Array{UInt8}; cutoff=500)
 
     # ----------------------------
     # main bulk of algorithm
-    for (len, type) in unpack(cg)
+    for (len, type) in alignment
         @match type begin
         # TODO: treat soft clips differently?
         'S' || 'H' => begin
@@ -264,7 +265,7 @@ function uncigar(cg::String, qry::Array{UInt8}, ref::Array{UInt8}; cutoff=500)
             block.len += len
         end
         'D' => begin
-            if len >= cutoff
+            if len >= maxgap
                 finalize_block!()
 
                 x = Pos(refₓ.start,refₓ.stop+len)
@@ -281,7 +282,7 @@ function uncigar(cg::String, qry::Array{UInt8}, ref::Array{UInt8}; cutoff=500)
             end
         end
         'I' => begin
-            if len >= cutoff
+            if len >= maxgap
                 finalize_block!()
 
                 x = Pos(qryₓ.start,qryₓ.stop+len)
