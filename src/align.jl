@@ -309,35 +309,26 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
         end
     end
 
-    # log("----> opening...")
     io₁, io₂ = getios()
 
-    # log("----> spawning...")
     cmd = minimap2(path(io₁), path(io₂))
 
     # NOTE: minimap2 opens up file descriptors in order!
     #       must process 2 before 1 otherwise we deadlock
-    # log("----> writing...")
     write(io₂, G₂) # ref
     write(io₁, G₁) # qry
 
-    # log("----> fetching...")
     out  = IOBuffer(fetch(cmd.out))
-    # log("----> collecting...")
     hits = collect(read_paf(out))
-    # log("----> sorting...")
     sort!(hits; by=energy)
 
-    # log("----> closing...")
     close(out)
     putio(io₁)
     putio(io₂)
 
     # NOTE: we could turn this section into its own function
-    # log("----> merging...")
     blocks   = Dict{String,Block}()
     sequence = merge(G₁.sequence, G₂.sequence)
-    # log("----> iterating...")
     for hit in hits
         log(hit)
         if energy(hit) >= 0
@@ -360,7 +351,6 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
     end
 
     # TODO: remove transitives
-    # log("----> finishing...")
     return Graph(blocks, sequence)
 end
 

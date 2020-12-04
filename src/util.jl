@@ -307,7 +307,6 @@ function uncigar(cg::String, qry::Array{UInt8}, ref::Array{UInt8}; cutoff=500)
     return seq, pos
 end
 
-
 # ------------------------------------------------------------------------
 # alignment functions
 
