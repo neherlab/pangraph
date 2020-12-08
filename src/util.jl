@@ -275,15 +275,16 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
                 block.snp[block.len+locus] = qry[qryₓ.stop+locus]
             end
 
-            qryₓ.stop += len
-            refₓ.stop += len
-            block = (;block..., len= block.len + len)
+            qryₓ.stop += len-1
+            refₓ.stop += len-1
+
+            block = (;block..., len=block.len+len)
         end
         'D' => begin
             if len >= maxgap
                 finalize_block!()
 
-                x = Pos(refₓ.start,refₓ.stop+len)
+                x = Pos(refₓ.start,refₓ.stop+len-1)
 
                 push!(pos, (qry=nothing, ref=x))
                 push!(seq, ref[x])
@@ -293,14 +294,14 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
                 advance!(refₓ)
             else
                 block.indel[block.len] = len
-                refₓ.stop += len
+                refₓ.stop += len-1
             end
         end
         'I' => begin
             if len >= maxgap
                 finalize_block!()
 
-                x = Pos(qryₓ.start,qryₓ.stop+len)
+                x = Pos(qryₓ.start,qryₓ.stop+len-1)
 
                 push!(pos, (qry=x, ref=nothing))
                 push!(seq, qry[x])
@@ -309,9 +310,9 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
 
                 advance!(qryₓ)
             else
-                x = Pos(qryₓ.stop,qryₓ.stop+len)
+                x = Pos(qryₓ.stop,qryₓ.stop+len-1)
                 block.indel[block.len] = qry[x]
-                qryₓ.stop += len
+                qryₓ.stop += len - 1
             end
         end
          _  => error("unrecognized cigar string suffix")

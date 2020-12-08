@@ -66,6 +66,7 @@ end
 # TODO: rename to slice?
 # returns a subslice of block b
 function Block(b::Block, slice)
+    @show slice
     @assert slice.start >= 1 && slice.stop <= length(b)
     sequence = b.sequence[slice]
     mutation = translate(b.mutation, -slice.start)
