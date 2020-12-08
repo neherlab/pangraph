@@ -79,9 +79,16 @@ end
 # operations
 
 # simple operations
-Base.length(b::Block) = Base.length(b.sequence)
 depth(b::Block)       = length(b.mutation)
 pair(b::Block)        = b.uuid => b
+
+Base.length(b::Block) = Base.length(b.sequence)
+function Base.length(b::Block, n::Node)
+    length(x::Int)          = -x         # deletion
+    length(x::Array{UInt8}) = length(x)  # insertion
+
+    return length(b) + sum(length(v) for v in b.indel[n])
+end
 
 Base.show(io::IO, b::Block) = Base.show(io, (id=b.uuid, depth=depth(b)))
 
@@ -145,20 +152,22 @@ function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
     b.indel[newkey]    = indel
 end
 
+function reconsensus!(b::Block)
+    aln = zeros(UInt8, depth(b), maximum(length(b, n) for n in keys(b.indel)))
+end
+
 function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
     sequences,intervals,mutations,indels = homologous(uncigar(aln.cigar),qry.sequence,ref.sequence,maxgap=maxgap)
 
     blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
     for (seq,pos,snp,indel) in zip(sequences,intervals,mutations,indels)
-        @show (pos.qry, pos.ref)
-        @show snp
-        @show indel
         @match (pos.qry, pos.ref) begin
-            (nothing, rₓ )   => push!(blocks, (block=Block(ref, rₓ), kind=:ref))
-            ( qₓ , nothing)  => push!(blocks, (block=Block(qry, qₓ), kind=:qry))
+            ( nothing, rₓ )  => push!(blocks, (block=Block(ref, rₓ), kind=:ref))
+            ( qₓ , nothing ) => push!(blocks, (block=Block(qry, qₓ), kind=:qry))
             ( qₓ , rₓ )      => begin
                 @assert !isnothing(snp)
                 @assert !isnothing(indel)
+
                 # slice both blocks
                 r = Block(ref, rₓ)
                 q = Block(qry, qₓ)
@@ -169,10 +178,11 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                     merge!(q.mutation[node], snp)
                     merge!(q.indel[node], indel)
                 end
-                
-                # merge mutations and snp dictionaries together
-                # TODO: recompute consensus here!
-                push!(blocks, (block=Block(seq,snp,indel),kind=:all))
+
+                new = Block(seq,snp,indel)
+                reconsensus!(new)
+
+                push!(blocks, (block=new, kind=:all))
             end
         end
     end
