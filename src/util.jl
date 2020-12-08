@@ -167,6 +167,7 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
 end
 
 function uncigar(cg::String)
+    println("CIGAR: ", cg)
     chan = Channel{Tuple{Int, Char}}(0)
     @async begin
         i₁, i₂ = 1, 1
@@ -258,8 +259,8 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     for (len, type) in alignment
         println(f"({len}, {type})")
         @match type begin
-        # TODO: treat soft clips differently?
         'S' || 'H' => begin
+            # XXX: treat soft clips differently?
             # TODO: implement
             error("need to implement soft/hard clipping")
         end
@@ -462,8 +463,8 @@ cost = (
 )
 # TODO: come up with a better function name
 function enforce_cutoff!(a::Alignment, χ)
-    δqₗ, δqᵣ = a.qry.start, a.qry.length - a.qry.stop
-    δrₗ, δrᵣ = a.ref.start, a.ref.length - a.ref.stop
+    δqₗ, δqᵣ = a.qry.start-1, a.qry.length - a.qry.stop
+    δrₗ, δrᵣ = a.ref.start-1, a.ref.length - a.ref.stop
 
     s₁ = a.orientation ? a.qry.seq : reverse_complement(a.qry.seq)
     s₂ = a.ref.seq
@@ -472,10 +473,10 @@ function enforce_cutoff!(a::Alignment, χ)
     if (0 < δqₗ <= χ) && (δrₗ == 0 || δrₗ > χ)
         a.qry.start = 0
         a.cigar     = string(δqₗ) * "I" * a.cigar
-    elseif (δrₗ <= χ) && (δqₗ == 0 || δqₗ > χ)
+    elseif (0 < δrₗ <= χ) && (δqₗ == 0 || δqₗ > χ)
         a.ref.start = 0
         a.cigar     = string(δrₗ) * "D" * a.cigar
-    elseif (δqₗ <= χ) && (δrₗ <= χ)
+    elseif (0 < δqₗ <= χ) && (0 < δrₗ <= χ)
         a₁, a₂ = align(s₁[1:δqₗ], s₂[1:δrₗ], cost)
         cg     = cigar(a₁, a₂)
 
@@ -489,10 +490,10 @@ function enforce_cutoff!(a::Alignment, χ)
     if (0 < δqᵣ <= χ) && (δrᵣ == 0 || δrᵣ > χ)
         a.qry.stop  = a.qry.length
         a.cigar     = a.cigar * string(δqₗ) * "I"
-    elseif (δrᵣ <= χ) && (δqᵣ == 0 || δqᵣ > χ)
+    elseif (0 < δrᵣ <= χ) && (δqᵣ == 0 || δqᵣ > χ)
         a.ref.stop  = a.ref.length
         a.cigar     = a.cigar * string(δrₗ) * "D"
-    elseif (δqᵣ <= χ) && (δrᵣ <= χ)
+    elseif (0 < δqᵣ <= χ) && (δrᵣ <= χ)
         a₁, a₂ = align(s₁[end-δqᵣ:end], s₂[end-δrᵣ:end], cost)
         cg     = cigar(a₁, a₂)
 
