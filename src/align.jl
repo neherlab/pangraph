@@ -307,17 +307,33 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
     function write(fifo, G)
         open(fifo, "w") do io
             marshal(io, G)
+            flush(io)
         end
     end
 
+    @label getios
     io₁, io₂ = getios()
+
+    @show G₁
+    @show G₂
 
     cmd = minimap2(path(io₁), path(io₂))
 
     # NOTE: minimap2 opens up file descriptors in order!
     #       must process 2 before 1 otherwise we deadlock
-    write(io₂, G₂) # ref
-    write(io₁, G₁) # qry
+    try
+        write(io₂, G₂) # ref
+        write(io₁, G₁) # qry
+    catch err
+        # NOTE: this deals with an odd async issue causing illegal seeks on the file descriptor
+        #       think of a better way to handle
+        if typeof(err) <: SystemError
+            putio(io₁)
+            putio(io₂)
+            @goto getios
+        end
+        rethrow(err)
+    end
 
     out  = IOBuffer(fetch(cmd.out))
     hits = collect(read_paf(out))
@@ -350,6 +366,10 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
         blks = combine(qry₀, ref₀, hit)
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
         refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
+
+        @show blks
+        @show qrys
+        @show refs
 
         for path in values(G₁.sequence)
             replace!(path, qry₀, qrys)
