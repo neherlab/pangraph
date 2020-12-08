@@ -24,6 +24,7 @@ Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],cir
 # operators
 
 pair(p::Path) = p.name => p
+Base.show(io::IO, p::Path) = Base.show(io, (name=p.name, blocks=p.node))
 
 # XXX: do we just want to build a brand new array incrementally?
 function Base.replace!(p::Path, old::Block, new::Array{Block})

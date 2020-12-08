@@ -155,6 +155,8 @@ end
 # ------------------------------------------------------------------------
 # i/o & (de)serialization
 
+Base.show(io::IO, G::Graph) = Base.show(io, (paths=values(G.sequence), blocks=values(G.block)))
+
 # helper functions w/ common functionality
 function write_fasta(io, name, seq)
     write(io, '>', name, '\n')

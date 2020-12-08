@@ -83,6 +83,8 @@ Base.length(b::Block) = Base.length(b.sequence)
 depth(b::Block)       = length(b.mutation)
 pair(b::Block)        = b.uuid => b
 
+Base.show(io::IO, b::Block) = Base.show(io, (id=b.uuid, depth=depth(b)))
+
 # complex operations
 function reverse_complement(b::Block)
     seq = reverse_complement(b.sequence)
