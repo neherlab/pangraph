@@ -327,8 +327,7 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
     putio(io₂)
 
     # NOTE: we could turn this section into its own function
-    blocks   = Dict{String,Block}()
-    sequence = merge(G₁.sequence, G₂.sequence)
+    blocks = Dict{String,Block}()
     for hit in hits
         log(hit)
         if energy(hit) >= 0
@@ -339,19 +338,44 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
             continue
         end
 
-        qry  = pop!(G₁.block, hit.qry.name)
-        ref  = pop!(G₂.block, hit.ref.name)
+        qry₀ = pop!(G₁.block, hit.qry.name)
+        ref₀ = pop!(G₂.block, hit.ref.name)
 
-        hit.qry.seq = qry.sequence
-        hit.ref.seq = ref.sequence
+        hit.qry.seq = qry₀.sequence
+        hit.ref.seq = ref₀.sequence
 
         enforce_cutoff!(hit, 100) # TODO: remove hard-coded parameter
 
         blks = combine(qry, ref, hit)
+        qrys = filter(b -> b.kind != :ref, blks)
+        refs = filter(b -> b.kind != :qry, blks)
+
+        for (isolate, path) in G₁.sequence
+            replace!(path, qry₀, qrys)
+        end
+
+        for (isolate, path) in G₂.sequence
+            replace!(path, ref₀, refs)
+        end
+
+        for blk in blks
+            blocks[blk.uuid] = blk
+        end
     end
 
+    sequence = merge(G₁.sequence, G₂.sequence)
+
+    # XXX: worry about uuid collision?
+    merge!(blocks, G₁.block)
+    merge!(blocks, G₂.block)
+
     # TODO: remove transitives
-    return Graph(blocks, sequence)
+    
+    return Graph(
+            blocks, 
+            sequence,
+            # ...
+    )
 end
 
 # TODO: the associate array is a bit hacky...

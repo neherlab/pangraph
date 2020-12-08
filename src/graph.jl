@@ -6,18 +6,21 @@ using GZip # NOTE: for debugging purposes
 export pair
 function pair(item) end
 
+include("counter.jl")
+include("util.jl")
 # NOTE: commented out during debugging stage
 #       will move to a module file later
-include("util.jl")
 # include("pool.jl")
 include("node.jl")
 include("block.jl")
 include("path.jl")
+include("junction.jl")
 
 using .Utility: read_fasta, name, columns
 using .Nodes
 using .Blocks
 using .Paths
+using .Junctions
 
 export Graph
 export graphs, marshal, serialize
@@ -55,9 +58,90 @@ graphs(io::IO) = [Graph(name(record), record.seq) for record in read_fasta(io)]
 # --------------------------------
 # operators
 
-# TODO: think of better names
-Nₛ(G::Graph) = length(G.sequence)
-Nᵥ(G::Graph) = length(G.block)
+function detransitive!(G::Graph)
+    isosᵥ = count_isolates(values(G.sequence))
+
+    # collect all junctions that transitively pass isolates through
+    transitives = Junction[]
+    for (j, isosⱼ) in junctions(values(G.sequence))
+        if ((isosᵥ[j.left.block] == isosᵥ[j.right.block]) &&
+            (isosᵥ[j.left.blockj] == isosⱼ))
+            push!(transitives, j)
+        end
+    end
+
+    Link  = NamedTuple{(:block,:strand),(Block, Bool)
+    Chain = Array{Link}
+    
+    rev(l::Link)  = (block=l.block,strand=!l.strand)
+    rev(c::Chain) = [rev(b) for b in reverse(c)]
+
+    # build chains by threading consecutive transitive junctions
+    # TODO: audit each line carefully
+    chain = Dict{Block, Chain}()
+    for j in transitives
+        if j.left.block ∈ keys(chain) && j.right.block ∈ keys(chain)
+            c₁, c₂ = chain[j.left.block], chain[j.right.block]
+            if c1 == c2
+                continue
+            end
+
+            newc = Block[]
+            if left(j) == c₁[end] && right(j) == c₂[1]
+                newc = cat(c₁, c₂, dims=1)
+            elseif left(j) == c₁[end] && rev(right(j)) == c₂[end]
+                newc = cat(c₁, rev(c₂), dims=1)
+            elseif rev(left(j)) == c₁[1] && right(j) == c₂[1]
+                newc = cat(rev(c₁), c₂, dims=1)
+            elseif rev(left(j)) == c₁[1] && rev(right(j)) == c₂[end]
+                newc = cat(c₂, c₁, dims=1)
+            else
+                error("case not covered")
+            end
+
+            for b in newc
+                chain[b] = newc
+            end
+        elseif j.left.block ∈ keys(chain)
+            c₀ = chain[j.left.block]
+            if left(j) == c₀[end]
+                push!(c₀, right(j))
+            elseif rev(j.left.block) == c₀[1]
+                pushfirst!(c₀, rev(right(j)))
+            else
+                error("chains should be linear")
+            end
+            chain[j.right.block] = c₀
+        elseif j.right.block ∈ keys(chain)
+            c₀ = chain[j.right.block]
+            if right(j) == c₀[end]
+                push!(c₀, rev(left(j)))
+            elseif right(j) == c₀[1]
+                pushfirst!(c₀, left(j))
+            else
+                error("chains should be linear")
+            end
+            chain[j.left.block] = c₀
+        else
+            chain[j.left.block]  = [left(j), right(j)]
+            chain[j.right.block] = chain[j.left.block] 
+        end
+    end
+
+    # merge chains into one block
+    for c in Set(values(chain))
+        isos = isosᵥ[c[1].block]
+        new  = Block([s ? b : reverse_complement(b) for (b,s) in c]...)
+
+        for iso in isos
+            replace!(G.sequence[iso], c, new)
+        end
+
+        for (b,_) in c
+            pop!(G.blocks, b)
+        end
+    end
+end
 
 # ------------------------------------------------------------------------
 # i/o & (de)serialization

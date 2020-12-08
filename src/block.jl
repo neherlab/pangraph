@@ -2,7 +2,7 @@ module Blocks
 
 using Match, FStrings
 
-using ..Utility: random_id, unpack_cigar, homologous, Alignment
+using ..Utility: random_id, uncigar, wc_pair, reverse_complement, homologous, Alignment
 using ..Nodes
 
 import ..Graphs: pair
@@ -18,7 +18,7 @@ export sequence, combine, add! #operators
 SNPMap   = Dict{Int,UInt8}
 IndelMap = Dict{Int,Union{Array{UInt8},Int}} # array = insertion; integer = deletion
 
-struct Block
+mutable struct Block
     uuid::String
     sequence::Array{UInt8}
     mutation::Dict{Node{Block},SNPMap}
@@ -33,31 +33,43 @@ Block() = Block(random_id(), UInt8[], Dict{Node{Block},SNPMap}(), Dict{Node{Bloc
 Block(sequence) = Block(random_id(), sequence, Dict{Node{Block},SNPMap}(), Dict{Node{Block},IndelMap}())
 Block(sequence,mutation,indel) = Block(random_id(),sequence,mutation,indel)
 
+function translate!(dict, δ)
+    for key, val in dict
+        dict[key] = Dict(x+δ => v for (x,v) in val)
+    end
+end
+
+function translate(dict, δ)
+    return Dict(key=>Dict(x+δ => v for (x,v) in val) for (key,val) in dict)
+end
+
+# TODO: rename to concatenate?
 # serial concatenate list of blocks
 function Block(bs::Block...)
     @assert all([isolates(bs[1]) == isolates(b) for b in bs[2:end]])
 
     sequence = join([b.sequence for b in bs])
     mutation = bs[1].mutation
-    indel    = bs[1].insertion
+    indel    = bs[1].indel
 
-    # TODO: finish the concatenation of mutations/etc dictionaries
-    #       need to thread degeneracies through the list correctly
     δ = length(bs[1])
     for b in bs[2:end]
+        merge!(mutation, translate(b.mutation, δ))
+        merge!(indel, translate(b.indel, δ))
+
         δ += length(b)
     end
 
     return Block(sequence,mutation,indel)
 end
 
+# TODO: rename to slice?
 # returns a subslice of block b
-function Block(b::Block, range::UnitRange{Int})
-    @assert range.start >= 1 && range.stop <= length(b)
-    translate(dict) = Dict(iso => Dict(x-range.start => val for (x,val) in d) for (iso,d) in dict)
-    sequence = b.sequence[range]
-    mutation = translate(b.mutation)
-    indel    = translate(b.indel)
+function Block(b::Block, slice)
+    @assert slice.start >= 1 && slice.stop <= length(b)
+    sequence = b.sequence[slice]
+    mutation = translate(b.mutation, -slice.start)
+    indel    = translate(b.indel, -slice.start)
 
     return Block(sequence,mutation,indel)
 end
@@ -71,36 +83,31 @@ depth(b::Block)  = length(b.mutation)
 pair(b::Block)   = b.uuid => b
 
 # complex operations
+function reverse_complement(b::Block)
+    seq = reverse_complement(b.sequence)
+    len = length(seq)
 
-# NOTE: this is deprecated now that we switched from tags to nodes as keys!
-#       when do we use this? do we need it anymore since the switch?
-#
-# # returns the count of isolates within the block
-# function isolates(b::Block)
-#     count = Dict{String,Int}()
-#     for node in b.mutation
-#         if node.isolate in keys(count)
-#             count[tag.isolate] += 1
-#         else
-#             count[tag.isolate]  = 1
-#         end
-#     end
+    revcmpl(seq::Array{UInt8}) = reverse_complement(seq)
+    revcmpl(n::Int)            = n
+    revcmpl(dict::SNPMap)      = Dict(len-locus+1:wc_pair[nuc] for (locus,nuc) in dict)
+    revcmpl(dict::IndelMap)    = Dict(len-locus+1:revcmpl(val) for (locus,revcmpl) in dict)
 
-#     return count
-# end
+    mutation = Dict(node => revcmpl(snps)  for (node, snps) in b.mutation)
+    indel    = Dict(node => revcmpl(indel) for (node, indel) in b.indel)
+
+    return Block(seq,mutation,indel)
+end
 
 # returns the sequence WITH mutations and indels applied to the consensus for a given tag 
 function sequence(b::Block, node::Node{Block}; gaps=false)
     seq = copy(b.sequence)
-    # mutations
     for (locus, snp) in b.mutation[node]
         seq[locus] = snp
     end
 
-    # indels
     indel(seq, locus, insert::Array{UInt8}) = cat(seq[1:locus], insert, seq[locus+1:end])
-    indel(seq, locus, delete::Int) = (gaps ? cat(seq[1:locus], '-'^delete, seq[locus+delete:end])
-                                           : cat(seq[1:locus], seq[locus+delete:end]))
+    indel(seq, locus, delete::Int)          = (gaps ? cat(seq[1:locus], '-'^delete, seq[locus+delete:end])
+                                                    : cat(seq[1:locus], seq[locus+delete:end]))
 
     for locus in sort(keys(b.indel[node]),rev=true)
         indel = b.indel[node][locus]
@@ -117,7 +124,41 @@ function add!(b::Block, node::Node{Block}, snp::SNPMap, indel::IndelMap)
     b.indel[node]    = indel
 end
 
-function combine(qry::Block, ref::Block, hit::Alignment)
+function swap!(b::Block, oldkey::Node{Block}, newkey::Node{Block})
+    b.mutation[newkey] = pop!(b.mutation, oldkey)
+    b.indel[newkey]    = pop!(b.indel, oldkey)
+end
+
+function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
+    sequences,intervals,mutations,indels = homologous(uncigar(aln.cigar),qry.sequence,ref.sequence,maxgap=maxgap)
+
+    blocks = NamedTuple{(:block,:kind),Tuple(Block,Symbol)}[]
+    for (seq,pos,snp,indel) in zip(sequences,intervals,mutations,indels)
+        @match (pos.qry, pos.ref) begin
+            (nothing, rₓ )   => push!(blocks, (block=Block(ref, rₓ),kind=:ref))
+            ( qₓ , nothing)  => push!(blocks, (block=Block(qry, qₓ),kind=:qry))
+            ( qₓ , rₓ )      => begin
+                @assert !isnothing(snp)
+                @assert !isnothing(indel)
+                # slice both blocks
+                r = Block(ref, rₓ)
+                q = Block(qry, qₓ)
+
+                # apply global snp and indels to all query sequences
+                # XXX: do we have to worry about overlapping insertions/deletions?
+                for node in keys(q.mutation)
+                    merge!(q.mutation[node], snp)
+                    merge!(q.indel[node], indel)
+                end
+                
+                # merge mutations and snp dictionaries together
+                # TODO: recompute consensus here!
+                push!(blocks, (block=Block(seq,snp,indel),kind=:all))
+            end
+        end
+    end
+
+    return blocks
 end
 
 end

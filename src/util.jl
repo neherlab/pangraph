@@ -11,7 +11,7 @@ import Base.Threads.@spawn
 
 export random_id, log
 export Alignment
-export enforce_cutoff, cigar, unpack_cigar, homologous
+export enforce_cutoff, cigar, uncigar, homologous
 
 export read_fasta, name
 export read_paf
@@ -164,7 +164,7 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
     return String(take!(aln))
 end
 
-function unpack_cigar(cg::String)
+function uncigar(cg::String)
     chan = Channel{Tuple{Int, Char}}(0)
     @async begin
         i₁, i₂ = 1, 1
@@ -206,10 +206,10 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     # ----------------------------
     # list of blocks and their mutations
     
-    seq   = Array{UInt8}[]                                              # all blocks of alignment cigar
-    pos   = Union{NamedTuple(:qry,:ref),Tuple(Maybe{Pos},Maybe{Pos})}[] # position corresponding to each block
-    snp   = Union{SNPMap,Nothing}[]                                     # snps of qry relative to ref
-    indel = Union{IndelMap,Nothing}[]                                   # indels of qry relative to ref
+    seq   = Array{UInt8}[]                                         # all blocks of alignment cigar
+    pos   = NamedTuple{(:qry,:ref),Tuple(Maybe{Pos},Maybe{Pos})}[] # position corresponding to each block
+    snp   = Union{SNPMap,Nothing}[]                                # snps of qry relative to ref
+    indel = Union{IndelMap,Nothing}[]                              # indels of qry relative to ref
 
     # current block being constructed
     block = (
@@ -305,7 +305,7 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
 
     finalize_block!()
 
-    return seq, pos
+    return seq, pos, snp, indel
 end
 
 # ------------------------------------------------------------------------
