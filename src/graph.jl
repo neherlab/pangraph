@@ -3,6 +3,11 @@ module Graphs
 using Match, FStrings
 using GZip # NOTE: for debugging purposes
 
+import JSON
+
+# ------------------------------------------------------------------------
+# imports w/ exported global dispatch preamble
+
 export pair
 function pair(item) end
 
@@ -31,7 +36,7 @@ export graphs, marshal, serialize
 struct Graph
     block::Dict{String,Block}   # uuid      -> block
     sequence::Dict{String,Path} # isolation -> path
-    # TODO: add edge/junction data structure
+    # TODO: add edge/junction data structure?
 end
 
 include("align.jl")
@@ -58,6 +63,8 @@ graphs(io::IO) = [Graph(name(record), record.seq) for record in read_fasta(io)]
 # --------------------------------
 # operators
 
+# XXX: break into smaller functions
+#      too long
 function detransitive!(G::Graph)
     isosᵥ = count_isolates(values(G.sequence))
 
@@ -70,7 +77,7 @@ function detransitive!(G::Graph)
         end
     end
 
-    Link  = NamedTuple{(:block,:strand),(Block, Bool)
+    Link  = NamedTuple{(:block,:strand),(Block, Bool)}
     Chain = Array{Link}
     
     rev(l::Link)  = (block=l.block,strand=!l.strand)
@@ -102,6 +109,7 @@ function detransitive!(G::Graph)
             for b in newc
                 chain[b] = newc
             end
+
         elseif j.left.block ∈ keys(chain)
             c₀ = chain[j.left.block]
             if left(j) == c₀[end]
@@ -112,6 +120,7 @@ function detransitive!(G::Graph)
                 error("chains should be linear")
             end
             chain[j.right.block] = c₀
+
         elseif j.right.block ∈ keys(chain)
             c₀ = chain[j.right.block]
             if right(j) == c₀[end]
@@ -122,6 +131,7 @@ function detransitive!(G::Graph)
                 error("chains should be linear")
             end
             chain[j.left.block] = c₀
+
         else
             chain[j.left.block]  = [left(j), right(j)]
             chain[j.right.block] = chain[j.left.block] 
@@ -158,9 +168,14 @@ function marshal_fasta(io, G::Graph)
     end
 end
 
+function marshal_json(io, G::Graph)
+    out = {}
+end
+
 function marshal(io, G::Graph; fmt=:fasta)
     @match fmt begin
         :fasta || :fa => marshal_fasta(io, G)
+        :json         => marshal_json(io, G)
         _ => error(f"{format} not a recognized output format")
     end
 end

@@ -50,22 +50,48 @@ function replace!(p::Path, old::Block, new::Array{Block})
     end
 end
 
+# XXX: should we create an interval data structure that unifies both cases?
+# XXX: wrap as an iterator instead of storing the whole array in memory?
+intervals(starts, stops) = [stop:-1:start for (start,stop) in zip(starts,stops)]
+
+function intervals(starts, stops, gap, len)
+    if (stops[1]-starts[1]) == gap
+        return intervals(starts, stops)
+    elseif (len-starts[end]+stops[1]+1) == gap
+        return [(starts[end]:len; 1:stops[1]);[start:stop for (start,stop) in zip(starts[1:end-1], stops[2:end])]]
+    else
+        error("unrecognized gap pattern in block replacement of path") 
+    end
+end
+
 Link = NamedTuple{(:block, :strand), (Block, Bool)}
 function replace!(p::Path, old::Array{Link}, new::Block)
-    start, stop, len = old[1].block, old[end].block, length(old)
+    start, stop = old[1].block, old[end].block
 
     i₁ₛ = findall((n) -> n.block == start, p.node)
     i₂ₛ = findall((n) -> n.block == stop,  p.node)
 
-    # XXX: pair the i₁ & i₂ into (i₁, i₂) s.t. |i₂-i₁| = len
-    #      take into consideration the circularity of path p
-    #      deal with strand sign correctly here
+    @assert length(i₁ₛ) == length(i₂ₛ)
 
-    # XXX: for (i₁, i₂) in pairs
-    #           splice!(p.nodes, i₁:i₂, Node(new)) :: Take into consideration circularity!
-    #           swap out p.nodes[i₁:i₂] in Block mutation & indel dictionaries for newly created node
-    #      end
+    s  = new.strand == old[1].strand
+    iₛ = (p.circular ? intervals(i₁ₛ, i₂ₛ, length(old), length(p.node))
+                     : intervals(i₁ₛ, i₂ₛ))
 
+    Interval         = UnitRange{Int}
+    CircularInterval = Tuple{Interval,Interval}
+
+    splice!(nodes::Array{Node{Block}}, idx::Interval, new::Node{Block}) = Base.splice!(nodes, idx, new)
+    splice!(nodes::Array{Node{Block}}, idx::CircularInterval, new::Node{Block}) = Base.splice!(nodes, idx[1], new); Base.splice!(nodes, idx[2])
+
+    # XXX: have to correct for the overhang
+    swap!(b::Block, i::Interval, new::Node{Block})         = Block.swap!(b, p.nodes[i], new)
+    swap!(b::Block, i::CircularInterval, new::Node{Block}) = Block.swap!(b, p.nodes[[length(p.nodes)-length(i[1]):length(p.nodes);i[2]]], new)
+
+    for interval in reverse(iₛ)
+        n = Node(new, s)
+        splice!(p.nodes, interval, n)
+        swap!(new, interval, n)
+    end
 end
 
 # XXX: store as field in block?

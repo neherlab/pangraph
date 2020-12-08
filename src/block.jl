@@ -129,6 +129,19 @@ function swap!(b::Block, oldkey::Node{Block}, newkey::Node{Block})
     b.indel[newkey]    = pop!(b.indel, oldkey)
 end
 
+function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
+    mutation = pop!(b.mutation, oldkey[1])
+    indel    = pop!(b.indel, oldkey[1])
+
+    for key in oldkey[2:end]
+        merge!(mutation, pop!(b.mutation, key))
+        merge!(indel, pop!(b.indel, key))
+    end
+
+    b.mutation[newkey] = mutation
+    b.indel[newkey]    = indel
+end
+
 function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
     sequences,intervals,mutations,indels = homologous(uncigar(aln.cigar),qry.sequence,ref.sequence,maxgap=maxgap)
 
