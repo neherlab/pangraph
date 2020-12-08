@@ -9,7 +9,7 @@ import ..Graphs: pair, reverse_complement
 
 export SNPMap, IndelMap #aux types
 export Block 
-export sequence, combine, append! #operators
+export sequence, combine, add_node! #operators
 
 # ------------------------------------------------------------------------
 # Block data structure
@@ -78,9 +78,9 @@ end
 # operations
 
 # simple operations
-length(b::Block) = length(b.sequence)
-depth(b::Block)  = length(b.mutation)
-pair(b::Block)   = b.uuid => b
+Base.length(b::Block) = Base.length(b.sequence)
+depth(b::Block)       = length(b.mutation)
+pair(b::Block)        = b.uuid => b
 
 # complex operations
 function reverse_complement(b::Block)
@@ -117,7 +117,7 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
     return seq
 end
 
-function append!(b::Block, node::Node{Block}, snp::SNPMap, indel::IndelMap)
+function add_node!(b::Block, node::Node{Block}, snp::SNPMap, indel::IndelMap)
     @assert node ∉ keys(b.mutation)
     @assert node ∉ keys(b.indel)
     b.mutation[node] = snp
@@ -145,7 +145,7 @@ end
 function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
     sequences,intervals,mutations,indels = homologous(uncigar(aln.cigar),qry.sequence,ref.sequence,maxgap=maxgap)
 
-    blocks = NamedTuple{(:block,:kind),Tuple(Block,Symbol)}[]
+    blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
     for (seq,pos,snp,indel) in zip(sequences,intervals,mutations,indels)
         @match (pos.qry, pos.ref) begin
             (nothing, rₓ )   => push!(blocks, (block=Block(ref, rₓ),kind=:ref))

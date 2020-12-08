@@ -346,7 +346,7 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
 
         enforce_cutoff!(hit, 100) # TODO: remove hard-coded parameter
 
-        blks = combine(qry, ref, hit)
+        blks = combine(qry₀, ref₀, hit)
         qrys = filter(b -> b.kind != :ref, blks)
         refs = filter(b -> b.kind != :qry, blks)
 
@@ -369,7 +369,7 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
     merge!(blocks, G₁.block)
     merge!(blocks, G₂.block)
 
-    # TODO: remove transitives
+    detransitive!(G)
     
     return Graph(
             blocks, 

@@ -192,16 +192,21 @@ mutable struct Pos
     start::Int
     stop::Int
 end
+Base.to_index(x::Pos) = x.start:x.stop
+advance!(x::Pos)      = x.start=x.stop
+copy(x::Pos)          = Pos(x.start,x.stop)
 
-to_index(x::Pos) = x.start:x.stop
-advance!(x::Pos) = x.start=x.stop
+mutable struct PairPos
+    qry::Maybe{Pos}
+    ref::Maybe{Pos}
+end
 
 function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     # ----------------------------
     # internal type needed for iteration
     
     SNPMap   = Dict{Int,UInt8}
-    IndelMap = Dict{Int, Union{Array{UInt8, Int}}}
+    IndelMap = Dict{Int,Union{Array{UInt8, 1},Int}}
     
     qryₓ = Pos(1,1)
     refₓ = Pos(1,1)
@@ -209,10 +214,10 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     # ----------------------------
     # list of blocks and their mutations
     
-    seq   = Array{UInt8}[]                                         # all blocks of alignment cigar
-    pos   = NamedTuple{(:qry,:ref),Tuple(Maybe{Pos},Maybe{Pos})}[] # position corresponding to each block
-    snp   = Union{SNPMap,Nothing}[]                                # snps of qry relative to ref
-    indel = Union{IndelMap,Nothing}[]                              # indels of qry relative to ref
+    seq   = Array{UInt8}[]                                              # all blocks of alignment cigar
+    pos   = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}}[]   # position corresponding to each block
+    snp   = Union{SNPMap,Nothing}[]                                     # snps of qry relative to ref
+    indel = Union{IndelMap,Nothing}[]                                   # indels of qry relative to ref
 
     # current block being constructed
     block = (
@@ -234,9 +239,12 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
         push!(snp, block.snp)
         push!(indel, block.indel)
 
-        block.len   = 0
-        block.snp   = SNPMap()
-        block.indel = IndelMap()
+        block = (
+            len   = 0,
+            seq   = block.seq,
+            snp   = SNPMap(),
+            indel = IndelMap(),
+        )
         # block.seq is cleared by take! above
         
         @label advance
@@ -246,7 +254,9 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
 
     # ----------------------------
     # main bulk of algorithm
+    
     for (len, type) in alignment
+        println(f"({len}, {type})")
         @match type begin
         # TODO: treat soft clips differently?
         'S' || 'H' => begin
@@ -254,8 +264,9 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
             error("need to implement soft/hard clipping")
         end
         'M' => begin
-            x = Pos(refₓ.stop, refₓ.stop+len)
-            y = Pos(qryₓ.stop, qryₓ.stop+len)
+            println("-----> ", len)
+            x = Pos(refₓ.stop, refₓ.stop+len-1)
+            y = Pos(qryₓ.stop, qryₓ.stop+len-1)
 
             write(block.seq, ref[x])
 
@@ -265,7 +276,7 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
 
             qryₓ.stop += len
             refₓ.stop += len
-            block.len += len
+            block = (;block..., len= block.len + len)
         end
         'D' => begin
             if len >= maxgap
@@ -321,6 +332,9 @@ mutable struct Hit
     start::Int
     stop::Int
     seq::Union{Array{UInt8},Nothing}
+
+    # NOTE: paf is 0-indexed. offset on construction
+    Hit(name, length, start, stop, seq) = new(name, length, start+1, stop, seq)
 end
 
 mutable struct Alignment
@@ -462,13 +476,13 @@ function enforce_cutoff!(a::Alignment, χ)
         a.ref.start = 0
         a.cigar     = string(δrₗ) * "D" * a.cigar
     elseif (δqₗ <= χ) && (δrₗ <= χ)
-        a₁, a₂ = align(s₁[1:δqₗ], s₂[1:δrₗ])
+        a₁, a₂ = align(s₁[1:δqₗ], s₂[1:δrₗ], cost)
         cg     = cigar(a₁, a₂)
 
         a.qry.start = 0
         a.ref.start = 0
         a.cigar   = cg * a.cigar
-        a.length += len(a₁)
+        a.length += length(a₁)
     end
 
     # right side of match
@@ -479,13 +493,13 @@ function enforce_cutoff!(a::Alignment, χ)
         a.ref.stop  = a.ref.length
         a.cigar     = a.cigar * string(δrₗ) * "D"
     elseif (δqᵣ <= χ) && (δrᵣ <= χ)
-        a₁, a₂ = align(s₁[end-δqᵣ:end], s₂[end-δrᵣ:end])
+        a₁, a₂ = align(s₁[end-δqᵣ:end], s₂[end-δrᵣ:end], cost)
         cg     = cigar(a₁, a₂)
 
         a.qry.start = a.qry.length
         a.ref.start = a.ref.length
         a.cigar   = a.cigar * cg
-        a.length += len(a₁)
+        a.length += length(a₁)
     end
 end
 

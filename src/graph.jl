@@ -52,7 +52,7 @@ function Graph(name::String, sequence::Array{UInt8}; circular=false)
     block = Block(sequence)
     path  = Path(name, Node{Block}(block); circular=circular)
 
-    append!(block, path.node[1], SNPMap(), IndelMap())
+    add_node!(block, path.node[1], SNPMap(), IndelMap())
 
     return Graph(
          Dict([pair(block)]), 
@@ -68,7 +68,6 @@ graphs(io::IO) = [Graph(name(record), record.seq) for record in read_fasta(io)]
 
 # XXX: break into smaller functions
 #      too long
-#
 Link  = NamedTuple{(:block,:strand),Tuple{Block, Bool}}
 Chain = Array{Link}
 function detransitive!(G::Graph)
