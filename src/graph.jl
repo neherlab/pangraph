@@ -5,8 +5,8 @@ using GZip # NOTE: for debugging purposes
 
 import JSON
 
-# ------------------------------------------------------------------------
-# imports w/ exported global dispatch preamble
+# ---------------------------
+# functions to extend in submodules
 
 export pair
 function pair(item) end
@@ -16,9 +16,6 @@ function reverse_complement(item) end
 
 include("counter.jl")
 include("util.jl")
-# NOTE: commented out during debugging stage
-#       will move to a module file later
-# include("pool.jl")
 include("node.jl")
 include("block.jl")
 include("path.jl")
@@ -31,7 +28,7 @@ using .Paths
 using .Junctions
 
 export Graph
-export graphs, marshal, serialize
+export graphs, marshal, serialize, detransitive!
 
 # ------------------------------------------------------------------------
 # graph data structure
@@ -52,7 +49,7 @@ function Graph(name::String, sequence::Array{UInt8}; circular=false)
     block = Block(sequence)
     path  = Path(name, Node{Block}(block); circular=circular)
 
-    add_node!(block, path.node[1], SNPMap(), IndelMap())
+    append!(block, path.node[1], SNPMap(), IndelMap())
 
     return Graph(
          Dict([pair(block)]), 

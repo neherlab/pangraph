@@ -9,7 +9,7 @@ import ..Graphs: pair, reverse_complement
 
 export SNPMap, IndelMap #aux types
 export Block 
-export sequence, combine, add_node! #operators
+export sequence, combine, swap! #operators
 
 # ------------------------------------------------------------------------
 # Block data structure
@@ -118,7 +118,7 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
     return seq
 end
 
-function add_node!(b::Block, node::Node{Block}, snp::SNPMap, indel::IndelMap)
+function Base.append!(b::Block, node::Node{Block}, snp::SNPMap, indel::IndelMap)
     @assert node ∉ keys(b.mutation)
     @assert node ∉ keys(b.indel)
     b.mutation[node] = snp

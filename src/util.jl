@@ -167,7 +167,7 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
 end
 
 function uncigar(cg::String)
-    println("CIGAR: ", cg)
+    @show cg
     chan = Channel{Tuple{Int, Char}}(0)
     @async begin
         i₁, i₂ = 1, 1
@@ -257,7 +257,7 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     # main bulk of algorithm
     
     for (len, type) in alignment
-        println(f"({len}, {type})")
+        @show (len, type)
         @match type begin
         'S' || 'H' => begin
             # XXX: treat soft clips differently?
@@ -265,7 +265,6 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
             error("need to implement soft/hard clipping")
         end
         'M' => begin
-            println("-----> ", len)
             x = Pos(refₓ.stop, refₓ.stop+len-1)
             y = Pos(qryₓ.stop, qryₓ.stop+len-1)
 

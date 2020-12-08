@@ -8,6 +8,7 @@ import Base.Threads.@spawn
 
 using ..Utility: read_paf, enforce_cutoff!
 using ..Blocks
+using ..Paths: replace!
 using ..Graphs
 
 # Pool belongs only to the alignment module!
@@ -347,18 +348,18 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
         enforce_cutoff!(hit, 100) # TODO: remove hard-coded parameter
 
         blks = combine(qry₀, ref₀, hit)
-        qrys = filter(b -> b.kind != :ref, blks)
-        refs = filter(b -> b.kind != :qry, blks)
+        qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
+        refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
 
-        for (isolate, path) in G₁.sequence
+        for path in values(G₁.sequence)
             replace!(path, qry₀, qrys)
         end
 
-        for (isolate, path) in G₂.sequence
+        for path in values(G₂.sequence)
             replace!(path, ref₀, refs)
         end
 
-        for blk in blks
+        for blk in map(b->b.block, blks)
             blocks[blk.uuid] = blk
         end
     end
@@ -369,13 +370,13 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
     merge!(blocks, G₁.block)
     merge!(blocks, G₂.block)
 
-    detransitive!(G)
-    
-    return Graph(
+    G = Graph(
             blocks, 
             sequence,
-            # ...
     )
+    detransitive!(G)
+
+    return G
 end
 
 # TODO: the associate array is a bit hacky...

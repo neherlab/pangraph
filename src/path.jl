@@ -6,7 +6,7 @@ using ..Blocks
 import ..Graphs: pair, Counter, add!
 
 export Path
-export replace!
+export count_isolates
 
 struct Path
     name::String
@@ -26,27 +26,30 @@ Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],cir
 pair(p::Path) = p.name => p
 
 # XXX: do we just want to build a brand new array incrementally?
-function replace!(p::Path, old::Block, new::Array{Block})
+function Base.replace!(p::Path, old::Block, new::Array{Block})
     indices = Int[]
-    inserts = Array{Node}[]
-    for (i, n) in p.node
+    inserts = Array{Node{Block}}[]
+    for (i, n) in enumerate(p.node)
         if n.block != old
             continue
         end
 
         push!(indices, i)
 
-        nodes = (n.strand ? [Node(nb) for nb in new] 
-                          : [Node(nb;strand=false) for nb in reverse(new)])
+        nodes = (n.strand ? [Node{Block}(nb) for nb in new] 
+                          : [Node{Block}(nb;strand=false) for nb in reverse(new)])
         for new in nodes
-            swap!(m.block, n, new)
+            swap!(old, n, new)
         end
 
         push!(inserts, nodes)
     end
 
-    for (index,nodes) in reverse(zip(indices, inserts))
-        splice!(p.nodes, index, nodes)
+    reverse!(indices)
+    reverse!(inserts)
+
+    for (index, nodes) in zip(indices, inserts)
+        splice!(p.node, index, nodes)
     end
 end
 
@@ -65,7 +68,7 @@ function intervals(starts, stops, gap, len)
 end
 
 Link = NamedTuple{(:block, :strand), Tuple{Block, Bool}}
-function replace!(p::Path, old::Array{Link}, new::Block)
+function Base.replace!(p::Path, old::Array{Link}, new::Block)
     start, stop = old[1].block, old[end].block
 
     i₁ₛ = findall((n) -> n.block == start, p.node)
