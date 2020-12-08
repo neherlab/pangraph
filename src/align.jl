@@ -1,6 +1,6 @@
 module Align
 
-using FStrings, Match, Dates
+using FStrings, Rematch, Dates
 using LinearAlgebra
 using Infiltrator
 

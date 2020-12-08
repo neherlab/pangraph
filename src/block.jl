@@ -1,6 +1,6 @@
 module Blocks
 
-using Match, FStrings
+using Rematch, FStrings
 
 using ..Utility: random_id, uncigar, wcpair, homologous, Alignment
 using ..Nodes
@@ -150,27 +150,30 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
 
     blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
     for (seq,pos,snp,indel) in zip(sequences,intervals,mutations,indels)
-        if isnothing(pos.qry)
-            push!(blocks, (block=Block(ref, pos.ref), kind=:ref))
-        elseif isnothing(pos.ref)
-            push!(blocks, (block=Block(qry, qₓ), kind=:qry))
-        else
-            @assert !isnothing(snp)
-            @assert !isnothing(indel)
-            # slice both blocks
-            r = Block(ref, pos.ref)
-            q = Block(qry, pos.qry)
+        @show (pos.qry, pos.ref)
+        @show snp
+        @show indel
+        @match (pos.qry, pos.ref) begin
+            (nothing, rₓ )   => push!(blocks, (block=Block(ref, rₓ), kind=:ref))
+            ( qₓ , nothing)  => push!(blocks, (block=Block(qry, qₓ), kind=:qry))
+            ( qₓ , rₓ )      => begin
+                @assert !isnothing(snp)
+                @assert !isnothing(indel)
+                # slice both blocks
+                r = Block(ref, rₓ)
+                q = Block(qry, qₓ)
 
-            # apply global snp and indels to all query sequences
-            # XXX: do we have to worry about overlapping insertions/deletions?
-            for node in keys(q.mutation)
-                merge!(q.mutation[node], snp)
-                merge!(q.indel[node], indel)
+                # apply global snp and indels to all query sequences
+                # XXX: do we have to worry about overlapping insertions/deletions?
+                for node in keys(q.mutation)
+                    merge!(q.mutation[node], snp)
+                    merge!(q.indel[node], indel)
+                end
+                
+                # merge mutations and snp dictionaries together
+                # TODO: recompute consensus here!
+                push!(blocks, (block=Block(seq,snp,indel),kind=:all))
             end
-            
-            # merge mutations and snp dictionaries together
-            # TODO: recompute consensus here!
-            push!(blocks, (block=Block(seq,snp,indel),kind=:all))
         end
     end
 

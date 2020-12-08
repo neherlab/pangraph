@@ -1,6 +1,6 @@
 module Graphs
 
-using Match, FStrings
+using Rematch, FStrings
 using GZip # NOTE: for debugging purposes
 
 import JSON

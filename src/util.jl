@@ -1,6 +1,6 @@
 module Utility
 
-using FStrings, Match
+using FStrings, Rematch
 using StatsBase
 
 # NOTE: for debugging/benchmarking
