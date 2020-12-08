@@ -1,7 +1,6 @@
 module Pool
 
-include("util.jl")
-using .Utility: random_id
+using ...Utility: random_id
 
 export Fifo, delete, path
 export pool, shutdown

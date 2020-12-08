@@ -64,7 +64,7 @@ function intervals(starts, stops, gap, len)
     end
 end
 
-Link = NamedTuple{(:block, :strand), (Block, Bool)}
+Link = NamedTuple{(:block, :strand), Tuple{Block, Bool}}
 function replace!(p::Path, old::Array{Link}, new::Block)
     start, stop = old[1].block, old[end].block
 
@@ -78,14 +78,13 @@ function replace!(p::Path, old::Array{Link}, new::Block)
                      : intervals(i₁ₛ, i₂ₛ))
 
     Interval         = UnitRange{Int}
-    CircularInterval = Tuple{Interval,Interval}
 
-    splice!(nodes::Array{Node{Block}}, idx::Interval, new::Node{Block}) = Base.splice!(nodes, idx, new)
-    splice!(nodes::Array{Node{Block}}, idx::CircularInterval, new::Node{Block}) = Base.splice!(nodes, idx[1], new); Base.splice!(nodes, idx[2])
+    splice!(nodes::Array{Node{Block}}, i::UnitRange{Int}, new::Node{Block}) = Base.splice!(nodes, i, new)
+    splice!(nodes::Array{Node{Block}}, i::Tuple{UnitRange{Int},UnitRange{Int}}, new::Node{Block}) = Base.splice!(nodes, i, [1], new); Base.splice!(nodes, idx[2])
 
-    # XXX: have to correct for the overhang
-    swap!(b::Block, i::Interval, new::Node{Block})         = Block.swap!(b, p.nodes[i], new)
-    swap!(b::Block, i::CircularInterval, new::Node{Block}) = Block.swap!(b, p.nodes[[length(p.nodes)-length(i[1]):length(p.nodes);i[2]]], new)
+    # NOTE: have to correct for the overhang in the case of circular intervals
+    swap!(b::Block, i::UnitRange{Int}, new::Node{Block}) = Block.swap!(b, p.nodes[i], new)
+    swap!(b::Block, i::Tuple{UnitRange{Int},UnitRange{Int}}, new::Node{Block}) = Block.swap!(b, p.nodes[[length(p.nodes)-length(i[1]):length(p.nodes);i[2]]], new)
 
     for interval in reverse(iₛ)
         n = Node(new, s)

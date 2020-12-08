@@ -2,14 +2,14 @@ module Blocks
 
 using Match, FStrings
 
-using ..Utility: random_id, uncigar, wc_pair, reverse_complement, homologous, Alignment
+using ..Utility: random_id, uncigar, wcpair, homologous, Alignment
 using ..Nodes
 
-import ..Graphs: pair
+import ..Graphs: pair, reverse_complement
 
 export SNPMap, IndelMap #aux types
 export Block 
-export sequence, combine, add! #operators
+export sequence, combine, append! #operators
 
 # ------------------------------------------------------------------------
 # Block data structure
@@ -34,7 +34,7 @@ Block(sequence) = Block(random_id(), sequence, Dict{Node{Block},SNPMap}(), Dict{
 Block(sequence,mutation,indel) = Block(random_id(),sequence,mutation,indel)
 
 function translate!(dict, δ)
-    for key, val in dict
+    for (key, val) in dict
         dict[key] = Dict(x+δ => v for (x,v) in val)
     end
 end
@@ -89,7 +89,7 @@ function reverse_complement(b::Block)
 
     revcmpl(seq::Array{UInt8}) = reverse_complement(seq)
     revcmpl(n::Int)            = n
-    revcmpl(dict::SNPMap)      = Dict(len-locus+1:wc_pair[nuc] for (locus,nuc) in dict)
+    revcmpl(dict::SNPMap)      = Dict(len-locus+1:wcpair[nuc] for (locus,nuc) in dict)
     revcmpl(dict::IndelMap)    = Dict(len-locus+1:revcmpl(val) for (locus,revcmpl) in dict)
 
     mutation = Dict(node => revcmpl(snps)  for (node, snps) in b.mutation)
@@ -117,7 +117,7 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
     return seq
 end
 
-function add!(b::Block, node::Node{Block}, snp::SNPMap, indel::IndelMap)
+function append!(b::Block, node::Node{Block}, snp::SNPMap, indel::IndelMap)
     @assert node ∉ keys(b.mutation)
     @assert node ∉ keys(b.indel)
     b.mutation[node] = snp

@@ -11,6 +11,9 @@ import JSON
 export pair
 function pair(item) end
 
+export reverse_complement
+function reverse_complement(item) end
+
 include("counter.jl")
 include("util.jl")
 # NOTE: commented out during debugging stage
@@ -49,7 +52,7 @@ function Graph(name::String, sequence::Array{UInt8}; circular=false)
     block = Block(sequence)
     path  = Path(name, Node{Block}(block); circular=circular)
 
-    add!(block, path.node[1], SNPMap(), IndelMap())
+    append!(block, path.node[1], SNPMap(), IndelMap())
 
     return Graph(
          Dict([pair(block)]), 
@@ -65,6 +68,9 @@ graphs(io::IO) = [Graph(name(record), record.seq) for record in read_fasta(io)]
 
 # XXX: break into smaller functions
 #      too long
+#
+Link  = NamedTuple{(:block,:strand),Tuple{Block, Bool}}
+Chain = Array{Link}
 function detransitive!(G::Graph)
     isosᵥ = count_isolates(values(G.sequence))
 
@@ -77,9 +83,6 @@ function detransitive!(G::Graph)
         end
     end
 
-    Link  = NamedTuple{(:block,:strand),(Block, Bool)}
-    Chain = Array{Link}
-    
     rev(l::Link)  = (block=l.block,strand=!l.strand)
     rev(c::Chain) = [rev(b) for b in reverse(c)]
 
@@ -168,9 +171,7 @@ function marshal_fasta(io, G::Graph)
     end
 end
 
-function marshal_json(io, G::Graph)
-    out = {}
-end
+function marshal_json(io, G::Graph) end
 
 function marshal(io, G::Graph; fmt=:fasta)
     @match fmt begin

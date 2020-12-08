@@ -9,6 +9,8 @@ using Profile, ProfileView
 
 import Base.Threads.@spawn
 
+import ..Graphs: reverse_complement
+
 export random_id, log
 export Alignment
 export enforce_cutoff, cigar, uncigar, homologous
@@ -185,6 +187,15 @@ end
 # TODO: relax hardcoded cutoff
 # TODO: relax hardcoded reliance on cigar suffixes. make symbols instead
 # chunk alignment 
+#
+mutable struct Pos
+    start::Int
+    stop::Int
+end
+
+to_index(x::Pos) = x.start:x.stop
+advance!(x::Pos) = x.start=x.stop
+
 function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     # ----------------------------
     # internal type needed for iteration
@@ -192,14 +203,6 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     SNPMap   = Dict{Int,UInt8}
     IndelMap = Dict{Int, Union{Array{UInt8, Int}}}
     
-    mutable struct Pos
-        start::Int
-        stop::Int
-    end
-
-    to_index(x::Pos) = x.start:x.stop
-    advance!(x::Pos) = x.start=x.stop
-
     qryₓ = Pos(1,1)
     refₓ = Pos(1,1)
 
@@ -213,7 +216,7 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
 
     # current block being constructed
     block = (
-        len   = 0
+        len   = 0,
         seq   = IOBuffer(),
         snp   = SNPMap(),
         indel = IndelMap(),
