@@ -39,8 +39,9 @@ struct Graph
     # TODO: add edge/junction data structure?
 end
 
-include("align.jl")
-using .Align
+# XXX: commented out while Block is debugged.
+# include("align.jl")
+# using .Align
 
 # --------------------------------
 # constructors
@@ -193,11 +194,12 @@ function serialize(io, G::Graph)
 end
 
 function test()
-    GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
-        isolates = graphs(io)
-        println(">aligning...")
-        graph    = align(isolates[1], isolates[2])
-    end
+    Blocks.test()
+    # GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
+    #     isolates = graphs(io)
+    #     println(">aligning...")
+    #     graph    = align(isolates[1], isolates[2])
+    # end
 end
 
 end

@@ -11,6 +11,8 @@ export SNPMap, InsMap, DelMap   # aux types
 export Block 
 export sequence, combine, swap! # operators
 
+Maybe{T} = Union{T,Nothing}
+
 # ------------------------------------------------------------------------
 # Block data structure
 
@@ -204,10 +206,22 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
     return seq
 end
 
-function Base.append!(b::Block, node::Node{Block}, snp::SNPMap, ins::InsMap, del::DelMap)
+function Base.append!(b::Block, node::Node{Block}, snp::Maybe{SNPMap}, ins::Maybe{InsMap}, del::Maybe{DelMap})
     @assert node ∉ keys(b.mutate)
     @assert node ∉ keys(b.insert)
     @assert node ∉ keys(b.delete)
+
+    if isnothing(snp)
+        snp = SNPMap()
+    end
+
+    if isnothing(ins)
+        ins = InsMap()
+    end
+
+    if isnothing(del)
+        del = DelMap()
+    end
 
     b.mutate[node] = snp
     b.insert[node] = ins
@@ -281,6 +295,51 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
     end
 
     return blocks
+end
+
+
+# ------------------------------------------------------------------------
+# main point of entry for testing
+
+using Random, Distributions, StatsBase
+
+function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=0.0))
+    ref = Array{UInt8}(random_id(;len=len, alphabet=['A','C','G','T']))
+    aln = zeros(UInt8, num, len)
+
+    muts = Array{SNPMap}(undef,num)
+
+    ρ  = Poisson(μ.snp*len)
+    nₘ = rand(ρ, num)
+    for i in 1:num
+        aln[i,:] = ref
+
+        # single nucleotide polymorphisms
+        loci = sample(1:len, nₘ[i]; replace=false)
+        snps = sample(UInt8['A','C','G','T'], nₘ[i])
+        redo = findall(snps .== ref[loci])
+        while length(redo) >= 1
+            snps[redo] = sample(UInt8['A','C','G','T'], length(redo))
+            redo = findall(snps .== ref[loci])
+        end
+        muts[i] = SNPMap(zip(loci,snps))
+
+    end
+
+    return ref, aln, muts
+end
+
+function test()
+    ref, aln, muts = generate_alignment()
+
+    blk   = Block(ref)
+    nodes = Dict{Node,Int}()
+    for i in 1:size(aln,1)
+        println(f"placing node {n}")
+        n = Node{Block}(blk)
+        nodes[n] = i
+        append!(blk, n, muts[i], nothing, nothing)
+    end
 end
 
 end
