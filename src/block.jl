@@ -2,7 +2,7 @@ module Blocks
 
 using Rematch, FStrings
 
-using ..Utility: random_id, uncigar, wcpair, homologous, Alignment
+using ..Utility: random_id, uncigar, wcpair, blocks, Alignment
 using ..Nodes
 
 import ..Graphs: pair, reverse_complement
@@ -101,7 +101,7 @@ function Base.length(b::Block, n::Node)
     return length(b) + sum(length(i) for i in values(b.insert[n])) - sum(values(b.delete[n]))
 end
 
-Locus = NamedTuple{(:pos, :kind), Tuple{Union{Int, Tuple{Int,Int}, Symbol}}}
+Locus = NamedTuple{(:pos, :kind), Tuple{Union{Int, Tuple{Int,Int}}, Symbol}}
 
 islesser(a::Int, b::Int)                       = isless(a, b)
 islesser(a::Tuple{Int,Int}, b::Int)            = isless(first(a), b)
