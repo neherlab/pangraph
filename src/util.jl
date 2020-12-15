@@ -202,7 +202,7 @@ mutable struct PairPos
     ref::Maybe{Pos}
 end
 
-function blocks(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
+function partition(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     # ----------------------------
     # internal type needed for iteration
     

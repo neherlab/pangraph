@@ -49,7 +49,7 @@ function Graph(name::String, sequence::Array{UInt8}; circular=false)
     block = Block(sequence)
     path  = Path(name, Node{Block}(block); circular=circular)
 
-    append!(block, path.node[1], SNPMap(), IndelMap())
+    append!(block, path.node[1], SNPMap(), InsMap(), DelMap())
 
     return Graph(
          Dict([pair(block)]), 

@@ -2,7 +2,7 @@ module Blocks
 
 using Rematch, FStrings
 
-using ..Utility: random_id, uncigar, wcpair, blocks, Alignment
+using ..Utility: random_id, uncigar, wcpair, partition, Alignment
 using ..Nodes
 
 import ..Graphs: pair, reverse_complement
@@ -74,7 +74,9 @@ function Block(b::Block, slice)
     @assert slice.start >= 1 && slice.stop <= length(b)
     sequence = b.sequence[slice]
 
-    select(dict,i) = translate(filter(p -> (first(p) >= i.start) && (first(p) <= i.stop), dict), -i.start)
+    select(dict,i) = translate(
+                        Dict(node=>filter(p -> (first(p) >= i.start) && (first(p) <= i.stop), val) for (node,val) in dict), 
+                     -i.start)
 
     gaps   = select(b.gaps,   slice)
     mutate = select(b.mutate, slice)
@@ -204,7 +206,8 @@ end
 
 function Base.append!(b::Block, node::Node{Block}, snp::SNPMap, ins::InsMap, del::DelMap)
     @assert node ∉ keys(b.mutate)
-    @assert node ∉ keys(b.indel)
+    @assert node ∉ keys(b.insert)
+    @assert node ∉ keys(b.delete)
 
     b.mutate[node] = snp
     b.insert[node] = ins
@@ -234,11 +237,11 @@ function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
 end
 
 function reconsensus!(b::Block)
-    aln = zeros(UInt8, depth(b), maximum(length(b, n) for n in keys(b.indel)))
+    #nop
 end
 
 function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
-    sequences,intervals,mutations,inserts,deletes = blocks(
+    sequences,intervals,mutations,inserts,deletes = partition(
                                                          uncigar(aln.cigar),
                                                          qry.sequence,
                                                          ref.sequence,
@@ -253,7 +256,8 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
             ( qₓ , nothing ) => push!(blocks, (block=Block(qry, qₓ), kind=:qry))
             ( qₓ , rₓ )      => begin
                 @assert !isnothing(snp)
-                @assert !isnothing(indel)
+                @assert !isnothing(ins)
+                @assert !isnothing(del)
 
                 # slice both blocks
                 r = Block(ref, rₓ)
