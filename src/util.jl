@@ -207,7 +207,7 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     # internal type needed for iteration
     
     SNPMap   = Dict{Int,UInt8}
-    IndelMap = Dict{Int,Union{Array{UInt8, 1},Int}}
+    IndelMap = Dict{Int,Union{Array{UInt8,1},Int}}
     
     qryₓ = Pos(1,1)
     refₓ = Pos(1,1)
@@ -215,10 +215,10 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     # ----------------------------
     # list of blocks and their mutations
     
-    seq   = Array{UInt8}[]                                              # all blocks of alignment cigar
-    pos   = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}}[]   # position corresponding to each block
-    snp   = Union{SNPMap,Nothing}[]                                     # snps of qry relative to ref
-    indel = Union{IndelMap,Nothing}[]                                   # indels of qry relative to ref
+    seq   = Array{UInt8}[]                                            # all blocks of alignment cigar
+    pos   = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}}[] # position corresponding to each block
+    snp   = Union{SNPMap,Nothing}[]                                   # snps of qry relative to ref
+    indel = Union{IndelMap,Nothing}[]                                 # indels of qry relative to ref
 
     # current block being constructed
     block = (
@@ -482,6 +482,7 @@ function enforce_cutoff!(a::Alignment, χ)
 
         a.qry.start = 0
         a.ref.start = 0
+
         a.cigar   = cg * a.cigar
         a.length += length(a₁)
     end
@@ -499,6 +500,7 @@ function enforce_cutoff!(a::Alignment, χ)
 
         a.qry.start = a.qry.length
         a.ref.start = a.ref.length
+
         a.cigar   = a.cigar * cg
         a.length += length(a₁)
     end

@@ -29,18 +29,15 @@ end
 # constructors
 
 # simple helpers
-Block() = Block(random_id(), UInt8[], Dict{Node{Block},SNPMap}(), Dict{Node{Block},IndelMap}())
-Block(sequence) = Block(random_id(), sequence, Dict{Node{Block},SNPMap}(), Dict{Node{Block},IndelMap}())
 Block(sequence,mutation,indel) = Block(random_id(),sequence,mutation,indel)
+Block(sequence)                = Block(sequence, Dict{Node{Block},SNPMap}(), Dict{Node{Block},IndelMap}())
+Block()                        = Block(UInt8[])
 
+translate(dict, δ) = Dict(key=>Dict(x+δ => v for (x,v) in val) for (key,val) in dict)
 function translate!(dict, δ)
     for (key, val) in dict
         dict[key] = Dict(x+δ => v for (x,v) in val)
     end
-end
-
-function translate(dict, δ)
-    return Dict(key=>Dict(x+δ => v for (x,v) in val) for (key,val) in dict)
 end
 
 # TODO: rename to concatenate?
@@ -79,8 +76,8 @@ end
 # operations
 
 # simple operations
-depth(b::Block)       = length(b.mutation)
-pair(b::Block)        = b.uuid => b
+depth(b::Block) = length(b.mutation)
+pair(b::Block)  = b.uuid => b
 
 Base.length(b::Block) = Base.length(b.sequence)
 function Base.length(b::Block, n::Node)
@@ -130,6 +127,7 @@ end
 function Base.append!(b::Block, node::Node{Block}, snp::SNPMap, indel::IndelMap)
     @assert node ∉ keys(b.mutation)
     @assert node ∉ keys(b.indel)
+
     b.mutation[node] = snp
     b.indel[node]    = indel
 end
@@ -157,7 +155,12 @@ function reconsensus!(b::Block)
 end
 
 function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
-    sequences,intervals,mutations,indels = homologous(uncigar(aln.cigar),qry.sequence,ref.sequence,maxgap=maxgap)
+    sequences,intervals,mutations,indels = homologous(
+                                                uncigar(aln.cigar),
+                                                qry.sequence,
+                                                ref.sequence,
+                                                maxgap=maxgap
+                                           )
 
     blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
     for (seq,pos,snp,indel) in zip(sequences,intervals,mutations,indels)
