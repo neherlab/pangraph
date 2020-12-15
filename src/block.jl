@@ -7,31 +7,34 @@ using ..Nodes
 
 import ..Graphs: pair, reverse_complement
 
-export SNPMap, IndelMap #aux types
+export SNPMap, InsMap, DelMap   # aux types
 export Block 
-export sequence, combine, swap! #operators
+export sequence, combine, swap! # operators
 
 # ------------------------------------------------------------------------
 # Block data structure
 
 # aliases
-SNPMap   = Dict{Int,UInt8}
-IndelMap = Dict{Int,Union{Array{UInt8},Int}} # array = insertion; integer = deletion
+SNPMap = Dict{Int,UInt8}
+InsMap = Dict{Tuple{Int,Int},Array{UInt8}} 
+DelMap = Dict{Int,Int} 
 
 mutable struct Block
     uuid::String
     sequence::Array{UInt8}
-    mutation::Dict{Node{Block},SNPMap}
-    indel::Dict{Node{Block},IndelMap}
+    gaps::Dict{Int,Int}
+    mutate::Dict{Node{Block},SNPMap}
+    insert::Dict{Node{Block},InsMap}
+    delete::Dict{Node{Block},DelMap}
 end
 
 # ---------------------------
 # constructors
 
 # simple helpers
-Block(sequence,mutation,indel) = Block(random_id(),sequence,mutation,indel)
-Block(sequence)                = Block(sequence, Dict{Node{Block},SNPMap}(), Dict{Node{Block},IndelMap}())
-Block()                        = Block(UInt8[])
+Block(sequence,gaps,mutate,insert,delete) = Block(random_id(),sequence,gaps,mutate,insert,delete)
+Block(sequence) = Block(sequence,Dict{Int,Int}(),Dict{Node{Block},SNPMap}(),Dict{Node{Block},InsMap}(),Dict{Node{Block},DelMap}())
+Block()         = Block(UInt8[])
 
 translate(dict, δ) = Dict(key=>Dict(x+δ => v for (x,v) in val) for (key,val) in dict)
 function translate!(dict, δ)
@@ -46,108 +49,188 @@ function Block(bs::Block...)
     @assert all([isolates(bs[1]) == isolates(b) for b in bs[2:end]])
 
     sequence = join([b.sequence for b in bs])
-    mutation = bs[1].mutation
-    indel    = bs[1].indel
+
+    gaps   = bs[1].gaps
+    mutate = bs[1].mutate
+    insert = bs[1].insert
+    delete = bs[1].delete
 
     δ = length(bs[1])
     for b in bs[2:end]
-        merge!(mutation, translate(b.mutation, δ))
-        merge!(indel, translate(b.indel, δ))
+        merge!(gaps,   translate(b.gaps,   δ))
+        merge!(mutate, translate(b.mutate, δ))
+        merge!(insert, translate(b.insert, δ))
+        merge!(delete, translate(b.delete, δ))
 
         δ += length(b)
     end
 
-    return Block(sequence,mutation,indel)
+    return Block(sequence,gaps,mutate,insert,delete)
 end
 
 # TODO: rename to slice?
 # returns a subslice of block b
 function Block(b::Block, slice)
-    @show slice
     @assert slice.start >= 1 && slice.stop <= length(b)
     sequence = b.sequence[slice]
-    mutation = translate(b.mutation, -slice.start)
-    indel    = translate(b.indel, -slice.start)
 
-    return Block(sequence,mutation,indel)
+    select(dict,i) = translate(filter(p -> (first(p) >= i.start) && (first(p) <= i.stop), dict), -i.start)
+
+    gaps   = select(b.gaps,   slice)
+    mutate = select(b.mutate, slice)
+    insert = select(b.insert, slice)
+    delete = select(b.delete, slice)
+
+    return Block(sequence,gaps,mutate,insert,delete)
 end
 
 # ---------------------------
 # operations
 
 # simple operations
-depth(b::Block) = length(b.mutation)
+depth(b::Block) = length(b.mutate)
 pair(b::Block)  = b.uuid => b
+
+Base.show(io::IO, b::Block) = Base.show(io, (id=b.uuid, depth=depth(b)))
 
 Base.length(b::Block) = Base.length(b.sequence)
 function Base.length(b::Block, n::Node)
     length(x::Int)          = -x         # deletion
     length(x::Array{UInt8}) = length(x)  # insertion
 
-    return length(b) + sum(length(v) for v in b.indel[n])
+    return length(b) + sum(length(i) for i in values(b.insert[n])) - sum(values(b.delete[n]))
 end
 
-Base.show(io::IO, b::Block) = Base.show(io, (id=b.uuid, depth=depth(b)))
+Locus = NamedTuple{(:pos, :kind), Tuple{Union{Int, Tuple{Int,Int}, Symbol}}}
+
+islesser(a::Int, b::Int)                       = isless(a, b)
+islesser(a::Tuple{Int,Int}, b::Int)            = isless(first(a), b)
+islesser(a::Int, b::Tuple{Int,Int})            = isless(a, first(b))
+islesser(a::Tuple{Int,Int}, b::Tuple{Int,Int}) = isless(a, b)
+
+islesser(a::Locus, b::Locus) = islesser(a.pos, b.pos)
+
+function variable_loci(b::Block, n::Node)
+    keys(dict, sym)    = [(key, sym) for key in Base.keys(dict)]
+    return [keys(b.mutate[n],:snp); keys(b.indel[n],:ins); keys(b.delete[n],:del)]
+end
 
 # complex operations
 function reverse_complement(b::Block)
     seq = reverse_complement(b.sequence)
     len = length(seq)
 
-    revcmpl(seq::Array{UInt8}) = reverse_complement(seq)
-    revcmpl(n::Int)            = n
-    revcmpl(dict::SNPMap)      = Dict(len-locus+1:wcpair[nuc] for (locus,nuc) in dict)
-    revcmpl(dict::IndelMap)    = Dict(len-locus+1:revcmpl(val) for (locus,revcmpl) in dict)
+    revcmpl(dict::SNPMap) = Dict(len-locus+1:wcpair[nuc]  for (locus,nuc) in dict)
+    revcmpl(dict::DelMap) = Dict(len-locus+1:del for (locus,del) in dict)
+    revcmpl(dict::InsMap) = Dict((len-locus+1,b.gaps[locus]-off+1):reverse_complement(ins) for ((locus,off),ins) in dict)
 
-    mutation = Dict(node => revcmpl(snps)  for (node, snps) in b.mutation)
-    indel    = Dict(node => revcmpl(indel) for (node, indel) in b.indel)
+    mutate = Dict(node => revcmpl(snp) for (node, snp) in b.mutate)
+    insert = Dict(node => revcmpl(ins) for (node, ins) in b.insert)
+    delete = Dict(node => revcmpl(del) for (node, del) in b.delete)
+    gaps   = Dict(node => revcmpl(gap) for (node, gap) in b.gaps)
 
-    return Block(seq,mutation,indel)
+    return Block(seq,gaps,mutate,insert,delete)
 end
 
-# returns the sequence WITH mutations and indels applied to the consensus for a given tag 
-function sequence(b::Block, node::Node{Block}; gaps=false)
-    seq = copy(b.sequence)
-    for (locus, snp) in b.mutation[node]
-        seq[locus] = snp
+function sequence(b::Block; gaps=false)
+    if !gaps
+        return copy(b.sequence)
     end
+    
+    len = length(b) + sum(values(b.gaps))
+    seq = Array{UInt8}(undef, len)
 
-    indel(seq, locus, insert::Array{UInt8}) = cat(seq[1:locus], insert, seq[locus+1:end])
-    indel(seq, locus, delete::Int)          = (gaps ? cat(seq[1:locus], '-'^delete, seq[locus+delete:end])
-                                                    : cat(seq[1:locus], seq[locus+delete:end]))
+    l₁, i = 1, 1
+    for l₂ in sort(keys(b.gaps))
+        L = l₂ - l₁
+        seq[i:i+L] = b.seq[l₁:l₂]
 
-    for locus in sort(keys(b.indel[node]),rev=true)
-        indel = b.indel[node][locus]
-        seq   = indel(seq, locus, indel)
+        i += L + 1
+        seq[i:i+b.gaps[l₂]] .= UInt8('-')
+
+        l₁ = l₂ + 1
+        i += b.gaps[l₂]+1
     end
 
     return seq
 end
 
-function Base.append!(b::Block, node::Node{Block}, snp::SNPMap, indel::IndelMap)
-    @assert node ∉ keys(b.mutation)
+# returns the sequence WITH mutations and indels applied to the consensus for a given tag 
+function sequence(b::Block, node::Node{Block}; gaps=false)
+    ref  = sequence(b; gaps=gaps)
+    len  = length(b, node)
+    seq  = Array{UInt8}('-'^len)
+
+    loci = variable_loci(b, node)
+    sort!(loci, lt=islesser)
+
+    iᵣ, iₛ = 1, 1
+    for l in loci
+        δ = l.pos - iᵣ
+        seq[iₛ:iₛ+δ-1] = ref[iᵣ:l.pos-1]
+        iₛ += δ
+
+        @match l.kind begin
+            :snp => begin
+                seq[iₛ] = b.mutation[n][l.pos]
+                iₛ += 1
+                iᵣ += δ + 1
+            end
+            :ins => begin
+                # NOTE: insertions are indexed by the position they follow.
+                #       since we stop 1 short, we finish here before continuing insertion.
+                seq[iₛ] = ref[iᵣ]
+                iₛ += 1 + last(l.pos)
+
+                ins = b.insert[n][l.pos]
+                len = length(ins)
+
+                seq[iₛ:iₛ+len] = ins
+
+                iₛ += len + 1
+                iᵣ += δ + 1
+            end
+            :del => begin
+                len = b.delete[n][l.pos]
+                iₛ += gaps*(len + 1)
+                iᵣ  = l.pos + len
+            end
+              _  => error("unrecognized locus kind")
+        end
+    end
+
+    return seq
+end
+
+function Base.append!(b::Block, node::Node{Block}, snp::SNPMap, ins::InsMap, del::DelMap)
+    @assert node ∉ keys(b.mutate)
     @assert node ∉ keys(b.indel)
 
-    b.mutation[node] = snp
-    b.indel[node]    = indel
+    b.mutate[node] = snp
+    b.insert[node] = ins
+    b.delete[node] = del
 end
 
 function swap!(b::Block, oldkey::Node{Block}, newkey::Node{Block})
-    b.mutation[newkey] = pop!(b.mutation, oldkey)
-    b.indel[newkey]    = pop!(b.indel, oldkey)
+    b.mutate[newkey] = pop!(b.mutate, oldkey)
+    b.insert[newkey] = pop!(b.insert, oldkey)
+    b.delete[newkey] = pop!(b.delete, oldkey)
 end
 
 function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
-    mutation = pop!(b.mutation, oldkey[1])
-    indel    = pop!(b.indel, oldkey[1])
+    mutate = pop!(b.mutate, oldkey[1])
+    insert = pop!(b.insert, oldkey[1])
+    delete = pop!(b.delete, oldkey[1])
 
     for key in oldkey[2:end]
-        merge!(mutation, pop!(b.mutation, key))
-        merge!(indel, pop!(b.indel, key))
+        merge!(mutate, pop!(b.mutate, key))
+        merge!(insert, pop!(b.insert, key))
+        merge!(delete, pop!(b.delete, key))
     end
 
-    b.mutation[newkey] = mutation
-    b.indel[newkey]    = indel
+    b.mutate[newkey] = mutate
+    b.insert[newkey] = insert
+    b.delete[newkey] = delete 
 end
 
 function reconsensus!(b::Block)
@@ -155,15 +238,16 @@ function reconsensus!(b::Block)
 end
 
 function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
-    sequences,intervals,mutations,indels = homologous(
-                                                uncigar(aln.cigar),
-                                                qry.sequence,
-                                                ref.sequence,
-                                                maxgap=maxgap
-                                           )
+    sequences,intervals,mutations,inserts,deletes = blocks(
+                                                         uncigar(aln.cigar),
+                                                         qry.sequence,
+                                                         ref.sequence,
+                                                         maxgap=maxgap
+                                                    )
 
     blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
-    for (seq,pos,snp,indel) in zip(sequences,intervals,mutations,indels)
+
+    for (seq,pos,snp,ins,del) in zip(sequences,intervals,mutations,inserts,deletes)
         @match (pos.qry, pos.ref) begin
             ( nothing, rₓ )  => push!(blocks, (block=Block(ref, rₓ), kind=:ref))
             ( qₓ , nothing ) => push!(blocks, (block=Block(qry, qₓ), kind=:qry))
@@ -177,12 +261,14 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
 
                 # apply global snp and indels to all query sequences
                 # XXX: do we have to worry about overlapping insertions/deletions?
-                for node in keys(q.mutation)
-                    merge!(q.mutation[node], snp)
-                    merge!(q.indel[node], indel)
+                for node in keys(q.mutate)
+                    merge!(q.mutate[node],snp)
+                    merge!(q.insert[node],ins)
+                    merge!(q.delete[node],del)
                 end
 
-                new = Block(seq,snp,indel)
+                gap = Dict(first(key)=>length(val) for (key,val) in ins)
+                new = Block(seq,gap,snp,ins,del)
                 reconsensus!(new)
 
                 push!(blocks, (block=new, kind=:all))

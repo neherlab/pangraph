@@ -13,7 +13,7 @@ import ..Graphs: reverse_complement
 
 export random_id, log
 export Alignment
-export enforce_cutoff, cigar, uncigar, homologous
+export enforce_cutoff, cigar, uncigar, blocks 
 
 export read_fasta, name
 export read_paf
@@ -202,30 +202,33 @@ mutable struct PairPos
     ref::Maybe{Pos}
 end
 
-function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
+function blocks(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     # ----------------------------
     # internal type needed for iteration
     
-    SNPMap   = Dict{Int,UInt8}
-    IndelMap = Dict{Int,Union{Array{UInt8,1},Int}}
-    
+    SNPMap = Dict{Int,UInt8}
+    InsMap = Dict{Tuple{Int,Int},Array{UInt8,1}}
+    DelMap = Dict{Int,Int}    
+
     qryₓ = Pos(1,1)
     refₓ = Pos(1,1)
 
     # ----------------------------
     # list of blocks and their mutations
     
-    seq   = Array{UInt8}[]                                            # all blocks of alignment cigar
-    pos   = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}}[] # position corresponding to each block
-    snp   = Union{SNPMap,Nothing}[]                                   # snps of qry relative to ref
-    indel = Union{IndelMap,Nothing}[]                                 # indels of qry relative to ref
+    seq = Array{UInt8}[]                                            # all blocks of alignment cigar
+    pos = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}}[] # position corresponding to each block
+    snp = Union{SNPMap,Nothing}[]                                   # snps of qry relative to ref
+    ins = Union{InsMap,Nothing}[]                                   # inserts of qry relative to ref
+    del = Union{DelMap,Nothing}[]                                   # deletes of qry relative to ref
 
     # current block being constructed
     block = (
-        len   = 0,
-        seq   = IOBuffer(),
-        snp   = SNPMap(),
-        indel = IndelMap(),
+        len = 0,
+        seq = IOBuffer(),
+        snp = SNPMap(),
+        ins = InsMap(),
+        del = DelMap(),
     )
 
     # ----------------------------
@@ -238,13 +241,15 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
         push!(pos, (qry = copy(qryₓ), ref = copy(refₓ)))
         push!(seq, take!(block.seq))
         push!(snp, block.snp)
-        push!(indel, block.indel)
+        push!(ins, block.ins)
+        push!(del, block.del)
 
         block = (
-            len   = 0,
-            seq   = block.seq,
-            snp   = SNPMap(),
-            indel = IndelMap(),
+            len = 0,
+            seq = block.seq,
+            snp = SNPMap(),
+            ins = InsMap(),
+            del = DelMap(),
         )
         # block.seq is cleared by take! above
         
@@ -288,11 +293,12 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
                 push!(pos, (qry=nothing, ref=x))
                 push!(seq, ref[x])
                 push!(snp, nothing)
-                push!(indel, nothing)
+                push!(ins, nothing)
+                push!(del, nothing)
 
                 advance!(refₓ)
             else
-                block.indel[block.len] = len
+                block.del[block.len] = len
                 refₓ.stop += len-1
             end
         end
@@ -305,12 +311,13 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
                 push!(pos, (qry=x, ref=nothing))
                 push!(seq, qry[x])
                 push!(snp, nothing)
-                push!(indel, nothing)
+                push!(ins, nothing)
+                push!(del, nothing)
 
                 advance!(qryₓ)
             else
                 x = Pos(qryₓ.stop,qryₓ.stop+len-1)
-                block.indel[block.len] = qry[x]
+                block.ins[(block.len,0)] = qry[x]
                 qryₓ.stop += len - 1
             end
         end
@@ -320,7 +327,7 @@ function homologous(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
 
     finalize_block!()
 
-    return seq, pos, snp, indel
+    return seq, pos, snp, ins, del
 end
 
 # ------------------------------------------------------------------------
