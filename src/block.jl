@@ -97,15 +97,15 @@ pair(b::Block)  = b.uuid => b
 
 Base.show(io::IO, b::Block) = Base.show(io, (id=b.uuid, depth=depth(b)))
 
-Base.length(b::Block) = Base.length(b.sequence)
-function Base.length(b::Block, n::Node)
-    length(x::Int)          = -x         # deletion
-    length(x::Array{UInt8}) = length(x)  # insertion
+Base.length(b::Block)          = Base.length(b.sequence)
+Base.length(b::Block, n::Node) = (length(b)
+                               +((length(b.insert[n]) == 0) ? 0 : sum(length(i) for i in values(b.insert[n])))
+                               -((length(b.delete[n]) == 0) ? 0 : sum(values(b.delete[n]))))
 
-    return length(b) + sum(length(i) for i in values(b.insert[n])) - sum(values(b.delete[n]))
-end
-
-Locus = NamedTuple{(:pos, :kind), Tuple{Union{Int, Tuple{Int,Int}}, Symbol}}
+Locus = Union{
+    NamedTuple{(:pos, :kind), Tuple{Int, Symbol}},
+    NamedTuple{(:pos, :kind), Tuple{Tuple{Int,Int}, Symbol}},
+}
 
 islesser(a::Int, b::Int)                       = isless(a, b)
 islesser(a::Tuple{Int,Int}, b::Int)            = isless(first(a), b)
@@ -115,8 +115,8 @@ islesser(a::Tuple{Int,Int}, b::Tuple{Int,Int}) = isless(a, b)
 islesser(a::Locus, b::Locus) = islesser(a.pos, b.pos)
 
 function variable_loci(b::Block, n::Node)
-    keys(dict, sym)    = [(key, sym) for key in Base.keys(dict)]
-    return [keys(b.mutate[n],:snp); keys(b.indel[n],:ins); keys(b.delete[n],:del)]
+    keys(dict, sym)    = [(pos=key, kind=sym) for key in Base.keys(dict)]
+    return [keys(b.mutate[n],:snp); keys(b.insert[n],:ins); keys(b.delete[n],:del)]
 end
 
 # complex operations
@@ -176,7 +176,7 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
 
         @match l.kind begin
             :snp => begin
-                seq[iₛ] = b.mutation[n][l.pos]
+                seq[iₛ] = b.mutate[node][l.pos]
                 iₛ += 1
                 iᵣ += δ + 1
             end
@@ -186,7 +186,7 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
                 seq[iₛ] = ref[iᵣ]
                 iₛ += 1 + last(l.pos)
 
-                ins = b.insert[n][l.pos]
+                ins = b.insert[node][l.pos]
                 len = length(ins)
 
                 seq[iₛ:iₛ+len] = ins
@@ -195,7 +195,7 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
                 iᵣ += δ + 1
             end
             :del => begin
-                len = b.delete[n][l.pos]
+                len = b.delete[node][l.pos]
                 iₛ += gaps*(len + 1)
                 iᵣ  = l.pos + len
             end
@@ -332,14 +332,21 @@ end
 function test()
     ref, aln, muts = generate_alignment()
 
-    blk   = Block(ref)
-    nodes = Dict{Node,Int}()
+    blk  = Block(ref)
+    node = [Node{Block}(blk,true) for i in 1:size(aln,1)]
     for i in 1:size(aln,1)
-        println(f"placing node {n}")
-        n = Node{Block}(blk)
-        nodes[n] = i
-        append!(blk, n, muts[i], nothing, nothing)
+        append!(blk, node[i], muts[i], nothing, nothing)
     end
+
+    for i in 1:size(aln,1)
+        seq = sequence(blk,node[i])
+        if !all(aln[i,:] .== seq)
+            println(f"failure on row {i}")
+            println("True:  ", String(copy(aln[i,:])))
+            println("Block: ", String(copy(seq)))
+        end
+    end
+    println("worked!")
 end
 
 end
