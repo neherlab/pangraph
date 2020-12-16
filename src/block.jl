@@ -203,6 +203,8 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
         end
     end
 
+    seq[iₛ:end] = ref[iᵣ:end]
+
     return seq
 end
 
@@ -322,6 +324,11 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=0.0))
             snps[redo] = sample(UInt8['A','C','G','T'], length(redo))
             redo = findall(snps .== ref[loci])
         end
+
+        for (locus,snp) in zip(loci,snps)
+            aln[i,locus] = snp
+        end
+
         muts[i] = SNPMap(zip(loci,snps))
 
     end
@@ -331,6 +338,7 @@ end
 
 function test()
     ref, aln, muts = generate_alignment()
+    to_char(d::Dict{Int,UInt8}) = Dict{Int,Char}(k=>Char(v) for (k,v) in d)
 
     blk  = Block(ref)
     node = [Node{Block}(blk,true) for i in 1:size(aln,1)]
@@ -338,15 +346,29 @@ function test()
         append!(blk, node[i], muts[i], nothing, nothing)
     end
 
+    ok  = true
+    pos = join([string(i) for i in 1:10:100], ' '^9)
     for i in 1:size(aln,1)
-        seq = sequence(blk,node[i])
-        if !all(aln[i,:] .== seq)
+        seq  = sequence(blk,node[i])
+        good = aln[i,:] .== seq
+        if !all(good)
+            ok = false
+
+            err        = copy(seq)
+            err[good] .= '_'
+
             println(f"failure on row {i}")
+            println("Loci:  ", pos)
             println("True:  ", String(copy(aln[i,:])))
-            println("Block: ", String(copy(seq)))
+            println("Block: ", String(err))
+            println("SNPs:  ", to_char(muts[i]))
         end
     end
-    println("worked!")
+    if ok
+        println("worked!")
+    else
+        println("failed: check diagnostics!")
+    end
 end
 
 end
