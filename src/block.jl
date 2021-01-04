@@ -335,23 +335,28 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
 
         index = collect(1:len)
 
-        # deletions
+        # random deletions
         loci = sample(index, n.del[i]; replace=false)
         dels = min.(len .- loci, sample(1:Δ, n.del[i]))
         for (locus, del) in zip(loci,dels)
             aln[i,locus:locus+del] .= UInt8('-')
         end
 
+        println("---> ROW ", i, " POS: ", loci, " LEN: ", dels)
         map.del[i] = DelMap(zip(loci,dels))
         
-        # single nucleotide polymorphisms
-        loci = sample(1:len, n.snp[i]; replace=false)
+        # random single nucleotide polymorphisms
+        # NOTE: we exclude the deleted regions
+        site = collect(1:len)
+        deleteat!(site, findall(aln[i,:] .== '-'))
+
+        loci = sample(site, n.snp[i]; replace=false)
         snps = sample(UInt8['A','C','G','T'], n.snp[i])
 
-        redo = findall(snps .== ref[loci])
+        redo = findall(ref[loci] .== snps)
         while length(redo) >= 1
             snps[redo] = sample(UInt8['A','C','G','T'], length(redo))
-            redo = findall(snps .== ref[loci])
+            redo = findall(ref[loci] .== snps)
         end
 
         for (locus,snp) in zip(loci,snps)
@@ -365,7 +370,6 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
 end
 
 function test()
-    Random.seed!(0)
     ref, aln, map = generate_alignment()
     to_char(d::Dict{Int,UInt8}) = Dict{Int,Char}(k=>Char(v) for (k,v) in d)
 
