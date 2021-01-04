@@ -425,7 +425,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf))
             put!(clade.graph, tips[clade.name])
             close(clade.graph)
         else
-            @sync begin
+            @async begin
                 kernel(clade)
                 close(clade.graph)
             end

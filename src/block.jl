@@ -114,8 +114,8 @@ islesser(a::Tuple{Int,Int}, b::Tuple{Int,Int}) = isless(a, b)
 
 islesser(a::Locus, b::Locus) = islesser(a.pos, b.pos)
 
-function variable_loci(b::Block, n::Node)
-    keys(dict, sym)    = [(pos=key, kind=sym) for key in Base.keys(dict)]
+function allele_positions(b::Block, n::Node)
+    keys(dict, sym) = [(pos=key, kind=sym) for key in Base.keys(dict)]
     return [keys(b.mutate[n],:snp); keys(b.insert[n],:ins); keys(b.delete[n],:del)]
 end
 
@@ -144,28 +144,31 @@ function sequence(b::Block; gaps=false)
     len = length(b) + sum(values(b.gaps))
     seq = Array{UInt8}(undef, len)
 
-    l₁, i = 1, 1
-    for l₂ in sort(keys(b.gaps))
-        L = l₂ - l₁
-        seq[i:i+L] = b.seq[l₁:l₂]
+    l, iₛ = 1, 1
+    for r in sort(collect(keys(b.gaps)))
+        len = r - l 
+        seq[iₛ:iₛ+len] = b.seq[l:r]
 
-        i += L + 1
-        seq[i:i+b.gaps[l₂]] .= UInt8('-')
+        iₛ += len + 1
+        len = b.gaps[r]
+        seq[iₛ:iₛ+len] .= UInt8('-')
 
-        l₁ = l₂ + 1
-        i += b.gaps[l₂]+1
+        l   = r + 1
+        iₛ += len + 1
     end
+
+    seq[iₛ:end] = b.sequence[l:end]
 
     return seq
 end
 
 # returns the sequence WITH mutations and indels applied to the consensus for a given tag 
 function sequence(b::Block, node::Node{Block}; gaps=false)
-    ref  = sequence(b; gaps=gaps)
-    len  = length(b, node)
-    seq  = Array{UInt8}('-'^len)
+    ref = sequence(b; gaps=gaps)
+    len = gaps ? length(ref) : length(b, node)
+    seq = Array{UInt8}('-'^len)
 
-    loci = variable_loci(b, node)
+    loci = allele_positions(b, node)
     sort!(loci, lt=islesser)
 
     iᵣ, iₛ = 1, 1
@@ -184,7 +187,7 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
                 # NOTE: insertions are indexed by the position they follow.
                 #       since we stop 1 short, we finish here before continuing insertion.
                 seq[iₛ] = ref[iᵣ]
-                iₛ += 1 + last(l.pos)
+                iₛ += 1
 
                 ins = b.insert[node][l.pos]
                 len = length(ins)
@@ -195,9 +198,12 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
                 iᵣ += δ + 1
             end
             :del => begin
+                # NOTE: deletions index the first position of the deletion. 
+                #       this is the reason we stop 1 short above
                 len = b.delete[node][l.pos]
-                iₛ += gaps*(len + 1)
-                iᵣ  = l.pos + len
+
+                iₛ += gaps*(len+1)
+                iᵣ  = l.pos + len + 1
             end
               _  => error("unrecognized locus kind")
         end
@@ -299,26 +305,49 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
     return blocks
 end
 
-
 # ------------------------------------------------------------------------
 # main point of entry for testing
 
 using Random, Distributions, StatsBase
 
-function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=0.0))
+function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
     ref = Array{UInt8}(random_id(;len=len, alphabet=['A','C','G','T']))
     aln = zeros(UInt8, num, len)
 
-    muts = Array{SNPMap}(undef,num)
+    map = (
+        snp = Array{SNPMap}(undef,num),
+        ins = Array{InsMap}(undef,num),
+        del = Array{DelMap}(undef,num),
+    )
+    ρ  = (
+        snp = Poisson(μ.snp*len),
+        ins = Poisson(μ.ins*len),
+        del = Poisson(μ.del*len),
+    )
+    n = (
+        snp = rand(ρ.snp, num),
+        ins = rand(ρ.ins, num),
+        del = rand(ρ.del, num),
+    )
 
-    ρ  = Poisson(μ.snp*len)
-    nₘ = rand(ρ, num)
     for i in 1:num
         aln[i,:] = ref
 
+        index = collect(1:len)
+
+        # deletions
+        loci = sample(index, n.del[i]; replace=false)
+        dels = min.(len .- loci, sample(1:Δ, n.del[i]))
+        for (locus, del) in zip(loci,dels)
+            aln[i,locus:locus+del] .= UInt8('-')
+        end
+
+        map.del[i] = DelMap(zip(loci,dels))
+        
         # single nucleotide polymorphisms
-        loci = sample(1:len, nₘ[i]; replace=false)
-        snps = sample(UInt8['A','C','G','T'], nₘ[i])
+        loci = sample(1:len, n.snp[i]; replace=false)
+        snps = sample(UInt8['A','C','G','T'], n.snp[i])
+
         redo = findall(snps .== ref[loci])
         while length(redo) >= 1
             snps[redo] = sample(UInt8['A','C','G','T'], length(redo))
@@ -329,41 +358,44 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=0.0))
             aln[i,locus] = snp
         end
 
-        muts[i] = SNPMap(zip(loci,snps))
-
+        map.snp[i] = SNPMap(zip(loci,snps))
     end
 
-    return ref, aln, muts
+    return ref, aln, map
 end
 
 function test()
-    ref, aln, muts = generate_alignment()
+    Random.seed!(0)
+    ref, aln, map = generate_alignment()
     to_char(d::Dict{Int,UInt8}) = Dict{Int,Char}(k=>Char(v) for (k,v) in d)
 
     blk  = Block(ref)
     node = [Node{Block}(blk,true) for i in 1:size(aln,1)]
     for i in 1:size(aln,1)
-        append!(blk, node[i], muts[i], nothing, nothing)
+        append!(blk, node[i], map.snp[i], nothing, map.del[i])
     end
 
     ok  = true
-    pos = join([string(i) for i in 1:10:100], ' '^9)
+    pos = join([f"{i:02d}" for i in 1:10:100], ' '^8)
     for i in 1:size(aln,1)
-        seq  = sequence(blk,node[i])
+        seq  = sequence(blk,node[i];gaps=true)
         good = aln[i,:] .== seq
         if !all(good)
             ok = false
 
             err        = copy(seq)
-            err[good] .= '_'
+            err[good] .= ' '
 
             println(f"failure on row {i}")
-            println("Loci:  ", pos)
-            println("True:  ", String(copy(aln[i,:])))
-            println("Block: ", String(err))
-            println("SNPs:  ", to_char(muts[i]))
+            println("Loci: ", pos)
+            println("True: ", String(copy(aln[i,:])))
+            println("Estd: ", String(copy(seq)))
+            println("Diff: ", String(err))
+            println("SNPs: ", to_char(map.snp[i]))
+            println("Dels: ", map.del[i])
         end
     end
+
     if ok
         println("worked!")
     else
