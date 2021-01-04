@@ -202,8 +202,8 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
                 #       this is the reason we stop 1 short above
                 len = b.delete[node][l.pos]
 
-                iₛ += gaps*(len+1)
-                iᵣ  = l.pos + len + 1
+                iₛ += gaps*(len)
+                iᵣ  = l.pos + len
             end
               _  => error("unrecognized locus kind")
         end
@@ -336,21 +336,34 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
         index = collect(1:len)
 
         # random deletions
-        loci = sample(index, n.del[i]; replace=false)
-        dels = min.(len .- loci, sample(1:Δ, n.del[i]))
-        for (locus, del) in zip(loci,dels)
-            aln[i,locus:locus+del] .= UInt8('-')
+        # NOTE: care must be taken to ensure that they don't overlap or merge
+        loci = Array{Int}(undef, n.del[i])
+        dels = Array{Int}(undef, n.del[i])
+        for j in 1:n.del[i]
+            loci[j] = sample(index)
+            while aln[i,max(1, loci[j]-1)] == UInt8('-')
+                loci[j] = sample(index)
+            end
+            nextgap = findnext(aln[i,:] == UInt8('-'),loci[j]) 
+            maxlen  = isnothing(nextgap) ? len : nextgap - 1
+
+            dels[j] = min(maxlen-loci[j]+1, sample(1:Δ))
+
+            range = loci[j]:loci[j]+dels[j]-1
+
+            aln[i,range] .= UInt8('-')
+            filter!(x->x∉range, index)
         end
 
-        println("---> ROW ", i, " POS: ", loci, " LEN: ", dels)
         map.del[i] = DelMap(zip(loci,dels))
         
         # random single nucleotide polymorphisms
         # NOTE: we exclude the deleted regions
-        site = collect(1:len)
-        deleteat!(site, findall(aln[i,:] .== '-'))
+        sites = filter(x->x∉index, collect(1:len))
+        println(f"Row {i:02d}: {String(copy(aln[i,:]))}")
+        println(f"Row {i:02d}: {sites}")
 
-        loci = sample(site, n.snp[i]; replace=false)
+        loci = sample(index, n.snp[i]; replace=false)
         snps = sample(UInt8['A','C','G','T'], n.snp[i])
 
         redo = findall(ref[loci] .== snps)
