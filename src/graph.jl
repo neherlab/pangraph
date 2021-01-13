@@ -89,7 +89,7 @@ function detransitive!(G::Graph)
     for j in transitives
         if j.left.block ∈ keys(chain) && j.right.block ∈ keys(chain)
             c₁, c₂ = chain[j.left.block], chain[j.right.block]
-            if c1 == c2
+            if c₁ == c₂
                 continue
             end
 

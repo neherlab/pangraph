@@ -21,7 +21,7 @@ export align
 # global variables
 # TODO: move to a better location
 
-fifos = pool(2)
+fifos       = pool(2)
 getio()     = take!(fifos)
 hasio()     = isready(fifos)
 putio(fifo) = put!(fifos, fifo)
@@ -29,6 +29,7 @@ finalize()  = shutdown(fifos)
 atexit(finalize)
 
 # TODO: generalize to n > 2
+# NOTE: this is to ensure no deadlock for singleton pulls
 function getios()
     @label getlock
     io₁ = getio()
@@ -117,9 +118,9 @@ end
 # ---------------------------
 # constructors
 
-Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(1))
-Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(1))
-Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(1))
+Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(0))
+Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(0))
+Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(0))
 
 function Clade(distance, names; algo=:nj)
     @match algo begin
@@ -280,6 +281,7 @@ end
 # ordering functions
 
 # TODO: assumes the input graphs are singletons! generalize
+# TODO: rename
 function ordering(Gs...; compare=mash)
     fifo = getio()
 
@@ -314,9 +316,6 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
     @label getios
     io₁, io₂ = getios()
 
-    @show G₁
-    @show G₂
-
     cmd = minimap2(path(io₁), path(io₂))
 
     # NOTE: minimap2 opens up file descriptors in order!
@@ -335,7 +334,7 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
         rethrow(err)
     end
 
-    out  = IOBuffer(fetch(cmd.out))
+    out  = IOBuffer(fetch(cmd.out)) # NOTE: blocks until minimap finishes
     hits = collect(read_paf(out))
     sort!(hits; by=energy)
 
@@ -363,7 +362,8 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
 
         enforce_cutoff!(hit, 100) # TODO: remove hard-coded parameter
 
-        blks = combine(qry₀, ref₀, hit)
+        blks = combine(qry₀, ref₀, hit; maxgap=500)
+
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
         refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
 

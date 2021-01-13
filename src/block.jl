@@ -112,7 +112,7 @@ islesser(a::Tuple{Int,Int}, b::Int)            = isless(first(a), b)
 islesser(a::Int, b::Tuple{Int,Int})            = isless(a, first(b))
 islesser(a::Tuple{Int,Int}, b::Tuple{Int,Int}) = isless(a, b)
 
-islesser(a::Locus, b::Locus) = islesser(a.pos, b.pos)
+islesser(a::Locus, b::Locus)                   = islesser(a.pos, b.pos)
 
 function allele_positions(b::Block, n::Node)
     keys(dict, sym) = [(pos=key, kind=sym) for key in Base.keys(dict)]
@@ -263,6 +263,8 @@ function reconsensus!(b::Block)
 end
 
 function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
+    # NOTE: this will enforce that indels are less than maxgap!
+    # TODO: rename partition function
     sequences,intervals,mutations,inserts,deletes = partition(
                                                          uncigar(aln.cigar),
                                                          qry.sequence,
@@ -295,6 +297,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
 
                 gap = Dict(first(key)=>length(val) for (key,val) in ins)
                 new = Block(seq,gap,snp,ins,del)
+
                 reconsensus!(new)
 
                 push!(blocks, (block=new, kind=:all))
@@ -319,7 +322,7 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
         ins = Array{InsMap}(undef,num),
         del = Array{DelMap}(undef,num),
     )
-    ρ  = (
+    ρ = (
         snp = Poisson(μ.snp*len),
         ins = Poisson(μ.ins*len),
         del = Poisson(μ.del*len),
@@ -332,8 +335,21 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
 
     for i in 1:num
         aln[i,:] = ref
+    end
 
+    # random insertions
+    # NOTE: this is the inverse operation as a deletion.
+    #       perform operation as a collective.
+    num_ins = sum(n.ins[i] for i in 1:num)
+    inserts = Array{Tuple{Int,Int}}(undef, num_ins)
+    index   = collect(1:len)
+    for i in 1:num_ins
+        locus = sample(index)
+    end
+
+    for i in 1:num
         index = collect(1:len)
+        deleteat!(index, findall(aln[i,:] .== UInt8('-')))
 
         # random deletions
         # NOTE: care must be taken to ensure that they don't overlap or merge
@@ -359,10 +375,6 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
         
         # random single nucleotide polymorphisms
         # NOTE: we exclude the deleted regions
-        sites = filter(x->x∉index, collect(1:len))
-        println(f"Row {i:02d}: {String(copy(aln[i,:]))}")
-        println(f"Row {i:02d}: {sites}")
-
         loci = sample(index, n.snp[i]; replace=false)
         snps = sample(UInt8['A','C','G','T'], n.snp[i])
 
