@@ -45,23 +45,24 @@ all: $(STAT)
 	./scripts/assess_algo.py $(@D)
 
 # real data
-ecoli:
-	@echo "cluster    ecoli"; \
-	pangraph cluster -d data/ecoli data/ecoli/assemblies/*.fna.gz
-	@echo "build      ecoli"; \
-	pangraph build -d data/ecoli -m 500 -b 0 -e 2500 -w 1000 --circular data/ecoli/guide.json 1>data/ecoli/pangraph.json
-
 ecoli-plasmid:
 	@echo "cluster    ecoli-plasmid"; \
 	pangraph cluster -d data/ecoli-plasmid data/ecoli-plasmid/assemblies/*.fna.gz
 	@echo "build      ecoli-plasmid"; \
 	pangraph build -d data/ecoli-plasmid -m 500 -b 0 -e 2500 -w 1000 data/ecoli-plasmid/guide.json
 
-staph:
+staph-plasmid:
 	@echo "cluster    staph"; \
-	pangraph cluster -d data/staph data/staph/assemblies/*.fna.gz
+	pangraph cluster -d data/staph-plasmid data/staph-plasmid/assemblies/*.fna.gz
 	@echo "build      staph"; \
-	pangraph build -d data/staph -m 500 -b 0 -e 2500 -w 1000 --circular data/staph/guide.json
+	pangraph build -d data/staph-plasmid -m 500 -b 0 -e 2500 -w 1000 --circular data/staph-plasmid/guide.json
+
+generated:
+	@echo "cluster    generated"; \
+	pangraph cluster -d data/generated data/generated/assemblies/*.fna.gz
+	@echo "build      generated"; \
+	pangraph build -d data/generated -m 500 -b 0 -e 2500 -w 1000 data/generated/guide.json
+
 # 2>staph-e2500-w1000.err 1>staph-e2500-w1000.log
 # figures
 
