@@ -1,0 +1,4 @@
+name = "PanGraph"
+uuid = "0f9f61ca-f32c-45e1-b3bc-00138f4f8814"
+authors = ["Nicholas Noll <nbnoll@eml.cc>"]
+version = "0.1.0"
