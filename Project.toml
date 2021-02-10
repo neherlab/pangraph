@@ -4,6 +4,7 @@ authors = ["Nicholas Noll <nbnoll@eml.cc>"]
 version = "0.1.0"
 
 [deps]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 FStrings = "1e2663ae-5621-49ef-9c0a-672f85872094"
 GZip = "92fee26a-97fe-5a0c-ad85-20a5f3185b63"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
