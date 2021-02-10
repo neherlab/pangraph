@@ -645,14 +645,8 @@ function test()
     )
 
     seq = (N) -> Vector{UInt8}(random_id(;len=N, alphabet=['A','C','G','T']))
-    @benchmark align($seq(100), $seq(100), $cost)
 
     s = [ (seq(100), seq(100)) for i in 1:100 ]
-    Profile.clear()
-    @profile for (s₁, s₂) in s
-        align(s₁, s₂, cost)
-    end
-    ProfileView.view()
     # println("1: ", String(a₁))
     # println("2: ", String(a₂))
 end
