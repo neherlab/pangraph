@@ -2,3 +2,11 @@ name = "PanGraph"
 uuid = "0f9f61ca-f32c-45e1-b3bc-00138f4f8814"
 authors = ["Nicholas Noll <nbnoll@eml.cc>"]
 version = "0.1.0"
+
+[deps]
+FStrings = "1e2663ae-5621-49ef-9c0a-672f85872094"
+GZip = "92fee26a-97fe-5a0c-ad85-20a5f3185b63"
+JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Rematch = "bfecab0d-fd4d-5014-a23f-56c5fae6447a"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
