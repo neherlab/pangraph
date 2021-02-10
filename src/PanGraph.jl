@@ -1,3 +1,7 @@
+import Pkg
+
+Pkg.activate(normpath(joinpath(@__DIR__, ".")))
+
 module PanGraph
 
 using Rematch
