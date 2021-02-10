@@ -4,9 +4,6 @@ using FStrings, Rematch
 using StatsBase
 
 # NOTE: for debugging/benchmarking
-using BenchmarkTools, Infiltrator
-using Profile, ProfileView
-
 import Base.Threads.@spawn
 
 import ..Graphs: reverse_complement

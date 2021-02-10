@@ -2,7 +2,6 @@ module Align
 
 using FStrings, Rematch, Dates
 using LinearAlgebra
-using Infiltrator
 
 import Base.Threads.@spawn
 
