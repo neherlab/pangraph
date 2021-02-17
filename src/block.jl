@@ -355,20 +355,23 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
         # NOTE: care must be taken to ensure that they don't overlap or merge
         loci = Array{Int}(undef, n.del[i])
         dels = Array{Int}(undef, n.del[i])
+
         for j in 1:n.del[i]
             loci[j] = sample(index)
+
             while aln[i,max(1, loci[j]-1)] == UInt8('-')
                 loci[j] = sample(index)
             end
-            nextgap = findnext(aln[i,:] == UInt8('-'),loci[j]) 
-            maxlen  = isnothing(nextgap) ? len : nextgap - 1
 
-            dels[j] = min(maxlen-loci[j]+1, sample(1:Δ))
 
-            range = loci[j]:loci[j]+dels[j]-1
+            offset = findfirst(aln[i,loci[j]:end] .== UInt8('-'))
+            maxgap = isnothing(offset) ? (len-loci[j]+1) : (offset-1)
+
+            dels[j] = min(maxgap, sample(1:Δ))
+            range   = loci[j]:(loci[j]+dels[j]-1)
 
             aln[i,range] .= UInt8('-')
-            filter!(x->x∉range, index)
+            filter!(i->i ∉ range, index)
         end
 
         map.del[i] = DelMap(zip(loci,dels))
@@ -377,8 +380,8 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
         # NOTE: we exclude the deleted regions
         loci = sample(index, n.snp[i]; replace=false)
         snps = sample(UInt8['A','C','G','T'], n.snp[i])
-
         redo = findall(ref[loci] .== snps)
+
         while length(redo) >= 1
             snps[redo] = sample(UInt8['A','C','G','T'], length(redo))
             redo = findall(ref[loci] .== snps)
@@ -427,8 +430,10 @@ function test()
 
     if ok
         println("worked!")
+        return false
     else
         println("failed: check diagnostics!")
+        return true
     end
 end
 

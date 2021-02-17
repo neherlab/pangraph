@@ -194,7 +194,7 @@ function serialize(io, G::Graph)
 end
 
 function test()
-    Blocks.test()
+    return Blocks.test()
     # GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
     #     isolates = graphs(io)
     #     println(">aligning...")
