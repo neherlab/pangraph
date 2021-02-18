@@ -340,11 +340,18 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
     # random insertions
     # NOTE: this is the inverse operation as a deletion.
     #       perform operation as a collective.
-    num_ins = sum(n.ins[i] for i in 1:num)
-    inserts = Array{Tuple{Int,Int}}(undef, num_ins)
-    index   = collect(1:len)
-    for i in 1:num_ins
-        locus = sample(index)
+    inserts = Array{NamedTuple{(:loci,:lens),Tuple{Array{Int},Array{Int}}}}(undef, num)
+
+    # first collect all insertion intervals
+    for i in 1:num
+        inserts[i].loci = Array{Int}(undef, n.ins[i])
+        inserts[i].lens = Array{Int}(undef, n.ins[i])
+
+        for j in 1:n.ins[i]
+            inserts[i].loci[j] = sample(1:len)
+            maxlen = len-loci[j]+1
+            inserts[i].lens[j] = min(maxlen, sample(1:Δ))
+        end
     end
 
     for i in 1:num
@@ -362,7 +369,6 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
             while aln[i,max(1, loci[j]-1)] == UInt8('-')
                 loci[j] = sample(index)
             end
-
 
             offset = findfirst(aln[i,loci[j]:end] .== UInt8('-'))
             maxgap = isnothing(offset) ? (len-loci[j]+1) : (offset-1)
@@ -428,13 +434,7 @@ function test()
         end
     end
 
-    if ok
-        println("worked!")
-        return false
-    else
-        println("failed: check diagnostics!")
-        return true
-    end
+    return ok 
 end
 
 end

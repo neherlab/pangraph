@@ -8,8 +8,8 @@ export Node
 # NOTE: we make this mutable so that independent calls to the constructor
 #       with equivalent parameters ensures the return of a brand new object
 mutable struct Node{T}
-    block::T
-    strand::Bool
+    block  :: T
+    strand :: Bool
 end
 
 # --------------------------------
