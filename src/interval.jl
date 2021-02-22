@@ -3,9 +3,9 @@ module Intervals
 import Base:
     +, -, \,
     <, >, ==, !=, ≤,
-    ∈, ∩, ∪, ⊆, ⊇,
-    isless, isequal,
-    iterate, isempty, length, copy, getindex,
+    ∈, ∩, ∪, ⊆, ⊇, ~,
+    isless, isequal, isdisjoint,
+    iterate, isempty, length, copy, getindex, collect,
     show
 
 export Interval, IntervalSet
@@ -36,6 +36,10 @@ show(io::IO, a::Interval) = print(io, "[$(a.lo),$(a.hi)]")
 
 # ---------------------------------
 # operations
+
+# geometric
+
+length(a::Interval) = a.hi - a.lo
 
 # logical
 
@@ -120,8 +124,6 @@ struct IntervalSet{T<:Real}
     max :: T
     
     function IntervalSet{T}(Is, min, max) where T <: Real
-        isempty(Is) && return new(Interval{T}[], min, max)
-
         # ensures atomic intervals are disjoint
         𝕀 = Interval{T}[]
         for I in Is
@@ -144,9 +146,11 @@ end
 # ---------------------------------
 # constructors
 
-IntervalSet(min::T, max::T, Is::Interval{T}...) where T <: Real = IntervalSet{T}(sort(Is), min, max)
-IntervalSet(min::T, max::T) where T <: Real                     = IntervalSet(min, max)
-IntervalSet(Is::Interval{T}...) where T <: Real                 = IntervalSet(typemin(T), typemax(T), Is)
+IntervalSet(min::T, max::T, Is::Interval{T}...) where T <: Real = IntervalSet{T}(Is, min, max)
+IntervalSet(min::T, max::T, itr)                where T <: Real = IntervalSet{T}(itr, min, max)
+IntervalSet(min::T, max::T) where T <: Real                     = IntervalSet{T}(Interval{T}[], min, max)
+IntervalSet(Is::Interval{T}...) where T <: Real                 = IntervalSet{T}(Is, typemin(T), typemax(T))
+IntervalSet(min, max, Is::Tuple{T,T}...) where T <: Real        = IntervalSet{T}((Interval(I) for I in Is), min, max)
 IntervalSet(Is::Tuple{T,T}...) where T <: Real                  = IntervalSet{T}((Interval(I) for I in Is), typemin(T), typemax(T))
 
 copy(I::IntervalSet{T}) where T <: Real = IntervalSet{T}(copy(I.Is), I.min, I.max)
@@ -166,6 +170,9 @@ iterate(I::IntervalSet, state) = (state <= length(I)) ? (I.Is[state], state+1) :
 
 getindex(I::IntervalSet, i) = getindex(I.Is, i)
 
+# TODO: add a collect function.
+#       return array or iterator?
+
 # ---------------------------------
 # operations
 
@@ -173,6 +180,13 @@ getindex(I::IntervalSet, i) = getindex(I.Is, i)
 isempty(I::IntervalSet) = length(I) == 0
 
 # arithmetic
+
+function ~(I::IntervalSet) 
+    starts = (i == 0 ? I.min : I[i].hi for i in 0:length(I))
+    stops  = ((i<=length(I)) ? I[i].lo : I.max for i in 1:(length(I)+1))
+
+    return IntervalSet(I.min, I.max, (Interval(start, stop) for (start, stop) in zip(starts,stops) if start < stop))
+end
 
 \(I::IntervalSet{T}, j::Interval{T})    where T <: Real = IntervalSet{T}((x for i ∈ I for x in i \ j), I.min, I.max)
 \(I::IntervalSet{T}, J::IntervalSet{T}) where T <: Real = foldl(\, J; init=I)
@@ -207,6 +221,8 @@ end
 
 ∪(I::IntervalSet, j::Interval) = I ∪ IntervalSet(j) 
 
+isdisjoint(A::IntervalSet, b::Interval) = all(isdisjoint(a,b) for a in A)
+
 # -------------------------------------------------------------------------
 # tests
 
@@ -220,8 +236,8 @@ function test()
     @show i \ j
     @show j \ i
 
-    I = IntervalSet((0, 4), (2, 5), (7, 8), (10,15), (17,19))
-    J = IntervalSet((3, 4), (6, 8), (11,14), (16,18))
+    I = IntervalSet(0, 50, (0, 4), (2, 5), (7, 8), (10,15), (17,19))
+    J = IntervalSet(0, 50, (3, 4), (6, 8), (11,14), (16,18))
 
     @show I
     @show J
@@ -234,6 +250,8 @@ function test()
     @show I ∩ j
 
     @show I ∪ J
+
+    @show ~I
 
     return nothing
 end
