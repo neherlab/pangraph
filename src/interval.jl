@@ -74,15 +74,13 @@ isdisjoint(a::Interval, b::Interval) = b.hi < a.lo || a.hi < b.lo
 
 function ∩(a::Interval, b::Interval)
     try
-        x = Interval(max(a.lo,b.lo), min(a.hi,b.hi))
-
-        return x
+        return Interval(max(a.lo,b.lo), min(a.hi,b.hi))
     catch err
         if isa(err, ArgumentError)
             return nothing # intervals were disjoint
         end
 
-        throw(err)
+        throw(err) # unexpected error
     end
 end
 
@@ -92,7 +90,7 @@ function \(a::Interval, b::Interval)
     isnothing(ab) && return [a]                         # disjoint
     ab == a       && return typeof(a)[]                 # a ⊆ b
     a.lo == ab.lo && return [Interval(ab.hi, a.hi)]     # a ≥ b
-    a.hi == ab.hi && return [Interval(a.lo, ab.hi)]     # a ≤ b
+    a.hi == ab.hi && return [Interval(a.lo, ab.lo)]     # a ≤ b
 
     return [Interval(a.lo, b.lo), Interval(b.hi, a.hi)] # a ⊃ b
 end
