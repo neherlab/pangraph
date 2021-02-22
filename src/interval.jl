@@ -4,8 +4,9 @@ import Base:
     +, -, \,
     <, >, ==, !=, ≤,
     ∈, ∩, ∪, ⊆, ⊇, ~,
+    max, min,
     isless, isequal, isdisjoint,
-    iterate, isempty, length, copy, getindex, collect,
+    iterate, isempty, length, copy, getindex, to_index,
     show
 
 export Interval, IntervalSet
@@ -32,14 +33,15 @@ copy(a::Interval) = Interval(a.lo, a.hi)
 # ---------------------------------
 # repl properties
 
-show(io::IO, a::Interval) = print(io, "[$(a.lo),$(a.hi)]")
+show(io::IO, a::Interval) = print(io, "[$(a.lo),$(a.hi))")
 
 # ---------------------------------
 # operations
 
-# geometric
+# collection/
 
 length(a::Interval) = a.hi - a.lo
+to_index(a::Interval{T}) where T <: Integer = a.lo:(a.hi-1)
 
 # logical
 
@@ -169,9 +171,10 @@ iterate(I::IntervalSet)        = length(I) > 0 ? (I.Is[1], 2) : nothing
 iterate(I::IntervalSet, state) = (state <= length(I)) ? (I.Is[state], state+1) : nothing
 
 getindex(I::IntervalSet, i) = getindex(I.Is, i)
+getindex(A::T, I::IntervalSet) where T <: AbstractArray = [a for i in I for a in A[i]]
 
-# TODO: add a collect function.
-#       return array or iterator?
+min(I::IntervalSet) = I.Is[1].lo
+max(I::IntervalSet) = I.Is[end].hi
 
 # ---------------------------------
 # operations

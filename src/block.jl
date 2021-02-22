@@ -2,9 +2,9 @@ module Blocks
 
 using Rematch, FStrings
 
-using ..Utility: random_id, uncigar, wcpair, partition, Alignment
+using ..Intervals
 using ..Nodes
-
+using ..Utility: random_id, uncigar, wcpair, partition, Alignment
 import ..Graphs: pair, reverse_complement
 
 export SNPMap, InsMap, DelMap   # aux types
@@ -147,7 +147,7 @@ function sequence(b::Block; gaps=false)
     l, iₛ = 1, 1
     for r in sort(collect(keys(b.gaps)))
         len = r - l 
-        seq[iₛ:iₛ+len] = b.seq[l:r]
+        seq[iₛ:iₛ+len] = b.sequence[l:r]
 
         iₛ += len + 1
         len = b.gaps[r]
@@ -313,7 +313,7 @@ end
 
 using Random, Distributions, StatsBase
 
-function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
+function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
     ref = Array{UInt8}(random_id(;len=len, alphabet=['A','C','G','T']))
     aln = zeros(UInt8, num, len)
 
@@ -340,23 +340,69 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
     # random insertions
     # NOTE: this is the inverse operation as a deletion.
     #       perform operation as a collective.
-    inserts = Array{NamedTuple{(:loci,:lens),Tuple{Array{Int},Array{Int}}}}(undef, num)
+    inserts = Array{IntervalSet{Int}}(undef, num)
 
     # first collect all insertion intervals
     for i in 1:num
-        inserts[i].loci = Array{Int}(undef, n.ins[i])
-        inserts[i].lens = Array{Int}(undef, n.ins[i])
+        inserts[i] = IntervalSet(1, len+1)
 
         for j in 1:n.ins[i]
-            inserts[i].loci[j] = sample(1:len)
-            maxlen = len-loci[j]+1
-            inserts[i].lens[j] = min(maxlen, sample(1:Δ))
+            @label getinterval
+            start = sample(1:len)
+            delta = len-start+1
+            stop  = start + min(delta, sample(1:Δ))
+
+            insert = Interval(start, stop)
+
+            if !isdisjoint(inserts[i], insert)
+                @goto getinterval # XXX: potential infinite loop
+            end
+
+            inserts[i] = inserts[i] ∪ insert
+        end
+
+        @show inserts[i]
+    end
+
+    allinserts = reduce(∪, inserts)
+
+    δ = 0
+    gaps = [begin 
+        x  = (I.lo-δ, length(I)) 
+        δ += length(I)
+        x
+    end for I in allinserts]
+
+    for (i, insert) in enumerate(inserts)
+        keys = Array{Tuple{Int,Int}}(undef, length(insert))
+        vals = Array{Array{UInt8}}(undef, length(insert))
+        for (n, a) in enumerate(insert)
+            for (j, b) in enumerate(allinserts)
+                if a ⊆ b
+                    keys[n] = (gaps[j][1], a.lo - b.lo)
+                    vals[n] = ref[a]
+                    @goto outer
+                end
+            end
+            error("failed to find containing interval!")
+            @label outer
+        end
+
+        map.ins[i] = InsMap(zip(keys,vals))
+
+        # delete non-overlapping regions
+        for j in allinserts \ insert
+            @show j
+            aln[i,j] .= UInt8('-')
         end
     end
 
+    idx = collect(1:len)[~allinserts]
+    ref = ref[~allinserts]
+
     for i in 1:num
-        index = collect(1:len)
-        deleteat!(index, findall(aln[i,:] .== UInt8('-')))
+        index = collect(1:length(idx))
+        deleteat!(index, findall(aln[i,idx] .== UInt8('-')))
 
         # random deletions
         # NOTE: care must be taken to ensure that they don't overlap or merge
@@ -366,18 +412,19 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
         for j in 1:n.del[i]
             loci[j] = sample(index)
 
-            while aln[i,max(1, loci[j]-1)] == UInt8('-')
+            while aln[i,max(1, idx[loci[j]]-1)] == UInt8('-')
                 loci[j] = sample(index)
             end
 
-            offset = findfirst(aln[i,loci[j]:end] .== UInt8('-'))
-            maxgap = isnothing(offset) ? (len-loci[j]+1) : (offset-1)
+            x = idx[loci[j]]
+
+            offset = findfirst(aln[i,x:end] .== UInt8('-'))
+            maxgap = isnothing(offset) ? (len-x+1) : (offset-1)
 
             dels[j] = min(maxgap, sample(1:Δ))
-            range   = loci[j]:(loci[j]+dels[j]-1)
 
-            aln[i,range] .= UInt8('-')
-            filter!(i->i ∉ range, index)
+            aln[i,x:(x+dels[j]-1)] .= UInt8('-')
+            filter!(i->i ∉ loci[j]:(loci[j]+dels[j]-1), index)
         end
 
         map.del[i] = DelMap(zip(loci,dels))
@@ -394,23 +441,25 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=0.0,del=1e-2),Δ=5)
         end
 
         for (locus,snp) in zip(loci,snps)
-            aln[i,locus] = snp
+            aln[i,idx[locus]] = snp
         end
 
         map.snp[i] = SNPMap(zip(loci,snps))
     end
 
-    return ref, aln, map
+    return ref, aln, Dict(gaps), map
 end
 
 function test()
-    ref, aln, map = generate_alignment()
+    ref, aln, gap, map = generate_alignment()
     to_char(d::Dict{Int,UInt8}) = Dict{Int,Char}(k=>Char(v) for (k,v) in d)
 
-    blk  = Block(ref)
+    blk = Block(ref)
+    blk.gaps = gap
+
     node = [Node{Block}(blk,true) for i in 1:size(aln,1)]
     for i in 1:size(aln,1)
-        append!(blk, node[i], map.snp[i], nothing, map.del[i])
+        append!(blk, node[i], map.snp[i], map.ins[i], map.del[i])
     end
 
     ok  = true

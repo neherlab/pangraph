@@ -16,6 +16,7 @@ function reverse_complement(item) end
 
 include("counter.jl")
 include("util.jl")
+include("interval.jl")
 include("node.jl")
 include("block.jl")
 include("path.jl")
