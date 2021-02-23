@@ -21,6 +21,8 @@ SNPMap = Dict{Int,UInt8}
 InsMap = Dict{Tuple{Int,Int},Array{UInt8}} 
 DelMap = Dict{Int,Int} 
 
+Base.show(io::IO, m::InsMap) = Base.show(io, Dict(k => String(copy(v)) for (k,v) in m))
+
 mutable struct Block
     uuid::String
     sequence::Array{UInt8}
@@ -97,7 +99,7 @@ pair(b::Block)  = b.uuid => b
 
 Base.show(io::IO, b::Block) = Base.show(io, (id=b.uuid, depth=depth(b)))
 
-Base.length(b::Block)          = Base.length(b.sequence)
+Base.length(b::Block)          = Base.length(b.sequence) + sum(values(b.gaps)) # NOTE: returns the alignment length, not consensus sequence length
 Base.length(b::Block, n::Node) = (length(b)
                                +((length(b.insert[n]) == 0) ? 0 : sum(length(i) for i in values(b.insert[n])))
                                -((length(b.delete[n]) == 0) ? 0 : sum(values(b.delete[n]))))
@@ -109,10 +111,10 @@ Locus = Union{
 
 islesser(a::Int, b::Int)                       = isless(a, b)
 islesser(a::Tuple{Int,Int}, b::Int)            = isless(first(a), b)
-islesser(a::Int, b::Tuple{Int,Int})            = isless(a, first(b))
+islesser(a::Int, b::Tuple{Int,Int})            = isless(a, first(b)) || a == first(b)
 islesser(a::Tuple{Int,Int}, b::Tuple{Int,Int}) = isless(a, b)
 
-islesser(a::Locus, b::Locus)                   = islesser(a.pos, b.pos)
+islesser(a::Locus, b::Locus) = islesser(a.pos, b.pos)
 
 function allele_positions(b::Block, n::Node)
     keys(dict, sym) = [(pos=key, kind=sym) for key in Base.keys(dict)]
@@ -137,24 +139,22 @@ function reverse_complement(b::Block)
 end
 
 function sequence(b::Block; gaps=false)
-    if !gaps
-        return copy(b.sequence)
-    end
+    !gaps && return b.sequence
     
-    len = length(b) + sum(values(b.gaps))
+    len = length(b)
     seq = Array{UInt8}(undef, len)
 
     l, iₛ = 1, 1
     for r in sort(collect(keys(b.gaps)))
-        len = r - l 
+        len = r - l
         seq[iₛ:iₛ+len] = b.sequence[l:r]
 
         iₛ += len + 1
         len = b.gaps[r]
-        seq[iₛ:iₛ+len] .= UInt8('-')
+        seq[iₛ:iₛ+len-1] .= UInt8('-')
 
         l   = r + 1
-        iₛ += len + 1
+        iₛ += len
     end
 
     seq[iₛ:end] = b.sequence[l:end]
@@ -162,19 +162,64 @@ function sequence(b::Block; gaps=false)
     return seq
 end
 
+function sequence_gaps(b::Block, node::Node{Block})
+    ref = sequence(b; gaps=true)
+    len = length(ref)
+
+    seq  = copy(ref)
+    loci = allele_positions(b, node) 
+    sort!(loci, lt=islesser)
+
+    Ξ(x) = x + reduce(+,(δ for (l,δ) in b.gaps if l < x); init=0)
+
+    for l in loci
+        @match l.kind begin
+            :snp => begin
+                x      = l.pos
+                seq[Ξ(x)] = b.mutate[node][x]
+            end
+            :ins => begin
+                ins = b.insert[node][l.pos]
+                len = length(ins)
+
+                x = Ξ(l.pos[1]) # NOTE: insertion occurs AFTER the key position
+                δ = l.pos[2]
+
+                seq[x+δ+1:x+len+δ] = ins
+            end
+            :del => begin
+                len = b.delete[node][l.pos]
+                x   = Ξ(l.pos )
+
+                seq[x:x+len-1] .= UInt8('-')
+            end
+              _  => error("unrecognized locus kind")
+        end
+    end
+
+    return seq
+end
+
 # returns the sequence WITH mutations and indels applied to the consensus for a given tag 
 function sequence(b::Block, node::Node{Block}; gaps=false)
-    ref = sequence(b; gaps=gaps)
-    len = gaps ? length(ref) : length(b, node)
+    gaps && return sequence_gaps(b,node)
+
+    ref = sequence(b) #; gaps=gaps)
+    len = gaps ? length(b) : length(b, node)
     seq = Array{UInt8}('-'^len)
 
+    pos  = (l) -> isa(l.pos, Tuple) ? l.pos[1] : l.pos # dispatch over different key types
     loci = allele_positions(b, node)
     sort!(loci, lt=islesser)
 
     iᵣ, iₛ = 1, 1
+    @show loci
     for l in loci
-        δ = l.pos - iᵣ
-        seq[iₛ:iₛ+δ-1] = ref[iᵣ:l.pos-1]
+        δ = pos(l) - iᵣ
+
+        @show (iₛ, iᵣ, δ, l)
+
+        seq[iₛ:iₛ+δ-1] = ref[iᵣ:pos(l)-1]
         iₛ += δ
 
         @match l.kind begin
@@ -186,30 +231,41 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
             :ins => begin
                 # NOTE: insertions are indexed by the position they follow.
                 #       since we stop 1 short, we finish here before continuing insertion.
-                seq[iₛ] = ref[iᵣ]
+                if iₛ > 0
+                    seq[iₛ] = ref[pos(l)]
+                    iᵣ = pos(l) + 1
+                end
+
                 iₛ += 1
+
+                if gaps
+                    seq[iₛ:iₛ+l.pos[2]-1] .= UInt8('-')
+                    iₛ += l.pos[2]
+                end
 
                 ins = b.insert[node][l.pos]
                 len = length(ins)
 
-                seq[iₛ:iₛ+len] = ins
+                seq[iₛ:iₛ+len-1] = ins
 
-                iₛ += len + 1
-                iᵣ += δ + 1
+                iₛ += len
+
+                @show (iₛ, len)
             end
             :del => begin
                 # NOTE: deletions index the first position of the deletion. 
                 #       this is the reason we stop 1 short above
                 len = b.delete[node][l.pos]
 
-                iₛ += gaps*(len)
+                iₛ += gaps*len
                 iᵣ  = l.pos + len
             end
               _  => error("unrecognized locus kind")
         end
     end
 
-    seq[iₛ:end] = ref[iᵣ:end]
+    len = length(ref) - iᵣ + 1
+    seq[iₛ:iₛ+len-1] = ref[iᵣ:end]
 
     return seq
 end
@@ -313,7 +369,7 @@ end
 
 using Random, Distributions, StatsBase
 
-function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
+function generate_alignment(;len=25,num=5,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
     ref = Array{UInt8}(random_id(;len=len, alphabet=['A','C','G','T']))
     aln = zeros(UInt8, num, len)
 
@@ -360,13 +416,12 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5
 
             inserts[i] = inserts[i] ∪ insert
         end
-
-        @show inserts[i]
     end
 
     allinserts = reduce(∪, inserts)
+    @show allinserts
 
-    δ = 0
+    δ = 1 
     gaps = [begin 
         x  = (I.lo-δ, length(I)) 
         δ += length(I)
@@ -391,8 +446,8 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5
         map.ins[i] = InsMap(zip(keys,vals))
 
         # delete non-overlapping regions
+        @show (i, insert, allinserts \ insert)
         for j in allinserts \ insert
-            @show j
             aln[i,j] .= UInt8('-')
         end
     end
@@ -454,6 +509,12 @@ function test()
     ref, aln, gap, map = generate_alignment()
     to_char(d::Dict{Int,UInt8}) = Dict{Int,Char}(k=>Char(v) for (k,v) in d)
 
+    @show String(copy(ref))
+    for i in 1:size(aln,1)
+        @show String(aln[i,:])
+    end
+    @show gap
+
     blk = Block(ref)
     blk.gaps = gap
 
@@ -480,6 +541,8 @@ function test()
             println("Diff: ", String(err))
             println("SNPs: ", to_char(map.snp[i]))
             println("Dels: ", map.del[i])
+            println("Ints: ", map.ins[i])
+            break
         end
     end
 
