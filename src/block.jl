@@ -30,6 +30,7 @@ SNPMap = Dict{Int,UInt8}
 InsMap = Dict{Tuple{Int,Int},Array{UInt8}} 
 DelMap = Dict{Int,Int} 
 
+show(io::IO, m::SNPMap) = show(io, Dict(k => Char(v) for (k,v) in m))
 show(io::IO, m::InsMap) = show(io, Dict(k => String(copy(v)) for (k,v) in m))
 
 mutable struct Block
@@ -40,6 +41,17 @@ mutable struct Block
     insert::Dict{Node{Block},InsMap}
     delete::Dict{Node{Block},DelMap}
 end
+
+function show(io::IO, m::Dict{Node{Block}, T}) where T <: Union{SNPMap, InsMap, DelMap}
+    print(io, "{\n")
+    for (k,v) in m
+        print(io, "\t", k, " => {")
+        show(io, pairs(v))
+        print(io, "}\n")
+    end
+    print(io, "}\n")
+end
+
 
 # ---------------------------
 # constructors
@@ -591,8 +603,6 @@ end
 function verify(blk, node, aln, map)
     local pos = join([f"{i:02d}" for i in 1:10:101], ' '^8)
     local tic = join([f"|" for i in 1:10:101], '.'^9)
-
-    local to_char(d::Dict{Int,UInt8}) = Dict{Int,Char}(k=>Char(v) for (k,v) in d)
 
     # for i in 1:size(aln,1)
     #     @show i, String(copy(aln[i,:]))

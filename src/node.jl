@@ -20,6 +20,6 @@ Node{T}(b::T; strand=true) where T = Node{T}(b,strand)
 # --------------------------------
 # operators
 
-Base.show(io::IO, n::Node) = Base.show(io, n.block)
+Base.show(io::IO, n::Node) = Base.show(io, UInt64(pointer_from_objref(n)))
 
 end
