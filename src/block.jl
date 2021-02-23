@@ -30,8 +30,8 @@ SNPMap = Dict{Int,UInt8}
 InsMap = Dict{Tuple{Int,Int},Array{UInt8}} 
 DelMap = Dict{Int,Int} 
 
-show(io::IO, m::SNPMap) = show(io, Dict(k => Char(v) for (k,v) in m))
-show(io::IO, m::InsMap) = show(io, Dict(k => String(copy(v)) for (k,v) in m))
+show(io::IO, m::SNPMap) = show(io, [ k => Char(v) for (k,v) in m ])
+show(io::IO, m::InsMap) = show(io, [ k => String(copy(v)) for (k,v) in m ])
 
 mutable struct Block
     uuid::String
@@ -46,7 +46,7 @@ function show(io::IO, m::Dict{Node{Block}, T}) where T <: Union{SNPMap, InsMap, 
     print(io, "{\n")
     for (k,v) in m
         print(io, "\t", k, " => {")
-        show(io, pairs(v))
+        show(io, v)
         print(io, "}\n")
     end
     print(io, "}\n")
@@ -340,14 +340,21 @@ end
 function reconsensus!(b::Block)
     depth(b) <= 2 && return false # no point to compute this for blocks with 1 or 2 individuals
 
+    # XXX: we can't assume that keys(b) will return the same order on subsequent calls
+    #      thus we collect into array here for a static ordering of the nodes
+    nodes = collect(keys(b))
+
     ref = sequence(b; gaps=true)
     aln = Array{UInt8}(undef, length(ref), depth(b))
-    for (i,node) in enumerate(keys(b))
+    for (i,node) in enumerate(nodes)
         aln[:,i] = ref
         sequence!(view(aln,:,i), b, node; gaps=true)
     end
 
     consensus = [mode(view(aln,i,:)) for i in 1:size(aln,1)]
+    # if all(consensus .== ref) # hot path: if consensus sequence did not change, abort!
+    #     return false
+    # end
 
     for i in 1:depth(b)
         @show String(copy(aln[:,i]))
@@ -364,10 +371,15 @@ function reconsensus!(b::Block)
         ins = isdiff .&   refdel .& .!alndel,
     )
 
-    coord = cumsum(.!refdel)
+    for (i,n) in enumerate(nodes)
+        @show (i,n)
+        @show δ.del[:,i]
+        @show contiguous_trues(δ.del[:,i])
+        @show δ.ins[:,i]
+        @show contiguous_trues(δ.ins[:,i])
+    end
 
-    # XXX: we assume that keys(b) will return the same order on subsequent calls
-    #      this is fine as long as we don't modify the dictionary in between
+    coord = cumsum(.!refdel)
 
     refgaps = contiguous_trues(refdel)
 
@@ -381,7 +393,7 @@ function reconsensus!(b::Block)
                       coord[l] => aln[l,i] 
                 for l in findall(δ.snp[:,i])
             )
-        for (i,node) in enumerate(keys(b))
+        for (i,node) in enumerate(nodes)
     )
     @show b.mutate
 
@@ -391,7 +403,7 @@ function reconsensus!(b::Block)
                       coord[del.lo] => length(del)
                 for del in contiguous_trues(δ.del[:,i])
              )
-        for (i,node) in enumerate(keys(b))
+        for (i,node) in enumerate(nodes)
     )
     @show b.delete
 
@@ -402,7 +414,7 @@ function reconsensus!(b::Block)
                       (coord[ins.lo],Δ(ins)) => aln[ins,i] 
                 for ins in contiguous_trues(δ.ins[:,i])
              )
-        for (i,node) in enumerate(keys(b))
+        for (i,node) in enumerate(nodes)
     )
     @show b.insert
 
@@ -600,7 +612,7 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5
     return ref, aln, Dict(gaps), map
 end
 
-function verify(blk, node, aln, map)
+function verify(blk, node, aln)
     local pos = join([f"{i:02d}" for i in 1:10:101], ' '^8)
     local tic = join([f"|" for i in 1:10:101], '.'^9)
 
@@ -610,22 +622,30 @@ function verify(blk, node, aln, map)
     ok = true
     for i in 1:size(aln,1)
         seq  = sequence(blk,node[i];gaps=true)
-        good = size(aln,2) == length(seq) && aln[i,:] .== seq
+        if size(aln,2) != length(seq)
+            println("failure on row $(i), node $(node[i])")
+            println("incorrect size!")
+            ok = false
+            break
+        end
+
+        good = aln[i,:] .== seq
         if !all(good)
             ok = false
 
             err        = copy(seq)
             err[good] .= ' '
 
-            println(f"failure on row {i}")
+            println("failure on row $(i), node $(node[i])")
             println("Loci: ", pos)
             println("      ", tic)
+            println("Ref:  ",  String(copy(sequence(blk; gaps=true))))
             println("True: ", String(copy(aln[i,:])))
             println("Estd: ", String(copy(seq)))
             println("Diff: ", String(err))
-            println("SNPs: ", to_char(map.snp[i]))
-            println("Dels: ", map.del[i])
-            println("Ints: ", map.ins[i])
+            println("SNPs: ", blk.mutate[node[i]])
+            println("Dels: ", blk.delete[node[i]])
+            println("Ints: ", blk.insert[node[i]])
             break
         end
         seq  = sequence(blk,node[i];gaps=false)
@@ -645,14 +665,14 @@ function test()
         append!(blk, node[i], map.snp[i], map.ins[i], map.del[i])
     end
 
-    ok = verify(blk, node, aln, map)
+    ok = verify(blk, node, aln)
     if !ok
         error("failure to initialize block correctly")
     end
 
     reconsensus!(blk)
 
-    ok = verify(blk, node, aln, map)
+    ok = verify(blk, node, aln)
     if !ok
         error("failure to reconsensus block correctly")
     end

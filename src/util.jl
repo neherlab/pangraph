@@ -679,6 +679,11 @@ function contiguous_trues(x)
             push!(intervals, Interval(l, r))
         end
     end
+
+    # check for case that extends to right boundary
+    if inside
+        push!(intervals, Interval(l, length(x)+1))
+    end
     
     return IntervalSet(intervals)
 end
