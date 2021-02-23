@@ -454,6 +454,7 @@ function generate_alignment(;len=25,num=5,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
 
     idx = collect(1:len)[~allinserts]
     ref = ref[~allinserts]
+    len = length(ref)
 
     for i in 1:num
         index = collect(1:length(idx))
@@ -465,6 +466,7 @@ function generate_alignment(;len=25,num=5,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
         dels = Array{Int}(undef, n.del[i])
 
         for j in 1:n.del[i]
+            @label top
             loci[j] = sample(index)
 
             while aln[i,max(1, idx[loci[j]]-1)] == UInt8('-')
@@ -477,6 +479,11 @@ function generate_alignment(;len=25,num=5,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
             maxgap = isnothing(offset) ? (len-x+1) : (offset-1)
 
             dels[j] = min(maxgap, sample(1:Δ))
+
+            # XXX: this is a hack to ensure deletions and insertions don't overlap
+            if !all(item ∈ idx for item in x:x+dels[j]-1)
+                @goto top
+            end
 
             aln[i,x:(x+dels[j]-1)] .= UInt8('-')
             filter!(i->i ∉ loci[j]:(loci[j]+dels[j]-1), index)
