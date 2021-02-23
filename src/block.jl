@@ -213,7 +213,6 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
     sort!(loci, lt=islesser)
 
     iᵣ, iₛ = 1, 1
-    @show loci
     for l in loci
         if (δ = pos(l) - iᵣ) >= 0
             seq[iₛ:iₛ+δ-1] = ref[iᵣ:pos(l)-1]
@@ -225,7 +224,6 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
                 seq[iₛ] = b.mutate[node][l.pos]
                 iₛ += 1
                 iᵣ += δ + 1
-                @show ("snp", seq[iₛ-1], iₛ, iᵣ)
             end
             :ins => begin
                 # NOTE: insertions are indexed by the position they follow.
@@ -242,20 +240,16 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
 
                 iₛ += len
                 iᵣ  = pos(l) + 1
-                @show ("ins", String(copy(ins)), iₛ, iᵣ)
             end
             :del => begin
                 # NOTE: deletions index the first position of the deletion. 
                 #       this is the reason we stop 1 short above
                 iᵣ = l.pos + b.delete[node][l.pos]
-                @show ("del", b.delete[node][l.pos], iₛ, iᵣ)
             end
               _  => error("unrecognized locus kind")
         end
     end
 
-    @show "end"
-    @show iₛ, iᵣ, length(seq), length(ref)
     seq[iₛ:end] = ref[iᵣ:end]
 
     return seq
@@ -533,8 +527,6 @@ function test()
             println("Ints: ", map.ins[i])
             break
         end
-        @show String(copy(ref))
-        @show String(copy(seq))
         seq  = sequence(blk,node[i];gaps=false)
     end
 
