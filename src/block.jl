@@ -9,7 +9,7 @@ import ..Graphs: pair, reverse_complement
 
 export SNPMap, InsMap, DelMap   # aux types
 export Block 
-export sequence, combine, swap! # operators
+export sequence, sequence!, combine, swap! # operators
 
 Maybe{T} = Union{T,Nothing}
 
@@ -79,7 +79,7 @@ function Block(b::Block, slice)
     sequence = b.sequence[slice]
 
     select(dict,i) = translate(
-                        Dict(node=>filter(p -> (first(p) >= i.start) && (first(p) <= i.stop), val) for (node,val) in dict), 
+                        Dict(node => filter(p -> (first(p) >= i.start) && (first(p) <= i.stop), val) for (node,val) in dict), 
                      -i.start)
 
     gaps   = select(b.gaps,   slice)
@@ -162,11 +162,10 @@ function sequence(b::Block; gaps=false)
     return seq
 end
 
-function sequence_gaps(b::Block, node::Node{Block})
+function sequence_gaps!(seq, b::Block, node::Node{Block})
     ref = sequence(b; gaps=true)
-    len = length(ref)
+    @assert len(seq) == length(ref)
 
-    seq  = copy(ref)
     loci = allele_positions(b, node) 
     sort!(loci, lt=islesser)
 
@@ -200,13 +199,20 @@ function sequence_gaps(b::Block, node::Node{Block})
     return seq
 end
 
-# returns the sequence WITH mutations and indels applied to the consensus for a given tag 
-function sequence(b::Block, node::Node{Block}; gaps=false)
-    gaps && return sequence_gaps(b,node)
-
-    ref = sequence(b)
-    len = length(b, node)
+function sequence_gaps(b::Block, node::Node{Block})
+    len = length(b) + sum(values(b.gaps)) # TODO: make alignment_length function?
     seq = Array{UInt8}(undef, len)
+
+    sequence_gaps!(seq, b, node)
+
+    return seq
+end
+
+# returns the sequence WITH mutations and indels applied to the consensus for a given tag 
+function sequence!(seq, b::Block, node::Node{Block}; gaps=false)
+    gaps && return sequence_gaps!(seq, copy(ref), b,node)
+
+    @assert length(seq) == length(b, node)
 
     pos  = (l) -> isa(l.pos, Tuple) ? l.pos[1] : l.pos # dispatch over different key types
     loci = allele_positions(b, node)
@@ -251,6 +257,15 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
     end
 
     seq[iₛ:end] = ref[iᵣ:end]
+
+    return seq
+end
+
+function sequence(b::Block, node::Node{Block})
+    len = length(b, node)
+    seq = Array{UInt8}(undef, len)
+    
+    sequence!(seq, b, node)
 
     return seq
 end
