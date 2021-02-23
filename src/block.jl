@@ -99,7 +99,7 @@ pair(b::Block)  = b.uuid => b
 
 Base.show(io::IO, b::Block) = Base.show(io, (id=b.uuid, depth=depth(b)))
 
-Base.length(b::Block)          = Base.length(b.sequence) + sum(values(b.gaps)) # NOTE: returns the alignment length, not consensus sequence length
+Base.length(b::Block) = Base.length(b.sequence)
 Base.length(b::Block, n::Node) = (length(b)
                                +((length(b.insert[n]) == 0) ? 0 : sum(length(i) for i in values(b.insert[n])))
                                -((length(b.delete[n]) == 0) ? 0 : sum(values(b.delete[n]))))
@@ -141,7 +141,7 @@ end
 function sequence(b::Block; gaps=false)
     !gaps && return b.sequence
     
-    len = length(b)
+    len = length(b) + sum(values(b.gaps))
     seq = Array{UInt8}(undef, len)
 
     l, iₛ = 1, 1
@@ -204,9 +204,9 @@ end
 function sequence(b::Block, node::Node{Block}; gaps=false)
     gaps && return sequence_gaps(b,node)
 
-    ref = sequence(b) #; gaps=gaps)
-    len = gaps ? length(b) : length(b, node)
-    seq = Array{UInt8}('-'^len)
+    ref = sequence(b)
+    len = length(b, node)
+    seq = Array{UInt8}(undef, len)
 
     pos  = (l) -> isa(l.pos, Tuple) ? l.pos[1] : l.pos # dispatch over different key types
     loci = allele_positions(b, node)
@@ -215,32 +215,24 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
     iᵣ, iₛ = 1, 1
     @show loci
     for l in loci
-        δ = pos(l) - iᵣ
-
-        @show (iₛ, iᵣ, δ, l)
-
-        seq[iₛ:iₛ+δ-1] = ref[iᵣ:pos(l)-1]
-        iₛ += δ
+        if (δ = pos(l) - iᵣ) >= 0
+            seq[iₛ:iₛ+δ-1] = ref[iᵣ:pos(l)-1]
+            iₛ += δ
+        end
 
         @match l.kind begin
             :snp => begin
                 seq[iₛ] = b.mutate[node][l.pos]
                 iₛ += 1
                 iᵣ += δ + 1
+                @show ("snp", seq[iₛ-1], iₛ, iᵣ)
             end
             :ins => begin
                 # NOTE: insertions are indexed by the position they follow.
                 #       since we stop 1 short, we finish here before continuing insertion.
-                if iₛ > 0
+                if δ >= 0
                     seq[iₛ] = ref[pos(l)]
-                    iᵣ = pos(l) + 1
-                end
-
-                iₛ += 1
-
-                if gaps
-                    seq[iₛ:iₛ+l.pos[2]-1] .= UInt8('-')
-                    iₛ += l.pos[2]
+                    iₛ += 1
                 end
 
                 ins = b.insert[node][l.pos]
@@ -249,23 +241,22 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
                 seq[iₛ:iₛ+len-1] = ins
 
                 iₛ += len
-
-                @show (iₛ, len)
+                iᵣ  = pos(l) + 1
+                @show ("ins", String(copy(ins)), iₛ, iᵣ)
             end
             :del => begin
                 # NOTE: deletions index the first position of the deletion. 
                 #       this is the reason we stop 1 short above
-                len = b.delete[node][l.pos]
-
-                iₛ += gaps*len
-                iᵣ  = l.pos + len
+                iᵣ = l.pos + b.delete[node][l.pos]
+                @show ("del", b.delete[node][l.pos], iₛ, iᵣ)
             end
               _  => error("unrecognized locus kind")
         end
     end
 
-    len = length(ref) - iᵣ + 1
-    seq[iₛ:iₛ+len-1] = ref[iᵣ:end]
+    @show "end"
+    @show iₛ, iᵣ, length(seq), length(ref)
+    seq[iₛ:end] = ref[iᵣ:end]
 
     return seq
 end
@@ -419,7 +410,6 @@ function generate_alignment(;len=25,num=5,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
     end
 
     allinserts = reduce(∪, inserts)
-    @show allinserts
 
     δ = 1 
     gaps = [begin 
@@ -446,7 +436,6 @@ function generate_alignment(;len=25,num=5,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
         map.ins[i] = InsMap(zip(keys,vals))
 
         # delete non-overlapping regions
-        @show (i, insert, allinserts \ insert)
         for j in allinserts \ insert
             aln[i,j] .= UInt8('-')
         end
@@ -454,7 +443,6 @@ function generate_alignment(;len=25,num=5,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
 
     idx = collect(1:len)[~allinserts]
     ref = ref[~allinserts]
-    len = length(ref)
 
     for i in 1:num
         index = collect(1:length(idx))
@@ -466,7 +454,7 @@ function generate_alignment(;len=25,num=5,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
         dels = Array{Int}(undef, n.del[i])
 
         for j in 1:n.del[i]
-            @label top
+            @label tryagain
             loci[j] = sample(index)
 
             while aln[i,max(1, idx[loci[j]]-1)] == UInt8('-')
@@ -482,7 +470,7 @@ function generate_alignment(;len=25,num=5,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
 
             # XXX: this is a hack to ensure deletions and insertions don't overlap
             if !all(item ∈ idx for item in x:x+dels[j]-1)
-                @goto top
+                @goto tryagain
             end
 
             aln[i,x:(x+dels[j]-1)] .= UInt8('-')
@@ -516,12 +504,6 @@ function test()
     ref, aln, gap, map = generate_alignment()
     to_char(d::Dict{Int,UInt8}) = Dict{Int,Char}(k=>Char(v) for (k,v) in d)
 
-    @show String(copy(ref))
-    for i in 1:size(aln,1)
-        @show String(aln[i,:])
-    end
-    @show gap
-
     blk = Block(ref)
     blk.gaps = gap
 
@@ -551,6 +533,9 @@ function test()
             println("Ints: ", map.ins[i])
             break
         end
+        @show String(copy(ref))
+        @show String(copy(seq))
+        seq  = sequence(blk,node[i];gaps=false)
     end
 
     return ok 
