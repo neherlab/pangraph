@@ -2,11 +2,20 @@ module Blocks
 
 using Rematch, FStrings
 
+import Base:
+    show, length, append!, keys
+
+# internal modules
 using ..Intervals
 using ..Nodes
-using ..Utility: random_id, uncigar, wcpair, partition, Alignment
-import ..Graphs: pair, reverse_complement
+using ..Utility: 
+    random_id, contiguous_trues,
+    uncigar, wcpair, partition, Alignment
 
+import ..Graphs:
+    pair, reverse_complement
+
+# exports
 export SNPMap, InsMap, DelMap   # aux types
 export Block 
 export sequence, sequence!, combine, swap! # operators
@@ -21,7 +30,7 @@ SNPMap = Dict{Int,UInt8}
 InsMap = Dict{Tuple{Int,Int},Array{UInt8}} 
 DelMap = Dict{Int,Int} 
 
-Base.show(io::IO, m::InsMap) = Base.show(io, Dict(k => String(copy(v)) for (k,v) in m))
+show(io::IO, m::InsMap) = show(io, Dict(k => String(copy(v)) for (k,v) in m))
 
 mutable struct Block
     uuid::String
@@ -97,13 +106,16 @@ end
 depth(b::Block) = length(b.mutate)
 pair(b::Block)  = b.uuid => b
 
-Base.show(io::IO, b::Block) = Base.show(io, (id=b.uuid, depth=depth(b)))
+show(io::IO, b::Block) = show(io, (id=b.uuid, depth=depth(b)))
 
-Base.length(b::Block) = Base.length(b.sequence)
-Base.length(b::Block, n::Node) = (length(b)
-                               +((length(b.insert[n]) == 0) ? 0 : sum(length(i) for i in values(b.insert[n])))
-                               -((length(b.delete[n]) == 0) ? 0 : sum(values(b.delete[n]))))
+length(b::Block) = length(b.sequence)
+length(b::Block, n::Node) = (length(b)
+                          +((length(b.insert[n]) == 0) ? 0 : sum(length(i) for i in values(b.insert[n])))
+                          -((length(b.delete[n]) == 0) ? 0 : sum(values(b.delete[n]))))
 
+keys(b::Block) = keys(b.mutate)
+
+# internal structure to allow us to sort all allelic types
 Locus = Union{
     NamedTuple{(:pos, :kind), Tuple{Int, Symbol}},
     NamedTuple{(:pos, :kind), Tuple{Tuple{Int,Int}, Symbol}},
@@ -269,7 +281,7 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
     return seq
 end
 
-function Base.append!(b::Block, node::Node{Block}, snp::Maybe{SNPMap}, ins::Maybe{InsMap}, del::Maybe{DelMap})
+function append!(b::Block, node::Node{Block}, snp::Maybe{SNPMap}, ins::Maybe{InsMap}, del::Maybe{DelMap})
     @assert node ∉ keys(b.mutate)
     @assert node ∉ keys(b.insert)
     @assert node ∉ keys(b.delete)
@@ -314,7 +326,75 @@ function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
 end
 
 function reconsensus!(b::Block)
-    #nop
+    depth(b) <= 2 && return false # no point to compute this for blocks with 1 or 2 individuals
+
+    ref = sequence(b; gaps=true)
+    aln = Array{UInt8}(undef, length(ref), depth(b))
+    for (i,node) in enumerate(keys(b))
+        aln[:,i] = ref
+        sequence!(view(aln,:,i), b, node; gaps=true)
+    end
+
+    consensus = [mode(view(aln,i,:)) for i in 1:size(aln,1)]
+
+    for i in 1:depth(b)
+        @show String(copy(aln[:,i]))
+    end
+    @show String(copy(consensus))
+
+    isdiff = (aln .!= consensus)
+    refdel = (consensus .== UInt8('-'))
+    alndel = (aln .== UInt8('-'))
+
+    δ = (
+        snp = isdiff .& .!refdel .& .!alndel,
+        del = isdiff .& .!refdel .&   alndel,
+        ins = isdiff .&   refdel .& .!alndel,
+    )
+
+    coord = cumsum(.!refdel)
+
+    # XXX: we assume that keys(b) will return the same order on subsequent calls
+    #      this is fine as long as we don't modify the dictionary in between
+
+    refgaps = contiguous_trues(refdel)
+
+    @show b.gaps
+    b.gaps  = Dict{Int, Int}(coord[gap.lo] => length(gap) for gap in refgaps)
+    @show b.gaps
+    
+    @show b.mutate
+    b.mutate = Dict{Node{Block},SNPMap}( 
+            node => SNPMap(
+                      coord[l] => aln[l,i] 
+                for l in findall(δ.snp[:,i])
+            )
+        for (i,node) in enumerate(keys(b))
+    )
+    @show b.mutate
+
+    @show b.delete
+    b.delete = Dict{Node{Block},DelMap}( 
+            node => DelMap(
+                      coord[del.lo] => length(del)
+                for del in contiguous_trues(δ.del[:,i])
+             )
+        for (i,node) in enumerate(keys(b))
+    )
+    @show b.delete
+
+    @show b.insert
+    Δ(I) = (R = containing(refgaps, I)) == nothing ? 0 : I.lo - R.lo
+    b.insert = Dict{Node{Block},InsMap}( 
+            node => InsMap(
+                      (coord[ins.lo],Δ(ins)) => aln[ins,i] 
+                for ins in contiguous_trues(δ.ins[:,i])
+             )
+        for (i,node) in enumerate(keys(b))
+    )
+    @show b.insert
+
+    return true
 end
 
 function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
@@ -508,24 +588,19 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5
     return ref, aln, Dict(gaps), map
 end
 
-function test()
-    ref, aln, gap, map = generate_alignment()
-    to_char(d::Dict{Int,UInt8}) = Dict{Int,Char}(k=>Char(v) for (k,v) in d)
+function verify(blk, node, aln, map)
+    local pos = join([f"{i:02d}" for i in 1:10:101], ' '^8)
+    local tic = join([f"|" for i in 1:10:101], '.'^9)
 
-    blk = Block(ref)
-    blk.gaps = gap
+    local to_char(d::Dict{Int,UInt8}) = Dict{Int,Char}(k=>Char(v) for (k,v) in d)
 
-    node = [Node{Block}(blk,true) for i in 1:size(aln,1)]
-    for i in 1:size(aln,1)
-        append!(blk, node[i], map.snp[i], map.ins[i], map.del[i])
-    end
-
-    ok  = true
-    pos = join([f"{i:02d}" for i in 1:10:101], ' '^8)
-    tic = join([f"|" for i in 1:10:101], '.'^9)
+    # for i in 1:size(aln,1)
+    #     @show i, String(copy(aln[i,:]))
+    # end
+    ok = true
     for i in 1:size(aln,1)
         seq  = sequence(blk,node[i];gaps=true)
-        good = aln[i,:] .== seq
+        good = size(aln,2) == length(seq) && aln[i,:] .== seq
         if !all(good)
             ok = false
 
@@ -544,6 +619,32 @@ function test()
             break
         end
         seq  = sequence(blk,node[i];gaps=false)
+    end
+
+    return ok
+end
+
+function test()
+    ref, aln, gap, map = generate_alignment()
+
+    blk = Block(ref)
+    blk.gaps = gap
+
+    node = [Node{Block}(blk,true) for i in 1:size(aln,1)]
+    for i in 1:size(aln,1)
+        append!(blk, node[i], map.snp[i], map.ins[i], map.del[i])
+    end
+
+    ok = verify(blk, node, aln, map)
+    if !ok
+        error("failure to initialize block correctly")
+    end
+
+    reconsensus!(blk)
+
+    ok = verify(blk, node, aln, map)
+    if !ok
+        error("failure to reconsensus block correctly")
     end
 
     return ok 

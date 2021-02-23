@@ -10,6 +10,7 @@ import Base:
     show
 
 export Interval, IntervalSet
+export containing
 
 # -------------------------------------------------------------------------
 # atomic interval
@@ -146,12 +147,16 @@ end
 # ---------------------------------
 # constructors
 
-IntervalSet(min::T, max::T, Is::Interval{T}...) where T <: Real = IntervalSet{T}(Is, min, max)
-IntervalSet(min::T, max::T, itr)                where T <: Real = IntervalSet{T}(itr, min, max)
-IntervalSet(min::T, max::T) where T <: Real                     = IntervalSet{T}(Interval{T}[], min, max)
-IntervalSet(Is::Interval{T}...) where T <: Real                 = IntervalSet{T}(Is, typemin(T), typemax(T))
-IntervalSet(min, max, Is::Tuple{T,T}...) where T <: Real        = IntervalSet{T}((Interval(I) for I in Is), min, max)
-IntervalSet(Is::Tuple{T,T}...) where T <: Real                  = IntervalSet{T}((Interval(I) for I in Is), typemin(T), typemax(T))
+IntervalSet(min::T, max::T, itr)                    where T <: Real    = IntervalSet{T}(itr, min, max)
+IntervalSet(min::T, max::T, Is::Array{Interval{T}}) where T <: Real    = IntervalSet{T}(Is, min, max)
+IntervalSet(min::T, max::T, I::Interval{T})         where T <: Real    = IntervalSet{T}([I], min, max)
+
+IntervalSet(min::T, max::T)                         where T <: Real    = IntervalSet{T}(Interval{T}[], min, max)
+IntervalSet(Is::Array{Interval{T}})                 where T <: Real    = IntervalSet{T}(Is, typemin(T), typemax(T))
+IntervalSet(I::Interval{T})                         where T <: Real    = IntervalSet{T}([I], typemin(T), typemax(T))
+
+IntervalSet(min, max, Is::Tuple{T,T}...)            where T <: Real    = IntervalSet{T}((Interval(I) for I in Is), min, max)
+IntervalSet(Is::Tuple{T,T}...)                      where T <: Real    = IntervalSet{T}((Interval(I) for I in Is), typemin(T), typemax(T))
 
 copy(I::IntervalSet{T}) where T <: Real = IntervalSet{T}(copy(I.Is), I.min, I.max)
 
@@ -223,6 +228,26 @@ end
 ∪(I::IntervalSet, j::Interval) = I ∪ IntervalSet(j) 
 
 isdisjoint(A::IntervalSet, b::Interval) = all(isdisjoint(a,b) for a in A)
+
+function containing(A::IntervalSet{T}, x::T) where T <: Real
+    for a in A
+        if x ∈ a
+            return a
+        end
+    end
+
+    return nothing
+end
+
+function containing(A::IntervalSet, b::Interval)
+    for a in A
+        if b ⊆ a
+            return a
+        end
+    end
+
+    return nothing
+end
 
 # -------------------------------------------------------------------------
 # tests

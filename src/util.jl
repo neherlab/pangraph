@@ -6,11 +6,18 @@ using StatsBase
 # NOTE: for debugging/benchmarking
 import Base.Threads.@spawn
 
-import ..Graphs: reverse_complement
+# internal modules
+using ..Intervals
 
+import ..Graphs: 
+    reverse_complement
+
+# exports
 export random_id, log
 export Alignment
 export enforce_cutoff, cigar, uncigar, blocks 
+
+export contiguous_trues
 
 export read_fasta, name
 export read_paf
@@ -649,6 +656,31 @@ function test()
     s = [ (seq(100), seq(100)) for i in 1:100 ]
     # println("1: ", String(a₁))
     # println("2: ", String(a₂))
+end
+
+function contiguous_trues(x)
+    intervals = Interval{Int}[]
+
+    l      = 1
+    inside = false
+
+    for (r,σ) ∈ enumerate(x)
+        if σ
+            if !inside
+                l = r
+                inside = true
+            end
+
+            continue
+        end
+
+        if inside
+            inside = false
+            push!(intervals, Interval(l, r))
+        end
+    end
+    
+    return IntervalSet(intervals)
 end
 
 end
