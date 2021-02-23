@@ -164,7 +164,7 @@ end
 
 function sequence_gaps!(seq, b::Block, node::Node{Block})
     ref = sequence(b; gaps=true)
-    @assert len(seq) == length(ref)
+    @assert length(seq) == length(ref)
 
     loci = allele_positions(b, node) 
     sort!(loci, lt=islesser)
@@ -210,9 +210,11 @@ end
 
 # returns the sequence WITH mutations and indels applied to the consensus for a given tag 
 function sequence!(seq, b::Block, node::Node{Block}; gaps=false)
-    gaps && return sequence_gaps!(seq, copy(ref), b,node)
+    gaps && return sequence_gaps!(seq, b, node)
 
     @assert length(seq) == length(b, node)
+
+    ref = sequence(b; gaps=false)
 
     pos  = (l) -> isa(l.pos, Tuple) ? l.pos[1] : l.pos # dispatch over different key types
     loci = allele_positions(b, node)
@@ -261,12 +263,9 @@ function sequence!(seq, b::Block, node::Node{Block}; gaps=false)
     return seq
 end
 
-function sequence(b::Block, node::Node{Block})
-    len = length(b, node)
-    seq = Array{UInt8}(undef, len)
-    
-    sequence!(seq, b, node)
-
+function sequence(b::Block, node::Node{Block}; gaps=false)
+    seq = gaps ? sequence(b; gaps=true) : Array{UInt8}('-'^length(b, node))
+    sequence!(seq, b, node; gaps=gaps)
     return seq
 end
 
