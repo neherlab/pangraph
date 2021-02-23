@@ -354,7 +354,7 @@ end
 
 using Random, Distributions, StatsBase
 
-function generate_alignment(;len=25,num=5,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
+function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5)
     ref = Array{UInt8}(random_id(;len=len, alphabet=['A','C','G','T']))
     aln = zeros(UInt8, num, len)
 
@@ -507,7 +507,8 @@ function test()
     end
 
     ok  = true
-    pos = join([f"{i:02d}" for i in 1:10:100], ' '^8)
+    pos = join([f"{i:02d}" for i in 1:10:101], ' '^8)
+    tic = join([f"|" for i in 1:10:101], '.'^9)
     for i in 1:size(aln,1)
         seq  = sequence(blk,node[i];gaps=true)
         good = aln[i,:] .== seq
@@ -519,6 +520,7 @@ function test()
 
             println(f"failure on row {i}")
             println("Loci: ", pos)
+            println("      ", tic)
             println("True: ", String(copy(aln[i,:])))
             println("Estd: ", String(copy(seq)))
             println("Diff: ", String(err))
