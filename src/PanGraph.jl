@@ -23,6 +23,7 @@ using .Commands
 
 # ---------------------------
 # All subcommands go here
+
 include("build.jl")
 include("generate.jl")
 

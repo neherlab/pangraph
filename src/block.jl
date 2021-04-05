@@ -34,12 +34,12 @@ show(io::IO, m::SNPMap) = show(io, [ k => Char(v) for (k,v) in m ])
 show(io::IO, m::InsMap) = show(io, [ k => String(copy(v)) for (k,v) in m ])
 
 mutable struct Block
-    uuid::String
-    sequence::Array{UInt8}
-    gaps::Dict{Int,Int}
-    mutate::Dict{Node{Block},SNPMap}
-    insert::Dict{Node{Block},InsMap}
-    delete::Dict{Node{Block},DelMap}
+    uuid     :: String
+    sequence :: Array{UInt8}
+    gaps     :: Dict{Int,Int}
+    mutate   :: Dict{Node{Block},SNPMap}
+    insert   :: Dict{Node{Block},InsMap}
+    delete   :: Dict{Node{Block},DelMap}
 end
 
 function show(io::IO, m::Dict{Node{Block}, T}) where T <: Union{SNPMap, InsMap, DelMap}
@@ -51,7 +51,6 @@ function show(io::IO, m::Dict{Node{Block}, T}) where T <: Union{SNPMap, InsMap, 
     end
     print(io, "}\n")
 end
-
 
 # ---------------------------
 # constructors
@@ -352,14 +351,9 @@ function reconsensus!(b::Block)
     end
 
     consensus = [mode(view(aln,i,:)) for i in 1:size(aln,1)]
-    # if all(consensus .== ref) # hot path: if consensus sequence did not change, abort!
-    #     return false
-    # end
-
-    for i in 1:depth(b)
-        @show String(copy(aln[:,i]))
+    if all(consensus .== ref) # hot path: if consensus sequence did not change, abort!
+        return false
     end
-    @show String(copy(consensus))
 
     isdiff = (aln .!= consensus)
     refdel = (consensus .== UInt8('-'))
@@ -371,23 +365,11 @@ function reconsensus!(b::Block)
         ins = isdiff .&   refdel .& .!alndel,
     )
 
-    for (i,n) in enumerate(nodes)
-        @show (i,n)
-        @show δ.del[:,i]
-        @show contiguous_trues(δ.del[:,i])
-        @show δ.ins[:,i]
-        @show contiguous_trues(δ.ins[:,i])
-    end
-
-    coord = cumsum(.!refdel)
+    coord   = cumsum(.!refdel)
 
     refgaps = contiguous_trues(refdel)
-
-    @show b.gaps
     b.gaps  = Dict{Int, Int}(coord[gap.lo] => length(gap) for gap in refgaps)
-    @show b.gaps
     
-    @show b.mutate
     b.mutate = Dict{Node{Block},SNPMap}( 
             node => SNPMap(
                       coord[l] => aln[l,i] 
@@ -395,9 +377,7 @@ function reconsensus!(b::Block)
             )
         for (i,node) in enumerate(nodes)
     )
-    @show b.mutate
 
-    @show b.delete
     b.delete = Dict{Node{Block},DelMap}( 
             node => DelMap(
                       coord[del.lo] => length(del)
@@ -405,9 +385,7 @@ function reconsensus!(b::Block)
              )
         for (i,node) in enumerate(nodes)
     )
-    @show b.delete
 
-    @show b.insert
     Δ(I) = (R = containing(refgaps, I)) == nothing ? 0 : I.lo - R.lo
     b.insert = Dict{Node{Block},InsMap}( 
             node => InsMap(
@@ -416,7 +394,6 @@ function reconsensus!(b::Block)
              )
         for (i,node) in enumerate(nodes)
     )
-    @show b.insert
 
     return true
 end

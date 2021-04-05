@@ -35,8 +35,8 @@ export graphs, marshal, serialize, detransitive!
 # graph data structure
 
 struct Graph
-    block::Dict{String,Block}   # uuid      -> block
-    sequence::Dict{String,Path} # isolation -> path
+    block    :: Dict{String,Block}   # uuid      -> block
+    sequence :: Dict{String,Path} # isolation -> path
     # TODO: add edge/junction data structure?
 end
 
@@ -165,22 +165,6 @@ function write_fasta(io, name, seq)
     write(io, columns(seq), '\n')
 end
 
-function marshal_fasta(io, G::Graph)
-    for (i, b) in enumerate(values(G.block))
-        write_fasta(io, b.uuid, b.sequence)
-    end
-end
-
-function marshal_json(io, G::Graph) end
-
-function marshal(io, G::Graph; fmt=:fasta)
-    @match fmt begin
-        :fasta || :fa => marshal_fasta(io, G)
-        :json         => marshal_json(io, G)
-        _ => error(f"{format} not a recognized output format")
-    end
-end
-
 # TODO: can we generalize to multiple individuals
 #       equivalent to "highway" detection
 function serialize(io, G::Graph)
@@ -192,6 +176,79 @@ function serialize(io, G::Graph)
     seq  = collect(values(G.block))[1].sequence
 
     write_fasta(io, name, seq)
+end
+
+function marshal_fasta(io, G::Graph)
+    for (i, b) in enumerate(values(G.block))
+        write_fasta(io, b.uuid, b.sequence)
+    end
+end
+
+# XXX: think of a way to break up function but maintain graph-wide node lookup table
+function marshal_json(io, G::Graph) 
+    NodeID = NamedTuple{(:id, :number, :strand), Tuple{String,Int,Bool}}
+    nodes  = Dict{Node{Block}, NodeID}
+
+    # path serialization
+    dict = (p::path) -> let
+        blocks = Array{NodeID}(undef, length(p.node))
+        counts = Dict{Block,Int}()
+
+        for (i,node) ∈ enumerate(p.node)
+            if node.block ̸∉ keys(counts)
+                counts[node.block] = 1
+            end
+            blocks[i] = (
+                id     = node.block.id,
+                number = counts[node.block], 
+                strand = counts[node.strand], 
+            )
+            nodes[node] = blocks[i]
+            counts[node.block] += 1
+        end
+
+        return (
+            name     = p.name,
+            offset   = p.offset,
+            circular = p.circular,
+            blocks   = blocks,
+        )
+    end
+
+    # block serialization
+    dict = (b::block) -> let
+        return (
+            id       = uuid,
+            sequence = string(sequence(b)),
+            gaps     = b.gaps,
+            mutate   = Dict(
+                nodes[key] => val for (key,val) ∈ b.mutate
+            ),
+            insert   = Dict(
+                nodes[key] => val for (key,val) ∈ b.insert
+            ),
+            delete   = Dict(
+                nodes[key] => val for (key,val) ∈ b.delete
+            ),
+        )
+    end
+
+    # NOTE: paths must come first as it fills the node lookup table
+    paths  = [ dict(path)  for path  ∈ values(G.sequence) ]
+    blocks = [ dict(block) for block ∈ values(G.block) ]
+
+    JSON.print(io, (
+        paths  = paths,
+        blocks = blocks,
+    ))
+end
+
+function marshal(io, G::Graph; fmt=:fasta)
+    @match fmt begin
+        :fasta || :fa => marshal_fasta(io, G)
+        :json         => marshal_json(io, G)
+        _ => error(f"{format} not a recognized output format")
+    end
 end
 
 function test()

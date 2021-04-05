@@ -3,16 +3,18 @@ module Paths
 using ..Nodes
 using ..Blocks
 
-import ..Graphs: pair, Counter, add!
+import ..Graphs: 
+    pair,
+    Counter, add!
 
 export Path
 export count_isolates
 
 struct Path
-    name::String
-    node::Array{Node{Block}}
-    offset::Union{Int,Nothing}
-    circular::Bool
+    name     :: String
+    node     :: Array{Node{Block}}
+    offset   :: Union{Int,Nothing}
+    circular :: Bool
 end
 
 # --------------------------------
