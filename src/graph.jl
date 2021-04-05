@@ -1,7 +1,8 @@
 module Graphs
 
-using Rematch, FStrings
 using GZip # NOTE: for debugging purposes
+using Random
+using Rematch
 
 import JSON
 
@@ -186,10 +187,10 @@ end
 # XXX: think of a way to break up function but maintain graph-wide node lookup table
 function marshal_json(io, G::Graph)
     NodeID = NamedTuple{(:id, :number, :strand), Tuple{String,Int,Bool}}
-    nodes  = Dict{Node{Block}, NodeID}
+    nodes  = Dict{Node{Block}, NodeID}()
 
     # path serialization
-    dict = (p::Path) -> let
+    function dict(p::Path)
         blocks = Array{NodeID}(undef, length(p.node))
         counts = Dict{Block,Int}()
 
@@ -198,9 +199,9 @@ function marshal_json(io, G::Graph)
                 counts[node.block] = 1
             end
             blocks[i] = (
-                id     = node.block.id,
+                id     = node.block.uuid,
                 number = counts[node.block], 
-                strand = counts[node.strand], 
+                strand = node.strand, 
             )
             nodes[node] = blocks[i]
             counts[node.block] += 1
@@ -215,9 +216,9 @@ function marshal_json(io, G::Graph)
     end
 
     # block serialization
-    dict = (b::Block) -> let
+    function dict(b::Block)
         return (
-            id       = uuid,
+            id       = b.uuid,
             sequence = string(sequence(b)),
             gaps     = b.gaps,
             mutate   = Dict(
@@ -234,6 +235,8 @@ function marshal_json(io, G::Graph)
 
     # NOTE: paths must come first as it fills the node lookup table
     paths  = [ dict(path)  for path  ∈ values(G.sequence) ]
+    @show nodes
+    @show G.block
     blocks = [ dict(block) for block ∈ values(G.block) ]
 
     JSON.print(io, (
@@ -242,20 +245,21 @@ function marshal_json(io, G::Graph)
     ))
 end
 
-function marshal(io, G::Graph; fmt=:fasta)
+function marshal(io, G::Graph, fmt=:fasta)
     @match fmt begin
         :fasta || :fa => marshal_fasta(io, G)
         :json         => marshal_json(io, G)
-        _ => error(f"{format} not a recognized output format")
+        _ => error("$format not a recognized output format")
     end
 end
 
 function test()
-    GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
+    graph = GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
         isolates = graphs(io)
         println(">aligning...")
-        graph    = align(isolates[1], isolates[2])
+        align(isolates[1], isolates[2])
     end
+    marshal(stdout, graph, :json)
 end
 
 end

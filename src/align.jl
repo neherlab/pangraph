@@ -366,10 +366,6 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
         refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
 
-        @show blks
-        @show qrys
-        @show refs
-
         for path in values(G₁.sequence)
             replace!(path, qry₀, qrys)
         end
@@ -386,10 +382,6 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
     sequence = merge(G₁.sequence, G₂.sequence)
 
     # XXX: worry about uuid collision?
-    @show blocks
-    @show G₁.block
-    @show G₂.block
-
     merge!(blocks, G₁.block)
     merge!(blocks, G₂.block)
 
@@ -407,11 +399,8 @@ end
 function align(Gs::Graph...; energy=(hit)->(-Inf))
     function kernel(clade)
         Gₗ = take!(clade.left.graph)
-        @show Gₗ
         Gᵣ = take!(clade.right.graph)
-        @show Gᵣ
         G₀ = align_pair(Gₗ, Gᵣ, energy)
-        @show G₀
 
         # TODO: self-maps!
 

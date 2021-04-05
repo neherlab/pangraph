@@ -56,16 +56,7 @@ end
 # constructors
 
 # simple helpers
-Block(sequence,gaps,mutate,insert,delete) = let 
-    @show random_id()
-    @show gaps
-    @show mutate
-    @show insert
-    @show delete
-    b = Block(random_id(),sequence,gaps,mutate,insert,delete)
-    @show b
-    b
-end
+Block(sequence,gaps,mutate,insert,delete) = Block(random_id(),sequence,gaps,mutate,insert,delete)
 Block(sequence) = Block(sequence,Dict{Int,Int}(),Dict{Node{Block},SNPMap}(),Dict{Node{Block},InsMap}(),Dict{Node{Block},DelMap}())
 Block()         = Block(UInt8[])
 
@@ -108,7 +99,9 @@ function Block(b::Block, slice)
     sequence = b.sequence[slice]
 
     select(dict,i) = translate(
-                        Dict(node => filter(p -> (first(p) >= i.start) && (first(p) <= i.stop), val) for (node,val) in dict), 
+                        Dict(
+                            node => filter(p -> (first(p) >= i.start) && (first(p) <= i.stop), val) 
+                        for (node,val) in dict), 
                      -i.start)
 
     gaps   = select(b.gaps,   slice)
@@ -418,7 +411,6 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                                                     )
 
     blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
-    @show blocks
 
     for (seq,pos,snp,ins,del) in zip(sequences,intervals,mutations,inserts,deletes)
         @match (pos.qry, pos.ref) begin
@@ -437,7 +429,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                 @assert !isnothing(ins)
                 @assert !isnothing(del)
 
-                # slice both blocks
+                # slice both blocks to window of overlap
                 r = Block(ref, rₓ)
                 q = Block(qry, qₓ)
 
@@ -464,7 +456,6 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
             end
         end
     end
-    @show blocks
 
     return blocks
 end

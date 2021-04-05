@@ -28,26 +28,27 @@ Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],cir
 pair(p::Path) = p.name => p
 Base.show(io::IO, p::Path) = Base.show(io, (name=p.name, blocks=p.node))
 
-# XXX: do we just want to build a brand new array incrementally?
+# used for block merging
 function Base.replace!(p::Path, old::Block, new::Array{Block})
     indices = Int[]
     inserts = Array{Node{Block}}[]
-    for (i, n) in enumerate(p.node)
-        if n.block != old
+    for (i, n₁) in enumerate(p.node)
+        if n₁.block != old
             continue
         end
 
         push!(indices, i)
 
-        nodes = (n.strand ? [Node{Block}(nb) for nb in new] 
-                          : [Node{Block}(nb;strand=false) for nb in reverse(new)])
-        for new in nodes
-            swap!(old, n, new)
+        nodes = (n₁.strand ? [Node{Block}(nb) for nb in new] 
+                           : [Node{Block}(nb;strand=false) for nb in reverse(new)])
+        for (blk,n₂) in zip(n₁.strand ? new : reverse(new), nodes)
+            swap!(blk, n₁, n₂)
         end
 
         push!(inserts, nodes)
     end
 
+    # reverse so that lower indices don't shift upper while we iterate
     reverse!(indices)
     reverse!(inserts)
 
@@ -70,6 +71,7 @@ function intervals(starts, stops, gap, len)
     end
 end
 
+# used for detransitive
 Link = NamedTuple{(:block, :strand), Tuple{Block, Bool}}
 function Base.replace!(p::Path, old::Array{Link}, new::Block)
     start, stop = old[1].block, old[end].block
@@ -89,7 +91,7 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
     splice!(nodes::Array{Node{Block}}, i::Tuple{UnitRange{Int},UnitRange{Int}}, new::Node{Block}) = Base.splice!(nodes, i, [1], new); Base.splice!(nodes, idx[2])
 
     # NOTE: have to correct for the overhang in the case of circular intervals
-    swap!(b::Block, i::UnitRange{Int}, new::Node{Block}) = Block.swap!(b, p.nodes[i], new)
+    swap!(b::Block, i::UnitRange{Int}, new::Node{Block})                       = Block.swap!(b, p.nodes[i], new)
     swap!(b::Block, i::Tuple{UnitRange{Int},UnitRange{Int}}, new::Node{Block}) = Block.swap!(b, p.nodes[[length(p.nodes)-length(i[1]):length(p.nodes);i[2]]], new)
 
     for interval in reverse(iₛ)
