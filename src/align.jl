@@ -402,13 +402,16 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
     return G
 end
 
-# TODO: the associate array is a bit hacky...
+# TODO: the associative array is a bit hacky...
 #       can we push it directly into the channel?
 function align(Gs::Graph...; energy=(hit)->(-Inf))
     function kernel(clade)
         Gₗ = take!(clade.left.graph)
+        @show Gₗ
         Gᵣ = take!(clade.right.graph)
+        @show Gᵣ
         G₀ = align_pair(Gₗ, Gᵣ, energy)
+        @show G₀
 
         # TODO: self-maps!
 
@@ -417,17 +420,20 @@ function align(Gs::Graph...; energy=(hit)->(-Inf))
 
     log("--> ordering")
     tree = ordering(Gs...)
+    @show tree
+
+    # sequences on tips of tree
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
-    for clade in postorder(tree)
-        if isleaf(clade)
+    log("--> aligning pairs")
+    for clade ∈ postorder(tree)
+        @async if isleaf(clade)
+            @show clade
             put!(clade.graph, tips[clade.name])
             close(clade.graph)
         else
-            @async begin
-                kernel(clade)
-                close(clade.graph)
-            end
+            kernel(clade)
+            close(clade.graph)
         end
     end
 

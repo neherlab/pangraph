@@ -40,9 +40,8 @@ struct Graph
     # TODO: add edge/junction data structure?
 end
 
-# XXX: commented out while Block is debugged.
-# include("align.jl")
-# using .Align
+include("align.jl")
+using .Align
 
 # --------------------------------
 # constructors

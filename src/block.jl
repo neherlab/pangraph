@@ -56,7 +56,16 @@ end
 # constructors
 
 # simple helpers
-Block(sequence,gaps,mutate,insert,delete) = Block(random_id(),sequence,gaps,mutate,insert,delete)
+Block(sequence,gaps,mutate,insert,delete) = let 
+    @show random_id()
+    @show gaps
+    @show mutate
+    @show insert
+    @show delete
+    b = Block(random_id(),sequence,gaps,mutate,insert,delete)
+    @show b
+    b
+end
 Block(sequence) = Block(sequence,Dict{Int,Int}(),Dict{Node{Block},SNPMap}(),Dict{Node{Block},InsMap}(),Dict{Node{Block},DelMap}())
 Block()         = Block(UInt8[])
 
@@ -409,11 +418,20 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                                                     )
 
     blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
+    @show blocks
 
     for (seq,pos,snp,ins,del) in zip(sequences,intervals,mutations,inserts,deletes)
         @match (pos.qry, pos.ref) begin
-            ( nothing, rₓ )  => push!(blocks, (block=Block(ref, rₓ), kind=:ref))
-            ( qₓ , nothing ) => push!(blocks, (block=Block(qry, qₓ), kind=:qry))
+            ( nothing, rₓ )  => begin
+                @show (ref, "before")
+                push!(blocks, (block=Block(ref, rₓ), kind=:ref))
+                @show (ref, "after")
+            end
+            ( qₓ , nothing ) => begin
+                @show (qry, "before")
+                push!(blocks, (block=Block(qry, qₓ), kind=:qry))
+                @show (qry, "after")
+            end
             ( qₓ , rₓ )      => begin
                 @assert !isnothing(snp)
                 @assert !isnothing(ins)
@@ -432,7 +450,13 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                 end
 
                 gap = Dict(first(key)=>length(val) for (key,val) in ins)
-                new = Block(seq,gap,snp,ins,del)
+                new = Block(
+                    seq,
+                    gap,
+                    merge(r.mutate,q.mutate),
+                    merge(r.insert,q.insert),
+                    merge(r.delete,q.delete),
+                )
 
                 reconsensus!(new)
 
@@ -440,6 +464,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
             end
         end
     end
+    @show blocks
 
     return blocks
 end
