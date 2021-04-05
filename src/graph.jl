@@ -185,17 +185,17 @@ function marshal_fasta(io, G::Graph)
 end
 
 # XXX: think of a way to break up function but maintain graph-wide node lookup table
-function marshal_json(io, G::Graph) 
+function marshal_json(io, G::Graph)
     NodeID = NamedTuple{(:id, :number, :strand), Tuple{String,Int,Bool}}
     nodes  = Dict{Node{Block}, NodeID}
 
     # path serialization
-    dict = (p::path) -> let
+    dict = (p::Path) -> let
         blocks = Array{NodeID}(undef, length(p.node))
         counts = Dict{Block,Int}()
 
         for (i,node) ∈ enumerate(p.node)
-            if node.block ̸∉ keys(counts)
+            if node.block ∉ keys(counts)
                 counts[node.block] = 1
             end
             blocks[i] = (
@@ -216,7 +216,7 @@ function marshal_json(io, G::Graph)
     end
 
     # block serialization
-    dict = (b::block) -> let
+    dict = (b::Block) -> let
         return (
             id       = uuid,
             sequence = string(sequence(b)),
@@ -252,12 +252,11 @@ function marshal(io, G::Graph; fmt=:fasta)
 end
 
 function test()
-    return Blocks.test()
-    # GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
-    #     isolates = graphs(io)
-    #     println(">aligning...")
-    #     graph    = align(isolates[1], isolates[2])
-    # end
+    GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
+        isolates = graphs(io)
+        println(">aligning...")
+        graph    = align(isolates[1], isolates[2])
+    end
 end
 
 end
