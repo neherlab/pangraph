@@ -171,7 +171,7 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
 end
 
 function uncigar(cg::String)
-    chan = Channel{Tuple{Int, Char}}(1)
+    chan = Channel{Tuple{Int, Char}}(0)
     @async begin
         i₁, i₂ = 1, 1
         while i₁ <= length(cg)
@@ -285,11 +285,7 @@ function partition(alignment; maxgap=500)
     # ----------------------------
     # parse cigar within region of overlap
     
-    @show refₓ, qryₓ
-
     for (len, type) ∈ uncigar(alignment.cigar)
-        log("type: ", type, "; length: ", len)
-        @show refₓ, qryₓ
         @match type begin
         'S' || 'H' => begin
             # XXX: treat soft clips differently?
@@ -611,7 +607,7 @@ function Base.show(io::IO, a::Alignment)
 end
 
 function read_paf(io)
-    chan = Channel{Alignment}(1)
+    chan = Channel{Alignment}(0)
 
     int(x)   = parse(Int,x)
     float(x) = parse(Float64,x)

@@ -29,7 +29,7 @@ include("block.jl")
 include("path.jl")
 include("junction.jl")
 
-using .Utility: read_fasta, name, columns
+using .Utility: read_fasta, name, columns, log
 using .Nodes
 using .Blocks
 using .Paths
@@ -354,17 +354,21 @@ using Random: seed!
 function test()
     seed!(0)
 
+    log("> running block test...")
     if !Blocks.test()
         error("failed individual block reconstruction")
     end
 
     index = 1:100
+    log("> running graph test...")
+    log("-> building graph...")
     graph, isolates = GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
         isolates = graphs(io)
         println(">aligning...")
         align(isolates[index]...) , isolates
     end
 
+    log("-> verifying graph...")
     for isolate ∈ isolates[index]
         name, seq₀ = first(sequence(isolate))
         seq₁ = sequence(graph, name)
