@@ -347,8 +347,6 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
         energy(hit) >= 0 && break
         (!(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block))) && continue
 
-        log(hit)
-
         qry₀ = pop!(G₁.block, hit.qry.name)
         ref₀ = pop!(G₂.block, hit.ref.name)
 
@@ -357,8 +355,8 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
 
         enforce_cutoff!(hit, 100) # TODO: remove hard-coded parameter
 
+        log(hit)
         blks = combine(qry₀, ref₀, hit; maxgap=500)
-
         log(blks)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))

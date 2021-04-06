@@ -83,7 +83,7 @@ function detransitive!(G::Graph)
     transitives = Junction[]
     for (j, isosⱼ) in junctions(values(G.sequence))
         if ((isosᵥ[j.left.block] == isosᵥ[j.right.block]) &&
-            (isosᵥ[j.left.blockj] == isosⱼ))
+            (isosᵥ[j.left.block] == isosⱼ))
             push!(transitives, j)
         end
     end
@@ -349,8 +349,12 @@ sequence(g::Graph) = [ name => join(sequence(node.block, node) for node ∈ path
 # ------------------------------------------------------------------------
 # main point of entry
 
+using Random: seed!
+
 function test()
-    index = 1:2
+    seed!(0)
+
+    index = 1:100
     graph, isolates = GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
         isolates = graphs(io)
         println(">aligning...")

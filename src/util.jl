@@ -171,7 +171,7 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
 end
 
 function uncigar(cg::String)
-    chan = Channel{Tuple{Int, Char}}(0)
+    chan = Channel{Tuple{Int, Char}}(1)
     @async begin
         i₁, i₂ = 1, 1
         while i₁ <= length(cg)
@@ -285,9 +285,10 @@ function partition(alignment; maxgap=500)
     # ----------------------------
     # parse cigar within region of overlap
     
-    for (len, type) ∈ uncigar(alignment.cigar)
-        @show refₓ, qryₓ
+    @show refₓ, qryₓ
 
+    for (len, type) ∈ uncigar(alignment.cigar)
+        log(len, " ", type)
         @match type begin
         'S' || 'H' => begin
             # XXX: treat soft clips differently?
@@ -385,8 +386,7 @@ mutable struct Hit
     stop::Int
     seq::Union{Array{UInt8},Nothing}
 
-    # NOTE: paf is 0-indexed. offset on construction
-    Hit(name, length, start, stop, seq) = new(name, length, start+1, stop, seq)
+    Hit(name, length, start, stop, seq) = new(name, length, start, stop, seq)
 end
 
 mutable struct Alignment
@@ -560,7 +560,7 @@ end
 # ------------------------------------------------------------------------
 # io functions
 
-log(msg) = println(stderr, msg)
+log(msg...) = println(stderr, msg...)
 
 # fasta sequence record
 struct Record
@@ -610,7 +610,7 @@ function Base.show(io::IO, a::Alignment)
 end
 
 function read_paf(io)
-    chan = Channel{Alignment}(0)
+    chan = Channel{Alignment}(1)
 
     int(x)   = parse(Int,x)
     float(x) = parse(Float64,x)
@@ -632,10 +632,30 @@ function read_paf(io)
                 end
             end
 
-            put!(chan, Alignment(Hit(elt[1],int(elt[2]),int(elt[3]),int(elt[4]),nothing),
-                                 Hit(elt[6],int(elt[7]),int(elt[8]),int(elt[9]),nothing),
-                                 int(elt[10]), int(elt[11]), int(elt[12]),
-                                 elt[5] == "+",cg,dv,as))
+            # XXX: important: shift PAF entry to be 1 indexed and right-inclusive to match julia
+            put!(chan, Alignment(
+                        Hit(
+                            elt[1],
+                            int(elt[2]),   # length
+                            int(elt[3])+1, # start
+                            int(elt[4]),   # stop
+                            nothing
+                        ),
+                        Hit(
+                            elt[6],
+                            int(elt[7]),   # length
+                            int(elt[8])+1, # start
+                            int(elt[9]),   # stop
+                            nothing
+                        ),
+                        int(elt[10]), 
+                        int(elt[11]), 
+                        int(elt[12]),
+                        elt[5] == "+",
+                        cg,
+                        dv,
+                        as)
+            )
         end
         close(chan)
     end
