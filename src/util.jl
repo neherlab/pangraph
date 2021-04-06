@@ -201,11 +201,10 @@ mutable struct PairPos
     ref::Maybe{Pos}
 end
 
-# TODO: relax hardcoded cutoff
 # TODO: relax hardcoded reliance on cigar suffixes. make symbols instead
 # chunk alignment 
 function partition(alignment; maxgap=500)
-    qry, seq = alignment.qry.sequence, alignment.ref.sequence
+    qry, ref = alignment.qry.seq, alignment.ref.seq
     # ----------------------------
     # internal type needed for iteration
     
@@ -287,7 +286,9 @@ function partition(alignment; maxgap=500)
     # ----------------------------
     # parse cigar within region of overlap
     
-    for (len, type) in uncigar(alignment.cigar)
+    for (len, type) ∈ uncigar(alignment.cigar)
+        @show refₓ, qryₓ
+
         @match type begin
         'S' || 'H' => begin
             # XXX: treat soft clips differently?
