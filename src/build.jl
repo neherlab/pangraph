@@ -1,3 +1,5 @@
+using GZip
+
 include("graph.jl")
 using .Graphs
 
@@ -41,8 +43,8 @@ Build = Command(
 
    (args) -> begin
        files    = parse(Build, args)
-       isolates = (G for G ∈ open(graphs, file) for file in files)
-       graph    = align(isolates...) 
-       marshal(stdout, graph, fmt=:json)
+       isolates = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graphs, file) : open(graphs,file)))
+       graph    = Graphs.align(isolates...) 
+       marshal(stdout, graph, :json)
    end
 )

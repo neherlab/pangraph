@@ -20,7 +20,7 @@ export align
 # global variables
 # TODO: move to a better location
 
-fifos       = pool(2)
+fifos       = pool(10)
 getio()     = take!(fifos)
 hasio()     = isready(fifos)
 putio(fifo) = put!(fifos, fifo)
@@ -117,9 +117,9 @@ end
 # ---------------------------
 # constructors
 
-Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(0))
-Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(0))
-Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(0))
+Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(1))
+Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(1))
+Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(1))
 
 function Clade(distance, names; algo=:nj)
     @match algo begin

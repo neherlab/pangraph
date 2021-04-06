@@ -10,7 +10,7 @@ Maybe{T} = Union{Missing,T}
 mutable struct Arg
     type::Type
     meta::AbstractString
-    flag::NamedTuple{(:long,:short), Tuple{Maybe{AbstractString},Maybe{AbstractString}}}
+    flag::NamedTuple{(:short,:long), Tuple{Maybe{AbstractString},Maybe{AbstractString}}}
     help::AbstractString
 
     value
