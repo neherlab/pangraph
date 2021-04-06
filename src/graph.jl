@@ -329,12 +329,37 @@ function unmarshal(io)
     return Graph(blocks, paths)
 end
 
+# ------------------------------------------------------------------------
+# operators
+
+function sequence(g::Graph, name::AbstractString)
+    name ∉ keys(g.sequence) && error("'$name' not a valid sequence identifier")
+    path = g.sequence[name]
+    return join(sequence(node.block, node) for node ∈ path.nodes)
+end
+
+sequence(g::Graph) = [ name => join(sequence(node.block, node) for node ∈ path.nodes) for (name, path) ∈ g.sequence ]
+
+# ------------------------------------------------------------------------
+# main point of entry
+
 function test()
-    graph = GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
+    graph, seq = GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
         isolates = graphs(io)
         println(">aligning...")
-        align(isolates[1], isolates[2])
+        align(isolates[1], isolates[2]), isolates
     end
+
+    ok = true
+    for isolate ∈ isolates
+        name, seq₀ = first(sequence(isolate))
+        seq₁ = sequence(graph, name)
+        if all(seq₀ .!= seq₁)
+            ok = false
+        end
+    end
+    @show ok
+
     graph
 end
 

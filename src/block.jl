@@ -599,9 +599,6 @@ function verify(blk, node, aln)
     local pos = join([f"{i:02d}" for i in 1:10:101], ' '^8)
     local tic = join([f"|" for i in 1:10:101], '.'^9)
 
-    # for i in 1:size(aln,1)
-    #     @show i, String(copy(aln[i,:]))
-    # end
     ok = true
     for i in 1:size(aln,1)
         seq  = sequence(blk,node[i];gaps=true)
