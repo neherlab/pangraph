@@ -41,6 +41,7 @@ Build = Command(
     ),
    ],
 
+   # TODO: listen to input parameters
    (args) -> begin
        files    = parse(Build, args)
        isolates = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graphs, file) : open(graphs,file)))

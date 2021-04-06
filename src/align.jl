@@ -1,6 +1,6 @@
 module Align
 
-using FStrings, Rematch, Dates
+using Rematch, Dates
 using LinearAlgebra
 
 import Base.Threads.@spawn
@@ -124,7 +124,7 @@ Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(1)
 function Clade(distance, names; algo=:nj)
     @match algo begin
         :nj => return nj(distance, names)
-        _ => error(f"unrecognized algorithm {algo}")
+        _ => error("unrecognized algorithm $(algo)")
     end
 end
 

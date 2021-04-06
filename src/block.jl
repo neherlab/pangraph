@@ -1,6 +1,6 @@
 module Blocks
 
-using Rematch, FStrings
+using Rematch
 
 import Base:
     show, length, append!, keys
@@ -600,8 +600,8 @@ function generate_alignment(;len=100,num=10,μ=(snp=1e-2,ins=1e-2,del=1e-2),Δ=5
 end
 
 function verify(blk, node, aln)
-    local pos = join([f"{i:02d}" for i in 1:10:101], ' '^8)
-    local tic = join([f"|" for i in 1:10:101], '.'^9)
+    local pos = join(["$(i)" for i in 1:10:101], ' '^8)
+    local tic = join(["|" for i in 1:10:101], '.'^9)
 
     ok = true
     for i in 1:size(aln,1)

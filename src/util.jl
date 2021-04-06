@@ -1,6 +1,6 @@
 module Utility
 
-using FStrings, Rematch
+using Rematch
 using StatsBase
 
 # NOTE: for debugging/benchmarking
@@ -125,30 +125,30 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
             ('-','-') => error("both columns are gaps")
             ('-', _ ) => begin
                 if I > 0
-                    write(aln, f"{I}I")
+                    write(aln, "$(I)I")
                     I = 0
                 elseif M > 0
-                    write(aln, f"{M}M")
+                    write(aln, "$(M)M")
                     M = 0
                 end
                 D += 1
             end
             ( _ ,'-') => begin
                 if D > 0
-                    write(aln, f"{D}D")
+                    write(aln, "$(D)D")
                     D = 0
                 elseif M > 0
-                    write(aln, f"{M}M")
+                    write(aln, "$(M)M")
                     M = 0
                 end
                 I += 1
             end
             ( _ , _ ) => begin
                 if D > 0
-                    write(aln, f"{D}D")
+                    write(aln, "$(D)D")
                     D = 0
                 elseif I > 0
-                    write(aln, f"{I}I")
+                    write(aln, "$(I)I")
                     I = 0
                 end
                 M += 1
@@ -157,13 +157,13 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
     end
 
     if I > 0
-        write(aln, f"{I}I")
+        write(aln, "$(I)I")
         I = 0
     elseif M > 0
-        write(aln, f"{M}M")
+        write(aln, "$(M)M")
         M = 0
     elseif D > 0
-        write(aln, f"{D}D")
+        write(aln, "$(D)D")
         D = 0
     end
 
@@ -569,7 +569,7 @@ end
 name(r::Record) = isempty(r.meta) ? r.name : r.name * " " * r.meta 
 
 NL = '\n'
-Base.show(io::IO, rec::Record) = print(io, f">{rec.name} {rec.meta}{NL}{String(rec.seq[1:40])}...{String(rec.seq[end-40:end])}")
+Base.show(io::IO, rec::Record) = print(io, ">$(rec.name) $(rec.meta)$(NL)$(String(rec.seq[1:40]))...$(String(rec.seq[end-40:end]))")
 
 function read_fasta(io)
     chan = Channel{Record}(0)
@@ -597,13 +597,13 @@ function read_fasta(io)
 end
 
 function Base.show(io::IO, h::Hit)
-    print(io, f"{h.name}[{h.length}]: ({h.start},{h.stop})")
+    print(io, "$(h.name)[$(h.length)]: ($(h.start),$(h.stop))")
 end
 
 function Base.show(io::IO, a::Alignment)
-    print(io, f"qry: {a.qry}", '\t')
-    print(io, f"ref: {a.ref}", '\t')
-    print(io, f"polarity: {a.orientation}")
+    print(io, "qry: $(a.qry)", '\t')
+    print(io, "ref: $(a.ref)", '\t')
+    print(io, "polarity: $(a.orientation)")
 end
 
 function read_paf(io)

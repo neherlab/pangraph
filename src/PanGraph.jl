@@ -49,6 +49,16 @@ end
 
 end
 
+function julia_main()::Cint
+    try
+        Pangraph.main(ARGS)
+        return 0
+    catch
+        # TODO: more sophisticated error handling
+        return 1
+    end
+end
+
 if !isdefined(Base, :active_repl)
     PanGraph.main(ARGS)
 end
