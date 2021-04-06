@@ -522,17 +522,17 @@ function enforce_cutoff!(a::Alignment, χ)
 
     # left side of match
     if (0 < δqₗ <= χ) && (δrₗ == 0 || δrₗ > χ)
-        a.qry.start = 0
+        a.qry.start = 1
         a.cigar     = string(δqₗ) * "I" * a.cigar
     elseif (0 < δrₗ <= χ) && (δqₗ == 0 || δqₗ > χ)
-        a.ref.start = 0
+        a.ref.start = 1
         a.cigar     = string(δrₗ) * "D" * a.cigar
     elseif (0 < δqₗ <= χ) && (0 < δrₗ <= χ)
         a₁, a₂ = align(s₁[1:δqₗ], s₂[1:δrₗ], cost)
         cg     = cigar(a₁, a₂)
 
-        a.qry.start = 0
-        a.ref.start = 0
+        a.qry.start = 1
+        a.ref.start = 1
 
         a.cigar   = cg * a.cigar
         a.length += length(a₁)
