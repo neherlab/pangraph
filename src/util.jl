@@ -202,7 +202,6 @@ mutable struct PairPos
 end
 
 # TODO: relax hardcoded reliance on cigar suffixes. make symbols instead
-# chunk alignment 
 function partition(alignment; maxgap=500)
     qry, ref = alignment.qry.seq, alignment.ref.seq
     # ----------------------------

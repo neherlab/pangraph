@@ -37,7 +37,7 @@ export graphs, marshal, serialize, detransitive!
 
 struct Graph
     block    :: Dict{String,Block}   # uuid      -> block
-    sequence :: Dict{String,Path} # isolation -> path
+    sequence :: Dict{String,Path}    # isolation -> path
     # TODO: add edge/junction data structure?
 end
 
@@ -65,10 +65,11 @@ graphs(io::IO) = [Graph(name(record), record.seq) for record in read_fasta(io)]
 # --------------------------------
 # operators
 
+const Link  = NamedTuple{(:block,:strand),Tuple{Block, Bool}}
+const Chain = Array{Link}
+
 # XXX: break into smaller functions
 #      too long
-Link  = NamedTuple{(:block,:strand),Tuple{Block, Bool}}
-Chain = Array{Link}
 function detransitive!(G::Graph)
     isosᵥ = count_isolates(values(G.sequence))
 

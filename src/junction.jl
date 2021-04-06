@@ -48,8 +48,8 @@ end
 function junctions(paths)
     js = Dict{Junction, Counter}() 
     for path in paths
-        for (i, node) in path.node[2:end]
-            key = Junction(path.node[i-1], node)
+        for (i, node) ∈ enumerate(path.node[2:end])
+            key = Junction(path.node[i], node)
             if key ∈ keys(js)
                 add!(js[key], path.name)
             else
