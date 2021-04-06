@@ -288,7 +288,8 @@ function partition(alignment; maxgap=500)
     @show refₓ, qryₓ
 
     for (len, type) ∈ uncigar(alignment.cigar)
-        log(len, " ", type)
+        log("type: ", type, "; length: ", len)
+        @show refₓ, qryₓ
         @match type begin
         'S' || 'H' => begin
             # XXX: treat soft clips differently?
@@ -324,8 +325,8 @@ function partition(alignment; maxgap=500)
 
                 advance!(refₓ)
             else
-                block.del[block.len] = len
-                refₓ.stop += len-1
+                block.del[block.len+1] = len
+                refₓ.stop += len
             end
         end
         'I' => begin
@@ -344,7 +345,7 @@ function partition(alignment; maxgap=500)
             else
                 x = Pos(qryₓ.stop,qryₓ.stop+len-1)
                 block.ins[(block.len,0)] = qry[x]
-                qryₓ.stop += len - 1
+                qryₓ.stop += len
             end
         end
          _  => error("unrecognized cigar string suffix")
@@ -502,7 +503,7 @@ function reverse_complement(seq::Array{UInt8})
     return cmpl
 end
 
-cost = (
+const cost = (
     open   = -6.0,
     extend = -1.0,
     band   = (

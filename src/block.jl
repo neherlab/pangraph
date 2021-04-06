@@ -82,7 +82,7 @@ function Block(bs::Block...)
 
     δ = length(bs[1])
     for b in bs[2:end]
-        merge!(gaps,   translate(b.gaps,   δ))
+        merge!(gaps,   Dict(k+δ=>v for (k,v) ∈ b.gaps))
         merge!(mutate, translate(b.mutate, δ))
         merge!(insert, translate(b.insert, δ))
         merge!(delete, translate(b.delete, δ))
@@ -100,12 +100,15 @@ function Block(b::Block, slice)
     sequence = b.sequence[slice]
 
     select(dict,i) = translate(
-                        Dict(
-                            node => filter(p -> (first(p) >= i.start) && (first(p) <= i.stop), val) 
-                        for (node,val) in dict), 
-                     -i.start)
+        Dict(node => filter(
+            (p) -> (i.start ≤ first(first(p)) ≤ i.stop), 
+            subdict) for (node, subdict) ∈ dict
+        ), 
+        -i.start+1
+    )
 
-    gaps   = select(b.gaps,   slice)
+    gaps = Dict(x-slice.start+1 => δ for (x,δ) ∈ b.gaps if slice.start ≤ x < slice.stop)
+
     mutate = select(b.mutate, slice)
     insert = select(b.insert, slice)
     delete = select(b.delete, slice)
@@ -200,7 +203,7 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
     for l in loci
         @match l.kind begin
             :snp => begin
-                x      = l.pos
+                x         = l.pos
                 seq[Ξ(x)] = b.mutate[node][x]
             end
             :ins => begin
