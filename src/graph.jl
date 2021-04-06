@@ -350,22 +350,20 @@ sequence(g::Graph) = [ name => join(sequence(node.block, node) for node ∈ path
 # main point of entry
 
 function test()
+    index = 1:2
     graph, isolates = GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
         isolates = graphs(io)
         println(">aligning...")
-        align(isolates[1], isolates[2]), isolates
+        align(isolates[index]...) , isolates
     end
 
-    ok = true
-    for isolate ∈ isolates[1:2]
+    for isolate ∈ isolates[index]
         name, seq₀ = first(sequence(isolate))
         seq₁ = sequence(graph, name)
-        ok = all(seq₀ .== seq₁)
-        if !ok
+        if !all(seq₀ .== seq₁)
             error("incorrect sequence reconstruction")
         end
     end
-    @show ok
 
     graph
 end
