@@ -4,9 +4,12 @@ authors = ["Nicholas Noll <nbnoll@eml.cc>"]
 version = "0.1.0"
 
 [deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 GZip = "92fee26a-97fe-5a0c-ad85-20a5f3185b63"
 JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+PackageCompiler = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Rematch = "bfecab0d-fd4d-5014-a23f-56c5fae6447a"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"

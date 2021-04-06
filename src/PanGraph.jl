@@ -1,6 +1,6 @@
 module PanGraph
 
-using Rematch
+using MacroTools, Rematch
 
 # ------------------------------------------------------------------------
 # errors
@@ -47,11 +47,9 @@ function main(args)
     return run(pangraph, parse(pangraph, args))
 end
 
-end
-
 function julia_main()::Cint
     try
-        Pangraph.main(ARGS)
+        main(ARGS)
         return 0
     catch
         # TODO: more sophisticated error handling
@@ -59,6 +57,10 @@ function julia_main()::Cint
     end
 end
 
-if !isdefined(Base, :active_repl)
-    PanGraph.main(ARGS)
 end
+
+#=
+if !isdefined(Base, :active_repl)
+    main(ARGS)
+end
+=#
