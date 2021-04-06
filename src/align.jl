@@ -409,7 +409,6 @@ function align(Gs::Graph...; energy=(hit)->(-Inf))
 
     log("--> ordering")
     tree = ordering(Gs...)
-    @show tree
 
     # sequences on tips of tree
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
@@ -417,7 +416,6 @@ function align(Gs::Graph...; energy=(hit)->(-Inf))
     log("--> aligning pairs")
     for clade ∈ postorder(tree)
         @async if isleaf(clade)
-            @show clade
             put!(clade.graph, tips[clade.name])
             close(clade.graph)
         else

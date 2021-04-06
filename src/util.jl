@@ -171,7 +171,6 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
 end
 
 function uncigar(cg::String)
-    @show cg
     chan = Channel{Tuple{Int, Char}}(0)
     @async begin
         i₁, i₂ = 1, 1
@@ -266,7 +265,6 @@ function partition(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     # main bulk of algorithm
     
     for (len, type) in alignment
-        @show (len, type)
         @match type begin
         'S' || 'H' => begin
             # XXX: treat soft clips differently?

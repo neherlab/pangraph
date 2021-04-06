@@ -186,7 +186,7 @@ end
 
 # XXX: think of a way to break up function but maintain graph-wide node lookup table
 function marshal_json(io, G::Graph)
-    NodeID = NamedTuple{(:id, :number, :strand), Tuple{String,Int,Bool}}
+    NodeID = NamedTuple{(:id,:name,:number,:strand), Tuple{String,String,Int,Bool}}
     nodes  = Dict{Node{Block}, NodeID}()
 
     # path serialization
@@ -200,6 +200,7 @@ function marshal_json(io, G::Graph)
             end
             blocks[i] = (
                 id     = node.block.uuid,
+                name   = p.name,
                 number = counts[node.block], 
                 strand = node.strand, 
             )
@@ -216,27 +217,23 @@ function marshal_json(io, G::Graph)
     end
 
     # block serialization
+    pack(d::SNPMap) = [(k,Char(v)) for (k,v) ∈ d]
+    pack(d::InsMap) = [(k,String(copy(v))) for (k,v) ∈ d]
+    pack(d::DelMap) = [(k,v) for (k,v) ∈ d]
+
     function dict(b::Block)
         return (
             id       = b.uuid,
-            sequence = string(sequence(b)),
+            sequence = String(sequence(b)),
             gaps     = b.gaps,
-            mutate   = Dict(
-                nodes[key] => val for (key,val) ∈ b.mutate
-            ),
-            insert   = Dict(
-                nodes[key] => val for (key,val) ∈ b.insert
-            ),
-            delete   = Dict(
-                nodes[key] => val for (key,val) ∈ b.delete
-            ),
+            mutate   = [(nodes[key], pack(val)) for (key,val) ∈ b.mutate],
+            insert   = [(nodes[key], pack(val)) for (key,val) ∈ b.insert],
+            delete   = [(nodes[key], pack(val)) for (key,val) ∈ b.delete]
         )
     end
 
     # NOTE: paths must come first as it fills the node lookup table
     paths  = [ dict(path)  for path  ∈ values(G.sequence) ]
-    @show nodes
-    @show G.block
     blocks = [ dict(block) for block ∈ values(G.block) ]
 
     JSON.print(io, (
@@ -253,13 +250,94 @@ function marshal(io, G::Graph, fmt=:fasta)
     end
 end
 
+# NOTE: only recognizes json input right now
+function unmarshal(io)
+    graph = JSON.parse(io)
+
+    unpack = (
+        snp = Dict(),
+        ins = Dict(),
+        del = Dict(),
+    )
+    blocks = Dict(map(graph["blocks"]) do blk
+        # type wrangling
+        b = (
+            id       = String(blk["id"]),
+            sequence = Array{UInt8}(blk["sequence"]),
+            gaps     = Dict{Int,Int}(blk["gaps"]),
+            mutate   = Dict(k=>v for (k,v) ∈ blk["mutate"]),
+            insert   = Dict(k=>v for (k,v) ∈ blk["insert"]),
+            delete   = Dict(k=>v for (k,v) ∈ blk["delete"]),
+        )
+
+        unpack.snp[b.id] = b.mutate
+        unpack.ins[b.id] = b.insert
+        unpack.del[b.id] = b.delete
+
+        b.id => Block(
+            b.id,
+            b.sequence,
+            b.gaps,
+            # empty until we build the required node{block} objects
+            Dict{Node{Block},SNPMap}(), 
+            Dict{Node{Block},InsMap}(),
+            Dict{Node{Block},DelMap}(),
+        )
+    end)
+
+    paths = Dict(map(graph["paths"]) do path
+        # type wrangling
+        p = (
+            name     = String(path["name"]),
+            offset   = path["offset"],
+            circular = path["circular"],
+            blocks   = path["blocks"]
+        )
+
+        nodes = Node{Block}[]
+        sizehint!(nodes, length(p.blocks))
+
+        for (i,blk) ∈ enumerate(p.blocks)
+            b = (
+                id     = String(blk["id"]),
+                strand = blk["strand"],
+            )
+            push!(nodes, Node(blocks[b.id], b.strand))
+
+            # fill in block variant dictionaries
+            blocks[b.id].mutate[nodes[i]] = Dict(
+                snp[1] => UInt8(snp[2][1]) for snp ∈ unpack.snp[b.id][blk]
+            )
+
+            blocks[b.id].insert[nodes[i]] = Dict(
+                ins[1] => Array{UInt8}(ins[2]) for ins ∈ unpack.ins[b.id][blk]
+            )
+
+            blocks[b.id].delete[nodes[i]] = Dict(
+                del[1] => del[2] for del ∈ unpack.del[b.id][blk]
+            )
+        end
+        p.name => Path(
+            p.name,
+            nodes,
+            p.offset,
+            p.circular,
+        )
+    end)
+
+    return Graph(blocks, paths)
+end
+
 function test()
     graph = GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
         isolates = graphs(io)
         println(">aligning...")
         align(isolates[1], isolates[2])
     end
-    marshal(stdout, graph, :json)
+    io = IOBuffer()
+    marshal(io, graph, :json)
+    s = String(take!(io))
+    G = unmarshal(s)
 end
 
 end
