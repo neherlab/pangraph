@@ -117,9 +117,9 @@ end
 # ---------------------------
 # constructors
 
-Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(1))
-Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(1))
-Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(1))
+Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(0))
+Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(0))
+Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(0))
 
 function Clade(distance, names; algo=:nj)
     @match algo begin
@@ -411,7 +411,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf))
 
     log("--> aligning pairs")
     for clade ∈ postorder(tree)
-        if isleaf(clade)
+        @async if isleaf(clade)
             put!(clade.graph, tips[clade.name])
             close(clade.graph)
         else

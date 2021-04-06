@@ -1,5 +1,5 @@
 include("graph.jl")
-import .Graphs
+using .Graphs
 
 Build = Command(
    "build",
@@ -40,7 +40,9 @@ Build = Command(
    ],
 
    (args) -> begin
-       files = parse(Build, args)
-       Graphs.test()
+       files    = parse(Build, args)
+       isolates = (G for G ∈ open(graphs, file) for file in files)
+       graph    = align(isolates...) 
+       marshal(stdout, graph, fmt=:json)
    end
 )
