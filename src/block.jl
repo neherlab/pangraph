@@ -13,12 +13,13 @@ using ..Utility:
     uncigar, wcpair, partition, Alignment
 
 import ..Graphs:
-    pair, reverse_complement
+    pair, reverse_complement, 
+    sequence, sequence!
 
 # exports
 export SNPMap, InsMap, DelMap   # aux types
 export Block 
-export sequence, sequence!, combine, swap! # operators
+export combine, swap! # operators
 
 Maybe{T} = Union{T,Nothing}
 

@@ -12,6 +12,12 @@ import JSON
 export pair
 function pair(item) end
 
+export sequence
+function sequence(obj, name; gaps=false)     end
+function sequence(obj; gaps=false)           end
+function sequence!(s, obj, name; gaps=false) end
+function sequence!(s, obj; gaps=false)       end
+
 export reverse_complement
 function reverse_complement(item) end
 
@@ -335,27 +341,28 @@ end
 function sequence(g::Graph, name::AbstractString)
     name ∉ keys(g.sequence) && error("'$name' not a valid sequence identifier")
     path = g.sequence[name]
-    return join(sequence(node.block, node) for node ∈ path.nodes)
+    return join(sequence(node.block, node) for node ∈ path.node)
 end
 
-sequence(g::Graph) = [ name => join(sequence(node.block, node) for node ∈ path.nodes) for (name, path) ∈ g.sequence ]
+sequence(g::Graph) = [ name => join(sequence(node.block, node) for node ∈ path.node) for (name, path) ∈ g.sequence ]
 
 # ------------------------------------------------------------------------
 # main point of entry
 
 function test()
-    graph, seq = GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
+    graph, isolates = GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
         isolates = graphs(io)
         println(">aligning...")
         align(isolates[1], isolates[2]), isolates
     end
 
     ok = true
-    for isolate ∈ isolates
+    for isolate ∈ isolates[1:2]
         name, seq₀ = first(sequence(isolate))
         seq₁ = sequence(graph, name)
-        if all(seq₀ .!= seq₁)
-            ok = false
+        ok = all(seq₀ .== seq₁)
+        if !ok
+            error("incorrect sequence reconstruction")
         end
     end
     @show ok
