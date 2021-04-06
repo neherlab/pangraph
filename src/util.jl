@@ -188,10 +188,6 @@ function uncigar(cg::String)
     return chan
 end
 
-# TODO: relax hardcoded cutoff
-# TODO: relax hardcoded reliance on cigar suffixes. make symbols instead
-# chunk alignment 
-#
 mutable struct Pos
     start::Int
     stop::Int
@@ -205,7 +201,11 @@ mutable struct PairPos
     ref::Maybe{Pos}
 end
 
-function partition(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
+# TODO: relax hardcoded cutoff
+# TODO: relax hardcoded reliance on cigar suffixes. make symbols instead
+# chunk alignment 
+function partition(alignment; maxgap=500)
+    qry, seq = alignment.qry.sequence, alignment.ref.sequence
     # ----------------------------
     # internal type needed for iteration
     
@@ -217,7 +217,7 @@ function partition(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     refₓ = Pos(1,1)
 
     # ----------------------------
-    # list of blocks and their mutations
+    # list of blocks and their mutations & indels
     
     seq = Array{UInt8}[]                                            # all blocks of alignment cigar
     pos = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}}[] # position corresponding to each block
@@ -235,7 +235,7 @@ function partition(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     )
 
     # ----------------------------
-    # list of blocks and their mutations
+    # internal operator
     
     function finalize_block!()
         if block.len <= 0
@@ -254,7 +254,7 @@ function partition(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
             ins = InsMap(),
             del = DelMap(),
         )
-        # block.seq is cleared by take! above
+        # XXX: block.seq is cleared by take! above
         
         @label advance
         advance!(qryₓ)
@@ -262,9 +262,32 @@ function partition(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     end
 
     # ----------------------------
-    # main bulk of algorithm
+    # see if blocks have a leading unmatched block
+
+    if alignment.qry.start > 1
+        push!(pos, (qry=Pos(1,alignment.qry.start-1), ref=nothing))
+        push!(seq, qry[1:alignment.qry.start-1])
+        push!(snp, nothing)
+        push!(ins, nothing)
+        push!(del, nothing)
+
+        qryₓ = Pos(alignment.qry.start,alignment.qry.start)
+    end
+
+    if alignment.ref.start > 1
+        push!(pos, (qry=nothing, ref=Pos(1, alignment.ref.start-1)))
+        push!(seq, ref[1:alignment.ref.start-1])
+        push!(snp, nothing)
+        push!(ins, nothing)
+        push!(del, nothing)
+
+        refₓ = Pos(alignment.ref.start,alignment.ref.start)
+    end
     
-    for (len, type) in alignment
+    # ----------------------------
+    # parse cigar within region of overlap
+    
+    for (len, type) in uncigar(alignment.cigar)
         @match type begin
         'S' || 'H' => begin
             # XXX: treat soft clips differently?
@@ -328,6 +351,25 @@ function partition(alignment, qry::Array{UInt8}, ref::Array{UInt8}; maxgap=500)
     end
 
     finalize_block!()
+
+    # ----------------------------
+    # see if blocks have a trailing unmatched block
+
+    if alignment.qry.stop < alignment.qry.length
+        push!(pos, (qry=Pos(alignment.qry.stop,alignment.qry.length), ref=nothing))
+        push!(seq, qry[alignment.qry.stop:end])
+        push!(snp, nothing)
+        push!(ins, nothing)
+        push!(del, nothing)
+    end
+
+    if alignment.ref.stop < alignment.ref.length
+        push!(pos, (qry=nothing, ref=Pos(alignment.ref.stop,alignment.ref.length)))
+        push!(seq, ref[alignment.ref.stop:end])
+        push!(snp, nothing)
+        push!(ins, nothing)
+        push!(del, nothing)
+    end
 
     return seq, pos, snp, ins, del
 end

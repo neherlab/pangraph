@@ -403,26 +403,16 @@ end
 function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
     # NOTE: this will enforce that indels are less than maxgap!
     # TODO: rename partition function
-    sequences,intervals,mutations,inserts,deletes = partition(
-                                                         uncigar(aln.cigar),
-                                                         qry.sequence,
-                                                         ref.sequence,
-                                                         maxgap=maxgap
-                                                    )
+    sequences,intervals,mutations,inserts,deletes = partition(aln; maxgap=maxgap)
 
     blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
-
     for (seq,pos,snp,ins,del) in zip(sequences,intervals,mutations,inserts,deletes)
         @match (pos.qry, pos.ref) begin
             ( nothing, rₓ )  => begin
-                @show (ref, "before")
                 push!(blocks, (block=Block(ref, rₓ), kind=:ref))
-                @show (ref, "after")
             end
             ( qₓ , nothing ) => begin
-                @show (qry, "before")
                 push!(blocks, (block=Block(qry, qₓ), kind=:qry))
-                @show (qry, "after")
             end
             ( qₓ , rₓ )      => begin
                 @assert !isnothing(snp)
@@ -632,7 +622,7 @@ function verify(blk, node, aln)
             println("failure on row $(i), node $(node[i])")
             println("Loci: ", pos)
             println("      ", tic)
-            println("Ref:  ",  String(copy(sequence(blk; gaps=true))))
+            println("Ref:  ", String(copy(sequence(blk; gaps=true))))
             println("True: ", String(copy(aln[i,:])))
             println("Estd: ", String(copy(seq)))
             println("Diff: ", String(err))

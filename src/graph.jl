@@ -334,10 +334,7 @@ function test()
         println(">aligning...")
         align(isolates[1], isolates[2])
     end
-    io = IOBuffer()
-    marshal(io, graph, :json)
-    s = String(take!(io))
-    G = unmarshal(s)
+    graph
 end
 
 end

@@ -344,14 +344,10 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
     # NOTE: we could turn this section into its own function
     blocks = Dict{String,Block}()
     for hit in hits
-        log(hit)
-        if energy(hit) >= 0
-            break
-        end
+        energy(hit) >= 0 && break
+        (!(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block))) && continue
 
-        if !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block))
-            continue
-        end
+        log(hit)
 
         qry₀ = pop!(G₁.block, hit.qry.name)
         ref₀ = pop!(G₂.block, hit.ref.name)
@@ -362,6 +358,8 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
         enforce_cutoff!(hit, 100) # TODO: remove hard-coded parameter
 
         blks = combine(qry₀, ref₀, hit; maxgap=500)
+
+        log(blks)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
         refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
