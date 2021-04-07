@@ -359,7 +359,7 @@ function test()
         error("failed individual block reconstruction")
     end
 
-    index = 1:100
+    index = 1:10
     log("> running graph test...")
     log("-> building graph...")
     graph, isolates = GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io

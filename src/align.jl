@@ -25,7 +25,7 @@ getio()     = take!(fifos)
 hasio()     = isready(fifos)
 putio(fifo) = put!(fifos, fifo)
 finalize()  = shutdown(fifos)
-atexit(finalize)
+# atexit(finalize)
 
 # TODO: generalize to n > 2
 # NOTE: this is to ensure no deadlock for singleton pulls
@@ -107,11 +107,11 @@ end
 
 # TODO: distance?
 mutable struct Clade
-    name  ::String
-    parent::Union{Clade,Nothing}
-    left  ::Union{Clade,Nothing}
-    right ::Union{Clade,Nothing}
-    graph ::Channel{Graph}
+    name  :: String
+    parent:: Union{Clade,Nothing}
+    left  :: Union{Clade,Nothing}
+    right :: Union{Clade,Nothing}
+    graph :: Channel{Graph}
 end
 
 # ---------------------------
