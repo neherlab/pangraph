@@ -1,6 +1,7 @@
 module PanGraph
 
 using Rematch
+using Random: seed!
 
 # ------------------------------------------------------------------------
 # errors
@@ -39,6 +40,8 @@ pangraph = Command(
 )
 
 function main(args)
+    seed!(0)
+
     if length(args) == 0
         usage(pangraph)
         return 2

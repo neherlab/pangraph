@@ -44,7 +44,7 @@ Build = Command(
    # TODO: listen to input parameters
    (args) -> begin
        files    = parse(Build, args)
-       isolates = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graphs, file) : open(graphs,file)))
+       isolates = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graphs,file) : open(graphs,file)))
        graph    = Graphs.align(isolates...) 
        marshal(stdout, graph, :json)
    end

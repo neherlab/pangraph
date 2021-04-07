@@ -331,6 +331,11 @@ function partition(alignment; maxgap=500)
 
                 x = Pos(qryₓ.start,qryₓ.stop+len-1)
 
+                @show x
+                @show length(qry)
+                @show alignment.cigar
+                @show len
+
                 push!(pos, (qry=x, ref=nothing))
                 push!(seq, qry[x])
                 push!(snp, nothing)
@@ -538,10 +543,10 @@ function enforce_cutoff!(a::Alignment, χ)
     # right side of match
     if (0 < δqᵣ <= χ) && (δrᵣ == 0 || δrᵣ > χ)
         a.qry.stop  = a.qry.length
-        a.cigar     = a.cigar * string(δqₗ) * "I"
+        a.cigar     = a.cigar * string(δqᵣ) * "I"
     elseif (0 < δrᵣ <= χ) && (δqᵣ == 0 || δqᵣ > χ)
         a.ref.stop  = a.ref.length
-        a.cigar     = a.cigar * string(δrₗ) * "D"
+        a.cigar     = a.cigar * string(δrᵣ) * "D"
     elseif (0 < δqᵣ <= χ) && (δrᵣ <= χ)
         a₁, a₂ = align(s₁[end-δqᵣ:end], s₂[end-δrᵣ:end], cost)
         cg     = cigar(a₁, a₂)

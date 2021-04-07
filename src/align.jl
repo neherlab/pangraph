@@ -20,7 +20,7 @@ export align
 # global variables
 # TODO: move to a better location
 
-fifos       = pool(10)
+fifos       = pool(2)
 getio()     = take!(fifos)
 hasio()     = isready(fifos)
 putio(fifo) = put!(fifos, fifo)
@@ -48,8 +48,8 @@ end
 # helper functions
 
 function log(msg...)
-    println(now(), " ", join(msg, " ")...)
-    flush(stdout)
+    println(stderr, now(), " ", join(msg, " ")...)
+    flush(stderr)
 end
 
 # command line execution
@@ -405,13 +405,14 @@ function align(Gs::Graph...; energy=(hit)->(-Inf))
 
     log("--> ordering")
     tree = ordering(Gs...)
+    log("--> tree:\n", tree)
 
     # sequences on tips of tree
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
     log("--> aligning pairs")
     for clade ∈ postorder(tree)
-        @async if isleaf(clade)
+        if isleaf(clade)
             put!(clade.graph, tips[clade.name])
             close(clade.graph)
         else
