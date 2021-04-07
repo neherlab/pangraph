@@ -331,11 +331,6 @@ function partition(alignment; maxgap=500)
 
                 x = Pos(qryₓ.start,qryₓ.stop+len-1)
 
-                @show x
-                @show length(qry)
-                @show alignment.cigar
-                @show len
-
                 push!(pos, (qry=x, ref=nothing))
                 push!(seq, qry[x])
                 push!(snp, nothing)
