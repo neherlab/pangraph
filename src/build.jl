@@ -56,7 +56,9 @@ Build = Command(
 
            return -len + Build.arg[2].value*ncuts + Build.arg[3].value*nmuts
        end
-       isolates = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graphs,file) : open(graphs,file)))
+
+       graph(io) = graphs(io; circular=Build.arg[end].value)
+       isolates  = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graph,file) : open(graph,file)))
 
        graph = Graphs.align(isolates...; energy=energy, maxgap=maxgap)
        # marshal(stdout, graph, :json)

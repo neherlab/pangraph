@@ -405,7 +405,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), maxgap=100)
 
     log("--> ordering")
     tree = ordering(Gs...)
-    log("--> tree:\n", tree)
+    log("--> tree:\t", tree)
 
     # sequences on tips of tree
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)

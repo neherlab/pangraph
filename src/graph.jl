@@ -66,7 +66,7 @@ function Graph(name::String, sequence::Array{UInt8}; circular=false)
     )
 end
 
-graphs(io::IO) = [Graph(name(record), record.seq) for record in read_fasta(io)]
+graphs(io::IO; circular=false) = [Graph(name(record), record.seq; circular=circular) for record in read_fasta(io)]
 
 # --------------------------------
 # operators
