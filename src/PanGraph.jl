@@ -59,8 +59,6 @@ end
 
 end
 
-#=
 if !isdefined(Base, :active_repl)
     main(ARGS)
 end
-=#
