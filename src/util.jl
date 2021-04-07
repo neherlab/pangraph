@@ -239,7 +239,7 @@ function partition(alignment; maxgap=500)
         if block.len <= 0
             @goto advance
         end
-        push!(pos, (qry = copy(qryₓ), ref = copy(refₓ)))
+        push!(pos, (qry = Pos(qryₓ.start,qryₓ.stop-1), ref = Pos(refₓ.start,refₓ.stop-1)))
         push!(seq, take!(block.seq))
         push!(snp, block.snp)
         push!(ins, block.ins)
@@ -302,8 +302,8 @@ function partition(alignment; maxgap=500)
                 block.snp[block.len+locus] = qry[qryₓ.stop+locus]
             end
 
-            qryₓ.stop += len-1
-            refₓ.stop += len-1
+            qryₓ.stop += len
+            refₓ.stop += len
 
             block = (;block..., len=block.len+len)
         end
@@ -321,7 +321,11 @@ function partition(alignment; maxgap=500)
 
                 advance!(refₓ)
             else
-                block.del[block.len+1] = len
+                block.del[refₓ.stop] = len
+
+                x = Pos(refₓ.stop, refₓ.stop+len-1)
+                write(block.seq, ref[x])
+
                 refₓ.stop += len
             end
         end

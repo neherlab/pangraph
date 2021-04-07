@@ -149,14 +149,15 @@ function detransitive!(G::Graph)
     # merge chains into one block
     for c in Set(values(chain))
         isos = isosᵥ[c[1].block]
-        new  = Block([s ? b : reverse_complement(b) for (b,s) in c]...)
+        @assert all([isosᵥ[C.block] == isos for C in c[2:end]])
+        new  = Block((s ? b : reverse_complement(b) for (b,s) ∈ c)...)
 
-        for iso in isos
+        for iso ∈ keys(isos)
             replace!(G.sequence[iso], c, new)
         end
 
-        for (b,_) in c
-            pop!(G.blocks, b)
+        for b ∈ first.(c)
+            pop!(G.block, b.uuid)
         end
     end
 end

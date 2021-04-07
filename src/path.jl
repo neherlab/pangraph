@@ -59,7 +59,8 @@ end
 
 # XXX: should we create an interval data structure that unifies both cases?
 # XXX: wrap as an iterator instead of storing the whole array in memory?
-intervals(starts, stops) = [stop:-1:start for (start,stop) in zip(starts,stops)]
+# XXX: do we have to deal with reverse chain case?
+intervals(starts, stops) = [start:stop for (start,stop) in zip(starts,stops)]
 
 function intervals(starts, stops, gap, len)
     if (stops[1]-starts[1]) == gap
@@ -72,7 +73,7 @@ function intervals(starts, stops, gap, len)
 end
 
 # used for detransitive
-Link = NamedTuple{(:block, :strand), Tuple{Block, Bool}}
+const Link = NamedTuple{(:block, :strand), Tuple{Block, Bool}}
 function Base.replace!(p::Path, old::Array{Link}, new::Block)
     start, stop = old[1].block, old[end].block
 
@@ -81,23 +82,27 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
 
     @assert length(i₁ₛ) == length(i₂ₛ)
 
-    s  = new.strand == old[1].strand
-    iₛ = (p.circular ? intervals(i₁ₛ, i₂ₛ, length(old), length(p.node))
-                     : intervals(i₁ₛ, i₂ₛ))
+    # XXX: the ordering here is wrong for circular genomes...
+    iₛ = p.circular ? intervals(i₁ₛ, i₂ₛ, length(old), length(p.node)) : intervals(i₁ₛ, i₂ₛ)
+    sₛ = map(i₁ₛ) do i
+        p.node[i].strand == old[1].strand
+    end
 
-    Interval         = UnitRange{Int}
-
-    splice!(nodes::Array{Node{Block}}, i::UnitRange{Int}, new::Node{Block}) = Base.splice!(nodes, i, new)
-    splice!(nodes::Array{Node{Block}}, i::Tuple{UnitRange{Int},UnitRange{Int}}, new::Node{Block}) = Base.splice!(nodes, i, [1], new); Base.splice!(nodes, idx[2])
+    splice!(nodes, i::AbstractArray, new)                       = Base.splice!(nodes, i, new)
+    splice!(nodes, i::Tuple{AbstractArray,AbstractArray}, new)  = let 
+        Base.splice!(nodes, i[1], new)
+        Base.splice!(nodes, i[2])
+    end
 
     # NOTE: have to correct for the overhang in the case of circular intervals
-    swap!(b::Block, i::UnitRange{Int}, new::Node{Block})                       = Block.swap!(b, p.nodes[i], new)
-    swap!(b::Block, i::Tuple{UnitRange{Int},UnitRange{Int}}, new::Node{Block}) = Block.swap!(b, p.nodes[[length(p.nodes)-length(i[1]):length(p.nodes);i[2]]], new)
+    swap!(b, i::AbstractArray, new)                       = Blocks.swap!(b, p.node[i], new)
+    swap!(b, i::Tuple{AbstractArray,AbstractArray}, new)  = Blocks.swap!(b, p.node[[length(p.node)-length(i[1]):length(p.node);i[2]]], new)
 
-    for interval in reverse(iₛ)
-        n = Node(new, s)
-        splice!(p.nodes, interval, n)
-        swap!(new, interval, n)
+    for (i,s) ∈ zip(reverse(iₛ), reverse(sₛ))
+        node = Node(new, s)
+
+        swap!(new, i, node)
+        splice!(p.node, i, [node])
     end
 end
 

@@ -280,13 +280,12 @@ end
 # ordering functions
 
 # TODO: assumes the input graphs are singletons! generalize
-# TODO: rename
 function ordering(Gs...; compare=mash)
     fifo = getio()
 
     task = @async compare(path(fifo))
 
-    @spawn begin
+    @async begin
         open(fifo,"w") do io
             for G in Gs
                 serialize(io, G)
@@ -304,7 +303,7 @@ end
 # ------------------------------------------------------------------------
 # align functions
 
-function align_pair(G₁::Graph, G₂::Graph, energy::Function, maxgap::Int)
+function do_align(G₁::Graph, G₂::Graph, energy::Function)
     function write(fifo, G)
         open(fifo, "w") do io
             marshal(io, G)
@@ -341,7 +340,63 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, maxgap::Int)
     putio(io₁)
     putio(io₂)
 
-    # NOTE: we could turn this section into its own function
+    return hits
+end
+
+function align_self(G₁::Graph, energy::Function, maxgap::Int)
+    G₀ = G₁
+    ok = true
+
+    while ok
+        ok   = false
+        hits = do_align(G₀, G₀, energy)
+        
+        blocks = Dict{String,Block}()
+        for hit in hits
+            energy(hit) >= 0 && break
+            (hit.qry.name == hit.ref.name) && continue
+            (!(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block))) && continue
+
+            ok   = true
+            qry₀ = pop!(G₀.block, hit.qry.name)
+            ref₀ = pop!(G₀.block, hit.ref.name)
+
+            hit.qry.seq = qry₀.sequence
+            hit.ref.seq = ref₀.sequence
+
+            enforce_cutoff!(hit, maxgap)
+
+            blks = combine(qry₀, ref₀, hit; maxgap=maxgap)
+            qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
+            refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
+
+            for path in values(G₀.sequence)
+                replace!(path, qry₀, qrys)
+            end
+
+            for blk in map(b->b.block, blks)
+                blocks[blk.uuid] = blk
+            end
+        end
+
+        merge!(blocks, G₀.block)
+
+        if ok
+            G₀ = Graph(
+                blocks,
+                G₀.sequence,
+            )
+            detransitive!(G₀)
+        end
+    end
+
+    return G₀
+end
+
+
+function align_pair(G₁::Graph, G₂::Graph, energy::Function, maxgap::Int)
+    hits = do_align(G₁, G₂, energy)
+
     blocks = Dict{String,Block}()
     for hit in hits
         energy(hit) >= 0 && break
@@ -398,7 +453,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), maxgap=100)
         Gᵣ = take!(clade.right.graph)
         G₀ = align_pair(Gₗ, Gᵣ, energy, maxgap)
 
-        # TODO: self-maps!
+        G₀ = align_self(G₀, energy, maxgap)
 
         put!(clade.graph, G₀)
     end

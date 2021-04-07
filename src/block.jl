@@ -61,19 +61,14 @@ Block(sequence,gaps,mutate,insert,delete) = Block(random_id(),sequence,gaps,muta
 Block(sequence) = Block(sequence,Dict{Int,Int}(),Dict{Node{Block},SNPMap}(),Dict{Node{Block},InsMap}(),Dict{Node{Block},DelMap}())
 Block()         = Block(UInt8[])
 
+translate(d::Dict{Int,Int}, δ) = Dict(x+δ => v for (x,v) ∈ d) # gaps
+translate(d::Dict{Node{Block},InsMap}, δ) = Dict(n => Dict((x+δ,Δ) => v for ((x,Δ),v) ∈ val) for (n,val) ∈ d) # insertions 
 translate(dict, δ) = Dict(key=>Dict(x+δ => v for (x,v) in val) for (key,val) in dict)
-function translate!(dict, δ)
-    for (key, val) in dict
-        dict[key] = Dict(x+δ => v for (x,v) in val)
-    end
-end
 
 # TODO: rename to concatenate?
 # serial concatenate list of blocks
 function Block(bs::Block...)
-    @assert all([isolates(bs[1]) == isolates(b) for b in bs[2:end]])
-
-    sequence = join([b.sequence for b in bs])
+    sequence = vcat((b.sequence for b in bs)...)
 
     gaps   = bs[1].gaps
     mutate = bs[1].mutate
@@ -82,7 +77,7 @@ function Block(bs::Block...)
 
     δ = length(bs[1])
     for b in bs[2:end]
-        merge!(gaps,   Dict(k+δ=>v for (k,v) ∈ b.gaps))
+        merge!(gaps,   translate(b.gaps,   δ))
         merge!(mutate, translate(b.mutate, δ))
         merge!(insert, translate(b.insert, δ))
         merge!(delete, translate(b.delete, δ))
@@ -96,7 +91,11 @@ end
 # TODO: rename to slice?
 # returns a subslice of block b
 function Block(b::Block, slice)
+    if (slice.start == 1 && slice.stop == length(b))
+        Block(b.sequence,b.gaps,b.mutate,b.insert,b.delete)
+    end
     @assert slice.start >= 1 && slice.stop <= length(b)
+
     sequence = b.sequence[slice]
 
     select(dict,i) = translate(
@@ -107,7 +106,7 @@ function Block(b::Block, slice)
         -i.start+1
     )
 
-    gaps = Dict(x-slice.start+1 => δ for (x,δ) ∈ b.gaps if slice.start ≤ x < slice.stop)
+    gaps = Dict(x-slice.start+1 => δ for (x,δ) ∈ b.gaps if slice.start ≤ x ≤ slice.stop)
 
     mutate = select(b.mutate, slice)
     insert = select(b.insert, slice)
@@ -219,6 +218,7 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
                 len = b.delete[node][l.pos]
                 x   = Ξ(l.pos )
 
+                @show x, len, length(seq)
                 seq[x:x+len-1] .= UInt8('-')
             end
               _  => error("unrecognized locus kind")
@@ -424,6 +424,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                 @assert !isnothing(del)
 
                 # slice both blocks to window of overlap
+                @show qₓ, length(qry), rₓ, length(ref)
                 r = Block(ref, rₓ)
                 q = Block(qry, qₓ)
 
@@ -435,7 +436,14 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                     merge!(q.delete[node],del)
                 end
 
+                @show length(seq)
+                @show ins
+                @show del
+                @show snp
+
+                # XXX: this can't be correct
                 gap = Dict(first(key)=>length(val) for (key,val) in ins)
+
                 new = Block(
                     seq,
                     gap,

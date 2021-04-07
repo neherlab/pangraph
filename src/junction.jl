@@ -5,7 +5,7 @@ using ..Nodes
 using ..Graphs: Counter, add!
 
 export Junction
-export junctions
+export junctions, left, right
 
 struct Junction
     left::Node{Block}
