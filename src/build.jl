@@ -16,7 +16,7 @@ Build = Command(
         "minimum length",
         (short="-l", long="--len"),
         "minimum block size for alignment graph (in nucleotides)",
-        50,
+        100,
     ),
     Arg(
         Float64,
@@ -41,11 +41,24 @@ Build = Command(
     ),
    ],
 
-   # TODO: listen to input parameters
    (args) -> begin
-       files    = parse(Build, args)
+       files  = parse(Build, args)
+
+       maxgap = Build.arg[1].value
+       energy = (aln) -> let
+           len = aln.length
+           len < maxgap && return Inf
+
+           cuts(hit) = (hit.start > maxgap) + ((hit.length-hit.stop) > maxgap)
+
+           ncuts = cuts(aln.qry)+cuts(aln.ref)
+           nmuts = aln.divergence*aln.length
+
+           return -len + Build.arg[2].value*ncuts + Build.arg[3].value*nmuts
+       end
        isolates = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graphs,file) : open(graphs,file)))
-       graph    = Graphs.align(isolates...) 
-       marshal(stdout, graph, :json)
+
+       graph = Graphs.align(isolates...; energy=energy, maxgap=maxgap)
+       # marshal(stdout, graph, :json)
    end
 )

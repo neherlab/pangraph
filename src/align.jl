@@ -20,12 +20,12 @@ export align
 # global variables
 # TODO: move to a better location
 
-fifos       = pool(2)
+fifos       = pool(2) #pool(3*Threads.nthreads()) NOTE: uncomment when you want concurrency
 getio()     = take!(fifos)
 hasio()     = isready(fifos)
 putio(fifo) = put!(fifos, fifo)
 finalize()  = shutdown(fifos)
-# atexit(finalize)
+atexit(finalize)
 
 # TODO: generalize to n > 2
 # NOTE: this is to ensure no deadlock for singleton pulls
@@ -304,7 +304,7 @@ end
 # ------------------------------------------------------------------------
 # align functions
 
-function align_pair(G₁::Graph, G₂::Graph, energy::Function)
+function align_pair(G₁::Graph, G₂::Graph, energy::Function, maxgap::Int)
     function write(fifo, G)
         open(fifo, "w") do io
             marshal(io, G)
@@ -353,10 +353,10 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function)
         hit.qry.seq = qry₀.sequence
         hit.ref.seq = ref₀.sequence
 
-        enforce_cutoff!(hit, 100) # TODO: remove hard-coded parameter
+        enforce_cutoff!(hit, maxgap)
 
         log(hit)
-        blks = combine(qry₀, ref₀, hit; maxgap=500)
+        blks = combine(qry₀, ref₀, hit; maxgap=maxgap)
         log(blks)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
@@ -392,11 +392,11 @@ end
 
 # TODO: the associative array is a bit hacky...
 #       can we push it directly into the channel?
-function align(Gs::Graph...; energy=(hit)->(-Inf))
+function align(Gs::Graph...; energy=(hit)->(-Inf), maxgap=100)
     function kernel(clade)
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
-        G₀ = align_pair(Gₗ, Gᵣ, energy)
+        G₀ = align_pair(Gₗ, Gᵣ, energy, maxgap)
 
         # TODO: self-maps!
 
