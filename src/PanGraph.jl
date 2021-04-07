@@ -1,6 +1,6 @@
 module PanGraph
 
-using MacroTools, Rematch
+using Rematch
 
 # ------------------------------------------------------------------------
 # errors
@@ -60,5 +60,5 @@ end
 end
 
 if !isdefined(Base, :active_repl)
-    main(ARGS)
+    PanGraph.main(ARGS)
 end
