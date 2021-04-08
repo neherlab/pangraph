@@ -2,6 +2,7 @@ module Align
 
 using Rematch, Dates
 using LinearAlgebra
+using FileWatching
 
 import Base.Threads.@spawn
 
@@ -20,7 +21,7 @@ export align
 # global variables
 # TODO: move to a better location
 
-fifos       = pool(2) #pool(3*Threads.nthreads()) NOTE: uncomment when you want concurrency
+fifos       = pool(20) #pool(3*Threads.nthreads()) NOTE: uncomment when you want concurrency
 getio()     = take!(fifos)
 hasio()     = isready(fifos)
 putio(fifo) = put!(fifos, fifo)
@@ -99,7 +100,7 @@ function mash(input)
 end
 
 function minimap2(qry::String, ref::String)
-    return execute(`minimap2 -x asm10 -m 10 -n 2 -s 30 -D -c $ref $qry`; now=false)
+    return execute(`minimap2 -x asm10 -m 10 -n 1 -s 30 -D -c $ref $qry`; now=false)
 end
 
 # ------------------------------------------------------------------------
@@ -287,7 +288,7 @@ function ordering(Gs...; compare=mash)
 
     @async begin
         open(fifo,"w") do io
-            for G in Gs
+            for G ∈ Gs
                 serialize(io, G)
             end
         end
@@ -303,40 +304,42 @@ end
 # ------------------------------------------------------------------------
 # align functions
 
-function do_align(G₁::Graph, G₂::Graph, energy::Function)
-    function write(fifo, G)
-        open(fifo, "w") do io
-            marshal(io, G)
-            flush(io)
-        end
-    end
+function write(fifo, G::Graph)
+    io = open(fifo, "w")
 
+    sleep(1e-3) # NOTE: hack to allow for minimap2 to open file
+    @label write
+    try
+        marshal(io, G)
+    catch e
+        log("ERROR: $(e)")
+        sleep(1e-3)
+        @goto write
+        # error(e)
+    finally
+        close(io)
+    end
+end
+
+function do_align(G₁::Graph, G₂::Graph, energy::Function)
     @label getios
     io₁, io₂ = getios()
 
-    cmd = minimap2(path(io₁), path(io₂))
-
     # NOTE: minimap2 opens up file descriptors in order!
     #       must process 2 before 1 otherwise we deadlock
-    try
+    @async begin
         write(io₂, G₂) # ref
         write(io₁, G₁) # qry
-    catch err
-        # NOTE: this deals with an odd async issue causing illegal seeks on the file descriptor
-        #       think of a better way to handle
-        if typeof(err) <: SystemError
-            putio(io₁)
-            putio(io₂)
-            @goto getios
-        end
-        rethrow(err)
     end
 
-    out  = IOBuffer(fetch(cmd.out)) # NOTE: blocks until minimap finishes
+    cmd = minimap2(path(io₁), path(io₂))
+    out = IOBuffer(fetch(cmd.out)) # NOTE: blocks until minimap finishes
+
     hits = collect(read_paf(out))
     sort!(hits; by=energy)
 
     close(out)
+
     putio(io₁)
     putio(io₂)
 
@@ -412,7 +415,6 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, maxgap::Int)
 
         log(hit)
         blks = combine(qry₀, ref₀, hit; maxgap=maxgap)
-        log(blks)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
         refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
@@ -460,7 +462,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), maxgap=100)
 
     log("--> ordering")
     tree = ordering(Gs...)
-    log("--> tree:\t", tree)
+    log("--> tree: ", tree)
 
     # sequences on tips of tree
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)

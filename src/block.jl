@@ -218,7 +218,6 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
                 len = b.delete[node][l.pos]
                 x   = Ξ(l.pos )
 
-                @show x, len, length(seq)
                 seq[x:x+len-1] .= UInt8('-')
             end
               _  => error("unrecognized locus kind")
@@ -424,7 +423,6 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                 @assert !isnothing(del)
 
                 # slice both blocks to window of overlap
-                @show qₓ, length(qry), rₓ, length(ref)
                 r = Block(ref, rₓ)
                 q = Block(qry, qₓ)
 
@@ -435,11 +433,6 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                     merge!(q.insert[node],ins)
                     merge!(q.delete[node],del)
                 end
-
-                @show length(seq)
-                @show ins
-                @show del
-                @show snp
 
                 # XXX: this can't be correct
                 gap = Dict(first(key)=>length(val) for (key,val) in ins)
