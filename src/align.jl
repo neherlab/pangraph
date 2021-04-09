@@ -21,7 +21,7 @@ export align
 # global variables
 # TODO: move to a better location
 
-fifos       = pool(20) #pool(3*Threads.nthreads()) NOTE: uncomment when you want concurrency
+fifos       = pool(10) #pool(3*Threads.nthreads()) NOTE: uncomment when you want concurrency
 getio()     = take!(fifos)
 hasio()     = isready(fifos)
 putio(fifo) = put!(fifos, fifo)
@@ -58,7 +58,7 @@ function execute(cmd::Cmd; now=true)
     out = Pipe()
     err = Pipe()
 
-    proc = run(pipeline(ignorestatus(cmd), stdout=out, stderr=err); wait=now)
+    proc = run(pipeline(cmd, stdout=out, stderr=err); wait=now)
 
     close(out.in)
     close(err.in)
@@ -321,10 +321,7 @@ function write(fifo, G::Graph)
     end
 end
 
-function do_align(G₁::Graph, G₂::Graph, energy::Function)
-    @label getios
-    io₁, io₂ = getios()
-
+function do_align(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function)
     # NOTE: minimap2 opens up file descriptors in order!
     #       must process 2 before 1 otherwise we deadlock
     @async begin
@@ -340,19 +337,16 @@ function do_align(G₁::Graph, G₂::Graph, energy::Function)
 
     close(out)
 
-    putio(io₁)
-    putio(io₂)
-
     return hits
 end
 
-function align_self(G₁::Graph, energy::Function, maxgap::Int)
+function align_self(G₁::Graph, io₁, io₂, energy::Function, maxgap::Int)
     G₀ = G₁
     ok = true
 
     while ok
         ok   = false
-        hits = do_align(G₀, G₀, energy)
+        hits = do_align(G₀, G₀, io₁, io₂, energy)
         
         blocks = Dict{String,Block}()
         for hit in hits
@@ -397,8 +391,8 @@ function align_self(G₁::Graph, energy::Function, maxgap::Int)
 end
 
 
-function align_pair(G₁::Graph, G₂::Graph, energy::Function, maxgap::Int)
-    hits = do_align(G₁, G₂, energy)
+function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, maxgap::Int)
+    hits = do_align(G₁, G₂, io₁, io₂, energy)
 
     blocks = Dict{String,Block}()
     for hit in hits
@@ -413,7 +407,7 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, maxgap::Int)
 
         enforce_cutoff!(hit, maxgap)
 
-        log(hit)
+        # log(hit)
         blks = combine(qry₀, ref₀, hit; maxgap=maxgap)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
@@ -453,11 +447,30 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), maxgap=100)
     function kernel(clade)
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
-        G₀ = align_pair(Gₗ, Gᵣ, energy, maxgap)
 
-        G₀ = align_self(G₀, energy, maxgap)
+        io₁, io₂ = getios()
+
+        G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, maxgap)
+        G₀ = align_self(G₀, io₁, io₂, energy, maxgap)
+
+        putio(io₁)
+        putio(io₂)
 
         put!(clade.graph, G₀)
+    end
+
+    function execute(subtree; traverse=postorder)
+        isnothing(subtree) && return
+
+        for clade ∈ traverse(subtree)
+            if isleaf(clade)
+                put!(clade.graph, tips[clade.name])
+                close(clade.graph)
+            else
+                kernel(clade)
+                close(clade.graph)
+            end
+        end
     end
 
     log("--> ordering")
@@ -468,15 +481,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), maxgap=100)
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
     log("--> aligning pairs")
-    for clade ∈ postorder(tree)
-        if isleaf(clade)
-            put!(clade.graph, tips[clade.name])
-            close(clade.graph)
-        else
-            kernel(clade)
-            close(clade.graph)
-        end
-    end
+    execute(tree) # NOTE: break into function to allow for parrellism for seperate subtrees
 
     return take!(tree.graph)
 end
