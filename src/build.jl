@@ -61,6 +61,6 @@ Build = Command(
        isolates  = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graph,file) : open(graph,file)))
 
        graph = Graphs.align(isolates...; energy=energy, maxgap=maxgap)
-       # marshal(stdout, graph, :json)
+       marshal(stdout, graph, :json)
    end
 )

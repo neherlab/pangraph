@@ -252,7 +252,7 @@ function partition(alignment; maxgap=500)
             ins = InsMap(),
             del = DelMap(),
         )
-        # XXX: block.seq is cleared by take! above
+        # NOTE: block.seq is cleared by take! above
         
         @label advance
         advance!(qryₓ)
@@ -285,10 +285,11 @@ function partition(alignment; maxgap=500)
     # ----------------------------
     # parse cigar within region of overlap
     
+    @show alignment
     for (len, type) ∈ uncigar(alignment.cigar)
         @match type begin
         'S' || 'H' => begin
-            # XXX: treat soft clips differently?
+            # XXX:  treat soft clips differently?
             # TODO: implement
             error("need to implement soft/hard clipping")
         end
@@ -296,11 +297,11 @@ function partition(alignment; maxgap=500)
             x = Pos(refₓ.stop, refₓ.stop+len-1)
             y = Pos(qryₓ.stop, qryₓ.stop+len-1)
 
-            write(block.seq, ref[x])
-
             for locus in findall(qry[y] .!= ref[x])
                 block.snp[block.len+locus] = qry[qryₓ.stop+locus]
             end
+
+            write(block.seq, ref[x])
 
             qryₓ.stop += len
             refₓ.stop += len
@@ -319,6 +320,7 @@ function partition(alignment; maxgap=500)
                 push!(ins, nothing)
                 push!(del, nothing)
 
+                refₓ.stop += len
                 advance!(refₓ)
             else
                 block.del[refₓ.stop] = len
@@ -340,6 +342,7 @@ function partition(alignment; maxgap=500)
                 push!(snp, nothing)
                 push!(ins, nothing)
                 push!(del, nothing)
+                qryₓ.stop += len
 
                 advance!(qryₓ)
             else

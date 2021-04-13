@@ -352,18 +352,20 @@ sequence(g::Graph) = [ name => join(sequence(node.block, node) for node ∈ path
 
 using Random: seed!
 
-function test()
+function test(file="data/generated/assemblies/isolates.fna.gz")
     seed!(0)
+
+    open = endswith(file,".gz") ? GZip.open : Base.open
 
     log("> running block test...")
     if !Blocks.test()
         error("failed individual block reconstruction")
     end
 
-    index = 1:100
+    index = 1:50
     log("> running graph test...")
     log("-> building graph...")
-    graph, isolates = GZip.open("data/generated/assemblies/isolates.fna.gz", "r") do io
+    graph, isolates = open(file, "r") do io
         isolates = graphs(io)
         println(">aligning...")
         align(isolates[index]...) , isolates
