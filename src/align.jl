@@ -361,7 +361,6 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, maxgap::Int)
             hit.qry.seq = qry₀.sequence
             hit.ref.seq = ref₀.sequence
 
-            @show hit
             enforce_cutoff!(hit, maxgap)
 
             blks = combine(qry₀, ref₀, hit; maxgap=maxgap)

@@ -553,8 +553,8 @@ function enforce_cutoff!(a::Alignment, χ)
         a₁, a₂ = align(s₁[end-δqᵣ:end], s₂[end-δrᵣ:end], cost)
         cg     = cigar(a₁, a₂)
 
-        a.qry.start = a.qry.length
-        a.ref.start = a.ref.length
+        a.qry.stop = a.qry.length
+        a.ref.stop = a.ref.length
 
         a.cigar   = a.cigar * cg
         a.length += length(a₁)
