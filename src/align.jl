@@ -340,6 +340,45 @@ function do_align(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function)
     return hits
 end
 
+function align_kernel(hits, energy, skip, blocks!)
+    blocks = Dict{String,Block}()
+    ok = false
+    for hit in hits
+        energy(hit) >= 0 && break
+        skip(hit) && continue
+
+        ok   = true
+        qry₀, ref₀ = blocks!(hit) #pop!(G₀.block, hit.qry.name)
+
+        check(qry₀)
+        check(ref₀)
+
+        hit.qry.seq = qry₀.sequence
+        hit.ref.seq = ref₀.sequence
+
+        enforce_cutoff!(hit, maxgap)
+
+        blks = combine(qry₀, ref₀, hit; maxgap=maxgap)
+
+        qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
+        refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
+
+        for path in values(G₀.sequence)
+            replace!(path, qry₀, qrys)
+        end
+
+        for blk in map(b->b.block, blks)
+            blocks[blk.uuid] = blk
+        end
+
+        for b in blks
+            check(b)
+        end
+    end
+
+    return blocks, ok
+end
+
 function align_self(G₁::Graph, io₁, io₂, energy::Function, maxgap::Int)
     G₀ = G₁
     ok = true
@@ -348,35 +387,13 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, maxgap::Int)
         ok   = false
         hits = do_align(G₀, G₀, io₁, io₂, energy)
         
-        blocks = Dict{String,Block}()
-        for hit in hits
-            energy(hit) >= 0 && break
-            (hit.qry.name == hit.ref.name) && continue
-            (!(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block))) && continue
-
-            ok   = true
-            qry₀ = pop!(G₀.block, hit.qry.name)
-            ref₀ = pop!(G₀.block, hit.ref.name)
-
-            hit.qry.seq = qry₀.sequence
-            hit.ref.seq = ref₀.sequence
-
-            enforce_cutoff!(hit, maxgap)
-
-            blks = combine(qry₀, ref₀, hit; maxgap=maxgap)
-
-            qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
-            refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
-
-            for path in values(G₀.sequence)
-                replace!(path, qry₀, qrys)
-            end
-
-            for blk in map(b->b.block, blks)
-                blocks[blk.uuid] = blk
-            end
-        end
-
+        skip(hit)  = (hit.qry.name == hit.ref.name) || (!(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block)))
+        get!(hit)  = (
+            qry = pop!(G₀.block, hit.qry.name),
+            ref = pop!(G₀.block, hit.ref.name),
+        )
+        blocks, ok = align_kernel(hits, energy, skip, get!)
+        
         merge!(blocks, G₀.block)
 
         if ok
@@ -395,39 +412,14 @@ end
 function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, maxgap::Int)
     hits = do_align(G₁, G₂, io₁, io₂, energy)
 
-    blocks = Dict{String,Block}()
-    for hit in hits
-        energy(hit) >= 0 && break
-        (!(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block))) && continue
+    skip(hit)  = !(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block))
+    get!(hit)  = (
+        qry = pop!(G₁.block, hit.qry.name),
+        ref = pop!(G₂.block, hit.ref.name),
+    )
 
-        qry₀ = pop!(G₁.block, hit.qry.name)
-        ref₀ = pop!(G₂.block, hit.ref.name)
-
-        hit.qry.seq = qry₀.sequence
-        hit.ref.seq = ref₀.sequence
-
-        enforce_cutoff!(hit, maxgap)
-
-        # log(hit)
-        blks = combine(qry₀, ref₀, hit; maxgap=maxgap)
-
-        qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
-        refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
-
-        for path in values(G₁.sequence)
-            replace!(path, qry₀, qrys)
-        end
-
-        for path in values(G₂.sequence)
-            replace!(path, ref₀, refs)
-        end
-
-        for blk in map(b->b.block, blks)
-            blocks[blk.uuid] = blk
-        end
-    end
-
-    sequence = merge(G₁.sequence, G₂.sequence)
+    blocks, _ = align_kernel(hits, energy, skip, get!)
+    sequence  = merge(G₁.sequence, G₂.sequence)
 
     # XXX: worry about uuid collision?
     merge!(blocks, G₁.block)
