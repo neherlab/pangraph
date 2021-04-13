@@ -385,8 +385,8 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, maxgap::Int)
         ok   = false
         hits = do_align(G₀, G₀, io₁, io₂, energy)
         
-        skip(hit)  = (hit.qry.name == hit.ref.name) || (!(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block)))
-        get!(hit)  = (
+        skip(hit) = (hit.qry.name == hit.ref.name) || (!(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block)))
+        blocks!(hit) = (
             qry = pop!(G₀.block, hit.qry.name),
             ref = pop!(G₀.block, hit.ref.name),
         )
@@ -400,7 +400,7 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, maxgap::Int)
             end
         end
 
-        blocks, ok = align_kernel(hits, energy, skip, get!, replace!)
+        blocks, ok = align_kernel(hits, energy, skip, blocks!, replace!)
         
         merge!(blocks, G₀.block)
 
@@ -420,8 +420,8 @@ end
 function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, maxgap::Int)
     hits = do_align(G₁, G₂, io₁, io₂, energy)
 
-    skip(hit)  = !(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block))
-    get!(hit)  = (
+    skip(hit) = !(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block))
+    blocks!(hit) = (
         qry = pop!(G₁.block, hit.qry.name),
         ref = pop!(G₂.block, hit.ref.name),
     )
@@ -435,7 +435,7 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, ma
         end
     end
 
-    blocks, _ = align_kernel(hits, energy, skip, get!)
+    blocks, _ = align_kernel(hits, energy, skip, blocks!, replace!)
     sequence  = merge(G₁.sequence, G₂.sequence)
 
     # XXX: worry about uuid collision?
