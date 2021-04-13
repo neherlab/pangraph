@@ -286,7 +286,10 @@ function partition(alignment; maxgap=500)
     # parse cigar within region of overlap
     
     @show alignment
+    @show alignment.cigar
     for (len, type) ∈ uncigar(alignment.cigar)
+        @show qryₓ, refₓ
+        @show len, type
         @match type begin
         'S' || 'H' => begin
             # XXX:  treat soft clips differently?
@@ -407,8 +410,11 @@ end
 
 # dynamic programming
 function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
-    if length(seq₁) > length(seq₂)
+    flip = if length(seq₁) > length(seq₂)
         seq₁, seq₂ = seq₂, seq₁
+        true
+    else
+        false
     end
 
     L₁, L₂ = length(seq₁)+1, length(seq₂)+1
@@ -419,11 +425,6 @@ function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
          I = zeros(L₁,L₂), #Score(L₁,L₂,band=cost.band),
          D = zeros(L₁,L₂), #Score(L₁,L₂,band=cost.band),
     )
-    # score = (
-    #      M = Score(L₁,L₂,band=cost.band),
-    #      I = Score(L₁,L₂,band=cost.band),
-    #      D = Score(L₁,L₂,band=cost.band),
-    # )
 
     # NOTE: upper and lower could be flipped
     bound(x,d) = isinf(x) ? size(score.M,d) : min(size(score.M,d),x)
@@ -496,7 +497,7 @@ function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
 
     b₁ = reverse(take!(a₁))
     b₂ = reverse(take!(a₂))
-    return b₁, b₂
+    return flip ? b₂, b₁ : b₁, b₂
 end
 
 include("static/watson-crick.jl")
@@ -525,13 +526,13 @@ function enforce_cutoff!(a::Alignment, χ)
     s₂ = a.ref.seq
 
     # left side of match
-    if (0 < δqₗ <= χ) && (δrₗ == 0 || δrₗ > χ)
+    if (0 < δqₗ ≤ χ) && (δrₗ == 0 || δrₗ > χ)
         a.qry.start = 1
         a.cigar     = string(δqₗ) * "I" * a.cigar
-    elseif (0 < δrₗ <= χ) && (δqₗ == 0 || δqₗ > χ)
+    elseif (0 < δrₗ ≤ χ) && (δqₗ == 0 || δqₗ > χ)
         a.ref.start = 1
         a.cigar     = string(δrₗ) * "D" * a.cigar
-    elseif (0 < δqₗ <= χ) && (0 < δrₗ <= χ)
+    elseif (0 < δqₗ ≤ χ) && (0 < δrₗ <= χ)
         a₁, a₂ = align(s₁[1:δqₗ], s₂[1:δrₗ], cost)
         cg     = cigar(a₁, a₂)
 
@@ -543,14 +544,16 @@ function enforce_cutoff!(a::Alignment, χ)
     end
 
     # right side of match
-    if (0 < δqᵣ <= χ) && (δrᵣ == 0 || δrᵣ > χ)
+    if (0 < δqᵣ ≤ χ) && (δrᵣ == 0 || δrᵣ > χ)
         a.qry.stop  = a.qry.length
         a.cigar     = a.cigar * string(δqᵣ) * "I"
-    elseif (0 < δrᵣ <= χ) && (δqᵣ == 0 || δqᵣ > χ)
+    elseif (0 < δrᵣ ≤ χ) && (δqᵣ == 0 || δqᵣ > χ)
         a.ref.stop  = a.ref.length
         a.cigar     = a.cigar * string(δrᵣ) * "D"
-    elseif (0 < δqᵣ <= χ) && (δrᵣ <= χ)
-        a₁, a₂ = align(s₁[end-δqᵣ:end], s₂[end-δrᵣ:end], cost)
+    elseif (0 < δqᵣ ≤ χ) && (δrᵣ <= χ)
+        a₁, a₂ = align(s₁[end-δqᵣ+1:end], s₂[end-δrᵣ+1:end], cost)
+        @show String(Base.copy(a₁))
+        @show String(Base.copy(a₂))
         cg     = cigar(a₁, a₂)
 
         a.qry.stop = a.qry.length
