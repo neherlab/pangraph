@@ -226,8 +226,6 @@ function partition(alignment; maxgap=500)
     return seq, pos, snp, ins, del
 end
 
-
-
 # ------------------------------------------------------------------------
 # Block data structure
 
@@ -396,8 +394,6 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
 
     Ξ(x) = x + reduce(+,(δ for (l,δ) in b.gaps if l < x); init=0)
 
-    @show length(seq), b.gaps, b.insert[node]
-    @show b.uuid
     for l in loci
         @match l.kind begin
             :snp => begin
@@ -635,32 +631,19 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                     merge!(q.delete[node],del)
                 end
 
-                # XXX: this can't be correct
-                gap = Dict(first(key)=>length(val) for (key,val) in ins)
+                gaps = Dict(first(key)=>length(val) for (key,val) in ins)
 
                 new = Block(
                     seq,
-                    gap,
+                    merge(r.gaps,q.gaps,gaps),
                     merge(r.mutate,q.mutate),
                     merge(r.insert,q.insert),
                     merge(r.delete,q.delete),
                 )
-                insertkeys = reduce(∪, Set(first.(keys(d))) for d ∈ values(new.insert))
-                gapkeys = Set(keys(new.gaps))
-                @show insertkeys
-                @show gapkeys
-                if insertkeys != gapkeys 
-                    @show new.uuid
-                    @show new.gaps
-                    @show r.gaps
-                    @show q.gaps
-                    @show new.insert
-                    @show r.insert
-                    @show q.insert
-                    error("bad gap configuration")
-                end
 
+                @show new.gaps
                 reconsensus!(new)
+                @show new.gaps
 
                 push!(blocks, (block=new, kind=:all))
             end
