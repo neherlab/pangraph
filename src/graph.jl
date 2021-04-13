@@ -34,6 +34,7 @@ using .Nodes
 using .Blocks
 using .Paths
 using .Junctions
+using .Intervals
 
 export Graph
 export graphs, marshal, serialize, detransitive!

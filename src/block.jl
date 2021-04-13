@@ -10,7 +10,7 @@ using ..Intervals
 using ..Nodes
 using ..Utility: 
     random_id, contiguous_trues,
-    uncigar, wcpair, partition, Alignment
+    uncigar, wcpair, Alignment
 
 import ..Graphs:
     pair, reverse_complement, 
@@ -21,18 +21,215 @@ export SNPMap, InsMap, DelMap   # aux types
 export Block 
 export combine, swap! # operators
 
+# ------------------------------------------------------------------------
+# utility types
+
 Maybe{T} = Union{T,Nothing}
+
+# aliases
+const SNPMap = Dict{Int,UInt8}
+const InsMap = Dict{Tuple{Int,Int},Array{UInt8}} 
+const DelMap = Dict{Int,Int} 
+
+show(io::IO, m::SNPMap) = show(io, [ k => Char(v) for (k,v) in m ])
+show(io::IO, m::InsMap) = show(io, [ k => String(Base.copy(v)) for (k,v) in m ])
+
+# ------------------------------------------------------------------------
+# utility functions
+
+mutable struct Pos
+    start::Int
+    stop::Int
+end
+
+Base.to_index(x::Pos) = x.start:x.stop
+advance!(x::Pos)      = x.start=x.stop
+copy(x::Pos)          = Pos(x.start,x.stop)
+
+mutable struct PairPos
+    qry::Maybe{Pos}
+    ref::Maybe{Pos}
+end
+
+# TODO: relax hardcoded reliance on cigar suffixes. make symbols instead
+function partition(alignment; maxgap=500)
+    qry, ref = alignment.qry.seq, alignment.ref.seq
+
+    qryₓ = Pos(1,1)
+    refₓ = Pos(1,1)
+
+    # ----------------------------
+    # list of blocks and their mutations & indels
+    
+    seq = Array{UInt8}[]                                            # all blocks of alignment cigar
+    pos = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}}[] # position corresponding to each block
+    snp = Union{SNPMap,Nothing}[]                                   # snps of qry relative to ref
+    ins = Union{InsMap,Nothing}[]                                   # inserts of qry relative to ref
+    del = Union{DelMap,Nothing}[]                                   # deletes of qry relative to ref
+
+    # current block being constructed
+    block = (
+        len = 0,
+        seq = IOBuffer(),
+        snp = SNPMap(),
+        ins = InsMap(),
+        del = DelMap(),
+    )
+
+    # ----------------------------
+    # internal operator
+    
+    function finalize_block!()
+        if block.len <= 0
+            @goto advance
+        end
+        push!(pos, (qry = Pos(qryₓ.start,qryₓ.stop-1), ref = Pos(refₓ.start,refₓ.stop-1)))
+        push!(seq, take!(block.seq))
+        push!(snp, block.snp)
+        push!(ins, block.ins)
+        push!(del, block.del)
+
+        block = (
+            len = 0,
+            seq = block.seq,
+            snp = SNPMap(),
+            ins = InsMap(),
+            del = DelMap(),
+        )
+        # NOTE: block.seq is cleared by take! above
+        
+        @label advance
+        advance!(qryₓ)
+        advance!(refₓ)
+    end
+
+    # ----------------------------
+    # see if blocks have a leading unmatched block
+
+    if alignment.qry.start > 1
+        push!(pos, (qry=Pos(1,alignment.qry.start-1), ref=nothing))
+        push!(seq, qry[1:alignment.qry.start-1])
+        push!(snp, nothing)
+        push!(ins, nothing)
+        push!(del, nothing)
+
+        qryₓ = Pos(alignment.qry.start,alignment.qry.start)
+    end
+
+    if alignment.ref.start > 1
+        push!(pos, (qry=nothing, ref=Pos(1, alignment.ref.start-1)))
+        push!(seq, ref[1:alignment.ref.start-1])
+        push!(snp, nothing)
+        push!(ins, nothing)
+        push!(del, nothing)
+
+        refₓ = Pos(alignment.ref.start,alignment.ref.start)
+    end
+    
+    # ----------------------------
+    # parse cigar within region of overlap
+    
+    @show alignment
+    @show alignment.cigar
+    for (len, type) ∈ uncigar(alignment.cigar)
+        @show qryₓ, refₓ
+        @show len, type
+        @match type begin
+        'S' || 'H' => begin
+            # XXX:  treat soft clips differently?
+            # TODO: implement
+            error("need to implement soft/hard clipping")
+        end
+        'M' => begin
+            x = Pos(refₓ.stop, refₓ.stop+len-1)
+            y = Pos(qryₓ.stop, qryₓ.stop+len-1)
+
+            for locus in findall(qry[y] .!= ref[x])
+                block.snp[block.len+locus] = qry[qryₓ.stop+locus]
+            end
+
+            write(block.seq, ref[x])
+
+            qryₓ.stop += len
+            refₓ.stop += len
+
+            block = (;block..., len=block.len+len)
+        end
+        'D' => begin
+            if len >= maxgap
+                finalize_block!()
+
+                x = Pos(refₓ.start,refₓ.stop+len-1)
+
+                push!(pos, (qry=nothing, ref=x))
+                push!(seq, ref[x])
+                push!(snp, nothing)
+                push!(ins, nothing)
+                push!(del, nothing)
+
+                refₓ.stop += len
+                advance!(refₓ)
+            else
+                block.del[refₓ.stop] = len
+
+                x = Pos(refₓ.stop, refₓ.stop+len-1)
+                write(block.seq, ref[x])
+
+                refₓ.stop += len
+            end
+        end
+        'I' => begin
+            if len >= maxgap
+                finalize_block!()
+
+                x = Pos(qryₓ.start,qryₓ.stop+len-1)
+
+                push!(pos, (qry=x, ref=nothing))
+                push!(seq, qry[x])
+                push!(snp, nothing)
+                push!(ins, nothing)
+                push!(del, nothing)
+                qryₓ.stop += len
+
+                advance!(qryₓ)
+            else
+                x = Pos(qryₓ.stop,qryₓ.stop+len-1)
+                block.ins[(block.len,0)] = qry[x]
+                qryₓ.stop += len
+            end
+        end
+         _  => error("unrecognized cigar string suffix")
+        end
+    end
+
+    finalize_block!()
+
+    # ----------------------------
+    # see if blocks have a trailing unmatched block
+
+    if alignment.qry.stop < alignment.qry.length
+        push!(pos, (qry=Pos(alignment.qry.stop,alignment.qry.length), ref=nothing))
+        push!(seq, qry[alignment.qry.stop:end])
+        push!(snp, nothing)
+        push!(ins, nothing)
+        push!(del, nothing)
+    end
+
+    if alignment.ref.stop < alignment.ref.length
+        push!(pos, (qry=nothing, ref=Pos(alignment.ref.stop,alignment.ref.length)))
+        push!(seq, ref[alignment.ref.stop:end])
+        push!(snp, nothing)
+        push!(ins, nothing)
+        push!(del, nothing)
+    end
+
+    return seq, pos, snp, ins, del
+end
+
+
 
 # ------------------------------------------------------------------------
 # Block data structure
-
-# aliases
-SNPMap = Dict{Int,UInt8}
-InsMap = Dict{Tuple{Int,Int},Array{UInt8}} 
-DelMap = Dict{Int,Int} 
-
-show(io::IO, m::SNPMap) = show(io, [ k => Char(v) for (k,v) in m ])
-show(io::IO, m::InsMap) = show(io, [ k => String(copy(v)) for (k,v) in m ])
 
 mutable struct Block
     uuid     :: String
@@ -199,6 +396,8 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
 
     Ξ(x) = x + reduce(+,(δ for (l,δ) in b.gaps if l < x); init=0)
 
+    @show length(seq), b.gaps, b.insert[node]
+    @show b.uuid
     for l in loci
         @match l.kind begin
             :snp => begin
@@ -209,9 +408,10 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
                 ins = b.insert[node][l.pos]
                 len = length(ins)
 
-                x = Ξ(l.pos[1]) # NOTE: insertion occurs AFTER the key position
+                x = Ξ(l.pos[1]) # NOTE: insertion occurs 1 nt AFTER the key position
                 δ = l.pos[2]
 
+                @show x, l, len, length(ins)
                 seq[x+δ+1:x+len+δ] = ins
             end
             :del => begin
@@ -342,10 +542,11 @@ function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
 end
 
 function reconsensus!(b::Block)
-    depth(b) <= 2 && return false # no point to compute this for blocks with 1 or 2 individuals
+    # NOTE: no point to compute this for blocks with 1 or 2 individuals
+    depth(b) <= 2 && return false 
 
-    # XXX: we can't assume that keys(b) will return the same order on subsequent calls
-    #      thus we collect into array here for a static ordering of the nodes
+    # NOTE: we can't assume that keys(b) will return the same order on subsequent calls
+    #       thus we collect into array here for a static ordering of the nodes
     nodes = collect(keys(b))
 
     ref = sequence(b; gaps=true)
@@ -444,6 +645,20 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                     merge(r.insert,q.insert),
                     merge(r.delete,q.delete),
                 )
+                insertkeys = reduce(∪, Set(first.(keys(d))) for d ∈ values(new.insert))
+                gapkeys = Set(keys(new.gaps))
+                @show insertkeys
+                @show gapkeys
+                if insertkeys != gapkeys 
+                    @show new.uuid
+                    @show new.gaps
+                    @show r.gaps
+                    @show q.gaps
+                    @show new.insert
+                    @show r.insert
+                    @show q.insert
+                    error("bad gap configuration")
+                end
 
                 reconsensus!(new)
 
