@@ -398,6 +398,7 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
     @show b.delete[node]
 
     for l in loci
+        @show l
         @match l.kind begin
             :snp => begin
                 x         = l.pos
@@ -602,6 +603,15 @@ function reconsensus!(b::Block)
     )
 
     b.sequence = consensus[.!refdel]
+    @show b.uuid
+    @show length(b.sequence), length(consensus)
+    @show b.mutate
+    @show b.insert
+    @show b.delete
+
+    @assert all(all(k ≤ length(b.sequence) for k in keys(d)) for d in values(b.mutate)) 
+    @assert all(all(k ≤ length(b.sequence) for k in keys(d)) for d in values(b.delete)) 
+    @assert all(all(k[1] ≤ length(b.sequence) for k in keys(d)) for d in values(b.insert)) 
 
     return true
 end
@@ -631,6 +641,20 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
 
                 # apply global snp and indels to all query sequences
                 # XXX: do we have to worry about overlapping insertions/deletions?
+                #      yes! consider the following case:
+                #
+                #      Ref: *****
+                #      Qry: *****A
+                #
+                #      we would store the last A as a global insertion for all qrys
+                #      however, what if the 'A' itself is deleted within a minority of contained sequences?
+                #      the same would be true if Ref had the extra A and a few qrys contained this insertion
+                #      thus we need some way for merged insertions and deletions to annihilate
+                #      furthermore, it does not need to occur at the end, can occur anywhere in sequence
+                #
+                #      this suggests a general algorithm: we need to iterate through all contained sequences in qry
+                #      ask if any portion of a global insertion within ins is deleted. if so, make adjustements
+                #      similarly if any global deletion has an insertion within.
                 for node in keys(q.mutate)
                     merge!(q.mutate[node],snp)
                     merge!(q.insert[node],ins)
@@ -646,6 +670,21 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                     merge(r.insert,q.insert),
                     merge(r.delete,q.delete),
                 )
+
+                @show rₓ, qₓ
+                @show new.uuid
+                @show length(new.sequence), length(r.sequence), length(q.sequence)
+                @show new.mutate
+                @show new.insert
+                @show new.delete
+                @show r.delete
+                @show q.delete
+                @show del
+                @show ins
+
+                @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
+                @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.delete)) 
+                @assert all(all(k[1] ≤ length(new.sequence) for k in keys(d)) for d in values(new.insert)) 
 
                 reconsensus!(new)
 

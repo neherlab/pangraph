@@ -21,7 +21,7 @@ export align
 # global variables
 # TODO: move to a better location
 
-fifos       = pool(10) #pool(3*Threads.nthreads()) NOTE: uncomment when you want concurrency
+fifos       = pool(2) #pool(3*Threads.nthreads()) NOTE: uncomment when you want concurrency
 getio()     = take!(fifos)
 hasio()     = isready(fifos)
 putio(fifo) = put!(fifos, fifo)
