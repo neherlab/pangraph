@@ -73,7 +73,7 @@ graphs(io::IO; circular=false) = [Graph(record.name, record.seq; circular=circul
 # operators
 
 const Link  = NamedTuple{(:block,:strand),Tuple{Block, Bool}}
-const Chain = Array{Link}
+const Chain = Array{Link, 1}
 
 # XXX: break into smaller functions
 #      too long
@@ -98,25 +98,24 @@ function detransitive!(G::Graph)
     for j in transitives
         if j.left.block ∈ keys(chain) && j.right.block ∈ keys(chain)
             c₁, c₂ = chain[j.left.block], chain[j.right.block]
-            if c₁ == c₂
-                continue
-            end
 
-            newc = Block[]
-            if left(j) == c₁[end] && right(j) == c₂[1]
-                newc = cat(c₁, c₂, dims=1)
-            elseif left(j) == c₁[end] && rev(right(j)) == c₂[end]
-                newc = cat(c₁, rev(c₂), dims=1)
-            elseif rev(left(j)) == c₁[1] && right(j) == c₂[1]
-                newc = cat(rev(c₁), c₂, dims=1)
-            elseif rev(left(j)) == c₁[1] && rev(right(j)) == c₂[end]
-                newc = cat(c₂, c₁, dims=1)
+            c₁ == c₂ && continue
+
+            merged =
+            if left(j) == last(c₁) && right(j) == first(c₂)
+                cat(c₁, c₂, dims=1)
+            elseif left(j) == last(c₁) && rev(right(j)) == last(c₂)
+                cat(c₁, rev(c₂), dims=1)
+            elseif rev(left(j)) == first(c₁) && right(j) == first(c₂)
+                cat(rev(c₁), c₂, dims=1)
+            elseif rev(left(j)) == first(c₁) && rev(right(j)) == last(c₂)
+                cat(c₂, c₁, dims=1)
             else
                 error("case not covered")
             end
 
-            for b in newc
-                chain[b] = newc
+            for b in first.(merged)
+                chain[b] = merged
             end
 
         elseif j.left.block ∈ keys(chain)
@@ -369,7 +368,7 @@ function test(file="data/generated/assemblies/isolates.fna.gz")
     graph, isolates = open(file, "r") do io
         isolates = graphs(io)
         println(">aligning...")
-        align(isolates[index]...) , isolates
+        align(isolates[index]...;maxgap=10) , isolates
     end
 
     log("-> verifying graph...")
@@ -378,6 +377,8 @@ function test(file="data/generated/assemblies/isolates.fna.gz")
         seq₁ = sequence(graph, name)
         if !all(seq₀ .== seq₁)
             error("incorrect sequence reconstruction")
+        else
+            log("---> isolate '$name' correctly reconstructed")
         end
     end
 

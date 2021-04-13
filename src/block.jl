@@ -129,11 +129,7 @@ function partition(alignment; maxgap=500)
     # ----------------------------
     # parse cigar within region of overlap
     
-    @show alignment
-    @show alignment.cigar
     for (len, type) ∈ uncigar(alignment.cigar)
-        @show qryₓ, refₓ
-        @show len, type
         @match type begin
         'S' || 'H' => begin
             # XXX:  treat soft clips differently?
@@ -394,6 +390,13 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
 
     Ξ(x) = x + reduce(+,(δ for (l,δ) in b.gaps if l < x); init=0)
 
+    @show b.uuid
+    @show b.gaps
+    @show length(b.sequence), length(seq), length(ref), length(b, node)
+    @show b.mutate[node]
+    @show b.insert[node]
+    @show b.delete[node]
+
     for l in loci
         @match l.kind begin
             :snp => begin
@@ -407,12 +410,13 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
                 x = Ξ(l.pos[1]) # NOTE: insertion occurs 1 nt AFTER the key position
                 δ = l.pos[2]
 
-                @show x, l, len, length(ins)
                 seq[x+δ+1:x+len+δ] = ins
             end
             :del => begin
                 len = b.delete[node][l.pos]
                 x   = Ξ(l.pos )
+
+                @show l, x, len, length(seq)
 
                 seq[x:x+len-1] .= UInt8('-')
             end
@@ -597,6 +601,8 @@ function reconsensus!(b::Block)
         for (i,node) in enumerate(nodes)
     )
 
+    b.sequence = consensus[.!refdel]
+
     return true
 end
 
@@ -641,9 +647,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                     merge(r.delete,q.delete),
                 )
 
-                @show new.gaps
                 reconsensus!(new)
-                @show new.gaps
 
                 push!(blocks, (block=new, kind=:all))
             end

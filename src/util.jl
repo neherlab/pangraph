@@ -3,9 +3,6 @@ module Utility
 using Rematch
 using StatsBase
 
-# NOTE: for debugging/benchmarking
-import Base.Threads.@spawn
-
 # internal modules
 using ..Intervals
 
@@ -223,8 +220,6 @@ function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
         false
     end
 
-    @show flip
-
     L₁, L₂ = length(seq₁)+1, length(seq₂)+1
 
     # initialize matrices
@@ -301,7 +296,7 @@ function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
     elseif j > 1
         write(a₂,seq₂[j-1:-1:1])
         write(a₁,'-'^(j-1))
-    else
+    elseif j > 1 && i > 1
         error("invalid backtraversal")
     end
 
@@ -362,8 +357,6 @@ function enforce_cutoff!(a::Alignment, χ)
         a.cigar     = a.cigar * string(δrᵣ) * "D"
     elseif (0 < δqᵣ ≤ χ) && (δrᵣ <= χ)
         a₁, a₂ = align(s₁[end-δqᵣ+1:end], s₂[end-δrᵣ+1:end], cost)
-        @show String(Base.copy(a₁))
-        @show String(Base.copy(a₂))
         cg     = cigar(a₁, a₂)
 
         a.qry.stop = a.qry.length
