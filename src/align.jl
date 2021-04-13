@@ -340,7 +340,7 @@ function do_align(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function)
     return hits
 end
 
-function align_kernel(hits, energy, skip, blocks!, replace!)
+function align_kernel(hits, energy, maxgap, skip, blocks!, replace!)
     blocks = Dict{String,Block}()
     ok = false
     for hit in hits
@@ -363,14 +363,14 @@ function align_kernel(hits, energy, skip, blocks!, replace!)
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
         refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
 
-        replace!((qry=qry₀, ref=ref₀) (qry=qrys, ref=refs))
+        replace!((qry=qry₀, ref=ref₀), (qry=qrys, ref=refs))
 
         for blk in map(b->b.block, blks)
             blocks[blk.uuid] = blk
         end
 
         for b in blks
-            check(b)
+            check(b.block)
         end
     end
 
@@ -385,12 +385,12 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, maxgap::Int)
         ok   = false
         hits = do_align(G₀, G₀, io₁, io₂, energy)
         
-        skip(hit) = (hit.qry.name == hit.ref.name) || (!(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block)))
-        blocks!(hit) = (
+        skip  = (hit) -> (hit.qry.name == hit.ref.name) || (!(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block)))
+        block = (hit) -> (
             qry = pop!(G₀.block, hit.qry.name),
             ref = pop!(G₀.block, hit.ref.name),
         )
-        replace!(old, new) = let
+        replace = (old, new) -> let
             for path in values(G₀.sequence)
                 replace!(path, old.qry, new.qry)
             end
@@ -400,7 +400,7 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, maxgap::Int)
             end
         end
 
-        blocks, ok = align_kernel(hits, energy, skip, blocks!, replace!)
+        blocks, ok = align_kernel(hits, energy, maxgap, skip, block, replace)
         
         merge!(blocks, G₀.block)
 
@@ -420,12 +420,12 @@ end
 function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, maxgap::Int)
     hits = do_align(G₁, G₂, io₁, io₂, energy)
 
-    skip(hit) = !(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block))
-    blocks!(hit) = (
+    skip  = (hit) -> !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block))
+    block = (hit) -> (
         qry = pop!(G₁.block, hit.qry.name),
         ref = pop!(G₂.block, hit.ref.name),
     )
-    replace!(old, new) = let
+    replace = (old, new) -> let
         for path in values(G₁.sequence)
             replace!(path, old.qry, new.qry)
         end
@@ -435,7 +435,7 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, ma
         end
     end
 
-    blocks, _ = align_kernel(hits, energy, skip, blocks!, replace!)
+    blocks, _ = align_kernel(hits, energy, maxgap, skip, block, replace)
     sequence  = merge(G₁.sequence, G₂.sequence)
 
     # XXX: worry about uuid collision?
