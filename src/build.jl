@@ -44,12 +44,12 @@ Build = Command(
    (args) -> begin
        files  = parse(Build, args)
 
-       maxgap = Build.arg[1].value
+       minblock = Build.arg[1].value
        energy = (aln) -> let
            len = aln.length
-           len < maxgap && return Inf
+           len < minblock && return Inf
 
-           cuts(hit) = (hit.start > maxgap) + ((hit.length-hit.stop) > maxgap)
+           cuts(hit) = (hit.start > minblock) + ((hit.length-hit.stop) > minblock)
 
            ncuts = cuts(aln.qry)+cuts(aln.ref)
            nmuts = aln.divergence*aln.length
@@ -60,7 +60,7 @@ Build = Command(
        graph(io) = graphs(io; circular=Build.arg[end].value)
        isolates  = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graph,file) : open(graph,file)))
 
-       graph = Graphs.align(isolates...; energy=energy, maxgap=maxgap)
+       graph = Graphs.align(isolates...; energy=energy, minblock=minblock)
        marshal(stdout, graph, :json)
    end
 )

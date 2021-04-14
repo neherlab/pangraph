@@ -54,12 +54,10 @@ end
 # TODO: relax hardcoded reliance on cigar suffixes. make symbols instead
 const PosPair = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}} 
 function partition(alignment; minblock=500)
-    qry, ref = alignment.qry.seq, alignment.ref.seq
+    qry = Pos(1,1)
+    ref = Pos(1,1)
 
-    qryₓ = Pos(1,1)
-    refₓ = Pos(1,1)
-
-    block   = NamedTuple{(:range, :segment), Tuple{PosPair, PosPair[]}}[]
+    block   = NamedTuple{(:range, :segment), Tuple{PosPair, Array{PosPair,1}}}[]
     segment = PosPair[]  # segments of current block being constructed
 
     # ----------------------------
@@ -70,8 +68,8 @@ function partition(alignment; minblock=500)
 
         push!(block, (
             range   = (
-                qry = Pos(qryₓ.start,qryₓ.stop-1), 
-                ref = Pos(refₓ.start,refₓ.stop-1)
+                qry = Pos(qry.start,qry.stop-1), 
+                ref = Pos(ref.start,ref.stop-1)
             ),
             segment = segment
         ))
@@ -79,8 +77,8 @@ function partition(alignment; minblock=500)
         segment = PosPair[]
         
         @label advance
-        advance!(qryₓ)
-        advance!(refₓ)
+        advance!(qry)
+        advance!(ref)
     end
 
     function qry_block!(pos)
@@ -108,12 +106,12 @@ function partition(alignment; minblock=500)
 
     if alignment.qry.start > 1
         qry_block!(Pos(1,alignment.qry.start-1))
-        qryₓ = Pos(alignment.qry.start,alignment.qry.start)
+        qry = Pos(alignment.qry.start,alignment.qry.start)
     end
 
     if alignment.ref.start > 1
         ref_block!(Pos(1, alignment.ref.start-1))
-        refₓ = Pos(alignment.ref.start,alignment.ref.start)
+        ref = Pos(alignment.ref.start,alignment.ref.start)
     end
     
     # ----------------------------
@@ -127,38 +125,38 @@ function partition(alignment; minblock=500)
             error("need to implement soft/hard clipping")
         end
         'M' => begin
-            x = Pos(refₓ.stop, refₓ.stop+len-1)
-            y = Pos(qryₓ.stop, qryₓ.stop+len-1)
+            r = Pos(ref.stop, ref.stop+len-1)
+            q = Pos(qry.stop, qry.stop+len-1)
 
-            push!(segment, (ref=x, qry=y))
+            push!(segment, (qry=q, ref=r))
 
-            qryₓ.stop += len
-            refₓ.stop += len
+            qry.stop += len
+            ref.stop += len
         end
         'D' => begin
             if len >= minblock
                 finalize_block!()
 
-                ref_block!(Pos(refₓ.start,refₓ.stop+len-1))
+                ref_block!(Pos(ref.start,ref.stop+len-1))
 
-                refₓ.stop += len
-                advance!(refₓ)
+                ref.stop += len
+                advance!(ref)
             else
-                push!(segment, (ref=Pos(refₓ.stop, refₓ.stop+len-1), qry=nothing))
-                refₓ.stop += len
+                push!(segment, (qry=nothing,ref=Pos(ref.stop, ref.stop+len-1)))
+                ref.stop += len
             end
         end
         'I' => begin
             if len >= minblock
                 finalize_block!()
 
-                qry_block!(Pos(qryₓ.start,qryₓ.stop+len-1))
+                qry_block!(Pos(qry.start,qry.stop+len-1))
 
-                qryₓ.stop += len
-                advance!(qryₓ)
+                qry.stop += len
+                advance!(qry)
             else
-                push!(segment, (ref=nothing, qry=Pos(qryₓ.stop,qryₓ.stop+len-1)))
-                qryₓ.stop += len
+                push!(segment, (qry=Pos(qry.stop,qry.stop+len-1),ref=nothing))
+                qry.stop += len
             end
         end
          _  => error("unrecognized cigar string suffix")
@@ -215,6 +213,11 @@ translate(d::Dict{Int,Int}, δ) = Dict(x+δ => v for (x,v) ∈ d) # gaps
 translate(d::Dict{Node{Block},InsMap}, δ) = Dict(n => Dict((x+δ,Δ) => v for ((x,Δ),v) ∈ val) for (n,val) ∈ d) # insertions 
 translate(dict, δ) = Dict(key=>Dict(x+δ => v for (x,v) in val) for (key,val) in dict)
 
+lociwithin(dict, i) = Dict(
+    node => filter((p) -> (i.start ≤ first(first(p)) ≤ i.stop), 
+        subdict) for (node, subdict) ∈ dict
+)
+
 # TODO: rename to concatenate?
 # serial concatenate list of blocks
 function Block(bs::Block...)
@@ -247,20 +250,13 @@ function Block(b::Block, slice)
     @assert slice.start >= 1 && slice.stop <= length(b)
 
     sequence = b.sequence[slice]
-
-    select(dict,i) = translate(
-        Dict(node => filter(
-            (p) -> (i.start ≤ first(first(p)) ≤ i.stop), 
-            subdict) for (node, subdict) ∈ dict
-        ), 
-        -i.start+1
-    )
+    subslice(dict, i) = translate(lociwithin(dict,i), 1-i.start)
 
     gaps = Dict(x-slice.start+1 => δ for (x,δ) ∈ b.gaps if slice.start ≤ x ≤ slice.stop)
 
-    mutate = select(b.mutate, slice)
-    insert = select(b.insert, slice)
-    delete = select(b.delete, slice)
+    mutate = subslice(b.mutate, slice)
+    insert = subslice(b.insert, slice)
+    delete = subslice(b.delete, slice)
 
     return Block(sequence,gaps,mutate,insert,delete)
 end
@@ -574,44 +570,55 @@ function reconsensus!(b::Block)
     return true
 end
 
-# XXX: we have to worry about overlapping insertions/deletions
-#      consider the following case:
-#
-#      Ref: *****
-#      Qry: *****A
-#
-#      we would store the last A as a global insertion for all qrys
-#      however, what if the 'A' itself is deleted within a minority of contained sequences?
-#      the same would be true if Ref had the extra A and a few qrys contained this insertion
-#      thus we need some way for merged insertions and deletions to annihilate
-#      furthermore, it does not need to occur at the end, can occur anywhere in sequence
-#
-#      this suggests a general algorithm: 
-#      we need to iterate through all contained sequences in qry
-#      -> ask if any portion of a global insertion within ins is deleted. 
-#      ---> if so, make adjustments
-#      -> check if any global deletion has an insertion within.
-#      -> check if any global insertion is modified by a snp
-#
-# NOTE: allele dictionaries are referenced to position on new consensus sequence
-function rereference(qry::Block, ref::Block, segment::PosPair[]) 
-    #=
-    for node in keys(b) 
-        rereference(qry, ref, node, segment)
+# TODO: align consensus sequences within overlapping gaps of qry and ref.
+#       right now we parsimoniously stuff all sequences at the beginning of gaps, independent of alignability.
+#       this would entail allowing the reference alleles to change!
+function rereference(qry::Block, ref::Block, segments)
+    allele = (
+        mutate = ref.mutate,
+        insert = ref.insert,
+        delete = ref.delete,
+    )
+
+    mapallele(dict, δq, δr) = translate(lociwithin(dict, δq), δr.start-δq.start)
+
+    for segment in segments
+        @match (segment.qry, segment.ref) begin
+            (nothing, Δr) => begin
+                error("need to implement")
+            end
+            (Δq, nothing) => begin
+                error("need to implement")
+            end
+            (Δq, Δr) => begin
+                @show Δq, Δr
+                merge!(allele.mutate, mapallele(qry.mutate,Δq,Δr))
+                merge!(allele.insert, mapallele(qry.insert,Δq,Δr))
+                merge!(allele.delete, mapallele(qry.delete,Δq,Δr))
+            end
+            _ => error("unrecognized segment")
+        end
     end
-    =#
+
+    new = Block(
+        ref.sequence,
+        ref.gaps,
+        allele.mutate,
+        allele.insert,
+        allele.delete
+    )
 
     @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
     @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.delete)) 
     @assert all(all(k[1] ≤ length(new.sequence) for k in keys(d)) for d in values(new.insert)) 
+
+    return new
 end
 
 
 function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
-    # NOTE: this will enforce that indels are less than minblock!
-    
     blocks   = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
-    segments = partition(aln; minblock=minblock)
+    segments = partition(aln; minblock=minblock) # this enforces that indels are less than minblock!
 
     for (range, segment) ∈ segments
         @match (range.qry, range.ref) begin
@@ -628,6 +635,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
+                @show segment, typeof(segment)
                 new = rereference(q, r, segment)
                 reconsensus!(new)
 

@@ -194,9 +194,7 @@ mutable struct Hit
     length::Int
     start::Int
     stop::Int
-    seq::Union{Array{UInt8},Nothing}
-
-    Hit(name, length, start, stop, seq) = new(name, length, start, stop, seq)
+    seq::Maybe{Array{UInt8,1}}
 end
 
 mutable struct Alignment

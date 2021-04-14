@@ -368,7 +368,7 @@ function test(file="data/generated/assemblies/isolates.fna.gz")
     graph, isolates = open(file, "r") do io
         isolates = graphs(io)
         println(">aligning...")
-        align(isolates[index]...;maxgap=10) , isolates
+        align(isolates[index]...;minblock=10) , isolates
     end
 
     log("-> verifying graph...")
