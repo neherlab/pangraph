@@ -52,77 +52,69 @@ mutable struct PairPos
 end
 
 # TODO: relax hardcoded reliance on cigar suffixes. make symbols instead
+const PosPair    = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}} 
+const BlockAlign = NamedTuple{(:range, :segment), Tuple{PosPair, PosPair[]}}
+
 function partition(alignment; maxgap=500)
     qry, ref = alignment.qry.seq, alignment.ref.seq
 
     qryₓ = Pos(1,1)
     refₓ = Pos(1,1)
 
-    # ----------------------------
-    # list of blocks and their mutations & indels
-    
-    seq = Array{UInt8}[]                                            # all blocks of alignment cigar
-    pos = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}}[] # position corresponding to each block
-    snp = Union{SNPMap,Nothing}[]                                   # snps of qry relative to ref
-    ins = Union{InsMap,Nothing}[]                                   # inserts of qry relative to ref
-    del = Union{DelMap,Nothing}[]                                   # deletes of qry relative to ref
-
-    # current block being constructed
-    block = (
-        len = 0,
-        seq = IOBuffer(),
-        snp = SNPMap(),
-        ins = InsMap(),
-        del = DelMap(),
-    )
+    block   = BlockAlign[]
+    segment = PosPair[]  # segments of current block being constructed
 
     # ----------------------------
-    # internal operator
+    # internal operators
     
     function finalize_block!()
-        if block.len <= 0
-            @goto advance
-        end
-        push!(pos, (qry = Pos(qryₓ.start,qryₓ.stop-1), ref = Pos(refₓ.start,refₓ.stop-1)))
-        push!(seq, take!(block.seq))
-        push!(snp, block.snp)
-        push!(ins, block.ins)
-        push!(del, block.del)
+        length(segment) == 0 && @goto advance
 
-        block = (
-            len = 0,
-            seq = block.seq,
-            snp = SNPMap(),
-            ins = InsMap(),
-            del = DelMap(),
-        )
-        # NOTE: block.seq is cleared by take! above
+        push!(block, (
+            range   = (
+                qry = Pos(qryₓ.start,qryₓ.stop-1), 
+                ref = Pos(refₓ.start,refₓ.stop-1)
+            ),
+            segment = segment
+        ))
+
+        segment = PosPair[]
         
         @label advance
         advance!(qryₓ)
         advance!(refₓ)
     end
 
+    function qry_block!(pos)
+        push!(block, (
+            range   = (
+                qry = pos,
+                ref = nothing
+            ),
+            segment = PosPair[]
+         ))
+    end
+
+    function ref_block!(pos)
+        push!(block, (
+            range   = (
+                qry = nothing,
+                ref = pos,
+            ),
+            segment = PosPair[]
+         ))
+    end
+
     # ----------------------------
     # see if blocks have a leading unmatched block
 
     if alignment.qry.start > 1
-        push!(pos, (qry=Pos(1,alignment.qry.start-1), ref=nothing))
-        push!(seq, qry[1:alignment.qry.start-1])
-        push!(snp, nothing)
-        push!(ins, nothing)
-        push!(del, nothing)
-
+        qry_block!(Pos(1,alignment.qry.start-1))
         qryₓ = Pos(alignment.qry.start,alignment.qry.start)
     end
 
     if alignment.ref.start > 1
-        push!(pos, (qry=nothing, ref=Pos(1, alignment.ref.start-1)))
-        push!(seq, ref[1:alignment.ref.start-1])
-        push!(snp, nothing)
-        push!(ins, nothing)
-        push!(del, nothing)
-
+        ref_block!(Pos(1, alignment.ref.start-1))
         refₓ = Pos(alignment.ref.start,alignment.ref.start)
     end
     
@@ -140,37 +132,21 @@ function partition(alignment; maxgap=500)
             x = Pos(refₓ.stop, refₓ.stop+len-1)
             y = Pos(qryₓ.stop, qryₓ.stop+len-1)
 
-            for locus in findall(qry[y] .!= ref[x])
-                block.snp[block.len+locus] = qry[qryₓ.stop+locus]
-            end
-
-            write(block.seq, ref[x])
+            push!(segment, (ref=x, qry=y))
 
             qryₓ.stop += len
             refₓ.stop += len
-
-            block = (;block..., len=block.len+len)
         end
         'D' => begin
             if len >= maxgap
                 finalize_block!()
 
-                x = Pos(refₓ.start,refₓ.stop+len-1)
-
-                push!(pos, (qry=nothing, ref=x))
-                push!(seq, ref[x])
-                push!(snp, nothing)
-                push!(ins, nothing)
-                push!(del, nothing)
+                ref_block!(Pos(refₓ.start,refₓ.stop+len-1))
 
                 refₓ.stop += len
                 advance!(refₓ)
             else
-                block.del[refₓ.stop] = len
-
-                x = Pos(refₓ.stop, refₓ.stop+len-1)
-                write(block.seq, ref[x])
-
+                push!(segment, (ref=Pos(refₓ.stop, refₓ.stop+len-1), qry=nothing))
                 refₓ.stop += len
             end
         end
@@ -178,19 +154,12 @@ function partition(alignment; maxgap=500)
             if len >= maxgap
                 finalize_block!()
 
-                x = Pos(qryₓ.start,qryₓ.stop+len-1)
+                qry_block!(Pos(qryₓ.start,qryₓ.stop+len-1))
 
-                push!(pos, (qry=x, ref=nothing))
-                push!(seq, qry[x])
-                push!(snp, nothing)
-                push!(ins, nothing)
-                push!(del, nothing)
                 qryₓ.stop += len
-
                 advance!(qryₓ)
             else
-                x = Pos(qryₓ.stop,qryₓ.stop+len-1)
-                block.ins[(block.len,0)] = qry[x]
+                push!(segment, (ref=nothing, qry=Pos(qryₓ.stop,qryₓ.stop+len-1)))
                 qryₓ.stop += len
             end
         end
@@ -204,22 +173,14 @@ function partition(alignment; maxgap=500)
     # see if blocks have a trailing unmatched block
 
     if alignment.qry.stop < alignment.qry.length
-        push!(pos, (qry=Pos(alignment.qry.stop,alignment.qry.length), ref=nothing))
-        push!(seq, qry[alignment.qry.stop:end])
-        push!(snp, nothing)
-        push!(ins, nothing)
-        push!(del, nothing)
+        qry_block!(Pos(alignment.qry.stop,alignment.qry.length))
     end
 
     if alignment.ref.stop < alignment.ref.length
-        push!(pos, (qry=nothing, ref=Pos(alignment.ref.stop,alignment.ref.length)))
-        push!(seq, ref[alignment.ref.stop:end])
-        push!(snp, nothing)
-        push!(ins, nothing)
-        push!(del, nothing)
+        ref_block!(Pos(alignment.ref.stop,alignment.ref.length))
     end
 
-    return seq, pos, snp, ins, del
+    return block
 end
 
 # ------------------------------------------------------------------------
