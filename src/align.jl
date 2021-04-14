@@ -369,6 +369,7 @@ function align_kernel(hits, energy, maxgap, skip, blocks!, replace!)
             blocks[blk.uuid] = blk
         end
 
+        # DEBUG: ensure blocks are correctly referenced
         for b in blks
             check(b.block)
         end

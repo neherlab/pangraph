@@ -222,32 +222,6 @@ function partition(alignment; maxgap=500)
     return seq, pos, snp, ins, del
 end
 
-# XXX: we have to worry about overlapping insertions/deletions?
-#      consider the following case:
-#
-#      Ref: *****
-#      Qry: *****A
-#
-#      we would store the last A as a global insertion for all qrys
-#      however, what if the 'A' itself is deleted within a minority of contained sequences?
-#      the same would be true if Ref had the extra A and a few qrys contained this insertion
-#      thus we need some way for merged insertions and deletions to annihilate
-#      furthermore, it does not need to occur at the end, can occur anywhere in sequence
-#
-#      this suggests a general algorithm: 
-#      we need to iterate through all contained sequences in qry
-#      -> ask if any portion of a global insertion within ins is deleted. 
-#      ---> if so, make adjustments
-#      -> check if any global deletion has an insertion within.
-#      -> check if any global insertion is modified by a snp
-function collate(snp, ins, del, transform)
-    return (
-        snp=merge(snp, transform.snp),
-        ins=merge(ins, transform.ins),
-        del=merge(del, transform.del),
-    )
-end
-
 # ------------------------------------------------------------------------
 # Block data structure
 
@@ -424,7 +398,6 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
     @show b.delete[node]
 
     for l in loci
-        @show l
         @match l.kind begin
             :snp => begin
                 x         = l.pos
@@ -666,17 +639,19 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                 r = Block(ref, rₓ)
                 q = Block(qry, qₓ)
 
-                # apply global snp and indels to all query sequences
-                for node in keys(q.mutate)
-                    q.mutate[node], q.insert[node], q.delete[node] = collate(
-                        q.mutate[node], q.insert[node], q.delete[node], 
-                        (snp=snp,       ins=ins,        del=del)
-                    )
-                end
+                @assert all(r.sequence .== seq) # NOTE: we can most likely get rid of sequence
+
+                @show snp
+                @show ins
+                @show del
+                @show q.mutate
+                @show q.insert
+                @show q.delete
+
+                rereference!(q, r, (mutate=snp, insert=ins, delete=del))
 
                 gaps = Dict(first(key)=>length(val) for (key,val) in ins)
-
-                new = Block(
+                new  = Block(
                     seq,
                     merge(r.gaps,q.gaps,gaps),
                     merge(r.mutate,q.mutate),
@@ -687,15 +662,6 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
                 @show rₓ, qₓ
                 @show new.uuid
                 @show length(new.sequence), length(r.sequence), length(q.sequence)
-                @show new.mutate
-                @show new.insert
-                @show new.delete
-                @show r.delete
-                @show q.delete
-                @show r.insert
-                @show q.insert
-                @show r.mutate
-                @show q.mutate
 
                 @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
                 @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.delete)) 
@@ -711,14 +677,57 @@ function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
     return blocks
 end
 
+# XXX: we have to worry about overlapping insertions/deletions
+#      consider the following case:
+#
+#      Ref: *****
+#      Qry: *****A
+#
+#      we would store the last A as a global insertion for all qrys
+#      however, what if the 'A' itself is deleted within a minority of contained sequences?
+#      the same would be true if Ref had the extra A and a few qrys contained this insertion
+#      thus we need some way for merged insertions and deletions to annihilate
+#      furthermore, it does not need to occur at the end, can occur anywhere in sequence
+#
+#      this suggests a general algorithm: 
+#      we need to iterate through all contained sequences in qry
+#      -> ask if any portion of a global insertion within ins is deleted. 
+#      ---> if so, make adjustments
+#      -> check if any global deletion has an insertion within.
+#      -> check if any global insertion is modified by a snp
+#
+# NOTE: allele dictionaries are referenced to position on new consensus sequence
+function rereference!(qry::Block, ref::Block, node::Node, allele)
+    #=
+    # new -> old coordinate map
+    Ξₒ(xₙ) = (xₙ
+           + sum(length(v) for (x,v) in allele.insert if first(x) < xₙ)
+           - sum(v for (x,v) in allele.delete if x < xₙ))
+    # old -> new coordinate map
+    Ξₙ(xₒ) = (xₒ
+           - sum(length(v) for (xₙ,v) in allele.insert if Ξₒ(first(xₙ)) < xₒ)
+           + sum(v for (xₙ,v) in allele.delete if Ξₒ(xₙ) < xₒ))
+    =#
+
+    # seq = sequence(b, node; gaps=true)
+
+    merge!(qry.mutate[node], allele.mutate)
+    merge!(qry.insert[node], allele.insert)
+    merge!(qry.delete[node], allele.delete)
+end
+
+rereference!(qry::Block, ref::Block, allele) = for node in keys(b) 
+    rereference!(qry, ref, node, allele)
+end
+
 function check(b::Block)
     @show b.uuid
     @show b.mutate
     @show b.insert
     @show b.delete
-    @assert all( n.block == b for n ∈ keys(b.mutate) )
-    @assert all( n.block == b for n ∈ keys(b.insert) )
-    @assert all( n.block == b for n ∈ keys(b.delete) )
+    @assert all( n.block == b for n ∈ keys(b) )
+    @assert all( n.block == b for n ∈ keys(b) )
+    @assert all( n.block == b for n ∈ keys(b) )
 end
 
 # ------------------------------------------------------------------------
