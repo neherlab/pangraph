@@ -340,7 +340,7 @@ function do_align(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function)
     return hits
 end
 
-function align_kernel(hits, energy, maxgap, skip, blocks!, replace!)
+function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
     blocks = Dict{String,Block}()
     ok = false
     for hit in hits
@@ -356,9 +356,9 @@ function align_kernel(hits, energy, maxgap, skip, blocks!, replace!)
         hit.qry.seq = qry₀.sequence
         hit.ref.seq = ref₀.sequence
 
-        enforce_cutoff!(hit, maxgap)
+        enforce_cutoff!(hit, minblock)
 
-        blks = combine(qry₀, ref₀, hit; maxgap=maxgap)
+        blks = combine(qry₀, ref₀, hit; minblock=minblock)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
         refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
@@ -378,7 +378,7 @@ function align_kernel(hits, energy, maxgap, skip, blocks!, replace!)
     return blocks, ok
 end
 
-function align_self(G₁::Graph, io₁, io₂, energy::Function, maxgap::Int)
+function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int)
     G₀ = G₁
     ok = true
 
@@ -401,7 +401,7 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, maxgap::Int)
             end
         end
 
-        blocks, ok = align_kernel(hits, energy, maxgap, skip, block, replace)
+        blocks, ok = align_kernel(hits, energy, minblock, skip, block, replace)
         
         merge!(blocks, G₀.block)
 
@@ -418,7 +418,7 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, maxgap::Int)
 end
 
 
-function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, maxgap::Int)
+function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, minblock::Int)
     hits = do_align(G₁, G₂, io₁, io₂, energy)
 
     skip  = (hit) -> !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block))
@@ -436,7 +436,7 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, ma
         end
     end
 
-    blocks, _ = align_kernel(hits, energy, maxgap, skip, block, replace)
+    blocks, _ = align_kernel(hits, energy, minblock, skip, block, replace)
     sequence  = merge(G₁.sequence, G₂.sequence)
 
     # XXX: worry about uuid collision?
@@ -454,15 +454,15 @@ end
 
 # TODO: the associative array is a bit hacky...
 #       can we push it directly into the channel?
-function align(Gs::Graph...; energy=(hit)->(-Inf), maxgap=100)
+function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100)
     function kernel(clade)
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
 
         io₁, io₂ = getios()
 
-        G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, maxgap)
-        G₀ = align_self(G₀, io₁, io₂, energy, maxgap)
+        G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, minblock)
+        G₀ = align_self(G₀, io₁, io₂, energy, minblock)
 
         putio(io₁)
         putio(io₂)

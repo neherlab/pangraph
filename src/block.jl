@@ -52,16 +52,14 @@ mutable struct PairPos
 end
 
 # TODO: relax hardcoded reliance on cigar suffixes. make symbols instead
-const PosPair    = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}} 
-const BlockAlign = NamedTuple{(:range, :segment), Tuple{PosPair, PosPair[]}}
-
-function partition(alignment; maxgap=500)
+const PosPair = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}} 
+function partition(alignment; minblock=500)
     qry, ref = alignment.qry.seq, alignment.ref.seq
 
     qryₓ = Pos(1,1)
     refₓ = Pos(1,1)
 
-    block   = BlockAlign[]
+    block   = NamedTuple{(:range, :segment), Tuple{PosPair, PosPair[]}}[]
     segment = PosPair[]  # segments of current block being constructed
 
     # ----------------------------
@@ -138,7 +136,7 @@ function partition(alignment; maxgap=500)
             refₓ.stop += len
         end
         'D' => begin
-            if len >= maxgap
+            if len >= minblock
                 finalize_block!()
 
                 ref_block!(Pos(refₓ.start,refₓ.stop+len-1))
@@ -151,7 +149,7 @@ function partition(alignment; maxgap=500)
             end
         end
         'I' => begin
-            if len >= maxgap
+            if len >= minblock
                 finalize_block!()
 
                 qry_block!(Pos(qryₓ.start,qryₓ.stop+len-1))
@@ -576,68 +574,6 @@ function reconsensus!(b::Block)
     return true
 end
 
-function combine(qry::Block, ref::Block, aln::Alignment; maxgap=500)
-    # NOTE: this will enforce that indels are less than maxgap!
-    # TODO: rename partition function
-    sequences,intervals,mutations,inserts,deletes = partition(aln; maxgap=maxgap)
-
-    blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
-    for (seq,pos,snp,ins,del) in zip(sequences,intervals,mutations,inserts,deletes)
-        @match (pos.qry, pos.ref) begin
-            ( nothing, rₓ )  => begin
-                push!(blocks, (block=Block(ref, rₓ), kind=:ref))
-            end
-            ( qₓ , nothing ) => begin
-                push!(blocks, (block=Block(qry, qₓ), kind=:qry))
-            end
-            ( qₓ , rₓ )      => begin
-                @assert !isnothing(snp)
-                @assert !isnothing(ins)
-                @assert !isnothing(del)
-
-                # slice both blocks to window of overlap
-                @show ref, qry
-                r = Block(ref, rₓ)
-                q = Block(qry, qₓ)
-
-                @assert all(r.sequence .== seq) # NOTE: we can most likely get rid of sequence
-
-                @show snp
-                @show ins
-                @show del
-                @show q.mutate
-                @show q.insert
-                @show q.delete
-
-                rereference!(q, r, (mutate=snp, insert=ins, delete=del))
-
-                gaps = Dict(first(key)=>length(val) for (key,val) in ins)
-                new  = Block(
-                    seq,
-                    merge(r.gaps,q.gaps,gaps),
-                    merge(r.mutate,q.mutate),
-                    merge(r.insert,q.insert),
-                    merge(r.delete,q.delete),
-                )
-
-                @show rₓ, qₓ
-                @show new.uuid
-                @show length(new.sequence), length(r.sequence), length(q.sequence)
-
-                @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
-                @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.delete)) 
-                @assert all(all(k[1] ≤ length(new.sequence) for k in keys(d)) for d in values(new.insert)) 
-
-                reconsensus!(new)
-
-                push!(blocks, (block=new, kind=:all))
-            end
-        end
-    end
-
-    return blocks
-end
-
 # XXX: we have to worry about overlapping insertions/deletions
 #      consider the following case:
 #
@@ -658,27 +594,49 @@ end
 #      -> check if any global insertion is modified by a snp
 #
 # NOTE: allele dictionaries are referenced to position on new consensus sequence
-function rereference!(qry::Block, ref::Block, node::Node, allele)
+function rereference(qry::Block, ref::Block, segment::PosPair[]) 
     #=
-    # new -> old coordinate map
-    Ξₒ(xₙ) = (xₙ
-           + sum(length(v) for (x,v) in allele.insert if first(x) < xₙ)
-           - sum(v for (x,v) in allele.delete if x < xₙ))
-    # old -> new coordinate map
-    Ξₙ(xₒ) = (xₒ
-           - sum(length(v) for (xₙ,v) in allele.insert if Ξₒ(first(xₙ)) < xₒ)
-           + sum(v for (xₙ,v) in allele.delete if Ξₒ(xₙ) < xₒ))
+    for node in keys(b) 
+        rereference(qry, ref, node, segment)
+    end
     =#
 
-    # seq = sequence(b, node; gaps=true)
-
-    merge!(qry.mutate[node], allele.mutate)
-    merge!(qry.insert[node], allele.insert)
-    merge!(qry.delete[node], allele.delete)
+    @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
+    @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.delete)) 
+    @assert all(all(k[1] ≤ length(new.sequence) for k in keys(d)) for d in values(new.insert)) 
 end
 
-rereference!(qry::Block, ref::Block, allele) = for node in keys(b) 
-    rereference!(qry, ref, node, allele)
+
+function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
+    # NOTE: this will enforce that indels are less than minblock!
+    
+    blocks   = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
+    segments = partition(aln; minblock=minblock)
+
+    for (range, segment) ∈ segments
+        @match (range.qry, range.ref) begin
+            ( nothing, Δr )  => begin
+                push!(blocks, (block=Block(ref, Δr), kind=:ref))
+            end
+            ( Δq, nothing ) => begin
+                push!(blocks, (block=Block(qry, Δq), kind=:qry))
+            end
+            ( Δq, Δr )      => begin
+                @assert length(segment) > 0
+
+                # slice both blocks to window of overlap
+                r = Block(ref, Δr)
+                q = Block(qry, Δq)
+
+                new = rereference(q, r, segment)
+                reconsensus!(new)
+
+                push!(blocks, (block=new, kind=:all))
+            end
+        end
+    end
+
+    return blocks
 end
 
 function check(b::Block)
