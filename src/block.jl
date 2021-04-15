@@ -41,42 +41,40 @@ function applyalleles(seq, mutate, insert, delete)
     len = length(seq) - reduce(+,values(delete);init=0) + reduce(+,length(v) for v in values(insert);init=0)
     new = Array{UInt8,1}(undef, len)
 
-    x = (
-        r = 1, # leading edge of read  position
-        w = 1  # leading edge of write position
-    )
+    r = 1  # leading edge of read  position
+    w = 1  # leading edge of write position
     for locus in allele_positions(mutate, insert, delete)
-        δ = locus.pos - x.r
+        δ = locus.pos - r
         if δ > 0
-            new[x.w:x.w+δ-1] = seq[x.r:x.r+δ-1]
-            x.r += δ
-            x.w += δ
+            new[w:w+δ-1] = seq[r:r+δ-1]
+            r += δ
+            w += δ
         end
 
         @match locus.kind begin
             :snp => begin
-                new[x.w] = mutate[locus.pos]
-                x.w += 1
-                x.r += 1
+                new[w] = mutate[locus.pos]
+                w += 1
+                r += 1
             end
             :ins => begin
                 ins = insert[locus.pos]
-                new[x.w:x.w+len-1] = ins
-                x.w += length(ins)
+                new[w:w+len-1] = ins
+                w += length(ins)
             end
             :del => begin
-                x.r += delete[locus.pos] 
+                r += delete[locus.pos] 
             end
               _  => error("unrecognized locus kind")
         end
     end
 
-    if x.r <= length(seq)
-        @assert (length(seq) - x.r) == (length(new) - x.w)
-        new[x.w:end] = seq[x.r:end]
+    if r <= length(seq)
+        @assert (length(seq) - r) == (length(new) - w)
+        new[w:end] = seq[r:end]
     else
-        @assert x.r == length(seq) + 1 
-        @assert x.w == length(new) + 1
+        @assert r == length(seq) + 1 
+        @assert w == length(new) + 1
     end
 
     return new
@@ -330,7 +328,7 @@ Locus = Union{
 
 islesser(a::Int, b::Int)                       = isless(a, b)
 islesser(a::Tuple{Int,Int}, b::Int)            = isless(first(a), b)
-islesser(a::Int, b::Tuple{Int,Int})            = isless(a, first(b)) || a == first(b)
+islesser(a::Int, b::Tuple{Int,Int})            = isless(a, first(b)) || a == first(b) # deletions get priority if @ equal locations
 islesser(a::Tuple{Int,Int}, b::Tuple{Int,Int}) = isless(a, b)
 
 islesser(a::Locus, b::Locus) = islesser(a.pos, b.pos)
@@ -395,10 +393,11 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
 
     @show b.uuid
     @show b.gaps
-    @show length(b.sequence), length(seq), length(ref), length(b, node)
     @show b.mutate[node]
     @show b.insert[node]
     @show b.delete[node]
+
+    @show length(b.sequence), length(seq), length(ref), length(b, node)
 
     for l in loci
         @match l.kind begin
@@ -670,14 +669,20 @@ function rereference(qry::Block, ref::Block, segments)
             end
             (Δq, Δr) => begin # simple translation of alleles of qry -> ref
                 merge!(combined.mutate, map(qry.mutate,Δq,Δr))
-                merge!(combined.insert, map(qry.insert,Δq,Δr))
                 merge!(combined.delete, map(qry.delete,Δq,Δr))
+                let
+                    inserts = map(qry.insert,Δq,Δr)
+                    newgaps = reduce(∪, Interval(first(x), first(x)+length(I)) for d in values(inserts) for (x,I) in d; init=newgaps)
+                    merge!(combined.insert, inserts)
+                end
 
                 x = (qry=Δq.stop+1, ref=Δr.stop+1)
             end
             _ => error("unrecognized segment")
         end
     end
+
+    @show segments
 
     length(newgaps) > 0 && @show combined.gaps
     for gap in newgaps
@@ -693,6 +698,8 @@ function rereference(qry::Block, ref::Block, segments)
         combined.delete
     )
 
+    @show new.uuid
+    @show new.gaps
     @show new.mutate
     @show new.insert
     @show new.delete
