@@ -262,10 +262,12 @@ translate(d::Dict{Node{Block},InsMap}, δ) = Dict(n => Dict((x+δ,Δ) => v for (
 translate(dict::T, δ) where T <: AlleleMaps{Block} = Dict(key=>Dict(x+δ => v for (x,v) in val) for (key,val) in dict)
 
 # select alleles within window
-lociwithin(dict, i) = Dict(
+lociwithin(dict::T, i) where T <: AlleleMaps{Block} = Dict(
     node => filter((p) -> (i.start ≤ first(first(p)) ≤ i.stop), 
         subdict) for (node, subdict) ∈ dict
 )
+
+lociwithin(dict::Dict{Int,Int}, i) = Dict(x => v for (x,v) ∈ dict if i.start ≤ x ≤ i.stop)
 
 # merge alleles (recursively)
 function merge!(base::T, others::T...) where T <: AlleleMaps{Block}
@@ -668,7 +670,7 @@ function rereference(qry::Block, ref::Block, segments)
     map(dict, from, to) = translate(lociwithin(dict, from), to.start-from.start)
 
     x = (qry = 1, ref = 1)
-    newgaps = IntervalSet(Interval{Int}[])
+    newgaps = Tuple{Int,Int}[]
     for segment in segments
         @match (segment.qry, segment.ref) begin
             (nothing, Δ) => begin # sequence in ref consensus not found in qry consensus
@@ -732,27 +734,36 @@ function rereference(qry::Block, ref::Block, segments)
                     δ = 0
                 end
 
+                newgap = (x.ref-1, 0)
                 newinserts = Dict(let
                     seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
                     if length(seq) > 0
-                        newgaps = newgaps ∪ Interval(x.ref-1, x.ref+length(seq)-1)
+                        if length(seq) > last(newgap)
+                            newgap = (x.ref-1, length(seq))
+                        end
                         node => Dict((x.ref-1,δ) => seq) 
                     else
                         node => InsMap()
                     end
                     end for node ∈ keys(qry)
                 )
+
+                if length(newgap) > 0
+                    push!(newgaps, newgap)
+                end
+
                 merge!(combined.insert, newinserts)
+
                 x = (qry=Δ.stop+1, ref=x.ref)
             end
             (Δq, Δr) => begin # simple translation of alleles of qry -> ref
                 merge!(combined.mutate, map(qry.mutate,Δq,Δr))
                 merge!(combined.delete, map(qry.delete,Δq,Δr))
                 let
-                    inserts = map(qry.insert,Δq,Δr)
-                    newgaps = reduce(∪, Interval(first(x)+last(x), first(x)+last(x)+length(I)) for d in values(inserts) for (x,I) in d; init=newgaps)
+                    inserts  = map(qry.insert,Δq,Δr)
                     # TODO: check if insertion at this location exists!
                     #       if so, we need to align the insertions
+                    append!(newgaps, (k,v) for (k,v) ∈ map(qry.gaps,Δq,Δr))
                     merge!(combined.insert, inserts)
                 end
 
@@ -762,11 +773,11 @@ function rereference(qry::Block, ref::Block, segments)
         end
     end
 
-    for gap in newgaps
-        if gap.lo ∈ keys(combined.gaps)
-            combined.gaps[gap.lo] = max(length(gap), combined.gaps[gap.lo])
+    for (pos, len) in newgaps
+        if pos ∈ keys(combined.gaps)
+            combined.gaps[pos] = max(len, combined.gaps[pos])
         else
-            combined.gaps[gap.lo] = length(gap)
+            combined.gaps[pos] = len
         end
     end
 
@@ -778,13 +789,11 @@ function rereference(qry::Block, ref::Block, segments)
         combined.delete
     )
 
-    #=
     @show new.uuid
     @show new.gaps
     @show new.mutate
     @show new.insert
     @show new.delete
-    =#
 
     #=
     @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
@@ -817,7 +826,6 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
 
                 new = rereference(q, r, segment)
                 reconsensus!(new)
-                check(new)
 
                 push!(blocks, (block=new, kind=:all))
             end
@@ -828,9 +836,13 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
 end
 
 function check(b::Block)
+    @assert all( n.block == b for n ∈ keys(b) )
     gap = Set(keys(b.gaps))
     ins = Set(first(locus) for insert in values(b.insert) for locus in keys(insert))
-    # @assert all( n.block == b for n ∈ keys(b) )
+
+    @show gap
+    @show ins
+
     @assert gap == ins
 
     for node ∈ keys(b)
