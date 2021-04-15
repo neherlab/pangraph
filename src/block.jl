@@ -10,7 +10,8 @@ using ..Intervals
 using ..Nodes
 using ..Utility: 
     random_id, contiguous_trues,
-    uncigar, wcpair, Alignment
+    uncigar, wcpair, Alignment,
+    hamming_align
 
 import ..Graphs:
     pair, reverse_complement, 
@@ -45,11 +46,6 @@ function applyalleles(seq, mutate, insert, delete)
 
     r = 1  # leading edge of read  position
     w = 1  # leading edge of write position
-    @show seq
-    @show mutate
-    @show insert
-    @show delete
-    @show new
     for locus in allele_positions(mutate, insert, delete)
         δ = first(locus.pos) - r
         if δ > 0
@@ -415,12 +411,6 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
     loci = allele_positions(b, node) 
     Ξ(x) = x + reduce(+,(δ for (l,δ) in b.gaps if l < x); init=0)
 
-    @show b.gaps
-    @show b.mutate[node]
-    @show b.insert[node]
-    @show b.delete[node]
-    @show length(seq), length(b.sequence), length(b, node)
-
     for l in loci
         @match l.kind begin
             :snp => begin
@@ -433,15 +423,12 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
 
                 x = Ξ(l.pos[1]) # NOTE: insertion occurs 1 nt AFTER the key position
                 δ = l.pos[2]
-                @show x, δ, len
 
                 seq[x+δ+1:x+len+δ] = ins
             end
             :del => begin
                 len = b.delete[node][l.pos]
                 x   = Ξ(l.pos )
-
-                @show l, x, len, length(seq)
 
                 seq[x:x+len-1] .= UInt8('-')
             end
@@ -649,12 +636,14 @@ function reconsensus!(b::Block)
     )
 
     b.sequence = consensus[.!refdel]
+    #=
     @show b.uuid
     @show length(b.sequence), length(consensus)
     @show b.mutate
     @show b.insert
     @show b.delete
-
+    =#
+    
     @assert all(all(k ≤ length(b.sequence) for k in keys(d)) for d in values(b.mutate)) 
     @assert all(all(k ≤ length(b.sequence) for k in keys(d)) for d in values(b.delete)) 
     @assert all(all(k[1] ≤ length(b.sequence) for k in keys(d)) for d in values(b.insert)) 
@@ -698,30 +687,27 @@ function rereference(qry::Block, ref::Block, segments)
                 x = (qry=x.qry, ref=Δ.stop+1)
             end
             (Δ, nothing) => begin # sequence in qry consensus not found in ref consensus
-                if x.ref ∈ keys(ref.gaps) # some sequences in ref have overlapping sequence with qry
-                    @show x.ref
-                    @show ref.gaps
-                    @show String(Base.copy(qry.sequence[Δ]))
-                    @show String(Base.copy(gapconsensus(ref, x.ref)))
+                mutate = translate(lociwithin(qry.mutate,Δ),1-Δ.start)
+                insert = translate(lociwithin(qry.insert,Δ),1-Δ.start)
+                delete = translate(lociwithin(qry.delete,Δ),1-Δ.start)
 
-                    error("need to implement")
+                if (x.ref-1) ∈ keys(ref.gaps) # some sequences in ref have overlapping sequence with qry
+                    δ = hamming_align(qry.sequence[Δ], gapconsensus(ref, x.ref)) - 1
                 else # novel for all qry sequences. apply alleles to consensus and store as insertion
-                    mutate = translate(lociwithin(qry.mutate,Δ),1-Δ.start)
-                    insert = translate(lociwithin(qry.insert,Δ),1-Δ.start)
-                    delete = translate(lociwithin(qry.delete,Δ),1-Δ.start)
-
-                    newinserts = Dict(let
-                        seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
-                        if length(seq) > 0
-                            newgaps = newgaps ∪ Interval(x.ref-1, x.ref+length(seq)-1)
-                            node => Dict((x.ref-1,0) => seq) 
-                        else
-                            node => InsMap()
-                        end
-                        end for node ∈ keys(qry)
-                    )
-                    merge!(combined.insert, newinserts)
+                    δ = 0
                 end
+
+                newinserts = Dict(let
+                    seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
+                    if length(seq) > 0
+                        newgaps = newgaps ∪ Interval(x.ref-1, x.ref+length(seq)-1)
+                        node => Dict((x.ref-1,δ) => seq) 
+                    else
+                        node => InsMap()
+                    end
+                    end for node ∈ keys(qry)
+                )
+                merge!(combined.insert, newinserts)
                 x = (qry=Δ.stop+1, ref=x.ref)
             end
             (Δq, Δr) => begin # simple translation of alleles of qry -> ref
@@ -757,16 +743,11 @@ function rereference(qry::Block, ref::Block, segments)
         combined.delete
     )
 
-    @show new.uuid
-    @show new.gaps
-    @show new.mutate
-    @show new.insert
-    @show new.delete
-    @show length(new.sequence)
-
+    #=
     @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
     @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.delete)) 
     @assert all(all(k[1] ≤ length(new.sequence) for k in keys(d)) for d in values(new.insert)) 
+    =#
 
     return new
 end
@@ -791,8 +772,6 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
-                @show aln, aln.cigar
-                @show segment
                 new = rereference(q, r, segment)
                 reconsensus!(new)
                 check(new)

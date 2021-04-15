@@ -13,6 +13,7 @@ import ..Graphs:
 export random_id, log
 export Alignment
 export enforce_cutoff, cigar, uncigar, blocks 
+export hamming_align
 
 export contiguous_trues
 
@@ -303,12 +304,28 @@ function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
     return flip ? (b₂, b₁) : (b₁, b₂)
 end
 
+function hamming_align(qry::Array{UInt8,1}, ref::Array{UInt8,1})
+    matches = [ 
+        let
+            len = min(length(ref)-x+1, length(qry))
+            sum(qry[1:len] .== ref[x:x+len-1])
+        end 
+    for x ∈ 1:length(ref) ]
+
+    @show matches
+
+    return argmax(matches)
+end
+
 include("static/watson-crick.jl")
 function reverse_complement(seq::Array{UInt8})
     cmpl = [wcpair[nuc] for nuc in seq]
     reverse!(cmpl)
     return cmpl
 end
+
+# ------------------------------------------------------------------------
+# alignment modification
 
 const cost = (
     open   = -6.0,
