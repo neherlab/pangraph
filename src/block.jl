@@ -44,7 +44,7 @@ function applyalleles(seq, mutate, insert, delete)
     r = 1  # leading edge of read  position
     w = 1  # leading edge of write position
     for locus in allele_positions(mutate, insert, delete)
-        δ = locus.pos - r
+        δ = first(locus.pos) - r
         if δ > 0
             new[w:w+δ-1] = seq[r:r+δ-1]
             r += δ
