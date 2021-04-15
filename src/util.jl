@@ -312,8 +312,6 @@ function hamming_align(qry::Array{UInt8,1}, ref::Array{UInt8,1})
         end 
     for x ∈ 1:length(ref) ]
 
-    @show matches
-
     return argmax(matches)
 end
 

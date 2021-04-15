@@ -672,12 +672,47 @@ function rereference(qry::Block, ref::Block, segments)
     for segment in segments
         @match (segment.qry, segment.ref) begin
             (nothing, Δ) => begin # sequence in ref consensus not found in qry consensus
-                if x.qry ∈ keys(qry.gaps)
+                if (x.qry-1) ∈ keys(qry.gaps) # some insertions in qry have overlapping sequence with ref
                     @show x.qry
                     @show qry.gaps
                     @show String(Base.copy(ref.sequence[Δ]))
-                    @show String(Base.copy(gapconsensus(qry, x.qry)))
-                    error("need to implement")
+                    @show String(Base.copy(gapconsensus(qry, x.qry-1)))
+
+                    gap = gapconsensus(qry, x.qry-1)
+                    pos = hamming_align(ref.sequence[Δ], gap)-1
+                    for node ∈ keys(qry)
+                        unmatched = IntervalSet((x.ref, x.ref+Δ.stop-Δ.start+1))
+                        delkeys   = Tuple{Int,Int}[]
+                        inskeys   = InsMap()
+                        for ((locus,δ),ins) ∈ qry.insert[node]
+                            locus != x.qry-1 && continue
+
+                            if pos ≤ δ ≤ (Δ.stop-Δ.start+1) # right overhang
+                                overhang = (δ + length(ins)) - (Δ.stop-Δ.start+1)
+                                if overhang > 0 
+                                    inskeys[(locus,δ)] = ins[end-overhang:end] 
+                                else
+                                    push!(delkeys, (locus,δ))
+                                end
+                                unmatched = unmatched \ Interval(x.ref+δ, x.ref+δ+length(ins))
+                            else # has to be stored as an insertion as its not in reference!
+                                @show pos, δ, Δ, length(ins)
+                                error("need to implement")
+                            end
+                        end
+
+                        for key in delkeys
+                            delete!(qry.insert[node], key)
+                        end
+
+                        for (key,val) in inskeys
+                            qry.insert[node][key] = val
+                        end
+
+                        for I in unmatched
+                            merge!(combined.delete, Dict(node => Dict(I.lo=>length(I))))
+                        end
+                    end
                 else
                     newdeletes = Dict(
                         node => Dict(x.ref=>Δ.stop-Δ.start+1) for node ∈ keys(qry)
@@ -692,7 +727,7 @@ function rereference(qry::Block, ref::Block, segments)
                 delete = translate(lociwithin(qry.delete,Δ),1-Δ.start)
 
                 if (x.ref-1) ∈ keys(ref.gaps) # some sequences in ref have overlapping sequence with qry
-                    δ = hamming_align(qry.sequence[Δ], gapconsensus(ref, x.ref)) - 1
+                    δ = hamming_align(qry.sequence[Δ], gapconsensus(ref, x.ref-1)) - 1
                 else # novel for all qry sequences. apply alleles to consensus and store as insertion
                     δ = 0
                 end
@@ -742,6 +777,14 @@ function rereference(qry::Block, ref::Block, segments)
         combined.insert,
         combined.delete
     )
+
+    #=
+    @show new.uuid
+    @show new.gaps
+    @show new.mutate
+    @show new.insert
+    @show new.delete
+    =#
 
     #=
     @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
