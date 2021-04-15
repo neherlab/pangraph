@@ -45,6 +45,11 @@ function applyalleles(seq, mutate, insert, delete)
 
     r = 1  # leading edge of read  position
     w = 1  # leading edge of write position
+    @show seq
+    @show mutate
+    @show insert
+    @show delete
+    @show new
     for locus in allele_positions(mutate, insert, delete)
         δ = first(locus.pos) - r
         if δ > 0
@@ -61,9 +66,9 @@ function applyalleles(seq, mutate, insert, delete)
             end
             :ins => begin
                 ins = insert[locus.pos]
-                @show ins
+                len = length(ins)
                 new[w:w+len-1] = ins
-                w += length(ins)
+                w += len
             end
             :del => begin
                 r += delete[locus.pos] 
@@ -519,9 +524,6 @@ end
 function gapconsensus(b::Block, x::Int)
     x ∉ keys(b.gaps) && error("invalid index for gap")
 
-    @show b.gaps
-    @show b.insert
-
     len = b.gaps[x]
     num = sum(1 for insert in values(b.insert) for locus in keys(insert) if first(locus) == x; init=0)
     @assert num > 0
@@ -541,9 +543,7 @@ function gapconsensus(b::Block, x::Int)
         i == num + 1 && break
     end
 
-    @show aln
-
-    return mode.(eachcol(aln)) 
+    return [ mode(filter((c) -> c != UInt8('-'), col)) for col in eachcol(aln) ]
 end
 
 function append!(b::Block, node::Node{Block}, snp::Maybe{SNPMap}, ins::Maybe{InsMap}, del::Maybe{DelMap})
@@ -684,6 +684,10 @@ function rereference(qry::Block, ref::Block, segments)
         @match (segment.qry, segment.ref) begin
             (nothing, Δ) => begin # sequence in ref consensus not found in qry consensus
                 if x.qry ∈ keys(qry.gaps)
+                    @show x.qry
+                    @show qry.gaps
+                    @show String(Base.copy(ref.sequence[Δ]))
+                    @show String(Base.copy(gapconsensus(qry, x.qry)))
                     error("need to implement")
                 else
                     newdeletes = Dict(
@@ -698,7 +702,7 @@ function rereference(qry::Block, ref::Block, segments)
                     @show x.ref
                     @show ref.gaps
                     @show String(Base.copy(qry.sequence[Δ]))
-                    @show gapconsensus(ref, x.ref)
+                    @show String(Base.copy(gapconsensus(ref, x.ref)))
 
                     error("need to implement")
                 else # novel for all qry sequences. apply alleles to consensus and store as insertion
@@ -726,7 +730,8 @@ function rereference(qry::Block, ref::Block, segments)
                 let
                     inserts = map(qry.insert,Δq,Δr)
                     newgaps = reduce(∪, Interval(first(x)+last(x), first(x)+last(x)+length(I)) for d in values(inserts) for (x,I) in d; init=newgaps)
-                    # TODO: check if insertion exists!
+                    # TODO: check if insertion at this location exists!
+                    #       if so, we need to align the insertions
                     merge!(combined.insert, inserts)
                 end
 
@@ -736,11 +741,9 @@ function rereference(qry::Block, ref::Block, segments)
         end
     end
 
-    @show combined.gaps
-    @show newgaps
     for gap in newgaps
         if gap.lo ∈ keys(combined.gaps)
-            combined.gaps[gap.lo] = maximum(length(gap), combined.gaps[gap.lo])
+            combined.gaps[gap.lo] = max(length(gap), combined.gaps[gap.lo])
         else
             combined.gaps[gap.lo] = length(gap)
         end
