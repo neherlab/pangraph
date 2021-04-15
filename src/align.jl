@@ -355,6 +355,7 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
 
         hit.qry.seq = qry₀.sequence
         hit.ref.seq = ref₀.sequence
+        @show hit
         enforce_cutoff!(hit, minblock)
 
         blks = combine(qry₀, ref₀, hit; minblock=minblock)

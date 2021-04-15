@@ -28,7 +28,7 @@ Maybe{T} = Union{T,Nothing}
 
 # aliases
 const SNPMap = Dict{Int,UInt8}
-const InsMap = Dict{Tuple{Int,Int},Array{UInt8}} 
+const InsMap = Dict{Tuple{Int,Int},Array{UInt8,1}} 
 const DelMap = Dict{Int,Int} 
 
 show(io::IO, m::SNPMap) = show(io, [ k => Char(v) for (k,v) in m ])
@@ -36,6 +36,51 @@ show(io::IO, m::InsMap) = show(io, [ k => String(Base.copy(v)) for (k,v) in m ])
 
 # ------------------------------------------------------------------------
 # utility functions
+
+function applyalleles(seq, mutate, insert, delete)
+    len = length(seq) - reduce(+,values(delete);init=0) + reduce(+,length(v) for v in values(insert);init=0)
+    new = Array{UInt8,1}(undef, len)
+
+    x = (
+        r = 1, # leading edge of read  position
+        w = 1  # leading edge of write position
+    )
+    for locus in allele_positions(mutate, insert, delete)
+        δ = locus.pos - x.r
+        if δ > 0
+            new[x.w:x.w+δ-1] = seq[x.r:x.r+δ-1]
+            x.r += δ
+            x.w += δ
+        end
+
+        @match locus.kind begin
+            :snp => begin
+                new[x.w] = mutate[locus.pos]
+                x.w += 1
+                x.r += 1
+            end
+            :ins => begin
+                ins = insert[locus.pos]
+                new[x.w:x.w+len-1] = ins
+                x.w += length(ins)
+            end
+            :del => begin
+                x.r += delete[locus.pos] 
+            end
+              _  => error("unrecognized locus kind")
+        end
+    end
+
+    if x.r <= length(seq)
+        @assert (length(seq) - x.r) == (length(new) - x.w)
+        new[x.w:end] = seq[x.r:end]
+    else
+        @assert x.r == length(seq) + 1 
+        @assert x.w == length(new) + 1
+    end
+
+    return new
+end
 
 mutable struct Pos
     start::Int
@@ -125,8 +170,8 @@ function partition(alignment; minblock=500)
             error("need to implement soft/hard clipping")
         end
         'M' => begin
-            r = Pos(ref.stop, ref.stop+len-1)
-            q = Pos(qry.stop, qry.stop+len-1)
+            r = Pos(ref.stop-ref.start+1, ref.stop-ref.start+len)
+            q = Pos(qry.stop-qry.start+1, qry.stop-qry.start+len)
 
             push!(segment, (qry=q, ref=r))
 
@@ -142,7 +187,7 @@ function partition(alignment; minblock=500)
                 ref.stop += len
                 advance!(ref)
             else
-                push!(segment, (qry=nothing,ref=Pos(ref.stop, ref.stop+len-1)))
+                push!(segment, (qry=nothing,ref=Pos(ref.stop-ref.start+1, ref.stop-ref.start+len)))
                 ref.stop += len
             end
         end
@@ -155,7 +200,7 @@ function partition(alignment; minblock=500)
                 qry.stop += len
                 advance!(qry)
             else
-                push!(segment, (qry=Pos(qry.stop,qry.stop+len-1),ref=nothing))
+                push!(segment, (qry=Pos(qry.stop-qry.start+1,qry.stop-qry.start+len),ref=nothing))
                 qry.stop += len
             end
         end
@@ -290,10 +335,14 @@ islesser(a::Tuple{Int,Int}, b::Tuple{Int,Int}) = isless(a, b)
 
 islesser(a::Locus, b::Locus) = islesser(a.pos, b.pos)
 
-function allele_positions(b::Block, n::Node)
+function allele_positions(snp::SNPMap, ins::InsMap, del::DelMap)
     keys(dict, sym) = [(pos=key, kind=sym) for key in Base.keys(dict)]
-    return [keys(b.mutate[n],:snp); keys(b.insert[n],:ins); keys(b.delete[n],:del)]
+    loci = [keys(snp,:snp); keys(ins,:ins); keys(del,:del)]
+    sort!(loci, lt=islesser)
+
+    return loci
 end
+allele_positions(b::Block, n::Node) = allele_positions(b.mutate[n], b.insert[n], b.delete[n])
 
 # complex operations
 function reverse_complement(b::Block)
@@ -341,7 +390,6 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
     @assert length(seq) == length(ref)
 
     loci = allele_positions(b, node) 
-    sort!(loci, lt=islesser)
 
     Ξ(x) = x + reduce(+,(δ for (l,δ) in b.gaps if l < x); init=0)
 
@@ -364,6 +412,7 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
 
                 x = Ξ(l.pos[1]) # NOTE: insertion occurs 1 nt AFTER the key position
                 δ = l.pos[2]
+                @show x, δ, len
 
                 seq[x+δ+1:x+len+δ] = ins
             end
@@ -401,7 +450,6 @@ function sequence!(seq, b::Block, node::Node{Block}; gaps=false)
 
     pos  = (l) -> isa(l.pos, Tuple) ? l.pos[1] : l.pos # dispatch over different key types
     loci = allele_positions(b, node)
-    sort!(loci, lt=islesser)
 
     iᵣ, iₛ = 1, 1
     for l in loci
@@ -453,9 +501,7 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
 end
 
 function append!(b::Block, node::Node{Block}, snp::Maybe{SNPMap}, ins::Maybe{InsMap}, del::Maybe{DelMap})
-    @assert node ∉ keys(b.mutate)
-    @assert node ∉ keys(b.insert)
-    @assert node ∉ keys(b.delete)
+    @assert node ∉ keys(b)
 
     if isnothing(snp)
         snp = SNPMap()
@@ -571,42 +617,86 @@ function reconsensus!(b::Block)
 end
 
 # TODO: align consensus sequences within overlapping gaps of qry and ref.
-#       right now we parsimoniously stuff all sequences at the beginning of gaps, independent of alignability.
+#       right now we parsimoniously stuff all sequences at the beginning of gaps
+#       problems:
+#           -> independent of alignability
+#           -> errors accrue over time
 #       this would entail allowing the reference alleles to change!
 function rereference(qry::Block, ref::Block, segments)
-    allele = (
+    combined = (
+        gaps   = ref.gaps,
         mutate = ref.mutate,
         insert = ref.insert,
         delete = ref.delete,
     )
 
-    mapallele(dict, δq, δr) = translate(lociwithin(dict, δq), δr.start-δq.start)
+    map(dict, from, to) = translate(lociwithin(dict, from), to.start-from.start)
 
+    x = (qry = 1, ref = 1)
+    newgaps = IntervalSet(Interval{Int}[])
     for segment in segments
         @match (segment.qry, segment.ref) begin
-            (nothing, Δr) => begin
-                error("need to implement")
+            (nothing, Δ) => begin # sequence in ref consensus not found in qry consensus
+                if x.qry ∈ keys(qry.gaps)
+                    error("need to implement")
+                else
+                    newdeletes = Dict(
+                        node => Dict((x.ref-1)=>Δ.stop-Δ.start+1) for node ∈ keys(qry)
+                    )
+                    merge!(combined.delete, newdeletes)
+                end
+                x = (qry=x.qry, ref=Δ.stop+1)
             end
-            (Δq, nothing) => begin
-                error("need to implement")
+            (Δ, nothing) => begin # sequence in qry consensus not found in ref consensus
+                if x.ref ∈ keys(ref.gaps) # some sequences in ref have overlapping sequence with qry
+                    error("need to implement")
+                else # novel for all qry sequences. apply alleles to consensus and store as insertion
+                    mutate = translate(lociwithin(qry.mutate,Δ),1-Δ.start)
+                    insert = translate(lociwithin(qry.insert,Δ),1-Δ.start)
+                    delete = translate(lociwithin(qry.delete,Δ),1-Δ.start)
+
+                    newinserts = Dict(let
+                        seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
+                        newgaps = newgaps ∪ Interval(x.ref-1, x.ref+length(seq))
+                        ( length(seq) > 0 
+                            ? node => Dict((x.ref-1,0) => seq) 
+                            : node => InsMap()
+                        )
+                        end for node ∈ keys(qry)
+                    )
+                    merge!(combined.insert, newinserts)
+                end
+                x = (qry=Δ.stop+1, ref=x.ref)
             end
-            (Δq, Δr) => begin
-                @show Δq, Δr
-                merge!(allele.mutate, mapallele(qry.mutate,Δq,Δr))
-                merge!(allele.insert, mapallele(qry.insert,Δq,Δr))
-                merge!(allele.delete, mapallele(qry.delete,Δq,Δr))
+            (Δq, Δr) => begin # simple translation of alleles of qry -> ref
+                merge!(combined.mutate, map(qry.mutate,Δq,Δr))
+                merge!(combined.insert, map(qry.insert,Δq,Δr))
+                merge!(combined.delete, map(qry.delete,Δq,Δr))
+
+                x = (qry=Δq.stop+1, ref=Δr.stop+1)
             end
             _ => error("unrecognized segment")
         end
     end
 
+    length(newgaps) > 0 && @show combined.gaps
+    for gap in newgaps
+        combined.gaps[gap.lo] = length(gap)
+    end
+    length(newgaps) > 0 && @show combined.gaps
+
     new = Block(
         ref.sequence,
-        ref.gaps,
-        allele.mutate,
-        allele.insert,
-        allele.delete
+        combined.gaps,
+        combined.mutate,
+        combined.insert,
+        combined.delete
     )
+
+    @show new.mutate
+    @show new.insert
+    @show new.delete
+    @show length(new.sequence)
 
     @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
     @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.delete)) 
@@ -622,11 +712,11 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
 
     for (range, segment) ∈ segments
         @match (range.qry, range.ref) begin
-            ( nothing, Δr )  => begin
-                push!(blocks, (block=Block(ref, Δr), kind=:ref))
+            ( nothing, Δ )  => begin
+                push!(blocks, (block=Block(ref, Δ), kind=:ref))
             end
-            ( Δq, nothing ) => begin
-                push!(blocks, (block=Block(qry, Δq), kind=:qry))
+            ( Δ, nothing ) => begin
+                push!(blocks, (block=Block(qry, Δ), kind=:qry))
             end
             ( Δq, Δr )      => begin
                 @assert length(segment) > 0
@@ -635,7 +725,8 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
-                @show segment, typeof(segment)
+                @show aln, aln.cigar
+                @show segment
                 new = rereference(q, r, segment)
                 reconsensus!(new)
 
