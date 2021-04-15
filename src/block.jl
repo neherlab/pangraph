@@ -3,7 +3,7 @@ module Blocks
 using Rematch
 
 import Base:
-    show, length, append!, keys
+    show, length, append!, keys, merge!
 
 # internal modules
 using ..Intervals
@@ -59,6 +59,7 @@ function applyalleles(seq, mutate, insert, delete)
             end
             :ins => begin
                 ins = insert[locus.pos]
+                @show ins
                 new[w:w+len-1] = ins
                 w += length(ins)
             end
@@ -252,14 +253,24 @@ Block(sequence,gaps,mutate,insert,delete) = Block(random_id(),sequence,gaps,muta
 Block(sequence) = Block(sequence,Dict{Int,Int}(),Dict{Node{Block},SNPMap}(),Dict{Node{Block},InsMap}(),Dict{Node{Block},DelMap}())
 Block()         = Block(UInt8[])
 
+# move alleles
 translate(d::Dict{Int,Int}, δ) = Dict(x+δ => v for (x,v) ∈ d) # gaps
 translate(d::Dict{Node{Block},InsMap}, δ) = Dict(n => Dict((x+δ,Δ) => v for ((x,Δ),v) ∈ val) for (n,val) ∈ d) # insertions 
 translate(dict, δ) = Dict(key=>Dict(x+δ => v for (x,v) in val) for (key,val) in dict)
 
+# select alleles within window
 lociwithin(dict, i) = Dict(
     node => filter((p) -> (i.start ≤ first(first(p)) ≤ i.stop), 
         subdict) for (node, subdict) ∈ dict
 )
+
+# merge alleles (recursively)
+function merge!(base::T, others::T...) where T :: Dict{Node{Block},Dict}
+    for node ∈ keys(base)
+        merge!(base[node], (other[node] for other in others)...)
+    end
+    return base
+end
 
 # TODO: rename to concatenate?
 # serial concatenate list of blocks
@@ -388,16 +399,7 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
     @assert length(seq) == length(ref)
 
     loci = allele_positions(b, node) 
-
     Ξ(x) = x + reduce(+,(δ for (l,δ) in b.gaps if l < x); init=0)
-
-    @show b.uuid
-    @show b.gaps
-    @show b.mutate[node]
-    @show b.insert[node]
-    @show b.delete[node]
-
-    @show length(b.sequence), length(seq), length(ref), length(b, node)
 
     for l in loci
         @match l.kind begin
@@ -497,6 +499,36 @@ function sequence(b::Block, node::Node{Block}; gaps=false)
     seq = gaps ? sequence(b; gaps=true) : Array{UInt8}('-'^length(b, node))
     sequence!(seq, b, node; gaps=gaps)
     return seq
+end
+
+function gapconsensus(b::Block, x::Int)
+    x ∉ keys(b.gaps) && error("invalid index for gap")
+
+    @show b.gaps
+    @show b.insert
+
+    len = b.gaps[x]
+    num = sum(1 for insert in values(b.insert) for locus in keys(insert) if first(locus) == x; init=0)
+    @assert num > 0
+
+    aln = fill(UInt8('-'), (num, len))
+
+    i = 1
+    for node in keys(b)
+        for (locus, ins) in b.insert[node]
+            first(locus) != x && continue
+
+            aln[i, last(locus)+1:last(locus)+len(ins)] = ins
+            i += 1
+            break
+        end
+
+        i == num + 1 && break
+    end
+
+    @show aln
+
+    return mode.(eachcol(aln)) 
 end
 
 function append!(b::Block, node::Node{Block}, snp::Maybe{SNPMap}, ins::Maybe{InsMap}, del::Maybe{DelMap})
@@ -648,6 +680,11 @@ function rereference(qry::Block, ref::Block, segments)
             end
             (Δ, nothing) => begin # sequence in qry consensus not found in ref consensus
                 if x.ref ∈ keys(ref.gaps) # some sequences in ref have overlapping sequence with qry
+                    @show x.ref
+                    @show ref.gaps
+                    @show String(Base.copy(qry.sequence[Δ]))
+                    @show gapconsensus(ref, x.ref)
+
                     error("need to implement")
                 else # novel for all qry sequences. apply alleles to consensus and store as insertion
                     mutate = translate(lociwithin(qry.mutate,Δ),1-Δ.start)
@@ -657,13 +694,17 @@ function rereference(qry::Block, ref::Block, segments)
                     newinserts = Dict(let
                         seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
                         newgaps = newgaps ∪ Interval(x.ref-1, x.ref+length(seq))
+                        @show seq
+                        @show newgaps
                         ( length(seq) > 0 
                             ? node => Dict((x.ref-1,0) => seq) 
                             : node => InsMap()
                         )
                         end for node ∈ keys(qry)
                     )
+                    @show newinserts
                     merge!(combined.insert, newinserts)
+                    @show combined.insert
                 end
                 x = (qry=Δ.stop+1, ref=x.ref)
             end
@@ -673,6 +714,7 @@ function rereference(qry::Block, ref::Block, segments)
                 let
                     inserts = map(qry.insert,Δq,Δr)
                     newgaps = reduce(∪, Interval(first(x), first(x)+length(I)) for d in values(inserts) for (x,I) in d; init=newgaps)
+                    @show inserts
                     merge!(combined.insert, inserts)
                 end
 
@@ -680,9 +722,8 @@ function rereference(qry::Block, ref::Block, segments)
             end
             _ => error("unrecognized segment")
         end
+        @show combined.insert, segment
     end
-
-    @show segments
 
     length(newgaps) > 0 && @show combined.gaps
     for gap in newgaps
@@ -746,13 +787,12 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
 end
 
 function check(b::Block)
-    @show b.uuid
-    @show b.mutate
-    @show b.insert
-    @show b.delete
+    gap = Set(keys(b.gaps))
+    ins = Set(first(locus) for insert in values(b.insert) for locus in keys(insert))
+    @show gap
+    @show ins
     @assert all( n.block == b for n ∈ keys(b) )
-    @assert all( n.block == b for n ∈ keys(b) )
-    @assert all( n.block == b for n ∈ keys(b) )
+    @assert gap == ins
 end
 
 # ------------------------------------------------------------------------
