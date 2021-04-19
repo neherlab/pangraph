@@ -532,7 +532,9 @@ function gapconsensus(b::Block, x::Int)
         i == num + 1 && break
     end
 
-    return [ mode(filter((c) -> c != UInt8('-'), col)) for col in eachcol(aln) ]
+    trymode(data) = length(data) > 0 ? mode(data) : UInt8('-')
+
+    return [ trymode(filter((c) -> c != UInt8('-'), col)) for col in eachcol(aln) ]
 end
 
 function append!(b::Block, node::Node{Block}, snp::Maybe{SNPMap}, ins::Maybe{InsMap}, del::Maybe{DelMap})
@@ -675,30 +677,38 @@ function rereference(qry::Block, ref::Block, segments)
         @match (segment.qry, segment.ref) begin
             (nothing, Δ) => begin # sequence in ref consensus not found in qry consensus
                 if (x.qry-1) ∈ keys(qry.gaps) # some insertions in qry have overlapping sequence with ref
-                    @show x.qry
-                    @show qry.gaps
-                    @show String(Base.copy(ref.sequence[Δ]))
-                    @show String(Base.copy(gapconsensus(qry, x.qry-1)))
-
+                    # TODO: allow for (-) hamming alignments
                     gap = gapconsensus(qry, x.qry-1)
                     pos = hamming_align(ref.sequence[Δ], gap)-1
+                    newgap = (Δ.stop, 0)
                     for node ∈ keys(qry)
                         unmatched = IntervalSet((x.ref, x.ref+Δ.stop-Δ.start+1))
-                        delkeys   = Tuple{Int,Int}[]
-                        inskeys   = InsMap()
+                        delkeys = Tuple{Int,Int}[]
                         for ((locus,δ),ins) ∈ qry.insert[node]
                             locus != x.qry-1 && continue
 
-                            if pos ≤ δ ≤ (Δ.stop-Δ.start+1) # right overhang
-                                overhang = (δ + length(ins)) - (Δ.stop-Δ.start+1)
+                            push!(delkeys, (locus,δ))
+
+                            start = Δ.start + pos + δ
+                            stop  = start + length(ins) - 1
+                            if 0 ≤ start ≤ Δ.stop 
+                                overhang = stop - Δ.stop # right overhang
                                 if overhang > 0 
-                                    inskeys[(locus,δ)] = ins[end-overhang:end] 
-                                else
-                                    push!(delkeys, (locus,δ))
+                                    combined.insert[node][(Δ.stop,0)] = ins[end-overhang+1:end] 
+                                    newlen = length(ins[end-overhang+1:end] )
+                                    if newlen > last(newgap)
+                                        newgap = (Δ.stop, newlen)
+                                    end
                                 end
-                                unmatched = unmatched \ Interval(x.ref+δ, x.ref+δ+length(ins))
-                            else # has to be stored as an insertion as its not in reference!
-                                @show pos, δ, Δ, length(ins)
+                                unmatched = unmatched \ Interval(start, stop+1)
+                            elseif start > Δ.stop # we are (right) beyond the matched section, add the remainder as an insertion
+                                combined.insert[node][(Δ.stop,start-Δ.stop-1)] = ins
+                                newlen = start-Δ.stop+1+length(ins) 
+                                if newlen > last(newgap)
+                                    newgap = (Δ.stop, newlen)
+                                end
+                            else # TODO: negative matching
+                                @show start, stop, Δ, pos, δ
                                 error("need to implement")
                             end
                         end
@@ -707,13 +717,13 @@ function rereference(qry::Block, ref::Block, segments)
                             delete!(qry.insert[node], key)
                         end
 
-                        for (key,val) in inskeys
-                            qry.insert[node][key] = val
-                        end
-
                         for I in unmatched
                             merge!(combined.delete, Dict(node => Dict(I.lo=>length(I))))
                         end
+                    end
+
+                    if last(newgap) > 0
+                        push!(newgaps, newgap)
                     end
                 else
                     newdeletes = Dict(
@@ -788,12 +798,7 @@ function rereference(qry::Block, ref::Block, segments)
         combined.insert,
         combined.delete
     )
-
-    @show new.uuid
-    @show new.gaps
-    @show new.mutate
-    @show new.insert
-    @show new.delete
+    check(new; ids=false)
 
     #=
     @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
@@ -835,13 +840,11 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
     return blocks
 end
 
-function check(b::Block)
-    @assert all( n.block == b for n ∈ keys(b) )
+function check(b::Block; ids=true)
+    @assert !ids || all( n.block == b for n ∈ keys(b) )
+
     gap = Set(keys(b.gaps))
     ins = Set(first(locus) for insert in values(b.insert) for locus in keys(insert))
-
-    @show gap
-    @show ins
 
     @assert gap == ins
 
