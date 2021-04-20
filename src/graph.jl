@@ -352,7 +352,7 @@ sequence(g::Graph) = [ name => join(sequence(node.block, node) for node ∈ path
 
 using Random: seed!
 
-function test(file="data/generated/assemblies/isolates.fna.gz")
+function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa") #"data/generated/assemblies/isolates.fna.gz")
     seed!(0)
 
     open = endswith(file,".gz") ? GZip.open : Base.open
@@ -368,7 +368,7 @@ function test(file="data/generated/assemblies/isolates.fna.gz")
     graph, isolates = open(file, "r") do io
         isolates = graphs(io)
         println(">aligning...")
-        align(isolates[index]...;minblock=10) , isolates
+        align(isolates[index]...;minblock=100) , isolates
     end
 
     log("-> verifying graph...")

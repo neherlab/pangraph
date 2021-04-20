@@ -42,6 +42,8 @@ show(io::IO, m::InsMap) = show(io, [ k => String(Base.copy(v)) for (k,v) in m ])
 
 function applyalleles(seq, mutate, insert, delete)
     len = length(seq) - reduce(+,values(delete);init=0) + reduce(+,length(v) for v in values(insert);init=0)
+    len ≤ 0 && return UInt8[]
+
     new = Array{UInt8,1}(undef, len)
 
     r = 1  # leading edge of read  position
@@ -829,6 +831,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
+                @show segment
                 new = rereference(q, r, segment)
                 reconsensus!(new)
 
