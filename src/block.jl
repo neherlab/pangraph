@@ -46,11 +46,17 @@ function applyalleles(seq, mutate, insert, delete)
 
     new = Array{UInt8,1}(undef, len)
 
+    @show mutate
+    @show insert
+    @show delete
+
     r = 1  # leading edge of read  position
     w = 1  # leading edge of write position
     for locus in allele_positions(mutate, insert, delete)
         δ = first(locus.pos) - r
         if δ > 0
+            @show length(new), length(seq)
+            @show (w, w+δ-1), (r, r+δ-1)
             new[w:w+δ-1] = seq[r:r+δ-1]
             r += δ
             w += δ
@@ -265,8 +271,13 @@ translate(dict::T, δ) where T <: AlleleMaps{Block} = Dict(key=>Dict(x+δ => v f
 
 # select alleles within window
 lociwithin(dict::T, i) where T <: AlleleMaps{Block} = Dict(
-    node => filter((p) -> (i.start ≤ first(first(p)) ≤ i.stop), 
-        subdict) for (node, subdict) ∈ dict
+    node => filter((p) -> (i.start ≤ first(first(p)) ≤ i.stop), subdict) 
+        for (node, subdict) ∈ dict
+)
+lociwithin(dict::Dict{Node{Block},DelMap}, i) = Dict(
+    node => DelMap(
+        locus => min(len, i.stop-locus+1) for (locus, len) in subdict if i.start ≤ locus ≤ i.stop
+    ) for (node, subdict) ∈ dict
 )
 
 lociwithin(dict::Dict{Int,Int}, i) = Dict(x => v for (x,v) ∈ dict if i.start ≤ x ≤ i.stop)
@@ -751,7 +762,7 @@ function rereference(qry::Block, ref::Block, segments)
                     seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
                     if length(seq) > 0
                         if length(seq) > last(newgap)
-                            newgap = (x.ref-1, length(seq))
+                            newgap = (x.ref-1,length(seq))
                         end
                         node => Dict((x.ref-1,δ) => seq) 
                     else
@@ -800,9 +811,10 @@ function rereference(qry::Block, ref::Block, segments)
         combined.insert,
         combined.delete
     )
-    check(new; ids=false)
 
     #=
+    check(new; ids=false)
+
     @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
     @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.delete)) 
     @assert all(all(k[1] ≤ length(new.sequence) for k in keys(d)) for d in values(new.insert)) 
@@ -831,7 +843,6 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
-                @show segment
                 new = rereference(q, r, segment)
                 reconsensus!(new)
 
@@ -853,7 +864,10 @@ function check(b::Block; ids=true)
 
     for node ∈ keys(b)
         for ((x, δ), ins) ∈ b.insert[node]
-            @assert b.gaps[x] >= (length(ins) + δ)
+            if b.gaps[x] < (length(ins) + δ)
+                @show b.gaps[x], (length(ins) + δ)
+                @assert false
+            end
         end
     end
 end
