@@ -4,7 +4,7 @@ using ..Nodes
 using ..Blocks
 
 import ..Graphs: 
-    pair,
+    pair, sequence,
     Counter, add!
 
 export Path
@@ -27,6 +27,14 @@ Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],cir
 
 pair(p::Path) = p.name => p
 Base.show(io::IO, p::Path) = Base.show(io, (name=p.name, blocks=p.node))
+
+function sequence(p::Path)
+    seq = join(sequence(node.block, node) for node ∈ p.node)
+    if p.offset !== nothing
+        seq = String(circshift(Array{UInt8,1}(seq), p.offset))
+    end
+    return seq
+end
 
 # used for block merging
 function Base.replace!(p::Path, old::Block, new::Array{Block})
@@ -100,11 +108,11 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                 stop, x = x, advance(x)
             end
 
-            @show old
             if parity
                 stop ≥ start && return (interval=start:stop, strand=true)           # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
-                # DEBUG
+
+                #= DEBUG
                 print("forward: [")
                 for i ∈ stop:length(p.node)
                     print(stderr, p.node[i].block, ", ")
@@ -113,12 +121,14 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                     print(stderr, p.node[i].block, ", ")
                 end
                 println("]")
+                =#
 
                 return (interval=(start:length(p.node), 1:stop), strand=true)
             else
                 stop ≤ start && return (interval=stop:start, strand=false)          # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
-                # DEBUG
+
+                #= DEBUG
                 print("reverse: [")
                 for i ∈ start:-1:1
                     print(stderr, p.node[i], ", ")
@@ -127,6 +137,7 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                     print(stderr, p.node[i], ", ")
                 end
                 println("]")
+                =#
 
                 return (interval=(1:start, stop:length(p.node)), strand=false)
             end
@@ -136,7 +147,6 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
     swap!(b, i::AbstractArray, new)                       = Blocks.swap!(b, p.node[i], new)
     swap!(b, i::Tuple{AbstractArray,AbstractArray}, new)  = Blocks.swap!(b, [p.node[i[1]]; p.node[i[2]]], new)
 
-    # NOTE: have to correct for the overhang in the case of circular intervals
     splice!(nodes, i::AbstractArray, new)                       = Base.splice!(nodes, i, [new])
     splice!(nodes, i::Tuple{AbstractArray,AbstractArray}, new)  = let 
         Base.splice!(nodes, i[1], [new])
