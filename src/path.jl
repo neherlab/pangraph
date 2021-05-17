@@ -10,7 +10,7 @@ import ..Graphs:
 export Path
 export count_isolates
 
-struct Path
+mutable struct Path
     name     :: String
     node     :: Array{Node{Block}}
     offset   :: Union{Int,Nothing}
@@ -29,7 +29,7 @@ pair(p::Path) = p.name => p
 Base.show(io::IO, p::Path) = Base.show(io, (name=p.name, blocks=p.node))
 
 function sequence(p::Path)
-    seq = join(sequence(node.block, node) for node ∈ p.node)
+    seq = join(String(sequence(n.block, n)) for n ∈ p.node)
     if p.offset !== nothing
         seq = String(circshift(Array{UInt8,1}(seq), p.offset))
     end
@@ -144,20 +144,28 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
         end
     )
 
-    swap!(b, i::AbstractArray, new)                       = Blocks.swap!(b, p.node[i], new)
-    swap!(b, i::Tuple{AbstractArray,AbstractArray}, new)  = Blocks.swap!(b, [p.node[i[1]]; p.node[i[2]]], new)
+    oldnodes(i::AbstractArray)                      = p.node[i]
+    oldnodes(i::Tuple{AbstractArray,AbstractArray}) = [p.node[i[1]]; p.node[i[2]]]
 
     splice!(nodes, i::AbstractArray, new)                       = Base.splice!(nodes, i, [new])
     splice!(nodes, i::Tuple{AbstractArray,AbstractArray}, new)  = let 
+        Δ = sum(length(n.block, n) for n in p.node[i[1]])
+        if p.offset === nothing
+            p.offset = -Δ
+        else
+            p.offset -= Δ
+        end
+        @show p.name, p.offset, Δ, i, length(sequence(p))
         Base.splice!(nodes, i[1], [new])
         Base.splice!(nodes, i[2])
     end
 
     for (i,s) ∈ zip(interval, strand)
-        n = Node(new, s)
+        newnode = Node(new, s)
+        oldnode = oldnodes(i)
 
-        swap!(new, i, n)
-        splice!(p.node, i, n)
+        splice!(p.node, i, newnode)
+        swap!(new, oldnode, newnode)
     end
 end
 

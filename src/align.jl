@@ -357,6 +357,8 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
         hit.ref.seq = ref₀.sequence
         enforce_cutoff!(hit, minblock)
 
+        log(hit)
+
         blks = combine(qry₀, ref₀, hit; minblock=minblock)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
@@ -453,18 +455,50 @@ end
 
 # TODO: the associative array is a bit hacky...
 #       can we push it directly into the channel?
-function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100)
+function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothing)
+    function verify(graph)
+        if reference !== nothing
+            for (name,path) ∈ graph.sequence
+                seq = sequence(path)
+                ref = reference[name]
+                if !all(seq .== ref)
+                    println("--> length:           ref($(length(ref))) <=> seq($(length(seq)))")
+                    println("--> number of nodes:  $(length(path.node))")
+                    println("--> block lengths:    $([length(n.block, n) for n in path.node])")
+                    println("--> path offset:      $(path.offset)")
+                    println("--> ref[1:20]:        $(ref[1:20])") 
+                    println("--> seq[1:20]:        $(seq[1:20])") 
+                    println("--> ref[end-20]:      $(ref[end-19:end])") 
+                    println("--> seq[end-20]:      $(seq[end-19:end])") 
+                    error("--> isolate '$name' incorrectly reconstructed")
+                end
+            end
+        end
+
+        graph
+    end
+
     function kernel(clade)
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
 
         io₁, io₂ = getios()
 
+        log("--> checking left...")
+        verify(Gₗ)
+        log("--> checking right...")
+        verify(Gᵣ)
+
         G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, minblock)
+        log("--> checking merge 1...")
+        verify(G₀)
         G₀ = align_self(G₀, io₁, io₂, energy, minblock)
 
         putio(io₁)
         putio(io₂)
+
+        log("--> checking merge 2...")
+        verify(G₀)
 
         put!(clade.graph, G₀)
     end

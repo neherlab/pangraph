@@ -128,6 +128,8 @@ function partition(alignment; minblock=500)
         @label advance
         advance!(qry)
         advance!(ref)
+
+        @show "advanced", qry, ref
     end
 
     function qry_block!(pos)
@@ -217,12 +219,12 @@ function partition(alignment; minblock=500)
     # ----------------------------
     # see if blocks have a trailing unmatched block
 
-    if alignment.qry.stop < alignment.qry.length
-        qry_block!(Pos(alignment.qry.stop,alignment.qry.length))
+    if qry.start <= alignment.qry.length
+        qry_block!(Pos(qry.start,alignment.qry.length))
     end
 
-    if alignment.ref.stop < alignment.ref.length
-        ref_block!(Pos(alignment.ref.stop,alignment.ref.length))
+    if ref.start < alignment.ref.length
+        ref_block!(Pos(ref.start,alignment.ref.length))
     end
 
     return block
@@ -815,6 +817,12 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
     blocks   = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
     segments = partition(aln; minblock=minblock) # this enforces that indels are less than minblock!
 
+    print("[")
+    for (r, s) ∈ segments
+        print(stderr, "($(r.ref), $(r.qry)),")
+    end
+    print("]\n")
+
     for (range, segment) ∈ segments
         @match (range.qry, range.ref) begin
             ( nothing, Δ )  => begin
@@ -830,8 +838,20 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
+                # DEBUG:
+                println(stderr, ">before")
+                println(stderr, "-->ref: depth=$(depth(ref)), length=$(length(ref))")
+                println(stderr, "-->qry: depth=$(depth(qry)), length=$(length(qry))")
+
+                println(stderr, ">slice")
+                println(stderr, "-->ref: depth=$(depth(r)), length=$(length(r))")
+                println(stderr, "-->qry: depth=$(depth(q)), length=$(length(q))")
+
                 new = rereference(q, r, segment)
                 reconsensus!(new)
+
+                println(stderr, ">merged")
+                println(stderr, "-->new: depth=$(depth(new)), length=$(length(new))")
 
                 push!(blocks, (block=new, kind=:all))
             end

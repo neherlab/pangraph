@@ -347,7 +347,7 @@ function sequence(g::Graph, name::AbstractString)
     return sequence(path)
 end
 
-sequence(g::Graph) = [ name => join(sequence(node.block, node) for node ∈ path.node) for (name, path) ∈ g.sequence ]
+sequence(g::Graph) = [ name => join(String(sequence(node.block, node)) for node ∈ path.node) for (name, path) ∈ g.sequence ]
 
 # ------------------------------------------------------------------------
 # main point of entry
@@ -357,20 +357,31 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa") #"data/ge
 
     log("> running graph test...")
     log("-> building graph...")
+
+    sequences = String[]
     graph, isolates = open(file, "r") do io
-        isolates = graphs(io; circular=true)
-        println(">aligning...")
-        align(isolates...;minblock=100) , isolates
+        isolates  = graphs(io; circular=true)
+        sequences = [first(sequence(iso)) for iso in isolates]
+
+        println("-->aligning...")
+        align(isolates...;minblock=100,reference=Dict(sequences)), isolates
     end
 
     log("-> verifying graph...")
-    for isolate ∈ isolates
-        name, seq₀ = first(sequence(isolate))
+    for (i, isolate) ∈ enumerate(isolates)
+        name, seq₀ = sequences[i]
         seq₁ = sequence(graph, name)
         if !all(seq₀ .== seq₁)
-            error("incorrect sequence reconstruction")
+            path = graph.sequence[name]
+            x    = findfirst(seq₁, "ACTTGGCTATCCCGCAGGAC")
+
+            println("> true ($(length(seq₀))):          ", seq₀[1:20])
+            println("> reconstructed ($(length(seq₁))): ", seq₁[1:20])
+            println("> offset:                          $(path.offset)")
+            println("> needed offset:                   $(x)")
+            error("--> isolate '$name' incorrectly reconstructed")
         else
-            log("---> isolate '$name' correctly reconstructed")
+            log("--> isolate '$name' correctly reconstructed")
         end
     end
 
