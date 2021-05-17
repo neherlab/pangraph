@@ -159,31 +159,6 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
         swap!(new, i, n)
         splice!(p.node, i, n)
     end
-
-    #=
-    OLD CODE:
-    start, stop = old[1].block, old[end].block
-    i₁ₛ = findall((n) -> n.block == start, p.node)
-    i₂ₛ = findall((n) -> n.block == stop,  p.node)
-
-    @assert length(i₁ₛ) == length(i₂ₛ)
-
-    # XXX: the ordering here is wrong for circular genomes...
-    iₛ = p.circular ? intervals(i₁ₛ, i₂ₛ, length(old), length(p.node)) : intervals(i₁ₛ, i₂ₛ)
-    sₛ = map(i₁ₛ) do i
-        p.node[i].strand == old[1].strand
-    end
-
-
-    # NOTE: each section is reversed so that we modify the larger indices first
-    for (i,s) ∈ zip(reverse(iₛ), reverse(sₛ))
-        node = Node(new, s)
-
-        @show i,s
-        swap!(new, i, node)
-        splice!(p.node, i, [node])
-    end
-    =#
 end
 
 # XXX: store as field in block?

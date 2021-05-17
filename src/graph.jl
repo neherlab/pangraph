@@ -343,6 +343,7 @@ end
 function sequence(g::Graph, name::AbstractString)
     name ∉ keys(g.sequence) && error("'$name' not a valid sequence identifier")
     path = g.sequence[name]
+
     return sequence(path)
 end
 
