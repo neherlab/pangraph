@@ -392,6 +392,7 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int)
             qry = pop!(G₀.block, hit.qry.name),
             ref = pop!(G₀.block, hit.ref.name),
         )
+
         replace = (old, new) -> let
             for path in values(G₀.sequence)
                 replace!(path, old.qry, new.qry)
@@ -466,6 +467,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
                     println("--> number of nodes:  $(length(path.node))")
                     println("--> block lengths:    $([length(n.block, n) for n in path.node])")
                     println("--> path offset:      $(path.offset)")
+                    println("--> found offset:     $(findfirst(seq, ref[1:10]))")
                     println("--> ref[1:20]:        $(ref[1:20])") 
                     println("--> seq[1:20]:        $(seq[1:20])") 
                     println("--> ref[end-20]:      $(ref[end-19:end])") 

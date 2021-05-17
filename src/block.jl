@@ -128,8 +128,6 @@ function partition(alignment; minblock=500)
         @label advance
         advance!(qry)
         advance!(ref)
-
-        @show "advanced", qry, ref
     end
 
     function qry_block!(pos)

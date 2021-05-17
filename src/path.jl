@@ -92,6 +92,19 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
     prev = p.circular ? (x) -> (mod(x-2,length(p.node)) + 1) : (x) -> (x == 1 ? nothing : x-1)
 
     matches = findall((n)->n.block == old[1].block, p.node)
+
+    @show old
+
+    # DEBUG
+    print("SEQUENCE: [")
+    for i ∈ 1:length(p.node)
+        print(stderr, "$(p.node[i].block)[$(length(p.node[i].block))],")
+    end
+    println("]")
+    println("nucs[path]:  $(sequence(p)[1:20])")
+    println("nucs[block]: $(String(sequence(new)[10001:10020]))")
+    #
+   
     interval, strand = unzip(
         map(matches) do start
             parity  = p.node[start].strand == old[1].strand
@@ -112,32 +125,16 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                 stop ≥ start && return (interval=start:stop, strand=true)           # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
-                #= DEBUG
-                print("forward: [")
-                for i ∈ stop:length(p.node)
-                    print(stderr, p.node[i].block, ", ")
-                end
-                for i ∈ 1:start
-                    print(stderr, p.node[i].block, ", ")
-                end
-                println("]")
-                =#
+                # DEBUG
+                print("FORWARD:  $(start):$(stop)\n")
 
                 return (interval=(start:length(p.node), 1:stop), strand=true)
             else
                 stop ≤ start && return (interval=stop:start, strand=false)          # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
-                #= DEBUG
-                print("reverse: [")
-                for i ∈ start:-1:1
-                    print(stderr, p.node[i], ", ")
-                end
-                for i ∈ length(p.node):-1:stop
-                    print(stderr, p.node[i], ", ")
-                end
-                println("]")
-                =#
+                # DEBUG
+                print("REVERSE:  $(start):$(stop)\n")
 
                 return (interval=(1:start, stop:length(p.node)), strand=false)
             end
@@ -156,8 +153,8 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
             p.offset -= Δ
         end
         @show p.name, p.offset, Δ, i, length(sequence(p))
-        Base.splice!(nodes, i[1], [new])
-        Base.splice!(nodes, i[2])
+        Base.splice!(nodes, i[1])
+        Base.splice!(nodes, i[2], [new])
     end
 
     for (i,s) ∈ zip(interval, strand)
