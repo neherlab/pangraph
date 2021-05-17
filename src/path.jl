@@ -59,8 +59,11 @@ end
 
 # XXX: should we create an interval data structure that unifies both cases?
 # XXX: wrap as an iterator instead of storing the whole array in memory?
-# XXX: do we have to deal with reverse chain case?
-intervals(starts, stops) = [start:stop for (start,stop) in zip(starts,stops)]
+intervals(starts, stops) = [if start ≤ stop 
+                                start:stop 
+                            else 
+                                stop:start 
+                            end for (start,stop) in zip(starts,stops)]
 
 function intervals(starts, stops, gap, len)
     if (stops[1]-starts[1]) == gap
@@ -75,8 +78,81 @@ end
 # used for detransitive
 const Link = NamedTuple{(:block, :strand), Tuple{Block, Bool}}
 function Base.replace!(p::Path, old::Array{Link}, new::Block)
-    start, stop = old[1].block, old[end].block
+    unzip(a) = map(x->getfield.(a,x), fieldnames(eltype(a)))
 
+    next = p.circular ? (x) -> (mod(x-0,length(p.node)) + 1) : (x) -> (x == length(p.node) ? nothing : x+1)
+    prev = p.circular ? (x) -> (mod(x-2,length(p.node)) + 1) : (x) -> (x == 1 ? nothing : x-1)
+
+    matches = findall((n)->n.block == old[1].block, p.node)
+    interval, strand = unzip(
+        map(matches) do start
+            parity  = p.node[start].strand == old[1].strand
+            advance = parity ? next : prev
+
+            stop, x = start, advance(start)
+            for (blk, s) ∈ old[2:end]
+                if x === nothing 
+                    # XXX: should never hit this block
+                    error("bad interval match")
+                    return (interval=nothing,strand=nothing)
+                end
+                blk != p.node[x].block && return (interval=nothing,strand=nothing)
+                stop, x = x, advance(x)
+            end
+
+            @show old
+            if parity
+                stop ≥ start && return (interval=start:stop, strand=true)           # simple case: | -(--)- |
+                !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
+                # DEBUG
+                print("forward: [")
+                for i ∈ stop:length(p.node)
+                    print(stderr, p.node[i].block, ", ")
+                end
+                for i ∈ 1:start
+                    print(stderr, p.node[i].block, ", ")
+                end
+                println("]")
+
+                return (interval=(start:length(p.node), 1:stop), strand=true)
+            else
+                stop ≤ start && return (interval=stop:start, strand=false)          # simple case: | -(--)- |
+                !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
+                # DEBUG
+                print("reverse: [")
+                for i ∈ start:-1:1
+                    print(stderr, p.node[i], ", ")
+                end
+                for i ∈ length(p.node):-1:stop
+                    print(stderr, p.node[i], ", ")
+                end
+                println("]")
+
+                return (interval=(1:start, stop:length(p.node)), strand=false)
+            end
+        end
+    )
+
+    swap!(b, i::AbstractArray, new)                       = Blocks.swap!(b, p.node[i], new)
+    swap!(b, i::Tuple{AbstractArray,AbstractArray}, new)  = Blocks.swap!(b, [p.node[i[1]]; p.node[i[2]]], new)
+
+    # NOTE: have to correct for the overhang in the case of circular intervals
+    splice!(nodes, i::AbstractArray, new)                       = Base.splice!(nodes, i, [new])
+    splice!(nodes, i::Tuple{AbstractArray,AbstractArray}, new)  = let 
+        Base.splice!(nodes, i[1], [new])
+        Base.splice!(nodes, i[2])
+    end
+
+    for (i,s) ∈ zip(interval, strand)
+        n = Node(new, s)
+
+        swap!(new, i, n)
+        splice!(p.node, i, n)
+    end
+
+    #=
+    OLD CODE:
+    start, stop = old[1].block, old[end].block
     i₁ₛ = findall((n) -> n.block == start, p.node)
     i₂ₛ = findall((n) -> n.block == stop,  p.node)
 
@@ -88,22 +164,16 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
         p.node[i].strand == old[1].strand
     end
 
-    splice!(nodes, i::AbstractArray, new)                       = Base.splice!(nodes, i, new)
-    splice!(nodes, i::Tuple{AbstractArray,AbstractArray}, new)  = let 
-        Base.splice!(nodes, i[1], new)
-        Base.splice!(nodes, i[2])
-    end
 
-    # NOTE: have to correct for the overhang in the case of circular intervals
-    swap!(b, i::AbstractArray, new)                       = Blocks.swap!(b, p.node[i], new)
-    swap!(b, i::Tuple{AbstractArray,AbstractArray}, new)  = Blocks.swap!(b, p.node[[length(p.node)-length(i[1]):length(p.node);i[2]]], new)
-
+    # NOTE: each section is reversed so that we modify the larger indices first
     for (i,s) ∈ zip(reverse(iₛ), reverse(sₛ))
         node = Node(new, s)
 
+        @show i,s
         swap!(new, i, node)
         splice!(p.node, i, [node])
     end
+    =#
 end
 
 # XXX: store as field in block?

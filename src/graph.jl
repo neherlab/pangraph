@@ -6,6 +6,8 @@ using Rematch
 
 import JSON
 
+Random.seed!(0)
+
 # ---------------------------
 # functions to extend in submodules
 
@@ -78,13 +80,12 @@ const Chain = Array{Link, 1}
 # XXX: break into smaller functions
 #      too long
 function detransitive!(G::Graph)
-    isosᵥ = count_isolates(values(G.sequence))
+    numisos = count_isolates(values(G.sequence))
 
     # collect all junctions that transitively pass isolates through
     transitives = Junction[]
-    for (j, isosⱼ) in junctions(values(G.sequence))
-        if ((isosᵥ[j.left.block] == isosᵥ[j.right.block]) &&
-            (isosᵥ[j.left.block] == isosⱼ))
+    for (j, depth) in junctions(values(G.sequence))
+        if (numisos[j.left.block] == numisos[j.right.block] == depth)
             push!(transitives, j)
         end
     end
@@ -102,17 +103,17 @@ function detransitive!(G::Graph)
             c₁ == c₂ && continue
 
             merged =
-            if left(j) == last(c₁) && right(j) == first(c₂)
-                cat(c₁, c₂, dims=1)
-            elseif left(j) == last(c₁) && rev(right(j)) == last(c₂)
-                cat(c₁, rev(c₂), dims=1)
-            elseif rev(left(j)) == first(c₁) && right(j) == first(c₂)
-                cat(rev(c₁), c₂, dims=1)
-            elseif rev(left(j)) == first(c₁) && rev(right(j)) == last(c₂)
-                cat(c₂, c₁, dims=1)
-            else
-                error("case not covered")
-            end
+                if left(j) == last(c₁) && right(j) == first(c₂)
+                    cat(c₁, c₂, dims=1)
+                elseif left(j) == last(c₁) && rev(right(j)) == last(c₂)
+                    cat(c₁, rev(c₂), dims=1)
+                elseif rev(left(j)) == first(c₁) && right(j) == first(c₂)
+                    cat(rev(c₁), c₂, dims=1)
+                elseif rev(left(j)) == first(c₁) && rev(right(j)) == last(c₂)
+                    cat(c₂, c₁, dims=1)
+                else
+                    error("case not covered")
+                end
 
             for b in first.(merged)
                 chain[b] = merged
@@ -148,8 +149,8 @@ function detransitive!(G::Graph)
 
     # merge chains into one block
     for c in Set(values(chain))
-        isos = isosᵥ[c[1].block]
-        @assert all([isosᵥ[C.block] == isos for C in c[2:end]])
+        isos = numisos[c[1].block]
+        @assert all([numisos[C.block] == isos for C in c[2:end]])
         new  = Block((s ? b : reverse_complement(b) for (b,s) ∈ c)...)
 
         for iso ∈ keys(isos)
@@ -350,29 +351,19 @@ sequence(g::Graph) = [ name => join(sequence(node.block, node) for node ∈ path
 # ------------------------------------------------------------------------
 # main point of entry
 
-using Random: seed!
-
 function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa") #"data/generated/assemblies/isolates.fna.gz")
-    seed!(0)
-
     open = endswith(file,".gz") ? GZip.open : Base.open
 
-    log("> running block test...")
-    if !Blocks.test()
-        error("failed individual block reconstruction")
-    end
-
-    index = 1:50
     log("> running graph test...")
     log("-> building graph...")
     graph, isolates = open(file, "r") do io
-        isolates = graphs(io)
+        isolates = graphs(io; circular=true)
         println(">aligning...")
-        align(isolates[index]...;minblock=100) , isolates
+        align(isolates...;minblock=100) , isolates
     end
 
     log("-> verifying graph...")
-    for isolate ∈ isolates[index]
+    for isolate ∈ isolates
         name, seq₀ = first(sequence(isolate))
         seq₁ = sequence(graph, name)
         if !all(seq₀ .== seq₁)

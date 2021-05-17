@@ -1,5 +1,7 @@
 module Nodes
 
+import Base: show
+
 export Node
 
 # NOTE: we define an abstract type here to allow for mutually recursive types
@@ -20,6 +22,6 @@ Node{T}(b::T; strand=true) where T = Node{T}(b,strand)
 # --------------------------------
 # operators
 
-Base.show(io::IO, n::Node) = Base.show(io, UInt64(pointer_from_objref(n)))
+show(io::IO, n::Node) = Base.show(io, UInt64(pointer_from_objref(n)))
 
 end

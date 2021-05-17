@@ -108,11 +108,11 @@ end
 
 # TODO: distance?
 mutable struct Clade
-    name  :: String
-    parent:: Union{Clade,Nothing}
-    left  :: Union{Clade,Nothing}
-    right :: Union{Clade,Nothing}
-    graph :: Channel{Graph}
+    name   :: String
+    parent :: Union{Clade,Nothing}
+    left   :: Union{Clade,Nothing}
+    right  :: Union{Clade,Nothing}
+    graph  :: Channel{Graph}
 end
 
 # ---------------------------
@@ -307,13 +307,12 @@ end
 function write(fifo, G::Graph)
     io = open(fifo, "w")
 
-    sleep(1e-3) # NOTE: hack to allow for minimap2 to open file
     @label write
+    sleep(1e-3) # NOTE: hack to allow for minimap2 to open file
     try
         marshal(io, G)
     catch e
         log("ERROR: $(e)")
-        sleep(1e-3)
         @goto write
         # error(e)
     finally
@@ -324,12 +323,13 @@ end
 function do_align(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function)
     # NOTE: minimap2 opens up file descriptors in order!
     #       must process 2 before 1 otherwise we deadlock
+    
+    cmd = minimap2(path(io₁), path(io₂))
     @async begin
         write(io₂, G₂) # ref
         write(io₁, G₁) # qry
     end
 
-    cmd = minimap2(path(io₁), path(io₂))
     out = IOBuffer(fetch(cmd.out)) # NOTE: blocks until minimap finishes
 
     hits = collect(read_paf(out))

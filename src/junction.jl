@@ -17,7 +17,9 @@ blocks(j::Junction) = (left=j.left.block, right=j.right.block)
 # --------------------------------
 # extension of base operators
 
-Base.hash(j::Junction) = Base.hash(Set([blocks(j), blocks(reverse(j))]))
+# XXX: WHY ONLY THE BLOCKS!! NEED TO PASS THE STRAND!
+#      MODIFY TO PASS IN STRAND AS WELL
+Base.hash(j::Junction) = Base.hash(blocks(j)) ⊻ Base.hash(blocks(reverse(j)))
 Base.isequal(j₁::Junction, j₂::Junction) = Base.isequal(blocks(j₁), blocks(j₂)) || 
                                            Base.isequal(blocks(j₁), blocks(reverse(j₂)))
 
@@ -41,20 +43,27 @@ end
 function reverse(j::Junction)
     return Junction(
         Node{Block}(j.right.block, !j.right.strand),
-        Node{Block}(j.left.block, !j.left.strand),
+        Node{Block}(j.left.block,  !j.left.strand),
     )
 end
 
 function junctions(paths)
     js = Dict{Junction, Counter}() 
+    function push(key, name)
+        if key ∈ keys(js)
+            add!(js[key], name)
+        else
+            js[key] = Counter([name => 1])
+        end
+    end
+
     for path in paths
         for (i, node) ∈ enumerate(path.node[2:end])
-            key = Junction(path.node[i], node)
-            if key ∈ keys(js)
-                add!(js[key], path.name)
-            else
-                js[key] = Counter([path.name => 1])
-            end
+            push(Junction(path.node[i], node), path.name)
+        end
+
+        if path.circular
+            push(Junction(path.node[end],path.node[1]), path.name)
         end
     end
 

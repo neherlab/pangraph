@@ -46,17 +46,11 @@ function applyalleles(seq, mutate, insert, delete)
 
     new = Array{UInt8,1}(undef, len)
 
-    @show mutate
-    @show insert
-    @show delete
-
     r = 1  # leading edge of read  position
     w = 1  # leading edge of write position
     for locus in allele_positions(mutate, insert, delete)
         δ = first(locus.pos) - r
         if δ > 0
-            @show length(new), length(seq)
-            @show (w, w+δ-1), (r, r+δ-1)
             new[w:w+δ-1] = seq[r:r+δ-1]
             r += δ
             w += δ
@@ -302,6 +296,7 @@ end
 function Block(bs::Block...)
     sequence = vcat((b.sequence for b in bs)...)
 
+    # XXX: should we copy here so as to not mutate bs[1]?
     gaps   = bs[1].gaps
     mutate = bs[1].mutate
     insert = bs[1].insert
@@ -653,13 +648,6 @@ function reconsensus!(b::Block)
     )
 
     b.sequence = consensus[.!refdel]
-    #=
-    @show b.uuid
-    @show length(b.sequence), length(consensus)
-    @show b.mutate
-    @show b.insert
-    @show b.delete
-    =#
     
     @assert all(all(k ≤ length(b.sequence) for k in keys(d)) for d in values(b.mutate)) 
     @assert all(all(k ≤ length(b.sequence) for k in keys(d)) for d in values(b.delete)) 
@@ -721,7 +709,6 @@ function rereference(qry::Block, ref::Block, segments)
                                     newgap = (Δ.stop, newlen)
                                 end
                             else # TODO: negative matching
-                                @show start, stop, Δ, pos, δ
                                 error("need to implement")
                             end
                         end
@@ -762,7 +749,7 @@ function rereference(qry::Block, ref::Block, segments)
                     seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
                     if length(seq) > 0
                         if length(seq) > last(newgap)
-                            newgap = (x.ref-1,length(seq))
+                            newgap = (x.ref-1,length(seq)+δ)
                         end
                         node => Dict((x.ref-1,δ) => seq) 
                     else
@@ -865,6 +852,9 @@ function check(b::Block; ids=true)
     for node ∈ keys(b)
         for ((x, δ), ins) ∈ b.insert[node]
             if b.gaps[x] < (length(ins) + δ)
+                @show b.gaps
+                @show b.insert[node]
+                @show node
                 @show b.gaps[x], (length(ins) + δ)
                 @assert false
             end
