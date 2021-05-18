@@ -379,9 +379,9 @@ function reverse_complement(b::Block)
     seq = reverse_complement(b.sequence)
     len = length(seq)
 
-    revcmpl(dict::SNPMap) = Dict(len-locus+1:wcpair[nuc]  for (locus,nuc) in dict)
-    revcmpl(dict::DelMap) = Dict(len-locus+1:del for (locus,del) in dict)
-    revcmpl(dict::InsMap) = Dict((len-locus+1,b.gaps[locus]-off+1):reverse_complement(ins) for ((locus,off),ins) in dict)
+    revcmpl(dict::SNPMap) = Dict(len-locus+1 => wcpair[nuc] for (locus,nuc) in dict)
+    revcmpl(dict::DelMap) = Dict(len-locus+1 => del for (locus,del) in dict)
+    revcmpl(dict::InsMap) = Dict((len-locus+1,b.gaps[locus]-off+1) => reverse_complement(ins) for ((locus,off),ins) in dict)
 
     mutate = Dict(node => revcmpl(snp) for (node, snp) in b.mutate)
     insert = Dict(node => revcmpl(ins) for (node, ins) in b.insert)
@@ -845,10 +845,10 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
 
                 @show segment
                 new = rereference(q, r, segment)
-                @show all(r.sequence .== q.sequence)
-                @show new.mutate
+                # @show all(r.sequence .== q.sequence)
+                # @show new.mutate
                 reconsensus!(new)
-                @show all(r.sequence .== new.sequence)
+                # @show all(r.sequence .== new.sequence)
 
                 push!(blocks, (block=new, kind=:all))
             end

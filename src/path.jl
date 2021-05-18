@@ -80,32 +80,6 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     newseq = sequence(p)
 
     if oldseq != newseq
-        if String(copy(old.sequence)) != join(String(reverse_complement(b.sequence)) for b in reverse(new))
-            x = length(new[3].sequence) + 1
-            @assert false
-            println(String(copy(old.sequence[x:x+19])))
-            println(String(reverse_complement(new[2].sequence))[1:20])
-            println(String(copy(new[2].sequence))[1:20])
-            println(String(copy(new[2].sequence))[end-19:end])
-            println(String(reverse_complement(new[2].sequence))[end-19:end])
-            #=
-            @show String(copy(old.sequence))[1:20] 
-            @show String(copy(old.sequence))[end-19:end] 
-            @show String(copy(new[1].sequence))[1:20]
-            @show String(copy(new[2].sequence))[1:20]
-            @show String(copy(new[3].sequence))[1:20]
-            @show String(copy(new[1].sequence))[end-19:end]
-            @show String(copy(new[2].sequence))[end-19:end]
-            @show String(copy(new[3].sequence))[end-19:end]
-            @show String(reverse_complement(new[1].sequence))[1:20]
-            @show String(reverse_complement(new[2].sequence))[1:20]
-            @show String(reverse_complement(new[3].sequence))[1:20]
-            @show String(reverse_complement(new[1].sequence))[end-19:end]
-            @show String(reverse_complement(new[2].sequence))[end-19:end]
-            @show String(reverse_complement(new[3].sequence))[end-19:end]
-            =#
-        end
-
         badloci = Int[]
         for i ∈ 1:length(newseq)
             if newseq[i] != oldseq[i]
