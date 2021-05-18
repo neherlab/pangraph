@@ -62,7 +62,7 @@ function junctions(paths)
             push(Junction(path.node[i], node), path.name)
         end
 
-        if path.circular
+        if path.circular && length(path) > 1
             push(Junction(path.node[end],path.node[1]), path.name)
         end
     end

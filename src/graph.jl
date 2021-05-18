@@ -153,7 +153,11 @@ function detransitive!(G::Graph)
         @assert all([numisos[C.block] == isos for C in c[2:end]])
         new  = Block((s ? b : reverse_complement(b) for (b,s) ∈ c)...)
 
+        @show isos
+        @show c
+
         for iso ∈ keys(isos)
+            @show iso
             replace!(G.sequence[iso], c, new)
         end
 

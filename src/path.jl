@@ -1,5 +1,8 @@
 module Paths
 
+import Base:
+    length, show
+
 using ..Nodes
 using ..Blocks
 
@@ -26,7 +29,8 @@ Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],cir
 # operators
 
 pair(p::Path) = p.name => p
-Base.show(io::IO, p::Path) = Base.show(io, (name=p.name, blocks=p.node))
+show(io::IO, p::Path) = Base.show(io, (name=p.name, blocks=p.node))
+length(p::Path) = length(p.node)
 
 function sequence(p::Path)
     seq = join(String(sequence(n.block, n)) for n ∈ p.node)
@@ -101,8 +105,8 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
         print(stderr, "$(p.node[i].block)[$(length(p.node[i].block))],")
     end
     println("]")
-    println("nucs[path]:  $(sequence(p)[1:20])")
-    println("nucs[block]: $(String(sequence(new)[10001:10020]))")
+    # println("nucs[path]:  $(sequence(p)[1:20])")
+    # println("nucs[block]: $(String(sequence(new)[10001:10020]))")
     #
    
     interval, strand = unzip(
