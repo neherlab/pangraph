@@ -14,8 +14,9 @@ using ..Utility:
     hamming_align
 
 import ..Graphs:
-    pair, reverse_complement, 
-    sequence, sequence!
+    pair, 
+    sequence, sequence!,
+    reverse_complement, reverse_complement!
 
 # exports
 export SNPMap, InsMap, DelMap # aux types
@@ -323,11 +324,11 @@ function Block(b::Block, slice)
     end
     @assert slice.start >= 1 && slice.stop <= length(b)
 
-    sequence = b.sequence[slice]
-    subslice(dict, i) = translate(lociwithin(dict,i), 1-i.start)
+    sequence = Base.copy(b.sequence[slice])
 
     gaps = Dict(x-slice.start+1 => δ for (x,δ) ∈ b.gaps if slice.start ≤ x ≤ slice.stop)
 
+    subslice(dict, i) = translate(lociwithin(dict,i), 1-i.start)
     mutate = subslice(b.mutate, slice)
     insert = subslice(b.insert, slice)
     delete = subslice(b.delete, slice)
@@ -385,7 +386,7 @@ function reverse_complement(b::Block)
     mutate = Dict(node => revcmpl(snp) for (node, snp) in b.mutate)
     insert = Dict(node => revcmpl(ins) for (node, ins) in b.insert)
     delete = Dict(node => revcmpl(del) for (node, del) in b.delete)
-    gaps   = Dict(node => revcmpl(gap) for (node, gap) in b.gaps)
+    gaps   = Dict(len-locus+1 => gap  for (locus, gap) in b.gaps)
 
     return Block(seq,gaps,mutate,insert,delete)
 end
@@ -515,7 +516,7 @@ end
 function sequence(b::Block, node::Node{Block}; gaps=false)
     seq = gaps ? sequence(b; gaps=true) : Array{UInt8}('-'^length(b, node))
     sequence!(seq, b, node; gaps=gaps)
-    return seq
+    return node.strand ? seq : reverse_complement(seq)
 end
 
 function gapconsensus(b::Block, x::Int)
@@ -596,6 +597,7 @@ function reconsensus!(b::Block)
     nodes = collect(keys(b))
 
     ref = sequence(b; gaps=true)
+
     aln = Array{UInt8}(undef, length(ref), depth(b))
     for (i,node) in enumerate(nodes)
         aln[:,i] = ref
@@ -810,21 +812,23 @@ function rereference(qry::Block, ref::Block, segments)
     return new
 end
 
-
 function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
-    blocks   = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
+    blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
+    strand = true
+
+    if !aln.orientation
+        qry = reverse_complement(qry)
+        @show aln.qry.start, aln.qry.stop
+        reverse_complement!(aln)
+        @show aln.qry.start, aln.qry.stop
+        strand = false
+    end
+
     segments = partition(aln; minblock=minblock) # this enforces that indels are less than minblock!
 
-    #=
-    # DEBUG
-    print("[")
-    for (r, s) ∈ segments
-        print(stderr, "($(r.ref), $(r.qry)),")
-    end
-    print("]\n")
-    =#
-
     for (range, segment) ∈ segments
+        @show range.qry, range.ref
+
         @match (range.qry, range.ref) begin
             ( nothing, Δ )  => begin
                 push!(blocks, (block=Block(ref, Δ), kind=:ref))
@@ -839,28 +843,19 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
-                #= DEBUG:
-                println(stderr, ">before")
-                println(stderr, "-->ref: depth=$(depth(ref)), length=$(length(ref))")
-                println(stderr, "-->qry: depth=$(depth(qry)), length=$(length(qry))")
-
-                println(stderr, ">slice")
-                println(stderr, "-->ref: depth=$(depth(r)), length=$(length(r))")
-                println(stderr, "-->qry: depth=$(depth(q)), length=$(length(q))")
-
-                println(stderr, ">merged")
-                println(stderr, "-->new: depth=$(depth(new)), length=$(length(new))")
-                =#
-
+                @show segment
                 new = rereference(q, r, segment)
+                @show all(r.sequence .== q.sequence)
+                @show new.mutate
                 reconsensus!(new)
+                @show all(r.sequence .== new.sequence)
 
                 push!(blocks, (block=new, kind=:all))
             end
         end
     end
 
-    return blocks
+    return blocks, strand
 end
 
 function check(b::Block; ids=true)

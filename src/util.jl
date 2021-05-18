@@ -7,7 +7,7 @@ using StatsBase
 using ..Intervals
 
 import ..Graphs: 
-    reverse_complement
+    reverse_complement, reverse_complement!
 
 # exports
 export random_id, log
@@ -316,10 +316,22 @@ function hamming_align(qry::Array{UInt8,1}, ref::Array{UInt8,1})
 end
 
 include("static/watson-crick.jl")
-function reverse_complement(seq::Array{UInt8})
-    cmpl = [wcpair[nuc] for nuc in seq]
-    reverse!(cmpl)
-    return cmpl
+reverse_complement(seq::Array{UInt8}) = UInt8[wcpair[nuc+1] for nuc in reverse(seq)]
+
+function reverse_complement!(hit::Hit)
+    if hit.seq !== nothing
+        hit.seq = reverse_complement(hit.seq)
+    end
+
+    start, stop = hit.start, hit.stop
+
+    hit.start = 1 + (hit.length - stop)
+    hit.stop  = hit.length - (start - 1)
+end
+
+function reverse_complement!(aln::Alignment) 
+    reverse_complement!(aln.qry)
+    aln.orientation = ~aln.orientation
 end
 
 # ------------------------------------------------------------------------

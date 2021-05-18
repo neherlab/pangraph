@@ -357,12 +357,14 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
         hit.ref.seq = ref₀.sequence
         enforce_cutoff!(hit, minblock)
 
-        blks = combine(qry₀, ref₀, hit; minblock=minblock)
+        log(hit)
+
+        blks, strand = combine(qry₀, ref₀, hit; minblock=minblock)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
         refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
 
-        replace!((qry=qry₀, ref=ref₀), (qry=qrys, ref=refs))
+        replace!((qry=qry₀, ref=ref₀), (qry=qrys, ref=refs), strand)
 
         for blk in map(b->b.block, blks)
             blocks[blk.uuid] = blk
@@ -391,13 +393,13 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int)
             ref = pop!(G₀.block, hit.ref.name),
         )
 
-        replace = (old, new) -> let
+        replace = (old, new, orientation) -> let
             for path in values(G₀.sequence)
-                replace!(path, old.qry, new.qry)
+                replace!(path, old.qry, new.qry, orientation)
             end
 
             for path in values(G₀.sequence)
-                replace!(path, old.ref, new.ref)
+                replace!(path, old.ref, new.ref, true)
             end
         end
 
@@ -426,13 +428,13 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, mi
         qry = pop!(G₁.block, hit.qry.name),
         ref = pop!(G₂.block, hit.ref.name),
     )
-    replace = (old, new) -> let
+    replace = (old, new, orientation) -> let
         for path in values(G₁.sequence)
-            replace!(path, old.qry, new.qry)
+            replace!(path, old.qry, new.qry, orientation)
         end
 
         for path in values(G₂.sequence)
-            replace!(path, old.ref, new.ref)
+            replace!(path, old.ref, new.ref, true)
         end
     end
 
@@ -462,16 +464,24 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
             for (name,path) ∈ graph.sequence
                 seq = sequence(path)
                 ref = reference[name]
-                if !all(seq .== ref)
+                if seq != ref
+                    badloci = Int[]
+                    for i ∈ 1:length(seq)
+                        if seq[i] != ref[i]
+                            push!(badloci, i)
+                        end
+                    end
+                    left, right = max(badloci[1]-10, 1), min(badloci[1]+10, length(seq))
+
                     println("--> length:           ref($(length(ref))) <=> seq($(length(seq)))")
                     println("--> number of nodes:  $(length(path.node))")
+                    println("--> block ids:        $([n.block.uuid for n in path.node])")
                     println("--> block lengths:    $([length(n.block, n) for n in path.node])")
+                    println("--> cumulative len:   $(cumsum([length(n.block, n) for n in path.node]))")
                     println("--> path offset:      $(path.offset)")
-                    println("--> found offset:     $(findfirst(seq, ref[1:10]))")
-                    println("--> ref[1:20]:        $(ref[1:20])") 
-                    println("--> seq[1:20]:        $(seq[1:20])") 
-                    println("--> ref[end-20]:      $(ref[end-19:end])") 
-                    println("--> seq[end-20]:      $(seq[end-19:end])") 
+                    println("--> window:           $(left):$(badloci[1]):$(right)")
+                    println("--> ref:              $(ref[left:right])") 
+                    println("--> seq:              $(seq[left:right])") 
                     error("--> isolate '$name' incorrectly reconstructed")
                 end
             end

@@ -7,7 +7,7 @@ using ..Nodes
 using ..Blocks
 
 import ..Graphs: 
-    pair, sequence,
+    pair, sequence, reverse_complement,
     Counter, add!
 
 export Path
@@ -41,20 +41,29 @@ function sequence(p::Path)
 end
 
 # used for block merging
-function Base.replace!(p::Path, old::Block, new::Array{Block})
+function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool)
     indices = Int[]
     inserts = Array{Node{Block}}[]
+
+    oldseq = sequence(p)
+
+    println("> PATH:", [(n.block.uuid,n.strand) for n in p.node])
+    println("> NEW: ", [(b.uuid) for b in new])
+    println("> OLD: ", old.uuid)
+
     for (i, n₁) in enumerate(p.node)
-        if n₁.block != old
-            continue
-        end
+        n₁.block != old && continue
 
         push!(indices, i)
 
-        nodes = (n₁.strand ? [Node{Block}(nb) for nb in new] 
-                           : [Node{Block}(nb;strand=false) for nb in reverse(new)])
-        for (blk,n₂) in zip(n₁.strand ? new : reverse(new), nodes)
-            swap!(blk, n₁, n₂)
+        nodes = ((n₁.strand==orientation) 
+                     ? [Node{Block}(nb;strand=true) for nb in new] 
+                     : [Node{Block}(nb;strand=false) for nb in reverse(new)])
+
+        @show [(n.block.uuid, n.strand) for n in nodes]
+
+        for n₂ in nodes
+            swap!(n₂.block, n₁, n₂)
         end
 
         push!(inserts, nodes)
@@ -66,6 +75,57 @@ function Base.replace!(p::Path, old::Block, new::Array{Block})
 
     for (index, nodes) in zip(indices, inserts)
         splice!(p.node, index, nodes)
+    end
+
+    newseq = sequence(p)
+
+    if oldseq != newseq
+        if String(copy(old.sequence)) != join(String(reverse_complement(b.sequence)) for b in reverse(new))
+            x = length(new[3].sequence) + 1
+            @assert false
+            println(String(copy(old.sequence[x:x+19])))
+            println(String(reverse_complement(new[2].sequence))[1:20])
+            println(String(copy(new[2].sequence))[1:20])
+            println(String(copy(new[2].sequence))[end-19:end])
+            println(String(reverse_complement(new[2].sequence))[end-19:end])
+            #=
+            @show String(copy(old.sequence))[1:20] 
+            @show String(copy(old.sequence))[end-19:end] 
+            @show String(copy(new[1].sequence))[1:20]
+            @show String(copy(new[2].sequence))[1:20]
+            @show String(copy(new[3].sequence))[1:20]
+            @show String(copy(new[1].sequence))[end-19:end]
+            @show String(copy(new[2].sequence))[end-19:end]
+            @show String(copy(new[3].sequence))[end-19:end]
+            @show String(reverse_complement(new[1].sequence))[1:20]
+            @show String(reverse_complement(new[2].sequence))[1:20]
+            @show String(reverse_complement(new[3].sequence))[1:20]
+            @show String(reverse_complement(new[1].sequence))[end-19:end]
+            @show String(reverse_complement(new[2].sequence))[end-19:end]
+            @show String(reverse_complement(new[3].sequence))[end-19:end]
+            =#
+        end
+
+        badloci = Int[]
+        for i ∈ 1:length(newseq)
+            if newseq[i] != oldseq[i]
+                push!(badloci, i)
+            end
+        end
+        left, right = max(badloci[1]-10, 1), min(badloci[1]+10, length(newseq))
+
+        @show orientation
+        @show indices
+        println([(n.block.uuid,n.strand) for n in p.node])
+
+        println("--> length:           ref($(length(oldseq))) <=> seq($(length(newseq)))")
+        println("--> number of nodes:  $(length(p.node))")
+        println("--> cumulative len:   $(cumsum([length(n.block,n) for n in p.node]))")
+        println("--> offset:           $(p.offset)")
+        println("--> window:           $(left):$(badloci[1]):$(right)")
+        println("--> ref:              $(oldseq[left:right])") 
+        println("--> seq:              $(newseq[left:right])") 
+        error("bad splicing")
     end
 end
 
@@ -97,16 +157,6 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
 
     matches = findall((n)->n.block == old[1].block, p.node)
 
-    #= DEBUG
-    print("SEQUENCE: [")
-    for i ∈ 1:length(p.node)
-        print(stderr, "$(p.node[i].block)[$(length(p.node[i].block))],")
-    end
-    println("]")
-    # println("nucs[path]:  $(sequence(p)[1:20])")
-    # println("nucs[block]: $(String(sequence(new)[10001:10020]))")
-    =#
-   
     interval, strand = unzip(
         map(matches) do start
             parity  = p.node[start].strand == old[1].strand
@@ -119,7 +169,11 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                     error("bad interval match")
                     return (interval=nothing,strand=nothing)
                 end
-                blk != p.node[x].block && return (interval=nothing,strand=nothing)
+                blk != p.node[x].block && error("bad interval match") #return (interval=nothing,strand=nothing)
+                if p.node[x].strand != (parity ? s : ~s) 
+                    @show old
+                    error("bad strandedness")
+                end
                 stop, x = x, advance(x)
             end
 
@@ -127,16 +181,12 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                 stop ≥ start && return (interval=start:stop, strand=true)           # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
-                # DEBUG
-                # print("FORWARD:  $(start):$(stop)\n")
-
                 return (interval=(start:length(p.node), 1:stop), strand=true)
             else
                 stop ≤ start && return (interval=stop:start, strand=false)          # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
-                # DEBUG
-                # print("REVERSE:  $(start):$(stop)\n")
+                error("REVERSE")
 
                 return (interval=(1:start, stop:length(p.node)), strand=false)
             end
@@ -146,14 +196,25 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
     oldnodes(i::AbstractArray)                      = p.node[i]
     oldnodes(i::Tuple{AbstractArray,AbstractArray}) = [p.node[i[1]]; p.node[i[2]]]
 
-    splice!(nodes, i::AbstractArray, new)                       = Base.splice!(nodes, i, [new])
-    splice!(nodes, i::Tuple{AbstractArray,AbstractArray}, new)  = let 
+    splice!(nodes, i::AbstractArray, new) = let
+        lengths = [length(n.block, n) for n in nodes]
+        @show lengths
+        @show cumsum(lengths)
+        @show i
+        Base.splice!(nodes, i, [new])
+    end
+    splice!(nodes, i::Tuple{AbstractArray,AbstractArray}, new) = let 
         Δ = sum(length(n.block, n) for n in p.node[i[1]])
         if p.offset === nothing
             p.offset = -Δ
         else
             p.offset -= Δ
         end
+
+        lengths = [length(n.block, n) for n in nodes]
+        @show lengths
+        @show cumsum(lengths)
+        @show i
 
         Base.splice!(nodes, i[1])
         Base.splice!(nodes, i[2], [new])
@@ -163,8 +224,16 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
         newnode = Node(new, s)
         oldnode = oldnodes(i)
 
+        oldseq = join(String(sequence(n.block,n)) for n in oldnode)
+
         splice!(p.node, i, newnode)
         swap!(new, oldnode, newnode)
+
+        newseq = String(sequence(newnode.block,newnode))
+
+        if newseq != oldseq
+            error("FAIL")
+        end
     end
 end
 

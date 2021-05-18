@@ -20,8 +20,9 @@ function sequence(obj; gaps=false)           end
 function sequence!(s, obj, name; gaps=false) end
 function sequence!(s, obj; gaps=false)       end
 
-export reverse_complement
-function reverse_complement(item) end
+export reverse_complement, reverse_complement!
+function reverse_complement(item)  end
+function reverse_complement!(item) end
 
 include("interval.jl")
 include("counter.jl")
@@ -154,6 +155,7 @@ function detransitive!(G::Graph)
         new  = Block((s ? b : reverse_complement(b) for (b,s) ∈ c)...)
 
         for iso ∈ keys(isos)
+            @show iso
             replace!(G.sequence[iso], c, new)
         end
 
@@ -364,7 +366,7 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa") #"data/ge
         sequences = [first(sequence(iso)) for iso in isolates]
 
         println("-->aligning...")
-        align(isolates...;minblock=100), isolates
+        align(isolates...;minblock=100,reference=Dict(sequences)), isolates
     end
 
     log("-> verifying graph...")
