@@ -357,8 +357,6 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
         hit.ref.seq = ref₀.sequence
         enforce_cutoff!(hit, minblock)
 
-        log(hit)
-
         blks = combine(qry₀, ref₀, hit; minblock=minblock)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
@@ -457,8 +455,10 @@ end
 # TODO: the associative array is a bit hacky...
 #       can we push it directly into the channel?
 function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothing)
-    function verify(graph)
+    function verify(graph, msg="")
         if reference !== nothing
+            log(msg)
+
             for (name,path) ∈ graph.sequence
                 seq = sequence(path)
                 ref = reference[name]
@@ -486,21 +486,17 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
 
         io₁, io₂ = getios()
 
-        log("--> checking left...")
-        verify(Gₗ)
-        log("--> checking right...")
-        verify(Gᵣ)
+        verify(Gₗ, "--> checking left...")
+        verify(Gᵣ, "--> checking right...")
 
         G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, minblock)
-        log("--> checking merge 1...")
-        verify(G₀)
+        verify(G₀,"--> checking merge 1...")
         G₀ = align_self(G₀, io₁, io₂, energy, minblock)
 
         putio(io₁)
         putio(io₂)
 
-        log("--> checking merge 2...")
-        verify(G₀)
+        verify(G₀, "--> checking merge 2...")
 
         put!(clade.graph, G₀)
     end

@@ -815,11 +815,14 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
     blocks   = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
     segments = partition(aln; minblock=minblock) # this enforces that indels are less than minblock!
 
+    #=
+    # DEBUG
     print("[")
     for (r, s) ∈ segments
         print(stderr, "($(r.ref), $(r.qry)),")
     end
     print("]\n")
+    =#
 
     for (range, segment) ∈ segments
         @match (range.qry, range.ref) begin
@@ -836,7 +839,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
-                # DEBUG:
+                #= DEBUG:
                 println(stderr, ">before")
                 println(stderr, "-->ref: depth=$(depth(ref)), length=$(length(ref))")
                 println(stderr, "-->qry: depth=$(depth(qry)), length=$(length(qry))")
@@ -845,11 +848,12 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 println(stderr, "-->ref: depth=$(depth(r)), length=$(length(r))")
                 println(stderr, "-->qry: depth=$(depth(q)), length=$(length(q))")
 
-                new = rereference(q, r, segment)
-                reconsensus!(new)
-
                 println(stderr, ">merged")
                 println(stderr, "-->new: depth=$(depth(new)), length=$(length(new))")
+                =#
+
+                new = rereference(q, r, segment)
+                reconsensus!(new)
 
                 push!(blocks, (block=new, kind=:all))
             end

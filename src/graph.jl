@@ -153,11 +153,7 @@ function detransitive!(G::Graph)
         @assert all([numisos[C.block] == isos for C in c[2:end]])
         new  = Block((s ? b : reverse_complement(b) for (b,s) ∈ c)...)
 
-        @show isos
-        @show c
-
         for iso ∈ keys(isos)
-            @show iso
             replace!(G.sequence[iso], c, new)
         end
 
@@ -368,7 +364,7 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa") #"data/ge
         sequences = [first(sequence(iso)) for iso in isolates]
 
         println("-->aligning...")
-        align(isolates...;minblock=100,reference=Dict(sequences)), isolates
+        align(isolates...;minblock=100), isolates
     end
 
     log("-> verifying graph...")
