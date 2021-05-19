@@ -12,16 +12,13 @@ struct Junction
     right::Node{Block}
 end
 
-blocks(j::Junction) = (left=j.left.block, right=j.right.block)
+blocks(j::Junction) = (left=(j.left.block,j.left.strand), right=(j.right.block,j.right.strand))
 
 # --------------------------------
 # extension of base operators
 
-# XXX: WHY ONLY THE BLOCKS!! NEED TO PASS THE STRAND!
-#      MODIFY TO PASS IN STRAND AS WELL
 Base.hash(j::Junction) = Base.hash(blocks(j)) ⊻ Base.hash(blocks(reverse(j)))
-Base.isequal(j₁::Junction, j₂::Junction) = Base.isequal(blocks(j₁), blocks(j₂)) || 
-                                           Base.isequal(blocks(j₁), blocks(reverse(j₂)))
+Base.isequal(j₁::Junction, j₂::Junction) = Base.isequal(blocks(j₁), blocks(j₂)) || Base.isequal(blocks(j₁), blocks(reverse(j₂)))
 
 # --------------------------------
 # custom operators

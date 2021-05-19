@@ -61,6 +61,7 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
                      : [Node{Block}(nb;strand=false) for nb in reverse(new)])
 
         @show [(n.block.uuid, n.strand) for n in nodes]
+        @show Blocks.allele_positions(n₁.block, n₁)
 
         for n₂ in nodes
             swap!(n₂.block, n₁, n₂)
@@ -139,13 +140,20 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
             stop, x = start, advance(start)
             for (blk, s) ∈ old[2:end]
                 if x === nothing 
-                    # XXX: should never hit this block
-                    error("bad interval match")
-                    return (interval=nothing,strand=nothing)
+                    error("ran off genome")
                 end
-                blk != p.node[x].block && error("bad interval match") #return (interval=nothing,strand=nothing)
-                if p.node[x].strand != (parity ? s : ~s) 
+                if blk != p.node[x].block 
                     @show old
+                    @show x, start, old[1].strand, parity
+                    @show (p.node[x].block, p.node[x].strand)
+                    @show (p.node[start].block, p.node[start].strand)
+                    error("bad interval match")
+                end
+                if p.node[x].strand != (parity ? s : ~s)
+                    @show old
+                    @show x, start, old[1].strand, parity
+                    @show (p.node[x].block, p.node[x].strand)
+                    @show (p.node[start].block, p.node[start].strand)
                     error("bad strandedness")
                 end
                 stop, x = x, advance(x)
