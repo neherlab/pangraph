@@ -155,7 +155,6 @@ function detransitive!(G::Graph)
         new  = Block((s ? b : reverse_complement(b) for (b,s) ∈ c)...)
 
         for iso ∈ keys(isos)
-            @show iso
             replace!(G.sequence[iso], c, new)
         end
 

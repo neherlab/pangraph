@@ -47,10 +47,6 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
 
     oldseq = sequence(p)
 
-    println("> PATH:", [(n.block.uuid,n.strand) for n in p.node])
-    println("> NEW: ", [(b.uuid) for b in new])
-    println("> OLD: ", old.uuid)
-
     for (i, n₁) in enumerate(p.node)
         n₁.block != old && continue
 
@@ -59,9 +55,6 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
         nodes = ((n₁.strand==orientation) 
                      ? [Node{Block}(nb;strand=true) for nb in new] 
                      : [Node{Block}(nb;strand=false) for nb in reverse(new)])
-
-        @show [(n.block.uuid, n.strand) for n in nodes]
-        @show Blocks.allele_positions(n₁.block, n₁)
 
         for n₂ in nodes
             swap!(n₂.block, n₁, n₂)
@@ -100,6 +93,11 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
         println("--> window:           $(left):$(badloci[1]):$(right)")
         println("--> ref:              $(oldseq[left:right])") 
         println("--> seq:              $(newseq[left:right])") 
+
+        @show p.node[indices[1]].block.mutate[n]
+        @show p.node[indices[1]].block.insert[n]
+        @show p.node[indices[1]].block.delete[n]
+
         error("bad splicing")
     end
 end
@@ -180,9 +178,6 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
 
     splice!(nodes, i::AbstractArray, new) = let
         lengths = [length(n.block, n) for n in nodes]
-        @show lengths
-        @show cumsum(lengths)
-        @show i
         Base.splice!(nodes, i, [new])
     end
     splice!(nodes, i::Tuple{AbstractArray,AbstractArray}, new) = let 
@@ -194,9 +189,6 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
         end
 
         lengths = [length(n.block, n) for n in nodes]
-        @show lengths
-        @show cumsum(lengths)
-        @show i
 
         Base.splice!(nodes, i[1])
         Base.splice!(nodes, i[2], [new])

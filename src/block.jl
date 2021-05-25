@@ -818,17 +818,13 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
 
     if !aln.orientation
         qry = reverse_complement(qry)
-        @show aln.qry.start, aln.qry.stop
         reverse_complement!(aln)
-        @show aln.qry.start, aln.qry.stop
         strand = false
     end
 
     segments = partition(aln; minblock=minblock) # this enforces that indels are less than minblock!
 
     for (range, segment) ∈ segments
-        @show range.qry, range.ref
-
         @match (range.qry, range.ref) begin
             ( nothing, Δ )  => begin
                 push!(blocks, (block=Block(ref, Δ), kind=:ref))
@@ -843,12 +839,8 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
-                @show segment
                 new = rereference(q, r, segment)
-                # @show all(r.sequence .== q.sequence)
-                # @show new.mutate
                 reconsensus!(new)
-                # @show all(r.sequence .== new.sequence)
 
                 push!(blocks, (block=new, kind=:all))
             end
