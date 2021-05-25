@@ -279,7 +279,7 @@ lociwithin(dict::Dict{Node{Block},DelMap}, i) = Dict(
 
 lociwithin(dict::Dict{Node{Block},InsMap}, i) = Dict(
     node => InsMap(
-        locus => insert for (locus, insert) in subdict if (i.start-1) ≤ locus < i.stop
+        locus => insert for (locus, insert) in subdict if (i.start-1) ≤ first(locus) < i.stop
     ) for (node, subdict) ∈ dict
 )
 
