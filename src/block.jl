@@ -167,6 +167,8 @@ function partition(alignment; minblock=500)
     # ----------------------------
     # parse cigar within region of overlap
     
+    @show alignment.cigar
+
     for (len, type) ∈ uncigar(alignment.cigar)
         @match type begin
         'S' || 'H' => begin
@@ -275,6 +277,12 @@ lociwithin(dict::Dict{Node{Block},DelMap}, i) = Dict(
     ) for (node, subdict) ∈ dict
 )
 
+lociwithin(dict::Dict{Node{Block},InsMap}, i) = Dict(
+    node => InsMap(
+        locus => insert for (locus, insert) in subdict if (i.start-1) ≤ locus < i.stop
+    ) for (node, subdict) ∈ dict
+)
+
 lociwithin(dict::Dict{Int,Int}, i) = Dict(x => v for (x,v) ∈ dict if i.start ≤ x ≤ i.stop)
 
 # merge alleles (recursively)
@@ -329,6 +337,7 @@ function Block(b::Block, slice)
     gaps = Dict(x-slice.start+1 => δ for (x,δ) ∈ b.gaps if slice.start ≤ x ≤ slice.stop)
 
     subslice(dict, i) = translate(lociwithin(dict,i), 1-i.start)
+
     mutate = subslice(b.mutate, slice)
     insert = subslice(b.insert, slice)
     delete = subslice(b.delete, slice)
@@ -674,9 +683,13 @@ function rereference(qry::Block, ref::Block, segments)
 
     map(dict, from, to) = translate(lociwithin(dict, from), to.start-from.start)
 
-    x = (qry = 1, ref = 1)
+    x = (
+        qry = 1, 
+        ref = 1
+    )
     newgaps = Tuple{Int,Int}[]
     for segment in segments
+        @show segment
         @match (segment.qry, segment.ref) begin
             (nothing, Δ) => begin # sequence in ref consensus not found in qry consensus
                 if (x.qry-1) ∈ keys(qry.gaps) # some insertions in qry have overlapping sequence with ref
@@ -773,10 +786,19 @@ function rereference(qry::Block, ref::Block, segments)
                 merge!(combined.delete, map(qry.delete,Δq,Δr))
                 let
                     inserts  = map(qry.insert,Δq,Δr)
+                    @show inserts
+                    @show qry.insert
+                    @show ref.insert
                     # TODO: check if insertion at this location exists!
                     #       if so, we need to align the insertions
                     append!(newgaps, (k,v) for (k,v) ∈ map(qry.gaps,Δq,Δr))
                     merge!(combined.insert, inserts)
+                end
+
+                # apply mutations to all qry sequences where qry ≠ ref
+                qrysnps = findall(qry.sequence[Δq] .!= ref.sequence[Δr])
+                for node ∈ keys(qry)
+                    merge!(combined.mutate[node], Dict(x+Δr.start-1 => qry.sequence[Δq.start+x-1] for x in qrysnps))
                 end
 
                 x = (qry=Δq.stop+1, ref=Δr.stop+1)
@@ -800,14 +822,6 @@ function rereference(qry::Block, ref::Block, segments)
         combined.insert,
         combined.delete
     )
-
-    #=
-    check(new; ids=false)
-
-    @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.mutate)) 
-    @assert all(all(k ≤ length(new.sequence) for k in keys(d)) for d in values(new.delete)) 
-    @assert all(all(k[1] ≤ length(new.sequence) for k in keys(d)) for d in values(new.insert)) 
-    =#
 
     return new
 end

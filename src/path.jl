@@ -50,6 +50,10 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     for (i, n₁) in enumerate(p.node)
         n₁.block != old && continue
 
+        @show n₁.block.mutate[n₁]
+        @show n₁.block.insert[n₁]
+        @show n₁.block.delete[n₁]
+
         push!(indices, i)
 
         nodes = ((n₁.strand==orientation) 
@@ -91,12 +95,14 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
         println("--> cumulative len:   $(cumsum([length(n.block,n) for n in p.node]))")
         println("--> offset:           $(p.offset)")
         println("--> window:           $(left):$(badloci[1]):$(right)")
-        println("--> ref:              $(oldseq[left:right])") 
-        println("--> seq:              $(newseq[left:right])") 
+        println("--> old:              $(oldseq[left:right])") 
+        println("--> new:              $(newseq[left:right])") 
 
-        @show p.node[indices[1]].block.mutate[n]
-        @show p.node[indices[1]].block.insert[n]
-        @show p.node[indices[1]].block.delete[n]
+        node = p.node[indices[1]]
+
+        @show node.block.mutate[node]
+        @show node.block.insert[node]
+        @show node.block.delete[node]
 
         error("bad splicing")
     end
