@@ -359,6 +359,8 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
 
         log(hit)
 
+        @show qry₀.gaps
+        @show qry₀.insert
         blks, strand = combine(qry₀, ref₀, hit; minblock=minblock)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
@@ -366,20 +368,20 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
 
         replace!((qry=qry₀, ref=ref₀), (qry=qrys, ref=refs), strand)
 
-        for blk in map(b->b.block, blks)
-            blocks[blk.uuid] = blk
-        end
-
         # DEBUG: ensure blocks are correctly referenced
         for b in blks
             check(b.block)
+        end
+
+        for blk in map(b->b.block, blks)
+            blocks[blk.uuid] = blk
         end
     end
 
     return blocks, ok
 end
 
-function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int)
+function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, verify::Function)
     G₀ = G₁
     ok = true
 
@@ -412,7 +414,9 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int)
                 blocks,
                 G₀.sequence,
             )
+            verify(G₀, "before detranstive")
             detransitive!(G₀)
+            verify(G₀, "after detranstive")
         end
     end
 
@@ -466,22 +470,36 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
                 ref = reference[name]
                 if seq != ref
                     badloci = Int[]
-                    for i ∈ 1:length(seq)
+                    for i ∈ 1:min(length(seq),length(ref))
                         if seq[i] != ref[i]
                             push!(badloci, i)
                         end
                     end
                     left, right = max(badloci[1]-10, 1), min(badloci[1]+10, length(seq))
+                    cumulative_lengths = cumsum([length(n.block, n) for n in path.node])
 
                     println("--> length:           ref($(length(ref))) <=> seq($(length(seq)))")
                     println("--> number of nodes:  $(length(path.node))")
                     println("--> block ids:        $([n.block.uuid for n in path.node])")
                     println("--> block lengths:    $([length(n.block, n) for n in path.node])")
-                    println("--> cumulative len:   $(cumsum([length(n.block, n) for n in path.node]))")
+                    println("--> cumulative len:   $(cumulative_lengths)")
                     println("--> path offset:      $(path.offset)")
                     println("--> window:           $(left):$(badloci[1]):$(right)")
                     println("--> ref:              $(ref[left:right])") 
                     println("--> seq:              $(seq[left:right])") 
+
+                    i = 1
+                    while i < length(path.node)
+                        if cumulative_lengths[i] > badloci[1]
+                            break
+                        else
+                            i += 1
+                        end
+                    end
+                    println("--> mutate:           $(path.node[i].block.mutate[path.node[i]])")
+                    println("--> insert:           $(path.node[i].block.insert[path.node[i]])")
+                    println("--> delete:           $(path.node[i].block.delete[path.node[i]])")
+
                     error("--> isolate '$name' incorrectly reconstructed")
                 end
             end
@@ -501,7 +519,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
 
         G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, minblock)
         verify(G₀,"--> checking merge 1...")
-        G₀ = align_self(G₀, io₁, io₂, energy, minblock)
+        G₀ = align_self(G₀, io₁, io₂, energy, minblock, verify)
 
         putio(io₁)
         putio(io₂)
@@ -509,20 +527,6 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
         verify(G₀, "--> checking merge 2...")
 
         put!(clade.graph, G₀)
-    end
-
-    function execute(subtree; traverse=postorder)
-        isnothing(subtree) && return
-
-        for clade ∈ traverse(subtree)
-            if isleaf(clade)
-                put!(clade.graph, tips[clade.name])
-                close(clade.graph)
-            else
-                kernel(clade)
-                close(clade.graph)
-            end
-        end
     end
 
     log("--> ordering")
@@ -533,7 +537,15 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
     log("--> aligning pairs")
-    execute(tree) # NOTE: break into function to allow for parrellism for seperate subtrees
+    for clade ∈ postorder(tree)
+        if isleaf(clade)
+            put!(clade.graph, tips[clade.name])
+            close(clade.graph)
+        else
+            kernel(clade)
+            close(clade.graph)
+        end
+    end
 
     return take!(tree.graph)
 end

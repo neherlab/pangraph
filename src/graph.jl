@@ -162,6 +162,10 @@ function detransitive!(G::Graph)
             pop!(G.block, b.uuid)
         end
     end
+
+    for b ∈ values(G.block)
+        check(b)
+    end
 end
 
 # ------------------------------------------------------------------------
@@ -365,7 +369,7 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa") #"data/ge
         sequences = [first(sequence(iso)) for iso in isolates]
 
         println("-->aligning...")
-        align(isolates...;minblock=100,reference=Dict(sequences)), isolates
+        align(isolates...;minblock=50,reference=Dict(sequences)), isolates
     end
 
     log("-> verifying graph...")

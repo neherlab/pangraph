@@ -76,10 +76,9 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     end
 
     newseq = sequence(p)
-
     if oldseq != newseq
         badloci = Int[]
-        for i ∈ 1:length(newseq)
+        for i ∈ 1:min(length(newseq),length(oldseq))
             if newseq[i] != oldseq[i]
                 push!(badloci, i)
             end
@@ -103,6 +102,8 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
         @show node.block.mutate[node]
         @show node.block.insert[node]
         @show node.block.delete[node]
+
+        @show new
 
         error("bad splicing")
     end
@@ -204,16 +205,18 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
         newnode = Node(new, s)
         oldnode = oldnodes(i)
 
-        oldseq = join(String(sequence(n.block,n)) for n in oldnode)
+        # oldseq = join(String(sequence(n.block,n)) for n in oldnode)
 
         splice!(p.node, i, newnode)
         swap!(new, oldnode, newnode)
 
-        newseq = String(sequence(newnode.block,newnode))
+        # newseq = String(sequence(newnode.block,newnode))
 
+        #=
         if newseq != oldseq
             error("FAIL")
         end
+        =#
     end
 end
 
