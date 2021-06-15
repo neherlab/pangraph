@@ -6,9 +6,10 @@ using FileWatching
 
 import Base.Threads.@spawn
 
-using ..Utility: read_paf, enforce_cutoff!
+using ..Utility: read_paf, enforce_cutoff!, reverse_complement
 using ..Blocks
 using ..Paths: replace!
+using ..Nodes
 using ..Graphs
 
 # Pool belongs only to the alignment module!
@@ -357,10 +358,8 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
         hit.ref.seq = ref₀.sequence
         enforce_cutoff!(hit, minblock)
 
-        log(hit)
+        # log(hit)
 
-        @show qry₀.gaps
-        @show qry₀.insert
         blks, strand = combine(qry₀, ref₀, hit; minblock=minblock)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
@@ -414,15 +413,91 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
                 blocks,
                 G₀.sequence,
             )
+            #=
             verify(G₀, "before detranstive")
             detransitive!(G₀)
             verify(G₀, "after detranstive")
+            =#
         end
     end
 
     return G₀
 end
 
+function compare(old, new, strand)
+    for node in keys(old)
+        oldseq = sequence(old, node)
+
+        δ         = 1
+        newblkseq = UInt8[]
+        oldblkseq = UInt8[]
+        oldstrand = node.strand
+
+        if oldstrand && strand
+            for blk in new
+                newblkseq = sequence(blk, node)
+                oldblkseq = oldseq[δ:δ+length(newblkseq)-1]
+                if !all(oldblkseq .== newblkseq)
+                    @goto bad
+                end
+
+                δ += length(newblkseq)
+            end
+        elseif oldstrand && !strand
+            for blk in reverse(new)
+                newblkseq = reverse_complement(sequence(blk, node))
+                oldblkseq = oldseq[δ:δ+length(newblkseq)-1]
+                if !all(oldblkseq .== newblkseq)
+                    @goto bad
+                end
+
+                δ += length(newblkseq)
+            end
+        elseif !oldstrand && strand
+            for blk in reverse(new)
+                newblkseq = sequence(blk, node)
+                oldblkseq = oldseq[δ:δ+length(newblkseq)-1]
+                if !all(oldblkseq .== newblkseq)
+                    @goto bad
+                end
+
+                δ += length(newblkseq)
+            end
+        else
+            for blk in new
+                newblkseq = reverse_complement(sequence(blk, node))
+                oldblkseq = oldseq[δ:δ+length(newblkseq)-1]
+                if !all(oldblkseq .== newblkseq)
+                    @goto bad
+                end
+
+                δ += length(newblkseq)
+            end
+        end
+
+        continue
+
+    @label bad
+        badblkloci = Int[]
+        for i ∈ 1:min(length(newblkseq),length(oldblkseq))
+            if newblkseq[i] != oldblkseq[i]
+                push!(badblkloci, i)
+            end
+        end
+        left, right = max(badblkloci[1]-10, 1), min(badblkloci[1]+10, length(newblkseq))
+
+        println("--> length:           ref($(length(oldblkseq))) <=> seq($(length(newblkseq)))")
+        println("--> number bad:       $(length(badblkloci))")
+        println("--> window:           $(left):$(badblkloci[1]):$(right)")
+        println("--> old:              $(String(oldblkseq[left:right]))") 
+        println("--> new:              $(String(newblkseq[left:right]))") 
+
+        @show strand, oldstrand
+
+        error("bad sequence reconstruction")
+    end
+
+end
 
 function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, minblock::Int)
     hits = do_align(G₁, G₂, io₁, io₂, energy)
@@ -433,6 +508,11 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, mi
         ref = pop!(G₂.block, hit.ref.name),
     )
     replace = (old, new, orientation) -> let
+        # START DEBUG
+        compare(old.qry, new.qry, orientation)
+        compare(old.ref, new.ref, true)
+        # END DEBUG
+
         for path in values(G₁.sequence)
             replace!(path, old.qry, new.qry, orientation)
         end
@@ -519,12 +599,12 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
 
         G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, minblock)
         verify(G₀,"--> checking merge 1...")
-        G₀ = align_self(G₀, io₁, io₂, energy, minblock, verify)
+        # G₀ = align_self(G₀, io₁, io₂, energy, minblock, verify)
 
         putio(io₁)
         putio(io₂)
 
-        verify(G₀, "--> checking merge 2...")
+        # verify(G₀, "--> checking merge 2...")
 
         put!(clade.graph, G₀)
     end

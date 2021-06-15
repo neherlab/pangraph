@@ -22,6 +22,7 @@ import ..Graphs:
 export SNPMap, InsMap, DelMap # aux types
 export Block 
 export combine, swap!, check  # operators
+export assertequivalent
 
 # ------------------------------------------------------------------------
 # utility types
@@ -167,7 +168,6 @@ function partition(alignment; minblock=500)
     # ----------------------------
     # parse cigar within region of overlap
     
-    @show alignment.cigar
     for (len, type) ∈ uncigar(alignment.cigar)
         @match type begin
         'S' || 'H' => begin
@@ -263,21 +263,24 @@ Block()         = Block(UInt8[])
 # move alleles
 translate(d::Dict{Int,Int}, δ) = Dict(x+δ => v for (x,v) ∈ d) # gaps
 translate(d::Dict{Node{Block},InsMap}, δ) = Dict(n => Dict((x+δ,Δ) => v for ((x,Δ),v) ∈ val) for (n,val) ∈ d) # insertions 
-translate(dict::T, δ) where T <: AlleleMaps{Block} = Dict(key=>Dict(x+δ => v for (x,v) in val) for (key,val) in dict)
+translate(dict::T, δ) where T <: AlleleMaps{Block} = Dict(key=>Dict(x+δ=>v for (x,v) in val) for (key,val) in dict)
 
 # select alleles within window
-lociwithin(dict::T, i) where T <: AlleleMaps{Block} = Dict(
-    node => filter((p) -> (i.start ≤ first(first(p)) ≤ i.stop), subdict) 
-        for (node, subdict) ∈ dict
+lociwithin(dict::Dict{Node{Block},SNPMap}, i) =
+Dict{Node{Block},SNPMap}(
+    node => SNPMap(
+        locus => allele for (locus,allele) in subdict if i.start ≤ locus ≤ i.stop
+    ) for (node, subdict) ∈ dict
 )
-lociwithin(dict::Dict{Node{Block},DelMap}, i) = Dict{Node{Block},DelMap}(
+
+lociwithin(dict::Dict{Node{Block},DelMap}, i) = 
+Dict{Node{Block},DelMap}(
     node => DelMap(
         locus => min(len, i.stop-locus+1) for (locus, len) in subdict if i.start ≤ locus ≤ i.stop
     ) for (node, subdict) ∈ dict
 )
 
-# XXX: have to special case soft clipping on the left edge
-
+# XXX: have to special case the left edge
 function lociwithin(dict::Dict{Node{Block},InsMap}, i) 
     i = (i.start == 1) ? (0:i.stop) : i
     return Dict{Node{Block},InsMap}(
@@ -287,11 +290,13 @@ function lociwithin(dict::Dict{Node{Block},InsMap}, i)
     )
 end
 
-function lociwithin(d::Dict{Int,Int}, i) 
+function lociwithin(dict::Dict{Int,Int}, i) 
     i = (i.start == 1) ? (0:i.stop) : i
-
-    return Dict{Int,Int}(x => v for (x,v) ∈ d if i.start ≤ x ≤ i.stop)
+    return Dict{Int,Int}(x => v for (x,v) ∈ dict if i.start ≤ x ≤ i.stop)
 end
+
+# copy dictionary
+Base.copy(dict::T) where T <: AlleleMaps{Block} = Dict(node=>Base.copy(subdict) for (node,subdict) in dict)
 
 # merge alleles (recursively)
 function merge!(base::T, others::T...) where T <: AlleleMaps{Block}
@@ -313,11 +318,10 @@ end
 function Block(bs::Block...)
     sequence = vcat((b.sequence for b in bs)...)
 
-    # XXX: should we copy here so as to not mutate bs[1]?
-    gaps   = bs[1].gaps
-    mutate = bs[1].mutate
-    insert = bs[1].insert
-    delete = bs[1].delete
+    gaps   = Base.copy(bs[1].gaps)
+    mutate = Base.copy(bs[1].mutate)
+    insert = Base.copy(bs[1].insert)
+    delete = Base.copy(bs[1].delete)
 
     δ = length(bs[1])
     for b in bs[2:end]
@@ -343,7 +347,7 @@ function Block(b::Block, slice)
     sequence = Base.copy(b.sequence[slice])
 
     # Dict(x-slice.start+1 => δ for (x,δ) ∈ b.gaps if slice.start ≤ x ≤ slice.stop)
-    subslice(dict, i) = translate(lociwithin(dict,i), 1-i.start)
+    subslice(dict, loci) = translate(lociwithin(dict,loci), 1-loci.start)
 
     gaps   = subslice(b.gaps,   slice)
     mutate = subslice(b.mutate, slice)
@@ -393,12 +397,12 @@ end
 allele_positions(b::Block, n::Node) = allele_positions(b.mutate[n], b.insert[n], b.delete[n])
 
 # complex operations
-function reverse_complement(b::Block)
+function reverse_complement(b::Block; keepid=false)
     seq = reverse_complement(b.sequence)
     len = length(seq)
 
     revcmpl(dict::SNPMap) = Dict(len-locus+1 => wcpair[nuc+1] for (locus,nuc) in dict)
-    revcmpl(dict::DelMap) = Dict(len-locus+1 => del for (locus,del) in dict)
+    revcmpl(dict::DelMap) = Dict(len-(locus+del-1)+1 => del for (locus,del) in dict)
     revcmpl(dict::InsMap) = Dict((len-locus,b.gaps[locus]-length(ins)-off) => reverse_complement(ins) for ((locus,off),ins) in dict)
 
     mutate = Dict(node => revcmpl(snp) for (node, snp) in b.mutate)
@@ -406,11 +410,19 @@ function reverse_complement(b::Block)
     delete = Dict(node => revcmpl(del) for (node, del) in b.delete)
     gaps   = Dict(len-locus => gap  for (locus, gap) in b.gaps)
 
-    return Block(seq,gaps,mutate,insert,delete)
+    return keepid ? Block(b.uuid, seq,gaps,mutate,insert,delete) : Block(seq,gaps,mutate,insert,delete)
+end
+
+function assert_equals(b₁::Block, b₂::Block)
+    !all(b₁.sequence .== b₂.sequence) && error("bad sequence")
+
+    b₁.mutate != b₂.mutate && error("bad mutation")
+    b₁.insert != b₂.insert && error("bad insert")
+    b₁.delete != b₂.delete && error("bad delete")
 end
 
 function sequence(b::Block; gaps=false)
-    !gaps && return b.sequence
+    !gaps && return Base.copy(b.sequence)
     
     len = length(b) + sum(values(b.gaps))
     seq = Array{UInt8}(undef, len)
@@ -489,6 +501,7 @@ function sequence!(seq, b::Block, node::Node{Block}; gaps=false)
     pos  = (l) -> isa(l.pos, Tuple) ? l.pos[1] : l.pos # dispatch over different key types
     loci = allele_positions(b, node)
 
+    #=
     @show b.gaps
     @show b.insert[node]
     @show b.delete[node]
@@ -497,10 +510,10 @@ function sequence!(seq, b::Block, node::Node{Block}; gaps=false)
     @show reduce(+, values(b.delete[node]); init=0)
     @show reduce(+, length.(values(b.insert[node]));init=0)
     @show length(seq), length(ref)
+    =#
 
     iᵣ, iₛ = 1, 1
     for l in loci
-        @show l
         # @show l, iₛ, length(seq), iᵣ, length(ref)
         if (δ = pos(l) - iᵣ) >= 0
             seq[iₛ:iₛ+δ-1] = ref[iᵣ:pos(l)-1]
@@ -631,7 +644,6 @@ function reconsensus!(b::Block)
     nodes = collect(keys(b))
 
     ref = sequence(b; gaps=true)
-
     aln = Array{UInt8}(undef, length(ref), depth(b))
     for (i,node) in enumerate(nodes)
         aln[:,i] = ref
@@ -708,7 +720,6 @@ function reconsensus!(b::Block)
         error("bad gap computation inside reconsensus")
     end
 
-
     return true
 end
 
@@ -720,10 +731,10 @@ end
 #       this would entail allowing the reference alleles to change!
 function rereference(qry::Block, ref::Block, segments)
     combined = (
-        gaps   = ref.gaps,
-        mutate = ref.mutate,
-        insert = ref.insert,
-        delete = ref.delete,
+        gaps   = Base.copy(ref.gaps),
+        mutate = Base.copy(ref.mutate),
+        insert = Base.copy(ref.insert),
+        delete = Base.copy(ref.delete),
     )
 
     gap = Set(keys(combined.gaps))
@@ -737,7 +748,6 @@ function rereference(qry::Block, ref::Block, segments)
         error("bad gap computation before rereference")
     end
 
-
     map(dict, from, to) = translate(lociwithin(dict, from), to.start-from.start)
 
     x = (
@@ -746,11 +756,7 @@ function rereference(qry::Block, ref::Block, segments)
     )
     newgaps = Tuple{Int,Int}[]
 
-    @show combined.gaps
-    @show combined.insert
     for segment in segments
-        @show segment
-
         @match (segment.qry, segment.ref) begin
             (nothing, Δ) => begin # sequence in ref consensus not found in qry consensus
                 if (x.qry-1) ∈ keys(qry.gaps) # some insertions in qry have overlapping sequence with ref
@@ -845,45 +851,26 @@ function rereference(qry::Block, ref::Block, segments)
             end
             (Δq, Δr) => begin # simple translation of alleles of qry -> ref
                 let
+                    # carry over mutations to qry sequences as long as its different from new reference
                     merge!(combined.mutate, 
                         Dict(node => Dict(
                              x => nuc for (x,nuc) in subdict if nuc != ref.sequence[x]
                         ) for (node, subdict) in map(qry.mutate,Δq,Δr))
                     )
-                    # carry over mutations to qry sequences as long as its different from new reference
-                    @show map(qry.mutate,Δq,Δr)
-                    @show Dict(node => Dict(
-                             x => nuc for (x,nuc) in subdict if nuc != ref.sequence[x]
-                        ) for (node, subdict) in map(qry.mutate,Δq,Δr))
-
                     # apply mutations to all qry sequences where qry ≠ ref
                     qrysnps = findall(qry.sequence[Δq] .!= ref.sequence[Δr])
-                    @show combined.mutate
-                    @show qrysnps
-                    @show qry.mutate
 
                     merge!(combined.mutate, Dict(
                         node => Dict(
                             Δr.start+(x-1) => qry.sequence[Δq.start+(x-1)] for x in qrysnps if (Δq.start+(x-1)) ∉ keys(qry.mutate[node])
                        ) for node ∈ keys(qry))
                     )
-
-                    @show combined.mutate
                 end
-
                 merge!(combined.delete, map(qry.delete,Δq,Δr))
                 let
                     # TODO: check if insertion at this location exists!
                     #       if so, we need to align the insertions
-                    
                     inserts = map(qry.insert,Δq,Δr)
-                    #=
-                    @show Δq
-                    @show inserts
-                    @show lociwithin(qry.gaps,Δq)
-                    @show map(qry.gaps,Δq,Δr)
-                    @show newgaps
-                    =#
                     append!(newgaps, (k,v) for (k,v) ∈ map(qry.gaps,Δq,Δr))
                     merge!(combined.insert, inserts)
                 end
@@ -914,7 +901,7 @@ function rereference(qry::Block, ref::Block, segments)
     end
 
     new = Block(
-        ref.sequence,
+        Base.copy(ref.sequence),
         combined.gaps,
         combined.mutate,
         combined.insert,
@@ -924,26 +911,93 @@ function rereference(qry::Block, ref::Block, segments)
     return new
 end
 
+# DEBUG
+function assertequivalent(new, old, msg)
+    @show keys(old)
+    @show keys(new)
+    if Set(keys(old)) ⊈ Set(keys(new))
+        error("old keys not a subset of new keys: $(msg)")
+    end
+
+    for node ∈ keys(old)
+        oldseq = sequence(old, node)
+        newseq = sequence(new, node)
+        if length(newseq) != length(oldseq) || !all(newseq .== oldseq)
+            badloci = Int[]
+            for i ∈ 1:min(length(newseq),length(oldseq))
+                if newseq[i] != oldseq[i]
+                    push!(badloci, i)
+                end
+            end
+            left, right = max(badloci[1]-10, 1), min(badloci[1]+10, length(newseq))
+
+            println("--> length:           ref($(length(oldseq))) <=> seq($(length(newseq)))")
+            println("--> bad loci:         $(badloci)")
+            println("--> window:           $(left):$(badloci[1]):$(right)")
+            println("--> old:              $(String(oldseq[left:right]))") 
+            println("--> new:              $(String(newseq[left:right]))") 
+
+            @show length(old.sequence)
+            @show length(new.sequence)
+
+            @show keys(old.mutate[node])
+            @show keys(new.mutate[node])
+
+            @show old.insert[node]
+            @show new.insert[node]
+
+            @show old.delete[node]
+            @show new.delete[node]
+
+            error(msg)
+        end
+    end
+end
+
 function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
     blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
-    strand = true
 
-    @show aln.orientation
+    assertequivalent(reverse_complement(reverse_complement(qry)), qry, "qry failed")
+    assertequivalent(reverse_complement(reverse_complement(ref)), ref, "ref failed")
+
+    qry, strand =
     if !aln.orientation
-        qry = reverse_complement(qry)
         reverse_complement!(aln)
-        strand = false
+        reverse_complement(qry), false
+    else
+        qry, true
     end
 
     segments = partition(aln; minblock=minblock) # this enforces that indels are less than minblock!
 
+    Q0s = Block[]
+    R0s = Block[]
+    Qs  = Block[]
+    Rs  = Block[]
+
+    @show strand
     for (range, segment) ∈ segments
+        @show range.qry, range.ref
         @match (range.qry, range.ref) begin
             ( nothing, Δ )  => begin
-                push!(blocks, (block=Block(ref, Δ), kind=:ref))
+                r = Block(ref, Δ)
+
+                # DEBUG
+                check(r; ids=false)
+                push!(Rs, r)
+                push!(R0s, r)
+
+                push!(blocks, (block=r, kind=:ref))
             end
             ( Δ, nothing ) => begin
-                push!(blocks, (block=Block(qry, Δ), kind=:qry))
+                q = Block(qry, Δ)
+
+                # DEBUG
+                check(q; ids=false) 
+                push!(Qs, q)
+                push!(Q0s, q)
+
+                push!(blocks, (block=q, kind=:qry))
             end
             ( Δq, Δr )      => begin
                 @assert length(segment) > 0
@@ -952,49 +1006,48 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
+                # DEBUG
                 check(q; ids=false)
                 check(r; ids=false)
 
+                push!(Q0s, q)#Block(qry, Δq))
+                push!(R0s, r)#Block(ref, Δr))
+
                 new = rereference(q, r, segment)
+
+                # DEBUG
+                assertequivalent(new, q, "bad reference for qry")
+                assertequivalent(new, r, "bad reference for ref")
                 check(new; ids=false)
-                for node ∈ keys(q)
-                    oldseq = sequence(q, node)
-                    newseq = sequence(new, node)
-                    if !all(newseq .== oldseq)
-                        badloci = Int[]
-                        for i ∈ 1:min(length(newseq),length(oldseq))
-                            if newseq[i] != oldseq[i]
-                                push!(badloci, i)
-                            end
-                        end
-                        left, right = max(badloci[1]-10, 1), min(badloci[1]+10, length(newseq))
-
-                        println("--> length:           ref($(length(oldseq))) <=> seq($(length(newseq)))")
-                        println("--> bad loci:         $(badloci)")
-                        println("--> window:           $(left):$(badloci[1]):$(right)")
-                        println("--> old:              $(String(oldseq[left:right]))") 
-                        println("--> new:              $(String(newseq[left:right]))") 
-
-                        @show q.mutate[node]
-                        @show q.insert[node]
-                        @show q.delete[node]
-
-                        @show new.sequence[31]
-                        @show new.mutate[node]
-                        @show new.insert[node]
-                        @show new.delete[node]
-
-                        error("bad referencing")
-                    end
-                end
 
                 reconsensus!(new)
+                # DEBUG
+                assertequivalent(new, q, "bad consensus for qry")
+                assertequivalent(new, r, "bad consensus for ref")
                 check(new; ids=false)
+
+                push!(Qs, new)
+                push!(Rs, new)
 
                 push!(blocks, (block=new, kind=:all))
             end
         end
     end
+
+    assertequivalent(Block(Q0s...), qry, "qry0 failed")
+    if !strand
+        assertequivalent(reverse_complement(Block(Q0s...)), reverse_complement(qry), "reverse qry 1 failed")
+        assertequivalent(Block(reverse_complement.(reverse(Q0s))...), reverse_complement(qry), "reverse qry 2 failed")
+    end
+    assertequivalent(Block(R0s...), ref, "ref0 failed")
+
+    assertequivalent(Block(Qs...), qry, "forward qry failed")
+    if !strand
+        assertequivalent(reverse_complement(Block(Qs...)), reverse_complement(qry), "reverse qry 1 failed")
+        assertequivalent(Block(reverse_complement.(reverse(Qs))...), reverse_complement(qry), "reverse qry 2 failed")
+    end
+    assertequivalent(Block(Rs...), ref, "ref failed")
+
 
     return blocks, strand
 end
@@ -1031,7 +1084,9 @@ function check(b::Block; ids=true)
         end
         
         if (MAX=reduce(max, keys(b.mutate[node]); init=0)) > length(b)
-            @show b.mutate[node]
+            loci = collect(keys(b.mutate[node]))
+
+            @show minimum(loci), maximum(loci)
             @show MAX
             @show length(b)
             error("bad mutation key")

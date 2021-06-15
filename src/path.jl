@@ -32,9 +32,9 @@ pair(p::Path) = p.name => p
 show(io::IO, p::Path) = Base.show(io, (name=p.name, blocks=p.node))
 length(p::Path) = length(p.node)
 
-function sequence(p::Path)
+function sequence(p::Path; shift=true)
     seq = join(String(sequence(n.block, n)) for n ∈ p.node)
-    if p.offset !== nothing
+    if p.offset !== nothing && shift
         seq = String(circshift(Array{UInt8,1}(seq), p.offset))
     end
     return seq
@@ -45,23 +45,66 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     indices = Int[]
     inserts = Array{Node{Block}}[]
 
-    oldseq = sequence(p)
-
+    oldseq = sequence(p; shift=false)
     for (i, n₁) in enumerate(p.node)
         n₁.block != old && continue
 
-        @show n₁.block.mutate[n₁]
-        @show n₁.block.insert[n₁]
-        @show n₁.block.delete[n₁]
+        # @show sort(collect(keys(n₁.block.mutate[n₁])))
+        # @show n₁.block.insert[n₁]
+        # @show n₁.block.delete[n₁]
+
+        oldblkseq = String(sequence(n₁.block, n₁))
 
         push!(indices, i)
-
         nodes = ((n₁.strand==orientation) 
                      ? [Node{Block}(nb;strand=true) for nb in new] 
                      : [Node{Block}(nb;strand=false) for nb in reverse(new)])
 
         for n₂ in nodes
             swap!(n₂.block, n₁, n₂)
+        end
+
+        newblkseq = join(String(sequence(n₂.block, n₂)) for n₂ in nodes)
+
+        if newblkseq != oldblkseq
+            badblkloci = Int[]
+            for i ∈ 1:min(length(newblkseq),length(oldblkseq))
+                if newblkseq[i] != oldblkseq[i]
+                    push!(badblkloci, i)
+                end
+            end
+            left, right = max(badblkloci[1]-10, 1), min(badblkloci[1]+10, length(newblkseq))
+
+            println("--> length:           ref($(length(oldblkseq))) <=> seq($(length(newblkseq)))")
+            println("--> number bad:       $(length(badblkloci))")
+            println("--> window:           $(left):$(badblkloci[1]):$(right)")
+            println("--> old:              $(oldblkseq[left:right])") 
+            println("--> new:              $(newblkseq[left:right])") 
+
+            for n in nodes
+                @show (n.block, n.strand, length(n.block,n))
+            end
+
+            @show orientation
+            @show n₁.block, n₁.strand
+
+            n = nodes[end]
+            @show sort(collect(keys(n.block.mutate[n])))
+            @show n.block.insert[n]
+            @show n.block.delete[n]
+            #=
+            δ = 0
+            for n in nodes
+                @show sort(collect(keys(n.block.mutate[n]))) .+ δ
+                @show n.block.insert[n]
+                @show n.block.delete[n]
+                δ += length(n.block, n)
+            end
+
+            @show sort(collect(keys(n₁.block.mutate[n₁])))
+            =#
+
+            error("bad mapping")
         end
 
         push!(inserts, nodes)
@@ -75,7 +118,7 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
         splice!(p.node, index, nodes)
     end
 
-    newseq = sequence(p)
+    newseq = sequence(p; shift=false)
     if oldseq != newseq
         badloci = Int[]
         for i ∈ 1:min(length(newseq),length(oldseq))
@@ -92,14 +135,14 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
         println("--> length:           ref($(length(oldseq))) <=> seq($(length(newseq)))")
         println("--> number of nodes:  $(length(p.node))")
         println("--> cumulative len:   $(cumsum([length(n.block,n) for n in p.node]))")
-        println("--> offset:           $(p.offset)")
         println("--> window:           $(left):$(badloci[1]):$(right)")
         println("--> old:              $(oldseq[left:right])") 
         println("--> new:              $(newseq[left:right])") 
 
         node = p.node[indices[1]]
 
-        @show node.block.mutate[node]
+        @show sort(collect(keys(node.block.mutate[node])))
+        @show Char(node.block.mutate[node][659])
         @show node.block.insert[node]
         @show node.block.delete[node]
 
