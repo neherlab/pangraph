@@ -427,20 +427,22 @@ function sequence(b::Block; gaps=false)
     len = length(b) + sum(values(b.gaps))
     seq = Array{UInt8}(undef, len)
 
-    l, iₛ = 1, 1
+    l, i = 1, 1
     for r in sort(collect(keys(b.gaps)))
-        len = r - l
-        seq[iₛ:iₛ+len] = b.sequence[l:r]
+        if r ≥ l
+            δ = r - l
+            seq[i:i+δ] = b.sequence[l:r]
+            i += δ + 1
+        end
 
-        iₛ += len + 1
-        len = b.gaps[r]
-        seq[iₛ:iₛ+len-1] .= UInt8('-')
+        δ = b.gaps[r]
+        seq[i:i+δ-1] .= UInt8('-')
 
-        l   = r + 1
-        iₛ += len
+        l  = r+1
+        i += δ
     end
 
-    seq[iₛ:end] = b.sequence[l:end]
+    seq[i:end] = b.sequence[l:end]
 
     return seq
 end
@@ -635,6 +637,32 @@ function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
     b.delete[newkey] = delete 
 end
 
+function checknogaps(b::Block)
+    nodes = collect(keys(b))
+
+    ref = sequence(b; gaps=true)
+    aln = Array{UInt8}(undef, length(ref), depth(b))
+    for (i,node) in enumerate(nodes)
+        aln[:,i] = ref
+        sequence!(view(aln,:,i), b, node; gaps=true)
+    end
+
+    consensus = [mode(view(aln,i,:)) for i in 1:size(aln,1)]
+    for j ∈ 1:size(aln,1)
+        if all(aln[j,:] .== UInt8('-'))
+            @show j, size(aln)
+            @show String(Base.copy(ref[31570:31574]))
+            for k ∈ 1:3
+                @show String(Base.copy(aln[31570:31574,k]))
+            end
+            ks = sort(collect(keys(b.gaps)))
+            vs = [b.gaps[k] for k in ks]
+            @show collect(zip(ks,vs))
+            error("all gaps found")
+        end
+    end
+end
+
 function reconsensus!(b::Block)
     # NOTE: no point to compute this for blocks with 1 or 2 individuals
     depth(b) <= 2 && return false 
@@ -708,15 +736,11 @@ function reconsensus!(b::Block)
     ins = Set(first(locus) for insert in values(b.insert) for locus in keys(insert))
 
     if gap != ins
-        @show gap
-        @show ins
-        @show refgaps
+        @show sort([x for x in gap])
+        @show sort([x for x in ins])
 
-        @show oldgap
-        @show oldins
+        @show [coord[x] for x in keys(oldgap)]
 
-        @show b.gaps
-        @show b.insert
         error("bad gap computation inside reconsensus")
     end
 
@@ -757,6 +781,7 @@ function rereference(qry::Block, ref::Block, segments)
     newgaps = Tuple{Int,Int}[]
 
     for segment in segments
+        @show segment
         @match (segment.qry, segment.ref) begin
             (nothing, Δ) => begin # sequence in ref consensus not found in qry consensus
                 if (x.qry-1) ∈ keys(qry.gaps) # some insertions in qry have overlapping sequence with ref
@@ -786,6 +811,7 @@ function rereference(qry::Block, ref::Block, segments)
                                 end
                                 unmatched = unmatched \ Interval(start, stop+1)
                             elseif start > Δ.stop # we are (right) beyond the matched section, add the remainder as an insertion
+                                @show (Δ.stop,start-Δ.stop-1), ins
                                 combined.insert[node][(Δ.stop,start-Δ.stop-1)] = ins
                                 newlen = start-Δ.stop+1+length(ins) 
                                 if newlen > last(newgap)
@@ -806,6 +832,7 @@ function rereference(qry::Block, ref::Block, segments)
                     end
 
                     if last(newgap) > 0
+                        @show newgap, "1"
                         push!(newgaps, newgap)
                     else
                         newgap = nothing
@@ -828,20 +855,24 @@ function rereference(qry::Block, ref::Block, segments)
                 end
 
                 newgap = (x.ref-1, 0)
-                newinserts = Dict(let
-                    seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
-                    if length(seq) > 0
-                        if length(seq) > last(newgap)
-                            newgap = (x.ref-1,length(seq)+δ)
+                newinserts = Dict(
+                    let
+                        seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
+                        if length(seq) > 0
+                            @show x.ref-1, δ, String(Base.copy(seq))
+                            if length(seq) > last(newgap)
+                                newgap = (x.ref-1,length(seq)+δ)
+                                @show newgap
+                            end
+                            node => Dict((x.ref-1,δ) => seq) 
+                        else
+                            node => InsMap()
                         end
-                        node => Dict((x.ref-1,δ) => seq) 
-                    else
-                        node => InsMap()
-                    end
                     end for node ∈ keys(qry)
                 )
 
                 if length(newgap) > 0
+                    @show newgap, "2"
                     push!(newgaps, newgap)
                 end
 
@@ -871,6 +902,8 @@ function rereference(qry::Block, ref::Block, segments)
                     # TODO: check if insertion at this location exists!
                     #       if so, we need to align the insertions
                     inserts = map(qry.insert,Δq,Δr)
+                    @show map(qry.gaps,Δq,Δr)
+                    @show inserts
                     append!(newgaps, (k,v) for (k,v) ∈ map(qry.gaps,Δq,Δr))
                     merge!(combined.insert, inserts)
                 end
@@ -881,6 +914,7 @@ function rereference(qry::Block, ref::Block, segments)
         end
     end
 
+    @show newgaps
     for (pos, len) in newgaps
         if pos ∈ keys(combined.gaps)
             combined.gaps[pos] = max(len, combined.gaps[pos])
@@ -888,6 +922,8 @@ function rereference(qry::Block, ref::Block, segments)
             combined.gaps[pos] = len
         end
     end
+
+    @show combined.insert
 
     gap = Set(keys(combined.gaps))
     ins = Set(first(locus) for insert in values(combined.insert) for locus in keys(insert))
@@ -957,9 +993,6 @@ end
 function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
     blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
 
-    assertequivalent(reverse_complement(reverse_complement(qry)), qry, "qry failed")
-    assertequivalent(reverse_complement(reverse_complement(ref)), ref, "ref failed")
-
     qry, strand =
     if !aln.orientation
         reverse_complement!(aln)
@@ -970,12 +1003,12 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
 
     segments = partition(aln; minblock=minblock) # this enforces that indels are less than minblock!
 
+    # DEBUG
     Q0s = Block[]
     R0s = Block[]
     Qs  = Block[]
     Rs  = Block[]
 
-    @show strand
     for (range, segment) ∈ segments
         @show range.qry, range.ref
         @match (range.qry, range.ref) begin
@@ -1013,17 +1046,21 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 push!(Q0s, q)#Block(qry, Δq))
                 push!(R0s, r)#Block(ref, Δr))
 
+                checknogaps(q)
+                checknogaps(r)
                 new = rereference(q, r, segment)
+                checknogaps(new)
 
                 # DEBUG
-                assertequivalent(new, q, "bad reference for qry")
-                assertequivalent(new, r, "bad reference for ref")
+                # assertequivalent(new, q, "bad reference for qry")
+                # assertequivalent(new, r, "bad reference for ref")
                 check(new; ids=false)
+                checknogaps(new)
 
                 reconsensus!(new)
                 # DEBUG
-                assertequivalent(new, q, "bad consensus for qry")
-                assertequivalent(new, r, "bad consensus for ref")
+                # assertequivalent(new, q, "bad consensus for qry")
+                # assertequivalent(new, r, "bad consensus for ref")
                 check(new; ids=false)
 
                 push!(Qs, new)
@@ -1034,6 +1071,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
         end
     end
 
+    #=
     assertequivalent(Block(Q0s...), qry, "qry0 failed")
     if !strand
         assertequivalent(reverse_complement(Block(Q0s...)), reverse_complement(qry), "reverse qry 1 failed")
@@ -1047,7 +1085,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
         assertequivalent(Block(reverse_complement.(reverse(Qs))...), reverse_complement(qry), "reverse qry 2 failed")
     end
     assertequivalent(Block(Rs...), ref, "ref failed")
-
+    =#
 
     return blocks, strand
 end
