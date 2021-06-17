@@ -452,7 +452,7 @@ function sequence(b::Block; gaps=false)
     return seq
 end
 
-function sequence_gaps!(seq, b::Block, node::Node{Block})
+function sequence_gaps!(seq, b::Block, node::Node{Block}; debug=false)
     ref = sequence(b; gaps=true)
     @assert length(seq) == length(ref)
 
@@ -476,9 +476,10 @@ function sequence_gaps!(seq, b::Block, node::Node{Block})
             end
             :del => begin
                 len = b.delete[node][l.pos]
-                x   = Ξ(l.pos )
+                x   = Ξ(l.pos)
+                y   = Ξ(l.pos+len-1)
 
-                seq[x:x+len-1] .= UInt8('-')
+                seq[x:y] .= UInt8('-')
             end
               _  => error("unrecognized locus kind")
         end
@@ -497,8 +498,8 @@ function sequence_gaps(b::Block, node::Node{Block})
 end
 
 # returns the sequence WITH mutations and indels applied to the consensus for a given tag 
-function sequence!(seq, b::Block, node::Node{Block}; gaps=false)
-    gaps && return sequence_gaps!(seq, b, node)
+function sequence!(seq, b::Block, node::Node{Block}; gaps=false, debug=false)
+    gaps && return sequence_gaps!(seq, b, node; debug=debug)
 
     @assert length(seq) == length(b, node)
     check(b; ids=false)
@@ -508,26 +509,21 @@ function sequence!(seq, b::Block, node::Node{Block}; gaps=false)
     pos  = (l) -> isa(l.pos, Tuple) ? l.pos[1] : l.pos # dispatch over different key types
     loci = allele_positions(b, node)
 
-    #=
-    @show b.gaps
-    @show b.insert[node]
-    @show b.delete[node]
-
-    @show length(b.sequence)
-    @show reduce(+, values(b.delete[node]); init=0)
-    @show reduce(+, length.(values(b.insert[node]));init=0)
-    @show length(seq), length(ref)
-    =#
-
     iᵣ, iₛ = 1, 1
     for l in loci
-        # @show l, iₛ, length(seq), iᵣ, length(ref)
-        if (δ = pos(l) - iᵣ) >= 0
-            seq[iₛ:iₛ+δ-1] = ref[iᵣ:pos(l)-1]
+        if debug
+            print(">$(l.kind) - $(pos(l))::$(iᵣ)")
+        end
+
+        if (δ = (pos(l) - iᵣ)) > 0
+            seq[iₛ:(iₛ+δ-1)] = ref[iᵣ:(pos(l)-1)]
             iₛ += δ
             iᵣ += δ
         end
-        # @show iₛ, iᵣ
+
+        if debug
+            print("\t=>\t$(pos(l))::$(iᵣ)")
+        end
 
         @match l.kind begin
             :snp => begin
@@ -539,7 +535,7 @@ function sequence!(seq, b::Block, node::Node{Block}; gaps=false)
                 # NOTE: insertions are indexed by the position they follow.
                 #       since we stop 1 short, we finish here before continuing insertion.
                 if δ >= 0
-                    seq[iₛ] = ref[pos(l)]
+                    seq[iₛ] = ref[iᵣ]
                     iₛ += 1
                     iᵣ += 1
                 end
@@ -559,6 +555,9 @@ function sequence!(seq, b::Block, node::Node{Block}; gaps=false)
               _  => error("unrecognized locus kind")
         end
 
+        if debug
+            println("\t=>\t$(iᵣ)")
+        end
         # @show iₛ, iᵣ
     end
 
@@ -567,9 +566,9 @@ function sequence!(seq, b::Block, node::Node{Block}; gaps=false)
     return seq
 end
 
-function sequence(b::Block, node::Node{Block}; gaps=false)
+function sequence(b::Block, node::Node{Block}; gaps=false, debug=false)
     seq = gaps ? sequence(b; gaps=true) : Array{UInt8}('-'^length(b, node))
-    sequence!(seq, b, node; gaps=gaps)
+    sequence!(seq, b, node; gaps=gaps, debug=debug)
     return node.strand ? seq : reverse_complement(seq)
 end
 
@@ -693,34 +692,49 @@ function reconsensus!(b::Block)
     alndel = aln .== UInt8('-')
 
     δ = (
-        snp = isdiff .& .~refdel .& .~alndel,
-        del = isdiff .& .~refdel .&   alndel,
-        ins = isdiff .&   refdel .& .~alndel,
+        snp =   isdiff .& .~refdel .& .~alndel,
+        del = .~refdel .&   alndel,
+        ins =   refdel .& .~alndel,
     )
 
     coord = cumsum(.!refdel)
+    if length(refdel) >= 3560
+        @show refdel[3535:3560]
+        @show coord[3535:3560]
+        @show b.gaps
+        println(">old: ", String(Base.copy(ref[3535:3560])))
+        println(">new: ", String(Base.copy(consensus[3535:3560])))
+        for i in 1:size(aln,2)
+            println(">iso: ", String(Base.copy(aln[3535:3560,i])))
+        end
+    end
 
     oldgap = b.gaps
-    oldins = b.insert
 
     refgaps = contiguous_trues(refdel)
     b.gaps  = Dict{Int, Int}(coord[gap.lo] => length(gap) for gap in refgaps)
     
     b.mutate = Dict{Node{Block},SNPMap}( 
             node => SNPMap(
-                      coord[l] => aln[l,i] 
+                   coord[l] => aln[l,i] 
                 for l in findall(δ.snp[:,i])
             )
         for (i,node) in enumerate(nodes)
     )
 
+    @show b.delete
     b.delete = Dict{Node{Block},DelMap}( 
             node => DelMap(
-                      coord[del.lo] => length(del)
-                for del in contiguous_trues(δ.del[:,i])
+                      del.lo => length(del)
+                for del in contiguous_trues(δ.del[.~refdel,i])
              )
         for (i,node) in enumerate(nodes)
     )
+
+    @show b.delete
+    for i in 1:length(nodes)
+        @show contiguous_trues(δ.del[.~refdel,i])
+    end
 
     Δ(I) = (R = containing(refgaps, I)) == nothing ? 0 : I.lo - R.lo
     b.insert = Dict{Node{Block},InsMap}( 
@@ -731,7 +745,12 @@ function reconsensus!(b::Block)
         for (i,node) in enumerate(nodes)
     )
 
+    @show b.insert
+
     b.sequence = consensus[.~refdel]
+    if length(b.sequence) ≥ 3540
+        @show String(Base.copy(b.sequence[3530:3560]))
+    end
     
     @assert all(all(k ≤ length(b.sequence) for k in keys(d)) for d in values(b.mutate)) 
     @assert all(all(k ≤ length(b.sequence) for k in keys(d)) for d in values(b.delete)) 
@@ -919,10 +938,11 @@ function rereference(qry::Block, ref::Block, segments)
                 for (node, subdict) in newdels
                     for (pos, len) in subdict
                         for i in pos:(pos+len-1)
-                            delete!(newmuts[node], pos)
+                            delete!(newmuts[node], i)
                         end
                     end
                 end
+                @show newdels
                 @show newmuts
 
                 merge!(combined.mutate, newmuts)
@@ -1002,8 +1022,8 @@ function assertequivalent(new, old, msg)
             @show node, node.strand
             @show oldcoords[badloci[1]-8:badloci[1]+8]
             @show newcoords[badloci[1]-8:badloci[1]+8]
-            @show Char(old.sequence[3552])
-            @show Char(new.sequence[3540])
+            @show String(Base.copy(new.sequence[3530:3560]))
+            sequence(new, node; debug=true)
 
             #=
             @show old.mutate[node]
@@ -1091,6 +1111,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
                 qcpy = Block(qry, Δq)
+                rcpy = Block(ref, Δr)
 
                 # DEBUG
                 check(q; ids=false)
@@ -1102,20 +1123,19 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 checknogaps(q)
                 checknogaps(r)
                 new = rereference(q, r, segment)
-                checknogaps(new)
 
                 # DEBUG
-                assertequivalent(new, qcpy, "bad reference for qry")
-                assertequivalent(new, r, "bad reference for ref")
-                println("===PASSED===")
                 check(new; ids=false)
                 checknogaps(new)
+                assertequivalent(new, qcpy, "bad reference for qry")
+                assertequivalent(new, rcpy, "bad reference for ref")
+                println("===PASSED===")
 
                 reconsensus!(new)
                 # DEBUG
-                assertequivalent(new, qcpy, "bad consensus for qry")
-                assertequivalent(new, r, "bad consensus for ref")
                 check(new; ids=false)
+                assertequivalent(new, qcpy, "bad consensus for qry")
+                assertequivalent(new, rcpy, "bad consensus for ref")
 
                 push!(Qs, new)
                 push!(Rs, new)
