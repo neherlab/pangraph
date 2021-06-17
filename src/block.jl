@@ -631,6 +631,10 @@ function swap!(b::Block, oldkey::Node{Block}, newkey::Node{Block})
 end
 
 function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
+    @show b
+    @show keys(b.mutate)
+    @show keys(b.insert)
+    @show keys(b.delete)
     mutate = pop!(b.mutate, oldkey[1])
     insert = pop!(b.insert, oldkey[1])
     delete = pop!(b.delete, oldkey[1])
@@ -660,10 +664,6 @@ function checknogaps(b::Block)
     for j ∈ 1:size(aln,1)
         if all(aln[j,:] .== UInt8('-'))
             @show j, size(aln)
-            @show String(Base.copy(ref[31570:31574]))
-            for k ∈ 1:3
-                @show String(Base.copy(aln[31570:31574,k]))
-            end
             ks = sort(collect(keys(b.gaps)))
             vs = [b.gaps[k] for k in ks]
             @show collect(zip(ks,vs))
@@ -822,7 +822,7 @@ function rereference(qry::Block, ref::Block, segments)
                 if (x.qry-1) ∈ keys(qry.gaps) # some insertions in qry have overlapping sequence with ref
                     # TODO: allow for (-) hamming alignments
                     gap = gapconsensus(qry, x.qry-1)
-                    pos = hamming_align(ref.sequence[Δ], gap)-1
+                    pos = hamming_align(gap, ref.sequence[Δ])-1
 
                     oldgap = qry.gaps[x.qry-1]
                     newgap = (Δ.stop, 0)
@@ -830,14 +830,20 @@ function rereference(qry::Block, ref::Block, segments)
                     for node ∈ keys(qry)
                         unmatched = IntervalSet((x.ref, x.ref+Δ.stop-Δ.start+1))
 
-                        delkeys = Tuple{Int,Int}[]
+                        delckeys = Tuple{Int,Int}[]
+                        delqkeys = Tuple{Int,Int}[]
                         for ((locus,δ),ins) ∈ qry.insert[node]
                             locus != x.qry-1 && continue
 
-                            push!(delkeys, (Δ.start-1,δ))
+                            push!(delckeys, (Δ.start-1,δ))
+                            push!(delqkeys, (x.qry-1,δ))
 
                             start = Δ.start + pos + δ
                             stop  = start + length(ins) - 1
+
+                            @show locus,δ,pos
+                            @show start, stop, Δ
+                            @show String(Base.copy(ins))
 
                             if 1 ≤ start ≤ Δ.stop 
                                 for i ∈ start:min(Δ.stop,stop)
@@ -852,6 +858,9 @@ function rereference(qry::Block, ref::Block, segments)
                                 overhang = stop - Δ.stop # right overhang
 
                                 if overhang > 0 
+                                    if node ∉ keys(combined.insert)
+                                        combined.insert[node] = InsMap()
+                                    end
                                     combined.insert[node][(Δ.stop,0)] = ins[end-overhang+1:end] 
                                     newlen = length(ins[end-overhang+1:end] )
                                     if newlen > last(newgap)
@@ -860,8 +869,11 @@ function rereference(qry::Block, ref::Block, segments)
                                 end
                                 unmatched = unmatched \ Interval(start, stop+1)
                             elseif start > Δ.stop # we are (right) beyond the matched section, add the remainder as an insertion
+                                if node ∉ keys(combined.insert)
+                                    combined.insert[node] = InsMap()
+                                end
                                 combined.insert[node][(Δ.stop,start-Δ.stop-1)] = ins
-                                newlen = start-Δ.stop+1+length(ins) 
+                                newlen = start-Δ.stop-1+length(ins) 
                                 if newlen > last(newgap)
                                     newgap = (first(newgap), newlen)
                                 end
@@ -870,8 +882,14 @@ function rereference(qry::Block, ref::Block, segments)
                             end
                         end
 
-                        for key in delkeys
-                            delete!(combined.insert[node], key)
+                        if node in keys(combined.insert)
+                            for key in delckeys
+                                delete!(combined.insert[node], key)
+                            end
+                        end
+
+                        for key in delqkeys
+                            delete!(qry.insert[node],key)
                         end
 
                         for I in unmatched
@@ -879,10 +897,13 @@ function rereference(qry::Block, ref::Block, segments)
                         end
                     end
 
+                    delete!(qry.gaps, x.qry-1)
                     delete!(newgaps, Δ.start-1)
+
                     if last(newgap) > 0
                         newgaps[newgap[1]] = newgap[2]
                     end
+                    @show newgaps
 
                     newgap = nothing
                 else
@@ -908,7 +929,7 @@ function rereference(qry::Block, ref::Block, segments)
                     let
                         seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
                         if length(seq) > 0
-                            if length(seq) > last(newgap)
+                            if (δ+length(seq)) > last(newgap)
                                 newgap = (first(newgap),length(seq)+δ)
                             end
                             node => Dict((x.ref-1,δ) => seq) 
@@ -925,6 +946,7 @@ function rereference(qry::Block, ref::Block, segments)
                         newgaps[newgap[1]] = newgap[2]
                     end
                 end
+                @show newgaps
 
                 merge!(combined.insert, newinserts)
                 x = (qry=Δ.stop+1, ref=x.ref)
@@ -969,6 +991,9 @@ function rereference(qry::Block, ref::Block, segments)
                 inserts = map(qry.insert,Δq,Δr)
                 merge!(newgaps, Dict{Int,Int}(k=>v for (k,v) ∈ map(qry.gaps,Δq,Δr)))
                 merge!(combined.insert, inserts)
+
+                @show newgaps
+                @show inserts
 
                 x = (qry=Δq.stop+1, ref=Δr.stop+1)
             end
@@ -1213,7 +1238,7 @@ function check(b::Block; ids=true)
                 @show b.gaps
                 @show b.insert[node]
                 @show node
-                @show b.gaps[x], (length(ins) + δ)
+                @show x, b.gaps[x], (length(ins) + δ)
                 error("bad gap computation")
             end
         end

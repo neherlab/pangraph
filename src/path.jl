@@ -244,22 +244,22 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
         Base.splice!(nodes, i[2], [new])
     end
 
-    for (i,s) ∈ zip(interval, strand)
+    oldnodearray = [oldnodes(i) for i in interval]
+    for (k,(i,s)) ∈ enumerate(zip(interval, strand))
         newnode = Node(new, s)
-        oldnode = oldnodes(i)
+        oldnode = oldnodearray[k]
 
-        # oldseq = join(String(sequence(n.block,n)) for n in oldnode)
+        oldseq = join(String(sequence(n.block,n)) for n in oldnode)
 
+        @show oldnode
         splice!(p.node, i, newnode)
         swap!(new, oldnode, newnode)
 
-        # newseq = String(sequence(newnode.block,newnode))
+        newseq = String(sequence(newnode.block,newnode))
 
-        #=
         if newseq != oldseq
             error("FAIL")
         end
-        =#
     end
 end
 
