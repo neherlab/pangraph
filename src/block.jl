@@ -286,7 +286,7 @@ Dict{Node{Block},DelMap}(
            k = max(locus,i.start) 
            δ = k - locus 
            k => min(len-δ, i.stop-k+1) 
-       end for (locus, len) in subdict if (i.start ≤ locus ≤ i.stop || i.start ≤ locus+len ≤ i.stop)
+       end for (locus, len) in subdict if (locus ≤ i.stop && (locus+len-1) ≥ i.start) #(i.start ≤ locus ≤ i.stop || i.start ≤ (locus+len-1) ≤ i.stop)
     ) for (node, subdict) ∈ dict
 )
 
@@ -907,12 +907,6 @@ function rereference(qry::Block, ref::Block, segments)
                 newinserts = Dict(
                     let
                         seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
-                        @show node
-                        @show String(Base.copy(seq))
-                        @show String(Base.copy(qry.sequence[Δ]))
-                        @show mutate[node]
-                        @show insert[node]
-                        @show delete[node]
                         if length(seq) > 0
                             if length(seq) > last(newgap)
                                 newgap = (first(newgap),length(seq)+δ)
@@ -923,6 +917,8 @@ function rereference(qry::Block, ref::Block, segments)
                         end
                     end for node ∈ keys(qry)
                 )
+
+                @show newinserts
 
                 if last(newgap) > 0
                     if newgap[1] ∉ keys(newgaps) || newgap[2] > newgaps[newgap[1]]
@@ -962,8 +958,8 @@ function rereference(qry::Block, ref::Block, segments)
                         end
                     end
                 end
-                # @show newdels
-                # @show newmuts
+                @show newdels
+                @show newmuts
 
                 merge!(combined.mutate, newmuts)
                 merge!(combined.delete, newdels)
@@ -1029,19 +1025,29 @@ function assertequivalent(new, old, msg)
                     push!(badloci, i)
                 end
             end
-            left, right = max(badloci[1]-10, 1), min(badloci[1]+10, length(newseq))
-
             println("--> length:           ref($(length(oldseq))) <=> seq($(length(newseq)))")
-            println("--> # bad loci:       $(length(badloci))")
-            println("--> window:           $(left):$(badloci[1]):$(right)")
-            println("--> old:              $(String(oldseq[left:right]))") 
-            println("--> new:              $(String(newseq[left:right]))") 
 
             oldcoords = coordinates(old, node) 
             newcoords = coordinates(new, node) 
+            if length(badloci) > 0
+                left, right = max(badloci[1]-10, 1), min(badloci[1]+10, length(newseq))
+
+                println("--> # bad loci:       $(length(badloci))")
+                println("--> window:           $(left):$(badloci[1]):$(right)")
+                println("--> old:              $(String(oldseq[left:right]))") 
+                println("--> new:              $(String(newseq[left:right]))") 
+
+                @show oldcoords[badloci[1]-2:badloci[1]+2]
+                @show newcoords[badloci[1]-2:badloci[1]+2]
+            else
+                @show String(Base.copy(old.sequence))
+                @show String(Base.copy(new.sequence))
+
+                @show String(Base.copy(oldseq))
+                @show String(Base.copy(newseq))
+            end
+
             @show node, node.strand
-            @show oldcoords[badloci[1]-2:badloci[1]+2]
-            @show newcoords[badloci[1]-2:badloci[1]+2]
             # sequence(new, node; debug=true)
 
             @show old.mutate[node]
