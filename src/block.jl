@@ -53,7 +53,7 @@ function applyalleles(seq, mutate, insert, delete)
     for locus in allele_positions(mutate, insert, delete)
         δ = first(locus.pos) - r
         if δ > 0
-            new[w:w+δ-1] = seq[r:r+δ-1]
+            new[w:(w+δ-1)] = seq[r:(r+δ-1)]
             r += δ
             w += δ
         end
@@ -65,13 +65,18 @@ function applyalleles(seq, mutate, insert, delete)
                 r += 1
             end
             :ins => begin
+                if δ >= 0
+                    new[w] = seq[r]
+                    w += 1
+                    r += 1
+                end
                 ins = insert[locus.pos]
                 len = length(ins)
                 new[w:w+len-1] = ins
                 w += len
             end
             :del => begin
-                r += delete[locus.pos] 
+                r += delete[locus.pos]
             end
               _  => error("unrecognized locus kind")
         end
@@ -698,6 +703,7 @@ function reconsensus!(b::Block)
     )
 
     coord = cumsum(.!refdel)
+    #=
     if length(refdel) >= 3560
         @show refdel[3535:3560]
         @show coord[3535:3560]
@@ -708,6 +714,7 @@ function reconsensus!(b::Block)
             println(">iso: ", String(Base.copy(aln[3535:3560,i])))
         end
     end
+    =#
 
     oldgap = b.gaps
 
@@ -722,7 +729,7 @@ function reconsensus!(b::Block)
         for (i,node) in enumerate(nodes)
     )
 
-    @show b.delete
+    # @show b.delete
     b.delete = Dict{Node{Block},DelMap}( 
             node => DelMap(
                       del.lo => length(del)
@@ -731,10 +738,12 @@ function reconsensus!(b::Block)
         for (i,node) in enumerate(nodes)
     )
 
+    #=
     @show b.delete
     for i in 1:length(nodes)
         @show contiguous_trues(δ.del[.~refdel,i])
     end
+    =#
 
     Δ(I) = (R = containing(refgaps, I)) == nothing ? 0 : I.lo - R.lo
     b.insert = Dict{Node{Block},InsMap}( 
@@ -745,12 +754,14 @@ function reconsensus!(b::Block)
         for (i,node) in enumerate(nodes)
     )
 
-    @show b.insert
+    # @show b.insert
 
     b.sequence = consensus[.~refdel]
+    #=
     if length(b.sequence) ≥ 3540
         @show String(Base.copy(b.sequence[3530:3560]))
     end
+    =#
     
     @assert all(all(k ≤ length(b.sequence) for k in keys(d)) for d in values(b.mutate)) 
     @assert all(all(k ≤ length(b.sequence) for k in keys(d)) for d in values(b.delete)) 
@@ -807,7 +818,7 @@ function rereference(qry::Block, ref::Block, segments)
     for segment in segments
         @show segment.qry, segment.ref
         @match (segment.qry, segment.ref) begin
-            (nothing, Δ) => begin # sequence in ref consensus not found in qry consensus
+            (nothing, Δ) => let # sequence in ref consensus not found in qry consensus
                 if (x.qry-1) ∈ keys(qry.gaps) # some insertions in qry have overlapping sequence with ref
                     # TODO: allow for (-) hamming alignments
                     gap = gapconsensus(qry, x.qry-1)
@@ -815,8 +826,10 @@ function rereference(qry::Block, ref::Block, segments)
 
                     oldgap = qry.gaps[x.qry-1]
                     newgap = (Δ.stop, 0)
+
                     for node ∈ keys(qry)
                         unmatched = IntervalSet((x.ref, x.ref+Δ.stop-Δ.start+1))
+
                         delkeys = Tuple{Int,Int}[]
                         for ((locus,δ),ins) ∈ qry.insert[node]
                             locus != x.qry-1 && continue
@@ -826,17 +839,18 @@ function rereference(qry::Block, ref::Block, segments)
                             start = Δ.start + pos + δ
                             stop  = start + length(ins) - 1
 
-                            @show Δ.start-1, δ, x.qry-1
-                            @show String(Base.copy(ins))
-
                             if 1 ≤ start ≤ Δ.stop 
-                                for i ∈ start:Δ.stop
+                                for i ∈ start:min(Δ.stop,stop)
                                     if ins[i-start+1] != ref.sequence[i]
+                                        if node ∉ keys(combined.mutate)
+                                            combined.mutate[node] = SNPMap()
+                                        end
                                         combined.mutate[node][i] = ins[i-start+1]
                                     end
                                 end
 
                                 overhang = stop - Δ.stop # right overhang
+
                                 if overhang > 0 
                                     combined.insert[node][(Δ.stop,0)] = ins[end-overhang+1:end] 
                                     newlen = length(ins[end-overhang+1:end] )
@@ -878,7 +892,7 @@ function rereference(qry::Block, ref::Block, segments)
 
                 x = (qry=x.qry, ref=Δ.stop+1)
             end
-            (Δ, nothing) => begin # sequence in qry consensus not found in ref consensus
+            (Δ, nothing) => let # sequence in qry consensus not found in ref consensus
                 mutate = translate(lociwithin(qry.mutate,Δ),1-Δ.start)
                 insert = translate(lociwithin(qry.insert,Δ),1-Δ.start)
                 delete = translate(lociwithin(qry.delete,Δ),1-Δ.start)
@@ -893,6 +907,12 @@ function rereference(qry::Block, ref::Block, segments)
                 newinserts = Dict(
                     let
                         seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
+                        @show node
+                        @show String(Base.copy(seq))
+                        @show String(Base.copy(qry.sequence[Δ]))
+                        @show mutate[node]
+                        @show insert[node]
+                        @show delete[node]
                         if length(seq) > 0
                             if length(seq) > last(newgap)
                                 newgap = (first(newgap),length(seq)+δ)
@@ -920,7 +940,7 @@ function rereference(qry::Block, ref::Block, segments)
                          x => nuc for (x,nuc) in subdict if nuc != ref.sequence[x]
                     ) for (node, subdict) in map(qry.mutate,Δq,Δr)
                 )
-                @show muts
+                # @show muts
                 merge!(combined.mutate, muts)
 
                 # apply mutations to all qry sequences where qry ≠ ref that are not deleted or already mutated
@@ -931,7 +951,7 @@ function rereference(qry::Block, ref::Block, segments)
                         Δr.start+(x-1) => qry.sequence[Δq.start+(x-1)] for x in qrysnps if ((Δq.start+(x-1)) ∉ keys(qry.mutate[node])) 
                    ) for node ∈ keys(qry)
                 )
-                @show newmuts
+                # @show newmuts
 
                 # XXX: hacky way to ensure deletions are not inclued in newmuts
                 newdels = map(qry.delete,Δq,Δr)
@@ -942,8 +962,8 @@ function rereference(qry::Block, ref::Block, segments)
                         end
                     end
                 end
-                @show newdels
-                @show newmuts
+                # @show newdels
+                # @show newmuts
 
                 merge!(combined.mutate, newmuts)
                 merge!(combined.delete, newdels)
@@ -1020,15 +1040,12 @@ function assertequivalent(new, old, msg)
             oldcoords = coordinates(old, node) 
             newcoords = coordinates(new, node) 
             @show node, node.strand
-            @show oldcoords[badloci[1]-8:badloci[1]+8]
-            @show newcoords[badloci[1]-8:badloci[1]+8]
-            @show String(Base.copy(new.sequence[3530:3560]))
-            sequence(new, node; debug=true)
+            @show oldcoords[badloci[1]-2:badloci[1]+2]
+            @show newcoords[badloci[1]-2:badloci[1]+2]
+            # sequence(new, node; debug=true)
 
-            #=
             @show old.mutate[node]
             @show new.mutate[node]
-            =#
 
             @show old.insert[node]
             @show new.insert[node]

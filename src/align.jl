@@ -599,12 +599,12 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
 
         G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, minblock)
         verify(G₀,"--> checking merge 1...")
-        # G₀ = align_self(G₀, io₁, io₂, energy, minblock, verify)
+        G₀ = align_self(G₀, io₁, io₂, energy, minblock, verify)
 
         putio(io₁)
         putio(io₂)
 
-        # verify(G₀, "--> checking merge 2...")
+        verify(G₀, "--> checking merge 2...")
 
         put!(clade.graph, G₀)
     end
