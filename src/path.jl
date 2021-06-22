@@ -242,18 +242,24 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                 stop, x = x, advance(x)
             end
 
+            # DEBUG
+            if start ≤ stop
+                tmpnodes = p.node[start:stop]
+                @show (map((x)->x.block, tmpnodes), map((x)->x.strand, tmpnodes))
+            end
+
             if parity
-                stop ≥ start && return (interval=start:stop, strand=old[1].strand)  # simple case: | -(--)- |
+                stop ≥ start && return (interval=start:stop, strand=true)           # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
-                return (interval=(start:length(p.node), 1:stop), strand=old[1].strand)
+                return (interval=(start:length(p.node), 1:stop), strand=true)
             else
-                stop ≤ start && return (interval=stop:start, strand=~old[1].strand) # simple case: | -(--)- |
+                stop ≤ start && return (interval=stop:start, strand=false)          # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
                 error("REVERSE")
 
-                return (interval=(1:start, stop:length(p.node)), strand=~old[1].strand)
+                return (interval=(1:start, stop:length(p.node)), strand=false)
             end
         end
     )
