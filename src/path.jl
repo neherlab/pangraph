@@ -1,5 +1,7 @@
 module Paths
 
+using Infiltrator
+
 import Base:
     length, show
 
@@ -48,10 +50,6 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     oldseq = sequence(p; shift=false)
     for (i, n₁) in enumerate(p.node)
         n₁.block != old && continue
-
-        # @show sort(collect(keys(n₁.block.mutate[n₁])))
-        # @show n₁.block.insert[n₁]
-        # @show n₁.block.delete[n₁]
 
         oldblkseq = String(sequence(n₁.block, n₁))
 
@@ -173,11 +171,55 @@ end
 # used for detransitive
 const Link = NamedTuple{(:block, :strand), Tuple{Block, Bool}}
 function Base.replace!(p::Path, old::Array{Link}, new::Block)
+    # ----------------------------
+    # internal functions
+    
     unzip(a) = map(x->getfield.(a,x), fieldnames(eltype(a)))
 
     next = p.circular ? (x) -> (mod(x-0,length(p.node)) + 1) : (x) -> (x == length(p.node) ? nothing : x+1)
     prev = p.circular ? (x) -> (mod(x-2,length(p.node)) + 1) : (x) -> (x == 1 ? nothing : x-1)
 
+    oldnodes(i::A) where A <: AbstractArray          = p.node[i]
+    oldnodes(i::Tuple{A,A}) where A <: AbstractArray = [p.node[i[1]]; p.node[i[2]]]
+
+    pack(i::A, s) where A <: AbstractArray = [(loci=i, strand=s, oldnode=oldnodes(i))]
+    pack(i::Tuple{A,A}, s) where A <: AbstractArray = let 
+        it = if minimum(i[1]) < minimum(i[2])
+            Δ = sum(length(n.block, n) for n in p.node[i[2]])
+            [(loci=i[1], strand=s, oldnode=oldnodes(i)), (loci=i[2], strand=nothing, oldnode=nothing)]
+        else
+            Δ = sum(length(n.block, n) for n in p.node[i[1]])
+            [(loci=i[2], strand=s, oldnode=oldnodes(i)), (loci=i[1], strand=nothing, oldnode=nothing)]
+        end
+
+        if p.offset === nothing
+            p.offset = -Δ
+        else
+            p.offset -= Δ
+        end
+
+        return it
+    end
+    #=
+    splice!(nodes, i::AbstractArray, new) = let
+        Base.splice!(nodes, i, [new])
+    end
+    splice!(nodes, i::Tuple{AbstractArray,AbstractArray}, new) = let 
+        Δ = sum(length(n.block, n) for n in p.node[i[1]])
+        if p.offset === nothing
+            p.offset = -Δ
+        else
+            p.offset -= Δ
+        end
+
+        Base.splice!(nodes, i[1])
+        Base.splice!(nodes, i[2], [new])
+    end
+    =#
+
+    # ----------------------------
+    # function body
+    
     matches = findall((n)->n.block == old[1].block, p.node)
 
     interval, strand = unzip(
@@ -191,75 +233,49 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                     error("ran off genome")
                 end
                 if blk != p.node[x].block 
-                    @show old
-                    @show x, start, old[1].strand, parity
-                    @show (p.node[x].block, p.node[x].strand)
-                    @show (p.node[start].block, p.node[start].strand)
                     error("bad interval match")
                 end
                 if p.node[x].strand != (parity ? s : ~s)
-                    @show old
-                    @show x, start, old[1].strand, parity
-                    @show (p.node[x].block, p.node[x].strand)
-                    @show (p.node[start].block, p.node[start].strand)
                     error("bad strandedness")
                 end
+
                 stop, x = x, advance(x)
             end
 
             if parity
-                stop ≥ start && return (interval=start:stop, strand=true)           # simple case: | -(--)- |
+                stop ≥ start && return (interval=start:stop, strand=old[1].strand)  # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
-                return (interval=(start:length(p.node), 1:stop), strand=true)
+                return (interval=(start:length(p.node), 1:stop), strand=old[1].strand)
             else
-                stop ≤ start && return (interval=stop:start, strand=false)          # simple case: | -(--)- |
+                stop ≤ start && return (interval=stop:start, strand=~old[1].strand) # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
                 error("REVERSE")
 
-                return (interval=(1:start, stop:length(p.node)), strand=false)
+                return (interval=(1:start, stop:length(p.node)), strand=~old[1].strand)
             end
         end
     )
 
-    oldnodes(i::AbstractArray)                      = p.node[i]
-    oldnodes(i::Tuple{AbstractArray,AbstractArray}) = [p.node[i[1]]; p.node[i[2]]]
+    oldseq = sequence(p) # DEBUG
 
-    splice!(nodes, i::AbstractArray, new) = let
-        lengths = [length(n.block, n) for n in nodes]
-        Base.splice!(nodes, i, [new])
-    end
-    splice!(nodes, i::Tuple{AbstractArray,AbstractArray}, new) = let 
-        Δ = sum(length(n.block, n) for n in p.node[i[1]])
-        if p.offset === nothing
-            p.offset = -Δ
+    data = sort([x for (i,s) in zip(interval, strand) for x in pack(i,s)]; by=(x)->minimum(x.loci), rev=true)
+    for datum ∈ data
+        if datum.oldnode !== nothing
+            newnode = Node(new, datum.strand)
+
+            splice!(p.node, datum.loci, [newnode])
+            swap!(new, datum.oldnode, newnode)
         else
-            p.offset -= Δ
+            splice!(p.node, datum.loci, [])
         end
-
-        lengths = [length(n.block, n) for n in nodes]
-
-        Base.splice!(nodes, i[1])
-        Base.splice!(nodes, i[2], [new])
     end
 
-    oldnodearray = [oldnodes(i) for i in interval]
-    for (k,(i,s)) ∈ enumerate(zip(interval, strand))
-        newnode = Node(new, s)
-        oldnode = oldnodearray[k]
-
-        oldseq = join(String(sequence(n.block,n)) for n in oldnode)
-
-        @show oldnode
-        splice!(p.node, i, newnode)
-        swap!(new, oldnode, newnode)
-
-        newseq = String(sequence(newnode.block,newnode))
-
-        if newseq != oldseq
-            error("FAIL")
-        end
+    newseq = sequence(p) # DEBUG
+    if newseq != oldseq
+        @infiltrate
+        error("FAIL")
     end
 end
 

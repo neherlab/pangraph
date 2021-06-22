@@ -3,6 +3,7 @@ module Align
 using Rematch, Dates
 using LinearAlgebra
 using FileWatching
+using Infiltrator
 
 import Base.Threads.@spawn
 
@@ -413,11 +414,9 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
                 blocks,
                 G₀.sequence,
             )
-            #=
-            verify(G₀, "before detranstive")
+            verify(G₀, "before detransitive")
             detransitive!(G₀)
-            verify(G₀, "after detranstive")
-            =#
+            verify(G₀, "after detransitive")
         end
     end
 
@@ -560,10 +559,8 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
 
                     println("--> length:           ref($(length(ref))) <=> seq($(length(seq)))")
                     println("--> number of nodes:  $(length(path.node))")
-                    println("--> block ids:        $([n.block.uuid for n in path.node])")
-                    println("--> block lengths:    $([length(n.block, n) for n in path.node])")
-                    println("--> cumulative len:   $(cumulative_lengths)")
                     println("--> path offset:      $(path.offset)")
+                    println("--> |badloci|:        $(length(badloci))")
                     println("--> window:           $(left):$(badloci[1]):$(right)")
                     println("--> ref:              $(ref[left:right])") 
                     println("--> seq:              $(seq[left:right])") 
@@ -576,9 +573,13 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
                             i += 1
                         end
                     end
+
+                    println("--> i(bad):           $(i)")
                     println("--> mutate:           $(path.node[i].block.mutate[path.node[i]])")
                     println("--> insert:           $(path.node[i].block.insert[path.node[i]])")
                     println("--> delete:           $(path.node[i].block.delete[path.node[i]])")
+
+                    @infiltrate
 
                     error("--> isolate '$name' incorrectly reconstructed")
                 end
