@@ -1,6 +1,7 @@
 module Blocks
 
 using Rematch
+using Infiltrator
 
 import Base:
     show, length, append!, keys, merge!
@@ -577,18 +578,15 @@ function sequence(b::Block, node::Node{Block}; gaps=false, debug=false)
     return node.strand ? seq : reverse_complement(seq)
 end
 
-function gapconsensus(b::Block, x::Int)
-    x ∉ keys(b.gaps) && error("invalid index for gap")
-
-    len = b.gaps[x]
-    num = sum(1 for insert in values(b.insert) for locus in keys(insert) if first(locus) == x; init=0)
+function gapconsensus(insert::Dict{Node{Block},InsMap}, len::Int, x::Int)
+    num = sum(1 for ins in values(insert) for locus in keys(ins) if first(locus) == x; init=0)
     @assert num > 0
 
     aln = fill(UInt8('-'), (num, len))
 
     i = 1
-    for node in keys(b)
-        for (locus, ins) in b.insert[node]
+    for (node, subdict) in insert
+        for (locus, ins) in subdict
             first(locus) != x && continue
 
             aln[i, last(locus)+1:last(locus)+length(ins)] = ins
@@ -600,8 +598,12 @@ function gapconsensus(b::Block, x::Int)
     end
 
     trymode(data) = length(data) > 0 ? mode(data) : UInt8('-')
-
     return [ trymode(filter((c) -> c != UInt8('-'), col)) for col in eachcol(aln) ]
+end
+
+function gapconsensus(b::Block, x::Int)
+    x ∉ keys(b.gaps) && error("invalid index for gap")
+    return gapconsensus(b.insert, b.gaps[x], x)
 end
 
 function append!(b::Block, node::Node{Block}, snp::Maybe{SNPMap}, ins::Maybe{InsMap}, del::Maybe{DelMap})
@@ -667,6 +669,7 @@ function checknogaps(b::Block)
             ks = sort(collect(keys(b.gaps)))
             vs = [b.gaps[k] for k in ks]
             @show collect(zip(ks,vs))
+            @infiltrate
             error("all gaps found")
         end
     end
@@ -918,17 +921,16 @@ function rereference(qry::Block, ref::Block, segments)
                 insert = translate(lociwithin(qry.insert,Δ),1-Δ.start)
                 delete = translate(lociwithin(qry.delete,Δ),1-Δ.start)
 
-                if (x.ref-1) ∈ keys(ref.gaps) # some sequences in ref have overlapping sequence with qry
+                if (x.ref-1) ∈ keys(newgaps) # TODO: more sophisticated alignment? have to worry about overriding alignment
+                    δ = newgaps[x.ref-1] #hamming_align(qry.sequence[Δ], gapconsensus(combined.insert, newgaps[x.ref-1], x.ref-1)) - 1
+                elseif (x.ref-1) ∈ keys(ref.gaps) # some sequences in ref have overlapping sequence with qry
                     δ = hamming_align(qry.sequence[Δ], gapconsensus(ref, x.ref-1)) - 1
                 else # novel for all qry sequences. apply alleles to consensus and store as insertion
                     δ = 0
                 end
 
-                if (x.ref-1) ∈ keys(newgaps)
-                    δ += newgaps[x.ref-1] 
-                end
-
                 newgap = (x.ref-1, 0)
+
                 newinserts = Dict(
                     let
                         seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
