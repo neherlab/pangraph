@@ -921,7 +921,11 @@ function rereference(qry::Block, ref::Block, segments)
                 if (x.ref-1) ∈ keys(ref.gaps) # some sequences in ref have overlapping sequence with qry
                     δ = hamming_align(qry.sequence[Δ], gapconsensus(ref, x.ref-1)) - 1
                 else # novel for all qry sequences. apply alleles to consensus and store as insertion
-                    δ = ((x.ref-1) ∈ keys(newgaps)) ? newgaps[x.ref-1] : 0
+                    δ = 0
+                end
+
+                if (x.ref-1) ∈ keys(newgaps)
+                    δ += newgaps[x.ref-1] 
                 end
 
                 newgap = (x.ref-1, 0)
