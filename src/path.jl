@@ -1,7 +1,5 @@
 module Paths
 
-using Infiltrator
-
 import Base:
     length, show
 
@@ -200,22 +198,6 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
 
         return it
     end
-    #=
-    splice!(nodes, i::AbstractArray, new) = let
-        Base.splice!(nodes, i, [new])
-    end
-    splice!(nodes, i::Tuple{AbstractArray,AbstractArray}, new) = let 
-        Δ = sum(length(n.block, n) for n in p.node[i[1]])
-        if p.offset === nothing
-            p.offset = -Δ
-        else
-            p.offset -= Δ
-        end
-
-        Base.splice!(nodes, i[1])
-        Base.splice!(nodes, i[2], [new])
-    end
-    =#
 
     # ----------------------------
     # function body
@@ -242,12 +224,6 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                 stop, x = x, advance(x)
             end
 
-            # DEBUG
-            if start ≤ stop
-                tmpnodes = p.node[start:stop]
-                @show (map((x)->x.block, tmpnodes), map((x)->x.strand, tmpnodes))
-            end
-
             if parity
                 stop ≥ start && return (interval=start:stop, strand=true)           # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
@@ -264,8 +240,6 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
         end
     )
 
-    oldseq = sequence(p) # DEBUG
-
     data = sort([x for (i,s) in zip(interval, strand) for x in pack(i,s)]; by=(x)->minimum(x.loci), rev=true)
     for datum ∈ data
         if datum.oldnode !== nothing
@@ -276,12 +250,6 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
         else
             splice!(p.node, datum.loci, [])
         end
-    end
-
-    newseq = sequence(p) # DEBUG
-    if newseq != oldseq
-        @infiltrate
-        error("FAIL")
     end
 end
 

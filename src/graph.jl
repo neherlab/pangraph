@@ -163,10 +163,6 @@ function detransitive!(G::Graph)
             pop!(G.block, b.uuid)
         end
     end
-
-    for b ∈ values(G.block)
-        check(b)
-    end
 end
 
 # ------------------------------------------------------------------------

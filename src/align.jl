@@ -2,8 +2,6 @@ module Align
 
 using Rematch, Dates
 using LinearAlgebra
-using FileWatching
-using Infiltrator
 
 import Base.Threads.@spawn
 
@@ -352,9 +350,6 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
         ok   = true
         qry₀, ref₀ = blocks!(hit)
 
-        check(qry₀)
-        check(ref₀)
-
         hit.qry.seq = qry₀.sequence
         hit.ref.seq = ref₀.sequence
         enforce_cutoff!(hit, minblock)
@@ -368,11 +363,6 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
 
         replace!((qry=qry₀, ref=ref₀), (qry=qrys, ref=refs), strand)
 
-        # DEBUG: ensure blocks are correctly referenced
-        for b in blks
-            check(b.block)
-        end
-
         for blk in map(b->b.block, blks)
             blocks[blk.uuid] = blk
         end
@@ -381,10 +371,11 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
     return blocks, ok
 end
 
-function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, verify::Function)
+function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, verify::Function; maxiter=100)
     G₀ = G₁
     ok = true
 
+    niter = 0
     while ok
         ok   = false
         hits = do_align(G₀, G₀, io₁, io₂, energy)
@@ -409,14 +400,13 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
         
         merge!(blocks, G₀.block)
 
-        if ok
+        if ok && niter < maxiter
             G₀ = Graph(
                 blocks,
                 G₀.sequence,
             )
-            verify(G₀, "before detransitive")
             detransitive!(G₀)
-            verify(G₀, "after detransitive")
+            niter += 1
         end
     end
 
@@ -579,8 +569,6 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
                     println("--> insert:           $(path.node[i].block.insert[path.node[i]])")
                     println("--> delete:           $(path.node[i].block.delete[path.node[i]])")
 
-                    @infiltrate
-
                     error("--> isolate '$name' incorrectly reconstructed")
                 end
             end
@@ -595,17 +583,11 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
 
         io₁, io₂ = getios()
 
-        verify(Gₗ, "--> checking left...")
-        verify(Gᵣ, "--> checking right...")
-
         G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, minblock)
-        verify(G₀,"--> checking merge 1...")
         G₀ = align_self(G₀, io₁, io₂, energy, minblock, verify)
 
         putio(io₁)
         putio(io₂)
-
-        verify(G₀, "--> checking merge 2...")
 
         put!(clade.graph, G₀)
     end
