@@ -49,8 +49,6 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     for (i, n₁) in enumerate(p.node)
         n₁.block != old && continue
 
-        oldblkseq = String(sequence(n₁.block, n₁))
-
         push!(indices, i)
         nodes = ((n₁.strand==orientation) 
                      ? [Node{Block}(nb;strand=true) for nb in new] 
@@ -58,49 +56,6 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
 
         for n₂ in nodes
             swap!(n₂.block, n₁, n₂)
-        end
-
-        newblkseq = join(String(sequence(n₂.block, n₂)) for n₂ in nodes)
-
-        if newblkseq != oldblkseq
-            badblkloci = Int[]
-            for i ∈ 1:min(length(newblkseq),length(oldblkseq))
-                if newblkseq[i] != oldblkseq[i]
-                    push!(badblkloci, i)
-                end
-            end
-            left, right = max(badblkloci[1]-10, 1), min(badblkloci[1]+10, length(newblkseq))
-
-            println("--> length:           ref($(length(oldblkseq))) <=> seq($(length(newblkseq)))")
-            println("--> number bad:       $(length(badblkloci))")
-            println("--> window:           $(left):$(badblkloci[1]):$(right)")
-            println("--> old:              $(oldblkseq[left:right])") 
-            println("--> new:              $(newblkseq[left:right])") 
-
-            for n in nodes
-                @show (n.block, n.strand, length(n.block,n))
-            end
-
-            @show orientation
-            @show n₁.block, n₁.strand
-
-            n = nodes[end]
-            @show sort(collect(keys(n.block.mutate[n])))
-            @show n.block.insert[n]
-            @show n.block.delete[n]
-            #=
-            δ = 0
-            for n in nodes
-                @show sort(collect(keys(n.block.mutate[n]))) .+ δ
-                @show n.block.insert[n]
-                @show n.block.delete[n]
-                δ += length(n.block, n)
-            end
-
-            @show sort(collect(keys(n₁.block.mutate[n₁])))
-            =#
-
-            error("bad mapping")
         end
 
         push!(inserts, nodes)
