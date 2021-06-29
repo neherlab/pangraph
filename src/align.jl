@@ -2,6 +2,7 @@ module Align
 
 using Rematch, Dates
 using LinearAlgebra
+using ProgressMeter
 
 import Base.Threads.@spawn
 
@@ -275,6 +276,14 @@ function preorder(root::Clade)
     end
 
     return itr
+end
+
+function Base.length(node::Clade)
+    if isleaf(node)
+        return 1
+    else
+        return 1 + Base.length(node.left) + Base.length(node.right)
+    end
 end
 
 # ------------------------------------------------------------------------
@@ -577,6 +586,11 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
         graph
     end
 
+    log("--> ordering")
+    tree = ordering(Gs...)
+    log("--> tree: ", tree)
+
+    meter = Progress(length(tree); desc="alignment progress", output=stderr)
     function kernel(clade)
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
@@ -589,12 +603,9 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
         putio(io₁)
         putio(io₂)
 
+        next!(meter)
         put!(clade.graph, G₀)
     end
-
-    log("--> ordering")
-    tree = ordering(Gs...)
-    log("--> tree: ", tree)
 
     # sequences on tips of tree
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
@@ -603,6 +614,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
     for clade ∈ postorder(tree)
         if isleaf(clade)
             put!(clade.graph, tips[clade.name])
+            next!(meter)
             close(clade.graph)
         else
             kernel(clade)
