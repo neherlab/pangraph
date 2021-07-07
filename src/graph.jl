@@ -178,6 +178,8 @@ function detransitive!(G::Graph)
         for b ∈ first.(c)
             pop!(G.block, b.uuid)
         end
+
+        G.block[new.uuid] = new
     end
 end
 

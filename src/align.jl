@@ -312,8 +312,6 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
         hit.ref.seq = ref₀.sequence
         enforce_cutoff!(hit, minblock)
 
-        # log(hit)
-
         blks, strand = combine(qry₀, ref₀, hit; minblock=minblock)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
