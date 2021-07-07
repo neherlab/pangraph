@@ -11,10 +11,12 @@ using ..Nodes
 using ..Utility: 
     random_id, contiguous_trues,
     uncigar, wcpair, Alignment,
-    hamming_align
+    hamming_align,
+    write_fasta
 
 import ..Graphs:
     pair, 
+    marshal_fasta,
     sequence, sequence!,
     reverse_complement, reverse_complement!
 
@@ -569,10 +571,10 @@ function sequence!(seq, b::Block, node::Node{Block}; gaps=false, debug=false)
     return seq
 end
 
-function sequence(b::Block, node::Node{Block}; gaps=false, debug=false)
+function sequence(b::Block, node::Node{Block}; gaps=false, debug=false, forward=false)
     seq = gaps ? sequence(b; gaps=true) : Array{UInt8}('-'^length(b, node))
     sequence!(seq, b, node; gaps=gaps, debug=debug)
-    return node.strand ? seq : reverse_complement(seq)
+    return (node.strand || forward) ? seq : reverse_complement(seq)
 end
 
 function gapconsensus(insert::Dict{Node{Block},InsMap}, len::Int, x::Int)
@@ -943,7 +945,6 @@ function rereference(qry::Block, ref::Block, segments)
     return new
 end
 
-# DEBUG
 function assertequivalent(new, old, msg)
     if Set(keys(old)) ⊈ Set(keys(new))
         error("old keys not a subset of new keys: $(msg)")
@@ -1128,6 +1129,19 @@ function check(b::Block; ids=true)
         @show b.insert
         error("bad alignment to gap region")
     end
+end
+
+function marshal_fasta(io::IO, b::Block)
+    isolate = (i) -> "isolate_$i"
+
+    nodes = collect(keys(b))
+    names = Dict(isolate(i) => node for (i,node) in enumerate(nodes))
+
+    for (i,node) in enumerate(nodes)
+        write_fasta(io, isolate(i), sequence(b, node; forward=true))
+    end
+
+    return names
 end
 
 # ------------------------------------------------------------------------

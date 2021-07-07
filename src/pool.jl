@@ -1,16 +1,6 @@
 module Pool
 
-using ...Utility: random_id
-#=
-using Random, StatsBase
-function random_id(;len=10, alphabet=UInt8[])
-    if length(alphabet) == 0
-        alphabet = ['A','B','C','D','E','F','G','H','I','J','K','L','M',
-                    'N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
-    end
-    return join(sample(alphabet, len))
-end
-=#
+using ..Utility: random_id
 
 import Base:
     open, isopen, close,
@@ -41,6 +31,8 @@ struct FIFO
         return new(root, base, mode)
     end
 end
+
+FIFO() = FIFO(random_id())
 
 path(f::FIFO) = joinpath(f.root, f.base)
 
@@ -117,9 +109,9 @@ end
 function pool(size)
     chan = Channel{FIFO}(size)
     for i in 1:size
-        f = FIFO(random_id())
+        f = FIFO()
         while isnothing(f)
-            f = FIFO(random_id())
+            f = FIFO()
         end
         put!(chan, f)
     end

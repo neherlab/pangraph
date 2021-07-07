@@ -17,7 +17,7 @@ export hamming_align
 
 export contiguous_trues
 
-export read_fasta, name
+export write_fasta, read_fasta, name
 export read_paf
 
 Maybe{T} = Union{Nothing,T}
@@ -32,6 +32,12 @@ function random_id(;len=10, alphabet=UInt8[])
                     'N','O','P','Q','R','S','T','U','V','W','X','Y','Z']
     end
     return join(sample(alphabet, len))
+end
+
+# helper functions w/ common functionality
+function write_fasta(io::IO, name, seq)
+    write(io::IO, '>', name, '\n')
+    write(io::IO, columns(seq), '\n')
 end
 
 # ------------------------------------------------------------------------

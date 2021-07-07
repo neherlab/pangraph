@@ -6,15 +6,14 @@ using ProgressMeter
 
 import Base.Threads.@spawn
 
+using ..Pool
 using ..Utility: read_paf, enforce_cutoff!, reverse_complement
 using ..Blocks
 using ..Paths: replace!
 using ..Nodes
 using ..Graphs
 
-# Pool belongs only to the alignment module!
-include("pool.jl")
-using .Pool
+import ..Shell: minimap2, mash
 
 export align
 
@@ -52,56 +51,6 @@ end
 function log(msg...)
     println(stderr, now(), " ", join(msg, " ")...)
     flush(stderr)
-end
-
-# command line execution
-function execute(cmd::Cmd; now=true)
-    out = Pipe()
-    err = Pipe()
-
-    proc = run(pipeline(cmd, stdout=out, stderr=err); wait=now)
-
-    close(out.in)
-    close(err.in)
-
-    stdout = @async String(read(out))
-    stderr = @async String(read(err))
-
-    if now
-        return (
-            out  = fetch(stdout),
-            err  = fetch(stderr),
-            code = proc.exitcode, #err,
-        )
-    else
-        return (
-            out  = stdout,
-            err  = stderr,
-            proc = proc,
-        )
-    end
-end
-
-function mash(input)
-    result = execute(`mash triangle $input`)
-    stdout = IOBuffer(result.out)
-
-    N     = parse(Int64,readline(stdout))
-    dist  = zeros(N,N)
-    names = Array{String}(undef, N)
-    for (i, line) in enumerate(eachline(stdout))
-        elt = split(strip(line))
-        names[i] = elt[1]
-        dist[i,1:(i-1)] = [parse(Float64,x) for x in elt[2:end]]
-    end
-
-    dist = dist + dist';
-
-    return dist, names
-end
-
-function minimap2(qry::String, ref::String)
-    return execute(`minimap2 -x asm10 -m 10 -n 1 -s 30 -D -c $ref $qry`; now=false)
 end
 
 # ------------------------------------------------------------------------
@@ -506,11 +455,6 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, mi
         ref = pop!(G₂.block, hit.ref.name),
     )
     replace = (old, new, orientation) -> let
-        # START DEBUG
-        compare(old.qry, new.qry, orientation)
-        compare(old.ref, new.ref, true)
-        # END DEBUG
-
         for path in values(G₁.sequence)
             replace!(path, old.qry, new.qry, orientation)
         end

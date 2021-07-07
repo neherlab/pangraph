@@ -45,7 +45,6 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     indices = Int[]
     inserts = Array{Node{Block}}[]
 
-    oldseq = sequence(p; shift=false)
     for (i, n₁) in enumerate(p.node)
         n₁.block != old && continue
 
@@ -69,38 +68,6 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
         splice!(p.node, index, nodes)
     end
 
-    newseq = sequence(p; shift=false)
-    if oldseq != newseq
-        badloci = Int[]
-        for i ∈ 1:min(length(newseq),length(oldseq))
-            if newseq[i] != oldseq[i]
-                push!(badloci, i)
-            end
-        end
-        left, right = max(badloci[1]-10, 1), min(badloci[1]+10, length(newseq))
-
-        @show orientation
-        @show indices
-        println([(n.block.uuid,n.strand) for n in p.node])
-
-        println("--> length:           ref($(length(oldseq))) <=> seq($(length(newseq)))")
-        println("--> number of nodes:  $(length(p.node))")
-        println("--> cumulative len:   $(cumsum([length(n.block,n) for n in p.node]))")
-        println("--> window:           $(left):$(badloci[1]):$(right)")
-        println("--> old:              $(oldseq[left:right])") 
-        println("--> new:              $(newseq[left:right])") 
-
-        node = p.node[indices[1]]
-
-        @show sort(collect(keys(node.block.mutate[node])))
-        @show Char(node.block.mutate[node][659])
-        @show node.block.insert[node]
-        @show node.block.delete[node]
-
-        @show new
-
-        error("bad splicing")
-    end
 end
 
 # XXX: should we create an interval data structure that unifies both cases?

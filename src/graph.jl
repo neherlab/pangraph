@@ -24,23 +24,39 @@ export reverse_complement, reverse_complement!
 function reverse_complement(item)  end
 function reverse_complement!(item) end
 
+export marshal, marshal_fasta, marshal_json
+function marshal_fasta(io::IO, x) end
+function marshal_json(io::IO, x) end
+function marshal(io::IO, x, fmt=:fasta)
+    @match fmt begin
+        :fasta || :fa => return marshal_fasta(io, x)
+        :json         => return marshal_json(io, x)
+        _ => error("$fmt not a recognized output format")
+    end
+end
+
 include("interval.jl")
 include("counter.jl")
 include("util.jl")
+include("pool.jl")
 include("node.jl")
 include("block.jl")
 include("path.jl")
 include("junction.jl")
+include("cmd.jl")
 
-using .Utility: read_fasta, name, columns, log
+using .Utility: read_fasta, write_fasta, name, columns, log
 using .Nodes
 using .Blocks
 using .Paths
 using .Junctions
 using .Intervals
+using .Pool: FIFO
+
+import .Shell: mafft
 
 export Graph
-export graphs, marshal, serialize, detransitive!
+export graphs, serialize, detransitive!, finalize!
 
 # ------------------------------------------------------------------------
 # graph data structure
@@ -170,12 +186,6 @@ end
 
 Base.show(io::IO, G::Graph) = Base.show(io, (paths=values(G.sequence), blocks=values(G.block)))
 
-# helper functions w/ common functionality
-function write_fasta(io, name, seq)
-    write(io, '>', name, '\n')
-    write(io, columns(seq), '\n')
-end
-
 # TODO: can we generalize to multiple individuals
 #       equivalent to "highway" detection
 function serialize(io, G::Graph)
@@ -189,14 +199,14 @@ function serialize(io, G::Graph)
     write_fasta(io, name, seq)
 end
 
-function marshal_fasta(io, G::Graph)
+function marshal_fasta(io::IO, G::Graph)
     for (i, b) in enumerate(values(G.block))
         write_fasta(io, b.uuid, b.sequence)
     end
 end
 
 # XXX: think of a way to break up function but maintain graph-wide node lookup table
-function marshal_json(io, G::Graph)
+function marshal_json(io::IO, G::Graph)
     NodeID = NamedTuple{(:id,:name,:number,:strand), Tuple{String,String,Int,Bool}}
     nodes  = Dict{Node{Block}, NodeID}()
 
@@ -251,14 +261,6 @@ function marshal_json(io, G::Graph)
         paths  = paths,
         blocks = blocks,
     ))
-end
-
-function marshal(io, G::Graph, fmt=:fasta)
-    @match fmt begin
-        :fasta || :fa => marshal_fasta(io, G)
-        :json         => marshal_json(io, G)
-        _ => error("$format not a recognized output format")
-    end
 end
 
 # NOTE: only recognizes json input right now
@@ -350,6 +352,34 @@ function sequence(g::Graph, name::AbstractString)
 end
 
 sequence(g::Graph) = [ name => join(String(sequence(node.block, node)) for node ∈ path.node) for (name, path) ∈ g.sequence ]
+
+function finalize!(g)
+    println(stderr, "-> finalizing graph...")
+
+    println(stderr, "--> realigning blocks with MAFFT...")
+    fifo = FIFO()
+    for blk in values(g.block)
+        cmd = mafft(path(fifo))
+        @async let
+            io = open(fifo, "w")
+            @label write
+            sleep(1e-3)
+            try
+                # XXX: how to pass names out
+                names = marshal(io, blk, :fasta)
+            catch e
+                log("ERROR: $(e)")
+                @goto write
+            finally
+                close(io)
+            end
+        end
+
+        out = IOBuffer(fetch(cmd.out))
+        println(stderr, out)
+    end
+    delete(fifo)
+end
 
 # ------------------------------------------------------------------------
 # main point of entry
