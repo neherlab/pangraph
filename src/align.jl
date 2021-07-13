@@ -7,7 +7,7 @@ using ProgressMeter
 import Base.Threads.@spawn
 
 using ..Pool
-using ..Utility: read_paf, enforce_cutoff!, reverse_complement
+using ..Utility: read_paf, enforce_cutoff!
 using ..Blocks
 using ..Paths: replace!
 using ..Nodes

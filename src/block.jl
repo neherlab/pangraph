@@ -9,37 +9,25 @@ import Base:
 using ..Intervals
 using ..Nodes
 using ..Utility: 
-    random_id, contiguous_trues,
+    random_id,
     uncigar, wcpair, Alignment,
     hamming_align,
+    make_consensus, alignment_alleles,
     write_fasta
 
 import ..Graphs:
     pair, 
     marshal_fasta,
     sequence, sequence!,
-    reverse_complement, reverse_complement!
+    reverse_complement, reverse_complement!,
+    SNPMap, InsMap, DelMap, Maybe
 
 # exports
-export SNPMap, InsMap, DelMap # aux types
 export Block 
 export combine, swap!, check  # operators
 export assertequivalent
 
-# ------------------------------------------------------------------------
-# utility types
-
-Maybe{T} = Union{T,Nothing}
-
-# aliases
-const SNPMap = Dict{Int,UInt8}
-const InsMap = Dict{Tuple{Int,Int},Array{UInt8,1}} 
-const DelMap = Dict{Int,Int} 
-
 const AlleleMaps{T} = Union{Dict{Node{T},SNPMap},Dict{Node{T},InsMap},Dict{Node{T},DelMap}} 
-
-show(io::IO, m::SNPMap) = show(io, [ k => Char(v) for (k,v) in m ])
-show(io::IO, m::InsMap) = show(io, [ k => String(Base.copy(v)) for (k,v) in m ])
 
 # ------------------------------------------------------------------------
 # utility functions
@@ -684,51 +672,12 @@ function reconsensus!(b::Block)
         sequence!(view(aln,:,i), b, node; gaps=true)
     end
 
-    consensus = [mode(view(aln,i,:)) for i in 1:size(aln,1)]
+    consensus = make_consensus(aln)
     if all(consensus .== ref) # hot path: if consensus sequence did not change, abort!
         return false
     end
 
-    isdiff = aln .!= consensus
-    refdel = consensus .== UInt8('-')
-    alndel = aln .== UInt8('-')
-
-    δ = (
-        snp =   isdiff .& .~refdel .& .~alndel,
-        del = .~refdel .&   alndel,
-        ins =   refdel .& .~alndel,
-    )
-
-    coord   = cumsum(.!refdel)
-    refgaps = contiguous_trues(refdel)
-    b.gaps  = Dict{Int, Int}(coord[gap.lo] => length(gap) for gap in refgaps)
-    
-    b.mutate = Dict{Node{Block},SNPMap}( 
-            node => SNPMap(
-                   coord[l] => aln[l,i] 
-                for l in findall(δ.snp[:,i])
-            )
-        for (i,node) in enumerate(nodes)
-    )
-
-    b.delete = Dict{Node{Block},DelMap}( 
-            node => DelMap(
-                      del.lo => length(del)
-                for del in contiguous_trues(δ.del[.~refdel,i])
-             )
-        for (i,node) in enumerate(nodes)
-    )
-
-    Δ(I) = (R = containing(refgaps, I)) == nothing ? 0 : I.lo - R.lo
-    b.insert = Dict{Node{Block},InsMap}( 
-            node => InsMap(
-                      (coord[ins.lo],Δ(ins)) => aln[ins,i] 
-                for ins in contiguous_trues(δ.ins[:,i])
-             )
-        for (i,node) in enumerate(nodes)
-    )
-
-    b.sequence = consensus[.~refdel]
+    b.gaps, b.mutate, b.delete, b.insert, b.sequence = alignment_alleles(consensus, aln, nodes)
     return true
 end
 

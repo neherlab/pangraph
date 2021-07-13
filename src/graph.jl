@@ -35,11 +35,26 @@ function marshal(io::IO, x, fmt=:fasta)
     end
 end
 
+# ------------------------------------------------------------------------
+# aux types
+
+Maybe{T} = Union{T,Nothing}
+
+# aliases
+const SNPMap = Dict{Int,UInt8}
+const InsMap = Dict{Tuple{Int,Int},Array{UInt8,1}} 
+const DelMap = Dict{Int,Int} 
+
+export Maybe, SNPMap, InsMap, DelMap
+
+Base.show(io::IO, m::SNPMap) = show(io, [ k => Char(v) for (k,v) in m ])
+Base.show(io::IO, m::InsMap) = show(io, [ k => String(Base.copy(v)) for (k,v) in m ])
+
 include("interval.jl")
 include("counter.jl")
+include("node.jl")
 include("util.jl")
 include("pool.jl")
-include("node.jl")
 include("block.jl")
 include("path.jl")
 include("junction.jl")
@@ -363,7 +378,8 @@ function finalize!(g)
     for blk in values(g.block)
         cmd = mafft(path(fifo))
         @async let
-            io = open(fifo, "w")
+            names = nothing
+            io    = open(fifo, "w")
             @label write
             sleep(1e-3)
             try
@@ -378,7 +394,9 @@ function finalize!(g)
         end
 
         out = IOBuffer(fetch(cmd.out))
-        println(stderr, out)
+        seq = collect(read_fasta(out))
+        aln = reduce(vcat, map((r)->r.seq, seq))
+        iso = map((r)->names[r.name], seq)
     end
     delete(fifo)
 end
