@@ -363,11 +363,8 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
                 blocks,
                 G₀.sequence,
             )
-            verify(G₀, "before detransitive (self)")
             detransitive!(G₀)
-            verify(G₀, "after detransitive (self)")
             prune!(G₀)
-            verify(G₀, "after prune (self)")
             niter += 1
         end
     end
@@ -479,11 +476,8 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, mi
         blocks, 
         sequence,
     )
-    verify(G, "before detransitive (pair)")
     detransitive!(G)
-    verify(G, "after detransitive (pair)")
     prune!(G)
-    verify(G, "after prune (pair)")
 
     return G
 end

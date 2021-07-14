@@ -314,30 +314,17 @@ function merge!(base::T, others::T...) where T <: AlleleMaps{Block}
     return base
 end
 
-function merge_cat!(base::InsMap, others::InsMap...)
-    gaps = Dict{Int,Int}()
-    for ((locus, offset), ins) in base
-        δ = locus + length(ins)
-        if locus ∉ keys(gaps) || δ > gaps[locus]
-            gaps[locus] = δ
-        end
-    end
+function merge_cat!(base::InsMap, gaps::Dict{Int,Int}, others::InsMap...)
     new    = Set(locus for other in others for locus in first.(keys(other)))
     shared = intersect(Set(keys(gaps)), new)
 
     length(shared) == 0 && return merge!(base, others...)
 
-    # @infiltrate
-    @show shared
-    @show gaps
-
     for other in others
         for ((locus,offset),ins) in other
             if locus ∈ keys(gaps)
                 δ = gaps[locus]
-                @show locus, δ
                 base[(locus,δ+offset)] = ins
-                gaps[locus] = δ+offset+length(ins)
             else
                 base[(locus,offset)] = ins
             end
@@ -353,15 +340,21 @@ function merge_cat!(base::Dict{Node{Block},InsMap}, others::Dict{Node{Block},Ins
     end
 
     # keys found in base
-    for node ∈ Ks
-        @show node, node.block, node.strand
-        @show base[node]
-        for other in others
-            if node ∈ keys(other)
-                @show other[node]
+    for other in others
+        gaps = Dict{Int,Int}()
+        for node ∈ Ks
+            for ((locus, offset), ins) in base[node]
+                δ = offset + length(ins)
+                if locus ∉ keys(gaps) || δ > gaps[locus]
+                    gaps[locus] = δ
+                end
             end
         end
-        merge_cat!(base[node], (other[node] for other in others if node ∈ keys(other))...)
+
+        for node ∈ Ks
+            node ∉ keys(other) && continue
+            merge_cat!(base[node], gaps, other[node])
+        end
     end
 
     return base
@@ -371,8 +364,6 @@ end
 # serial concatenate list of blocks
 function Block(bs::Block...)
     sequence = vcat((b.sequence for b in bs)...)
-
-    @show bs
 
     gaps   = Base.copy(bs[1].gaps)
     mutate = Base.copy(bs[1].mutate)
@@ -386,7 +377,6 @@ function Block(bs::Block...)
         merge!(mutate, translate(b.mutate, δ))
         merge!(delete, translate(b.delete, δ))
 
-        @show b
         merge_cat!(insert, translate(b.insert, δ))
 
         δ += length(b)
@@ -688,7 +678,16 @@ function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
     for key in oldkey[2:end]
         merge!(mutate, pop!(b.mutate, key))
         merge!(delete, pop!(b.delete, key))
-        merge_cat!(insert, pop!(b.insert, key))
+
+        gaps = Dict{Int,Int}()
+        for ((locus, offset), ins) in insert
+            δ = offset + length(ins)
+            if locus ∉ keys(gaps) || δ > gaps[locus]
+                gaps[locus] = δ
+            end
+        end
+
+        merge_cat!(insert, gaps, pop!(b.insert, key))
     end
 
     b.mutate[newkey] = mutate
