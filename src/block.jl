@@ -1,6 +1,7 @@
 module Blocks
 
 using Rematch
+using Infiltrator
 
 import Base:
     show, length, append!, keys, merge!
@@ -257,7 +258,7 @@ Block()         = Block(UInt8[])
 
 # move alleles
 translate(d::Dict{Int,Int}, δ) = Dict(x+δ => v for (x,v) ∈ d) # gaps
-translate(d::Dict{Node{Block},InsMap}, δ) = Dict(n => Dict((x+δ,Δ) => v for ((x,Δ),v) ∈ val) for (n,val) ∈ d) # insertions 
+translate(d::Dict{Node{Block},InsMap}, δ) = Dict{Node{Block},InsMap}(n => Dict((x+δ,Δ) => v for ((x,Δ),v) ∈ val) for (n,val) ∈ d) # insertions 
 translate(dict::T, δ) where T <: AlleleMaps{Block} = Dict(key=>Dict(x+δ=>v for (x,v) in val) for (key,val) in dict)
 
 # select alleles within window
@@ -313,10 +314,65 @@ function merge!(base::T, others::T...) where T <: AlleleMaps{Block}
     return base
 end
 
+function merge_cat!(base::InsMap, others::InsMap...)
+    gaps = Dict{Int,Int}()
+    for ((locus, offset), ins) in base
+        δ = locus + length(ins)
+        if locus ∉ keys(gaps) || δ > gaps[locus]
+            gaps[locus] = δ
+        end
+    end
+    new    = Set(locus for other in others for locus in first.(keys(other)))
+    shared = intersect(Set(keys(gaps)), new)
+
+    length(shared) == 0 && return merge!(base, others...)
+
+    # @infiltrate
+    @show shared
+    @show gaps
+
+    for other in others
+        for ((locus,offset),ins) in other
+            if locus ∈ keys(gaps)
+                δ = gaps[locus]
+                @show locus, δ
+                base[(locus,δ+offset)] = ins
+                gaps[locus] = δ+offset+length(ins)
+            else
+                base[(locus,offset)] = ins
+            end
+        end
+    end
+end
+
+function merge_cat!(base::Dict{Node{Block},InsMap}, others::Dict{Node{Block},InsMap}...)
+    Ks = Set(keys(base))
+    # keys not found in base
+    for node ∈ Set(k for other in others for k ∈ keys(other) if k ∉ Ks)
+        base[node] = merge((other[node] for other in others if node ∈ keys(other))...)
+    end
+
+    # keys found in base
+    for node ∈ Ks
+        @show node, node.block, node.strand
+        @show base[node]
+        for other in others
+            if node ∈ keys(other)
+                @show other[node]
+            end
+        end
+        merge_cat!(base[node], (other[node] for other in others if node ∈ keys(other))...)
+    end
+
+    return base
+end
+
 # TODO: rename to concatenate?
 # serial concatenate list of blocks
 function Block(bs::Block...)
     sequence = vcat((b.sequence for b in bs)...)
+
+    @show bs
 
     gaps   = Base.copy(bs[1].gaps)
     mutate = Base.copy(bs[1].mutate)
@@ -324,16 +380,21 @@ function Block(bs::Block...)
     delete = Base.copy(bs[1].delete)
 
     δ = length(bs[1])
+
     for b in bs[2:end]
         merge!(gaps,   translate(b.gaps,   δ))
         merge!(mutate, translate(b.mutate, δ))
-        merge!(insert, translate(b.insert, δ))
         merge!(delete, translate(b.delete, δ))
+
+        @show b
+        merge_cat!(insert, translate(b.insert, δ))
 
         δ += length(b)
     end
 
-    return Block(sequence,gaps,mutate,insert,delete)
+    new = Block(sequence,gaps,mutate,insert,delete)
+    regap!(new)
+    return new
 end
 
 # TODO: rename to slice?
@@ -626,13 +687,15 @@ function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
 
     for key in oldkey[2:end]
         merge!(mutate, pop!(b.mutate, key))
-        merge!(insert, pop!(b.insert, key))
         merge!(delete, pop!(b.delete, key))
+        merge_cat!(insert, pop!(b.insert, key))
     end
 
     b.mutate[newkey] = mutate
     b.insert[newkey] = insert
     b.delete[newkey] = delete 
+
+    regap!(b)
 end
 
 function checknogaps(b::Block)
@@ -653,6 +716,17 @@ function checknogaps(b::Block)
             vs = [b.gaps[k] for k in ks]
             @show collect(zip(ks,vs))
             error("all gaps found")
+        end
+    end
+end
+
+function regap!(b::Block)
+    for (node, subdict) in b.insert
+        for ((locus, offset), ins) in subdict
+            δ = offset + length(ins) 
+            if δ > b.gaps[locus]
+                b.gaps[locus] = δ
+            end
         end
     end
 end
@@ -1008,6 +1082,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
 
                 new = rereference(q, r, segment)
                 reconsensus!(new)
+                regap!(new)
 
                 push!(blocks, (block=new, kind=:all))
             end
