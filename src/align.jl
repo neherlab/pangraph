@@ -4,10 +4,12 @@ using Rematch, Dates
 using LinearAlgebra
 using ProgressMeter
 
+using Infiltrator
+
 import Base.Threads.@spawn
 
 using ..Pool
-using ..Utility: read_paf, enforce_cutoff!, reverse_complement
+using ..Utility: read_paf, enforce_cutoff!
 using ..Blocks
 using ..Paths: replace!
 using ..Nodes
@@ -332,7 +334,7 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
     ok = true
 
     niter = 0
-    while ok
+    while ok && niter < maxiter
         ok   = false
         hits = do_align(G₀, G₀, io₁, io₂, energy)
         
@@ -356,12 +358,13 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
         
         merge!(blocks, G₀.block)
 
-        if ok && niter < maxiter
+        if ok 
             G₀ = Graph(
                 blocks,
                 G₀.sequence,
             )
             detransitive!(G₀)
+            prune!(G₀)
             niter += 1
         end
     end
@@ -444,7 +447,7 @@ function compare(old, new, strand)
 
 end
 
-function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, minblock::Int)
+function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, minblock::Int, verify::Function)
     hits = do_align(G₁, G₂, io₁, io₂, energy)
 
     skip  = (hit) -> !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block))
@@ -474,6 +477,7 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, mi
         sequence,
     )
     detransitive!(G)
+    prune!(G)
 
     return G
 end
@@ -520,6 +524,8 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
                     println("--> insert:           $(path.node[i].block.insert[path.node[i]])")
                     println("--> delete:           $(path.node[i].block.delete[path.node[i]])")
 
+                    @infiltrate
+
                     error("--> isolate '$name' incorrectly reconstructed")
                 end
             end
@@ -539,7 +545,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
 
         io₁, io₂ = getios()
 
-        G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, minblock)
+        G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, minblock, verify)
         G₀ = align_self(G₀, io₁, io₂, energy, minblock, verify)
 
         putio(io₁)

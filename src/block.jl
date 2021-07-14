@@ -1,6 +1,7 @@
 module Blocks
 
 using Rematch
+using Infiltrator
 
 import Base:
     show, length, append!, keys, merge!
@@ -9,37 +10,25 @@ import Base:
 using ..Intervals
 using ..Nodes
 using ..Utility: 
-    random_id, contiguous_trues,
+    random_id,
     uncigar, wcpair, Alignment,
     hamming_align,
+    make_consensus, alignment_alleles,
     write_fasta
 
 import ..Graphs:
     pair, 
     marshal_fasta,
     sequence, sequence!,
-    reverse_complement, reverse_complement!
+    reverse_complement, reverse_complement!,
+    SNPMap, InsMap, DelMap, Maybe
 
 # exports
-export SNPMap, InsMap, DelMap # aux types
 export Block 
 export combine, swap!, check  # operators
 export assertequivalent
 
-# ------------------------------------------------------------------------
-# utility types
-
-Maybe{T} = Union{T,Nothing}
-
-# aliases
-const SNPMap = Dict{Int,UInt8}
-const InsMap = Dict{Tuple{Int,Int},Array{UInt8,1}} 
-const DelMap = Dict{Int,Int} 
-
 const AlleleMaps{T} = Union{Dict{Node{T},SNPMap},Dict{Node{T},InsMap},Dict{Node{T},DelMap}} 
-
-show(io::IO, m::SNPMap) = show(io, [ k => Char(v) for (k,v) in m ])
-show(io::IO, m::InsMap) = show(io, [ k => String(Base.copy(v)) for (k,v) in m ])
 
 # ------------------------------------------------------------------------
 # utility functions
@@ -269,7 +258,7 @@ Block()         = Block(UInt8[])
 
 # move alleles
 translate(d::Dict{Int,Int}, δ) = Dict(x+δ => v for (x,v) ∈ d) # gaps
-translate(d::Dict{Node{Block},InsMap}, δ) = Dict(n => Dict((x+δ,Δ) => v for ((x,Δ),v) ∈ val) for (n,val) ∈ d) # insertions 
+translate(d::Dict{Node{Block},InsMap}, δ) = Dict{Node{Block},InsMap}(n => Dict((x+δ,Δ) => v for ((x,Δ),v) ∈ val) for (n,val) ∈ d) # insertions 
 translate(dict::T, δ) where T <: AlleleMaps{Block} = Dict(key=>Dict(x+δ=>v for (x,v) in val) for (key,val) in dict)
 
 # select alleles within window
@@ -325,6 +314,52 @@ function merge!(base::T, others::T...) where T <: AlleleMaps{Block}
     return base
 end
 
+function merge_cat!(base::InsMap, gaps::Dict{Int,Int}, others::InsMap...)
+    new    = Set(locus for other in others for locus in first.(keys(other)))
+    shared = intersect(Set(keys(gaps)), new)
+
+    length(shared) == 0 && return merge!(base, others...)
+
+    for other in others
+        for ((locus,offset),ins) in other
+            if locus ∈ keys(gaps)
+                δ = gaps[locus]
+                base[(locus,δ+offset)] = ins
+            else
+                base[(locus,offset)] = ins
+            end
+        end
+    end
+end
+
+function merge_cat!(base::Dict{Node{Block},InsMap}, others::Dict{Node{Block},InsMap}...)
+    Ks = Set(keys(base))
+    # keys not found in base
+    for node ∈ Set(k for other in others for k ∈ keys(other) if k ∉ Ks)
+        base[node] = merge((other[node] for other in others if node ∈ keys(other))...)
+    end
+
+    # keys found in base
+    for other in others
+        gaps = Dict{Int,Int}()
+        for node ∈ Ks
+            for ((locus, offset), ins) in base[node]
+                δ = offset + length(ins)
+                if locus ∉ keys(gaps) || δ > gaps[locus]
+                    gaps[locus] = δ
+                end
+            end
+        end
+
+        for node ∈ Ks
+            node ∉ keys(other) && continue
+            merge_cat!(base[node], gaps, other[node])
+        end
+    end
+
+    return base
+end
+
 # TODO: rename to concatenate?
 # serial concatenate list of blocks
 function Block(bs::Block...)
@@ -336,16 +371,20 @@ function Block(bs::Block...)
     delete = Base.copy(bs[1].delete)
 
     δ = length(bs[1])
+
     for b in bs[2:end]
         merge!(gaps,   translate(b.gaps,   δ))
         merge!(mutate, translate(b.mutate, δ))
-        merge!(insert, translate(b.insert, δ))
         merge!(delete, translate(b.delete, δ))
+
+        merge_cat!(insert, translate(b.insert, δ))
 
         δ += length(b)
     end
 
-    return Block(sequence,gaps,mutate,insert,delete)
+    new = Block(sequence,gaps,mutate,insert,delete)
+    regap!(new)
+    return new
 end
 
 # TODO: rename to slice?
@@ -638,13 +677,24 @@ function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
 
     for key in oldkey[2:end]
         merge!(mutate, pop!(b.mutate, key))
-        merge!(insert, pop!(b.insert, key))
         merge!(delete, pop!(b.delete, key))
+
+        gaps = Dict{Int,Int}()
+        for ((locus, offset), ins) in insert
+            δ = offset + length(ins)
+            if locus ∉ keys(gaps) || δ > gaps[locus]
+                gaps[locus] = δ
+            end
+        end
+
+        merge_cat!(insert, gaps, pop!(b.insert, key))
     end
 
     b.mutate[newkey] = mutate
     b.insert[newkey] = insert
     b.delete[newkey] = delete 
+
+    regap!(b)
 end
 
 function checknogaps(b::Block)
@@ -669,6 +719,17 @@ function checknogaps(b::Block)
     end
 end
 
+function regap!(b::Block)
+    for (node, subdict) in b.insert
+        for ((locus, offset), ins) in subdict
+            δ = offset + length(ins) 
+            if δ > b.gaps[locus]
+                b.gaps[locus] = δ
+            end
+        end
+    end
+end
+
 function reconsensus!(b::Block)
     # NOTE: no point to compute this for blocks with 1 or 2 individuals
     depth(b) <= 2 && return false 
@@ -684,51 +745,12 @@ function reconsensus!(b::Block)
         sequence!(view(aln,:,i), b, node; gaps=true)
     end
 
-    consensus = [mode(view(aln,i,:)) for i in 1:size(aln,1)]
+    consensus = make_consensus(aln)
     if all(consensus .== ref) # hot path: if consensus sequence did not change, abort!
         return false
     end
 
-    isdiff = aln .!= consensus
-    refdel = consensus .== UInt8('-')
-    alndel = aln .== UInt8('-')
-
-    δ = (
-        snp =   isdiff .& .~refdel .& .~alndel,
-        del = .~refdel .&   alndel,
-        ins =   refdel .& .~alndel,
-    )
-
-    coord   = cumsum(.!refdel)
-    refgaps = contiguous_trues(refdel)
-    b.gaps  = Dict{Int, Int}(coord[gap.lo] => length(gap) for gap in refgaps)
-    
-    b.mutate = Dict{Node{Block},SNPMap}( 
-            node => SNPMap(
-                   coord[l] => aln[l,i] 
-                for l in findall(δ.snp[:,i])
-            )
-        for (i,node) in enumerate(nodes)
-    )
-
-    b.delete = Dict{Node{Block},DelMap}( 
-            node => DelMap(
-                      del.lo => length(del)
-                for del in contiguous_trues(δ.del[.~refdel,i])
-             )
-        for (i,node) in enumerate(nodes)
-    )
-
-    Δ(I) = (R = containing(refgaps, I)) == nothing ? 0 : I.lo - R.lo
-    b.insert = Dict{Node{Block},InsMap}( 
-            node => InsMap(
-                      (coord[ins.lo],Δ(ins)) => aln[ins,i] 
-                for ins in contiguous_trues(δ.ins[:,i])
-             )
-        for (i,node) in enumerate(nodes)
-    )
-
-    b.sequence = consensus[.~refdel]
+    b.gaps, b.mutate, b.delete, b.insert, b.sequence = alignment_alleles(consensus, aln, nodes)
     return true
 end
 
@@ -1059,6 +1081,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
 
                 new = rereference(q, r, segment)
                 reconsensus!(new)
+                regap!(new)
 
                 push!(blocks, (block=new, kind=:all))
             end

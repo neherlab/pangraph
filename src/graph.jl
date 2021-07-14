@@ -3,6 +3,7 @@ module Graphs
 using GZip # NOTE: for debugging purposes
 using Random
 using Rematch
+using Infiltrator
 
 import JSON
 
@@ -35,17 +36,34 @@ function marshal(io::IO, x, fmt=:fasta)
     end
 end
 
+# ------------------------------------------------------------------------
+# aux types
+
+Maybe{T} = Union{T,Nothing}
+
+# aliases
+const SNPMap = Dict{Int,UInt8}
+const InsMap = Dict{Tuple{Int,Int},Array{UInt8,1}} 
+const DelMap = Dict{Int,Int} 
+
+export Maybe, SNPMap, InsMap, DelMap
+
+Base.show(io::IO, m::SNPMap) = show(io, [ k => Char(v) for (k,v) in m ])
+Base.show(io::IO, m::InsMap) = show(io, [ k => String(Base.copy(v)) for (k,v) in m ])
+
 include("interval.jl")
 include("counter.jl")
+include("node.jl")
 include("util.jl")
 include("pool.jl")
-include("node.jl")
 include("block.jl")
 include("path.jl")
 include("junction.jl")
 include("cmd.jl")
 
-using .Utility: read_fasta, write_fasta, name, columns, log
+using .Utility: 
+    read_fasta, write_fasta, name, columns, log, 
+    make_consensus, alignment_alleles
 using .Nodes
 using .Blocks
 using .Paths
@@ -56,7 +74,7 @@ using .Pool: FIFO
 import .Shell: mafft
 
 export Graph
-export graphs, serialize, detransitive!, finalize!
+export graphs, serialize, detransitive!, prune!, finalize!
 
 # ------------------------------------------------------------------------
 # graph data structure
@@ -172,7 +190,31 @@ function detransitive!(G::Graph)
         new = Block((s ? b : reverse_complement(b) for (b,s) ∈ c)...)
 
         for iso ∈ keys(isos)
+            oldseq = sequence(G.sequence[iso])
+
             replace!(G.sequence[iso], c, new)
+
+            newseq = sequence(G.sequence[iso])
+            if oldseq != newseq
+                path = G.sequence[iso]
+                badloci = Int[]
+                for i ∈ 1:min(length(newseq),length(oldseq))
+                    if newseq[i] != oldseq[i]
+                        push!(badloci, i)
+                    end
+                end
+                left, right = max(badloci[1]-10, 1), min(badloci[1]+10, length(newseq))
+                cumulative_lengths = cumsum([length(n.block, n) for n in path.node])
+
+                println("--> length:           ref($(length(oldseq))) <=> seq($(length(newseq)))")
+                println("--> number of nodes:  $(length(path.node))")
+                println("--> |badloci|:        $(length(badloci))")
+                println("--> window:           $(left):$(badloci[1]):$(right)")
+                println("--> ref:              $(oldseq[left:right])") 
+                println("--> seq:              $(newseq[left:right])") 
+
+                @infiltrate
+            end
         end
 
         for b ∈ first.(c)
@@ -181,6 +223,11 @@ function detransitive!(G::Graph)
 
         G.block[new.uuid] = new
     end
+end
+
+function prune!(G::Graph)
+    used = Set(n.block.uuid for p in values(G.sequence) for n in p.node)
+    filter!((blk)->first(blk) ∈ used, G.block)
 end
 
 # ------------------------------------------------------------------------
@@ -363,7 +410,8 @@ function finalize!(g)
     for blk in values(g.block)
         cmd = mafft(path(fifo))
         @async let
-            io = open(fifo, "w")
+            names = nothing
+            io    = open(fifo, "w")
             @label write
             sleep(1e-3)
             try
@@ -378,7 +426,13 @@ function finalize!(g)
         end
 
         out = IOBuffer(fetch(cmd.out))
-        println(stderr, out)
+
+        seq = collect(read_fasta(out))
+        aln = reduce(vcat, map((r)->r.seq, seq))
+        ref = make_consensus(aln)
+
+        iso = map((r)->names[r.name], seq)
+        blk.gaps, blk.mutate, blk.delete, blk.insert, blk.sequence = alignment_alleles(consensus, aln, nodes)
     end
     delete(fifo)
 end

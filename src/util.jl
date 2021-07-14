@@ -4,10 +4,11 @@ using Rematch
 using StatsBase
 
 # internal modules
-using ..Intervals
+using ..Intervals, ..Nodes
 
 import ..Graphs: 
-    reverse_complement, reverse_complement!
+    reverse_complement, reverse_complement!,
+    SNPMap, InsMap, DelMap
 
 # exports
 export random_id, log
@@ -16,6 +17,7 @@ export enforce_cutoff, cigar, uncigar, blocks
 export hamming_align
 
 export contiguous_trues
+export make_consensus, alignment_alleles
 
 export write_fasta, read_fasta, name
 export read_paf
@@ -590,6 +592,62 @@ function contiguous_trues(x)
     end
     
     return IntervalSet(intervals)
+end
+
+# ------------------------------------------------------------------------
+# alignment processing functions
+
+make_consensus(alignment) = [mode(view(alignment,i,:)) for i in 1:size(alignment,1)]
+
+function alignment_alleles(ref, aln, nodes)
+    isdiff = aln .!= ref
+    refdel = ref .== UInt8('-')
+    alndel = aln .== UInt8('-')
+
+    δ = (
+        snp =   isdiff .& .~refdel .& .~alndel,
+        del = .~refdel .&   alndel,
+        ins =   refdel .& .~alndel,
+    )
+
+    coord   = cumsum(.!refdel)
+    refgaps = contiguous_trues(refdel)
+    gaps    = Dict{Int,Int}(coord[gap.lo] => length(gap) for gap in refgaps)
+    
+    mutate = Dict{Node,SNPMap}( 
+            node => SNPMap(
+                   coord[l] => aln[l,i] 
+                for l in findall(δ.snp[:,i])
+            )
+        for (i,node) in enumerate(nodes)
+    )
+
+    delete = Dict{Node,DelMap}( 
+            node => DelMap(
+                      del.lo => length(del)
+                for del in contiguous_trues(δ.del[.~refdel,i])
+             )
+        for (i,node) in enumerate(nodes)
+    )
+
+    Δ(I) = (R = containing(refgaps, I)) == nothing ? 0 : I.lo - R.lo
+    insert = Dict{Node,InsMap}( 
+            node => InsMap(
+                      (coord[ins.lo],Δ(ins)) => aln[ins,i] 
+                for ins in contiguous_trues(δ.ins[:,i])
+             )
+        for (i,node) in enumerate(nodes)
+    )
+
+    sequence = ref[.~refdel]
+
+    return (
+        gaps     = gaps,
+        mutate   = mutate,
+        delete   = delete,
+        insert   = insert,
+        sequence = sequence,
+    )
 end
 
 end

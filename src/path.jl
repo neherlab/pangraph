@@ -3,6 +3,8 @@ module Paths
 import Base:
     length, show
 
+using Infiltrator
+
 using ..Nodes
 using ..Blocks
 
@@ -91,6 +93,8 @@ end
 # used for detransitive
 const Link = NamedTuple{(:block, :strand), Tuple{Block, Bool}}
 function Base.replace!(p::Path, old::Array{Link}, new::Block)
+    oldseq = sequence(p)
+
     # ----------------------------
     # internal functions
     
@@ -99,17 +103,17 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
     next = p.circular ? (x) -> (mod(x-0,length(p.node)) + 1) : (x) -> (x == length(p.node) ? nothing : x+1)
     prev = p.circular ? (x) -> (mod(x-2,length(p.node)) + 1) : (x) -> (x == 1 ? nothing : x-1)
 
-    oldnodes(i::A) where A <: AbstractArray          = p.node[i]
-    oldnodes(i::Tuple{A,A}) where A <: AbstractArray = [p.node[i[1]]; p.node[i[2]]]
+    oldnodes(i::A, s::Bool)          where A <: AbstractArray = s ? p.node[i] : reverse(p.node[i])
+    oldnodes(i::Tuple{A,A}, s::Bool) where A <: AbstractArray = s ? [p.node[i[1]]; p.node[i[2]]] : reverse([p.node[i[1]]; p.node[i[2]]])
 
-    pack(i::A, s) where A <: AbstractArray = [(loci=i, strand=s, oldnode=oldnodes(i))]
+    pack(i::A, s) where A <: AbstractArray = [(loci=i, strand=s, oldnode=oldnodes(i,s))]
     pack(i::Tuple{A,A}, s) where A <: AbstractArray = let 
         it = if minimum(i[1]) < minimum(i[2])
             Δ = sum(length(n.block, n) for n in p.node[i[2]])
-            [(loci=i[1], strand=s, oldnode=oldnodes(i)), (loci=i[2], strand=nothing, oldnode=nothing)]
+            [(loci=i[1], strand=s, oldnode=oldnodes(i,s)), (loci=i[2], strand=nothing, oldnode=nothing)]
         else
             Δ = sum(length(n.block, n) for n in p.node[i[1]])
-            [(loci=i[2], strand=s, oldnode=oldnodes(i)), (loci=i[1], strand=nothing, oldnode=nothing)]
+            [(loci=i[2], strand=s, oldnode=oldnodes(i,s)), (loci=i[1], strand=nothing, oldnode=nothing)]
         end
 
         if p.offset === nothing
@@ -172,6 +176,13 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
         else
             splice!(p.node, datum.loci, [])
         end
+
+    end
+
+    newseq = sequence(p)
+    if oldseq != newseq
+        @infiltrate
+        error("FAIL")
     end
 end
 
