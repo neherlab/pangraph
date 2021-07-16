@@ -4,8 +4,6 @@ using Rematch, Dates
 using LinearAlgebra
 using ProgressMeter
 
-using Infiltrator
-
 import Base.Threads.@spawn
 
 using ..Pool

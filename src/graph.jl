@@ -3,7 +3,6 @@ module Graphs
 using GZip # NOTE: for debugging purposes
 using Random
 using Rematch
-using Infiltrator
 
 import JSON
 
