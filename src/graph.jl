@@ -211,8 +211,6 @@ function detransitive!(G::Graph)
                 println("--> window:           $(left):$(badloci[1]):$(right)")
                 println("--> ref:              $(oldseq[left:right])") 
                 println("--> seq:              $(newseq[left:right])") 
-
-                @infiltrate
             end
         end
 

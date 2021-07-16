@@ -404,7 +404,6 @@ function Block(b::Block, slice)
     insert = subslice(b.insert, slice)
     delete = subslice(b.delete, slice)
 
-
     return Block(sequence,gaps,mutate,insert,delete)
 end
 
@@ -1049,14 +1048,6 @@ end
 function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
     blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
 
-    qry, strand =
-    if !aln.orientation
-        reverse_complement!(aln)
-        reverse_complement(qry), false
-    else
-        qry, true
-    end
-
     segments = partition(aln; minblock=minblock) # this enforces that indels are less than minblock!
 
     for (range, segment) ∈ segments
@@ -1087,7 +1078,7 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
         end
     end
 
-    return blocks, strand
+    return blocks
 end
 
 function check(b::Block; ids=true)
@@ -1164,6 +1155,14 @@ function marshal_fasta(io::IO, b::Block)
     end
 
     return names
+end
+
+function diversity(b::Block)
+    l = length(b.sequence)
+    n = length(b.mutate)
+    m = sum(length(muts) for muts in values(b.mutate))
+
+    return (1.0*m) / (n * l)
 end
 
 # ------------------------------------------------------------------------

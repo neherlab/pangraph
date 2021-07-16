@@ -310,9 +310,17 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
 
         hit.qry.seq = qry₀.sequence
         hit.ref.seq = ref₀.sequence
-        enforce_cutoff!(hit, minblock)
 
-        blks, strand = combine(qry₀, ref₀, hit; minblock=minblock)
+        qry₀, strand =
+        if !hit.orientation
+            reverse_complement!(hit)
+            reverse_complement(qry₀), false
+        else
+            qry₀, true
+        end
+
+        enforce_cutoff!(hit, minblock)
+        blks = combine(qry₀, ref₀, hit; minblock=minblock)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
         refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
@@ -336,7 +344,11 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
         ok   = false
         hits = do_align(G₀, G₀, io₁, io₂, energy)
         
-        skip  = (hit) -> (hit.qry.name == hit.ref.name) || (!(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block)))
+        skip  = (hit) -> (
+           (hit.qry.name == hit.ref.name)
+        || (hit.length < minblock)
+        || (!(hit.qry.name in keys(G₀.block)) 
+        || !(hit.ref.name in keys(G₀.block))))
         block = (hit) -> (
             qry = pop!(G₀.block, hit.qry.name),
             ref = pop!(G₀.block, hit.ref.name),
@@ -448,7 +460,7 @@ end
 function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, minblock::Int, verify::Function)
     hits = do_align(G₁, G₂, io₁, io₂, energy)
 
-    skip  = (hit) -> !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block))
+    skip  = (hit) -> !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block)) || (hit.length < minblock)
     block = (hit) -> (
         qry = pop!(G₁.block, hit.qry.name),
         ref = pop!(G₂.block, hit.ref.name),
@@ -521,8 +533,6 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
                     println("--> mutate:           $(path.node[i].block.mutate[path.node[i]])")
                     println("--> insert:           $(path.node[i].block.insert[path.node[i]])")
                     println("--> delete:           $(path.node[i].block.delete[path.node[i]])")
-
-                    @infiltrate
 
                     error("--> isolate '$name' incorrectly reconstructed")
                 end
