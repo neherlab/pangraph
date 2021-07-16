@@ -91,8 +91,6 @@ end
 # used for detransitive
 const Link = NamedTuple{(:block, :strand), Tuple{Block, Bool}}
 function Base.replace!(p::Path, old::Array{Link}, new::Block)
-    oldseq = sequence(p)
-
     # ----------------------------
     # internal functions
     
@@ -175,12 +173,6 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
             splice!(p.node, datum.loci, [])
         end
 
-    end
-
-    newseq = sequence(p)
-    if oldseq != newseq
-        @infiltrate
-        error("FAIL")
     end
 end
 
