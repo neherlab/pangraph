@@ -223,8 +223,10 @@ function detransitive!(G::Graph)
 end
 
 function prune!(G::Graph)
+    #=
     used = Set(n.block.uuid for p in values(G.sequence) for n in p.node)
     filter!((blk)->first(blk) ∈ used, G.block)
+    =#
 end
 
 # ------------------------------------------------------------------------
