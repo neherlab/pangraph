@@ -1072,26 +1072,26 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
-                qseqs = Dict(iso => sequence(q, iso) for iso in keys(q))
-                rseqs = Dict(iso => sequence(r, iso) for iso in keys(r))
+                # qseqs = Dict(iso => sequence(q, iso) for iso in keys(q))
+                # rseqs = Dict(iso => sequence(r, iso) for iso in keys(r))
 
                 new = rereference(q, r, segment)
                 reconsensus!(new)
                 regap!(new)
 
-                for (iso, seq) in qseqs
-                    if sequence(new, iso) != seq
-                        # @infiltrate
-                        error("bad")
-                    end
-                end
+                # for (iso, seq) in qseqs
+                #     if sequence(new, iso) != seq
+                #         # @infiltrate
+                #         error("bad")
+                #     end
+                # end
 
-                for (iso, seq) in rseqs
-                    if sequence(new, iso) != seq
-                        # @infiltrate
-                        error("bad")
-                    end
-                end
+                # for (iso, seq) in rseqs
+                #     if sequence(new, iso) != seq
+                #         # @infiltrate
+                #         error("bad")
+                #     end
+                # end
 
                 # check(new; ids=false)
 
