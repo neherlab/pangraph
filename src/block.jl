@@ -1,7 +1,7 @@
 module Blocks
 
 using Rematch
-using Infiltrator
+# using Infiltrator
 
 import Base:
     show, length, append!, keys, merge!
@@ -1055,13 +1055,13 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
         @match (range.qry, range.ref) begin
             ( nothing, Δ )  => begin
                 r = Block(ref, Δ)
-                check(r; ids=false)
+                # check(r; ids=false)
 
                 push!(blocks, (block=r, kind=:ref))
             end
             ( Δ, nothing ) => begin
                 q = Block(qry, Δ)
-                check(q; ids=false)
+                # check(q; ids=false)
 
                 push!(blocks, (block=q, kind=:qry))
             end
@@ -1081,19 +1081,19 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
 
                 for (iso, seq) in qseqs
                     if sequence(new, iso) != seq
-                        @infiltrate
+                        # @infiltrate
                         error("bad")
                     end
                 end
 
                 for (iso, seq) in rseqs
                     if sequence(new, iso) != seq
-                        @infiltrate
+                        # @infiltrate
                         error("bad")
                     end
                 end
 
-                check(new; ids=false)
+                # check(new; ids=false)
 
                 push!(blocks, (block=new, kind=:all))
             end
@@ -1114,7 +1114,7 @@ function check(b::Block; ids=true)
     if gap != ins
         @show b.gaps
         @show b.insert
-        @infiltrate
+        # @infiltrate
         error("bad gap computation")
     end
 
@@ -1132,7 +1132,7 @@ function check(b::Block; ids=true)
                 @show node
                 @show x, b.gaps[x], (length(ins) + δ)
 
-                @infiltrate
+                # @infiltrate
                 error("bad gap computation")
             end
         end
@@ -1144,7 +1144,7 @@ function check(b::Block; ids=true)
             @show MAX
             @show length(b)
 
-            @infiltrate
+            # @infiltrate
             error("bad mutation key")
         end
 
@@ -1153,7 +1153,7 @@ function check(b::Block; ids=true)
             @show MAX
             @show length(b)
 
-            @infiltrate
+            # @infiltrate
             error("bad delete key")
         end
 
@@ -1162,7 +1162,7 @@ function check(b::Block; ids=true)
             @show MAX
             @show length(b)
 
-            @infiltrate
+            # @infiltrate
             error("bad insert key")
         end
     end
@@ -1172,7 +1172,7 @@ function check(b::Block; ids=true)
         @show b.gaps
         @show b.insert
 
-        @infiltrate
+        # @infiltrate
         error("bad alignment to gap region")
     end
 end

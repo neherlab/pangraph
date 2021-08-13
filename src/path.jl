@@ -3,7 +3,7 @@ module Paths
 import Base:
     length, show
 
-using Infiltrator
+# using Infiltrator
 
 using ..Nodes
 using ..Blocks
@@ -78,7 +78,7 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     newseq = sequence(p)
 
     if oldseq != newseq
-        @infiltrate
+        # @infiltrate
         error("bad merge")
     end
 end
@@ -168,7 +168,7 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                 stop ≤ start && return (interval=stop:start, strand=false)          # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
-                @infiltrate
+                # @infiltrate
                 error("REVERSE")
 
                 return (interval=(1:start, stop:length(p.node)), strand=false)

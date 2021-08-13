@@ -3,7 +3,7 @@ module Graphs
 using GZip # NOTE: for debugging purposes
 using Random
 using Rematch
-using Infiltrator
+# using Infiltrator
 
 import JSON
 
@@ -184,7 +184,7 @@ function detransitive!(G::Graph)
     end
 
     # merge chains into one block
-    checkblocks(G)
+    # checkblocks(G)
     for c in Set(values(chain))
         isos = numisos[c[1].block]
         @assert all([numisos[C.block] == isos for C in c[2:end]])
@@ -222,11 +222,13 @@ function detransitive!(G::Graph)
 
         G.block[new.uuid] = new
 
+        #=
         for b ∈ values(G.block)
             check(b)
         end
+        =#
     end
-    checkblocks(G)
+    # checkblocks(G)
 end
 
 function prune!(G::Graph)
@@ -241,7 +243,7 @@ function checkblocks(G::Graph)
     if used != stored
         @show setdiff(used,stored)
         @show setdiff(stored,used)
-        @infiltrate
+        # @infiltrate
         error("bad blocks")
     end
 end

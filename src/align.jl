@@ -4,7 +4,7 @@ using Rematch, Dates
 using LinearAlgebra
 using ProgressMeter
 
-using Infiltrator
+# using Infiltrator
 
 import Base.Threads.@spawn
 
@@ -331,7 +331,7 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
         replace!((qry=qry₀, ref=ref₀), (qry=qrys, ref=refs), strand)
 
         for blk in map(b->b.block, blks)
-            check(blk; ids=false)
+            # check(blk; ids=false)
             blocks[blk.uuid] = blk
         end
     end
@@ -377,11 +377,11 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
                 blocks,
                 G₀.sequence,
             )
-            verify(G₀, "self: before detransitive")
-            checkblocks(G₀)
+            # verify(G₀, "self: before detransitive")
+            # checkblocks(G₀)
             detransitive!(G₀)
             prune!(G₀)
-            verify(G₀, "self: after detransitive")
+            # verify(G₀, "self: after detransitive")
             niter += 1
         end
     end
@@ -493,14 +493,16 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, mi
         blocks, 
         sequence,
     )
-    verify(G, "pair: before detransitive")
+    # verify(G, "pair: before detransitive")
     detransitive!(G)
     prune!(G)
-    verify(G, "pair: after detransitive")
+    # verify(G, "pair: after detransitive")
 
+    #=
     for b in values(G.block)
         check(b)
     end
+    =#
 
     return G
 end
@@ -547,7 +549,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
                     println("--> insert:           $(path.node[i].block.insert[path.node[i]])")
                     println("--> delete:           $(path.node[i].block.delete[path.node[i]])")
 
-                    @infiltrate
+                    # @infiltrate
 
                     error("--> isolate '$name' incorrectly reconstructed")
                 end
@@ -561,7 +563,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
     tree = ordering(Gs...)
     log("--> tree: ", tree)
 
-    meter = Progress(length(tree); desc="alignment progress", output=devnull)
+    meter = Progress(length(tree); desc="alignment progress", output=stderr)
     function kernel(clade)
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
