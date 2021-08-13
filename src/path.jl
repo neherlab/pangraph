@@ -47,8 +47,8 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     indices = Int[]
     inserts = Array{Node{Block}}[]
 
-    oldnode = []
-    oldseq = sequence(p)
+    # oldnode = []
+    # oldseq = sequence(p)
 
     for (i, n₁) in enumerate(p.node)
         n₁.block != old && continue
@@ -62,7 +62,7 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
             swap!(n₂.block, n₁, n₂)
         end
 
-        push!(oldnode, n₁)
+        # push!(oldnode, n₁)
 
         push!(inserts, nodes)
     end
@@ -77,10 +77,10 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
 
     newseq = sequence(p)
 
-    if oldseq != newseq
-        # @infiltrate
-        error("bad merge")
-    end
+    # if oldseq != newseq
+    #     # @infiltrate
+    #     error("bad merge")
+    # end
 end
 
 # XXX: should we create an interval data structure that unifies both cases?
