@@ -3,6 +3,7 @@ module Graphs
 using GZip # NOTE: for debugging purposes
 using Random
 using Rematch
+# using Infiltrator
 
 import JSON
 
@@ -74,6 +75,7 @@ import .Shell: mafft
 
 export Graph
 export graphs, serialize, detransitive!, prune!, finalize!
+export checkblocks
 
 # ------------------------------------------------------------------------
 # graph data structure
@@ -182,12 +184,12 @@ function detransitive!(G::Graph)
     end
 
     # merge chains into one block
+    # checkblocks(G)
     for c in Set(values(chain))
         isos = numisos[c[1].block]
         @assert all([numisos[C.block] == isos for C in c[2:end]])
 
         new = Block((s ? b : reverse_complement(b) for (b,s) ∈ c)...)
-
         for iso ∈ keys(isos)
             oldseq = sequence(G.sequence[iso])
 
@@ -219,14 +221,31 @@ function detransitive!(G::Graph)
         end
 
         G.block[new.uuid] = new
+
+        #=
+        for b ∈ values(G.block)
+            check(b)
+        end
+        =#
     end
+    # checkblocks(G)
 end
 
 function prune!(G::Graph)
-    #=
     used = Set(n.block.uuid for p in values(G.sequence) for n in p.node)
     filter!((blk)->first(blk) ∈ used, G.block)
-    =#
+end
+
+function checkblocks(G::Graph)
+    used   = Set(n.block.uuid for p in values(G.sequence) for n in p.node)
+    stored = Set(keys(G.block))
+
+    if used != stored
+        @show setdiff(used,stored)
+        @show setdiff(stored,used)
+        # @infiltrate
+        error("bad blocks")
+    end
 end
 
 # ------------------------------------------------------------------------

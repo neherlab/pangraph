@@ -3,6 +3,8 @@ module Paths
 import Base:
     length, show
 
+# using Infiltrator
+
 using ..Nodes
 using ..Blocks
 
@@ -45,17 +47,22 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     indices = Int[]
     inserts = Array{Node{Block}}[]
 
+    # oldnode = []
+    # oldseq = sequence(p)
+
     for (i, n₁) in enumerate(p.node)
         n₁.block != old && continue
 
         push!(indices, i)
+
         nodes = ((n₁.strand==orientation) 
                      ? [Node{Block}(nb;strand=true) for nb in new] 
                      : [Node{Block}(nb;strand=false) for nb in reverse(new)])
-
         for n₂ in nodes
             swap!(n₂.block, n₁, n₂)
         end
+
+        # push!(oldnode, n₁)
 
         push!(inserts, nodes)
     end
@@ -68,6 +75,12 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
         splice!(p.node, index, nodes)
     end
 
+    newseq = sequence(p)
+
+    # if oldseq != newseq
+    #     # @infiltrate
+    #     error("bad merge")
+    # end
 end
 
 # XXX: should we create an interval data structure that unifies both cases?
@@ -155,6 +168,7 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                 stop ≤ start && return (interval=stop:start, strand=false)          # simple case: | -(--)- |
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
+                # @infiltrate
                 error("REVERSE")
 
                 return (interval=(1:start, stop:length(p.node)), strand=false)

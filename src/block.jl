@@ -1,6 +1,7 @@
 module Blocks
 
 using Rematch
+# using Infiltrator
 
 import Base:
     show, length, append!, keys, merge!
@@ -721,7 +722,7 @@ function regap!(b::Block)
     for (node, subdict) in b.insert
         for ((locus, offset), ins) in subdict
             δ = offset + length(ins) 
-            if δ > b.gaps[locus]
+            if locus ∉ keys(b.gaps) || δ > b.gaps[locus]
                 b.gaps[locus] = δ
             end
         end
@@ -1054,11 +1055,13 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
         @match (range.qry, range.ref) begin
             ( nothing, Δ )  => begin
                 r = Block(ref, Δ)
+                # check(r; ids=false)
 
                 push!(blocks, (block=r, kind=:ref))
             end
             ( Δ, nothing ) => begin
                 q = Block(qry, Δ)
+                # check(q; ids=false)
 
                 push!(blocks, (block=q, kind=:qry))
             end
@@ -1069,9 +1072,28 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
+                # qseqs = Dict(iso => sequence(q, iso) for iso in keys(q))
+                # rseqs = Dict(iso => sequence(r, iso) for iso in keys(r))
+
                 new = rereference(q, r, segment)
                 reconsensus!(new)
                 regap!(new)
+
+                # for (iso, seq) in qseqs
+                #     if sequence(new, iso) != seq
+                #         # @infiltrate
+                #         error("bad")
+                #     end
+                # end
+
+                # for (iso, seq) in rseqs
+                #     if sequence(new, iso) != seq
+                #         # @infiltrate
+                #         error("bad")
+                #     end
+                # end
+
+                # check(new; ids=false)
 
                 push!(blocks, (block=new, kind=:all))
             end
@@ -1092,6 +1114,7 @@ function check(b::Block; ids=true)
     if gap != ins
         @show b.gaps
         @show b.insert
+        # @infiltrate
         error("bad gap computation")
     end
 
@@ -1108,6 +1131,8 @@ function check(b::Block; ids=true)
                 @show b.insert[node]
                 @show node
                 @show x, b.gaps[x], (length(ins) + δ)
+
+                # @infiltrate
                 error("bad gap computation")
             end
         end
@@ -1118,6 +1143,8 @@ function check(b::Block; ids=true)
             @show minimum(loci), maximum(loci)
             @show MAX
             @show length(b)
+
+            # @infiltrate
             error("bad mutation key")
         end
 
@@ -1125,6 +1152,8 @@ function check(b::Block; ids=true)
             @show b.delete[node]
             @show MAX
             @show length(b)
+
+            # @infiltrate
             error("bad delete key")
         end
 
@@ -1132,6 +1161,8 @@ function check(b::Block; ids=true)
             @show b.delete[node]
             @show MAX
             @show length(b)
+
+            # @infiltrate
             error("bad insert key")
         end
     end
@@ -1140,6 +1171,8 @@ function check(b::Block; ids=true)
         @show good_gaps
         @show b.gaps
         @show b.insert
+
+        # @infiltrate
         error("bad alignment to gap region")
     end
 end

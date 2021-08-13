@@ -4,6 +4,8 @@ using Rematch, Dates
 using LinearAlgebra
 using ProgressMeter
 
+# using Infiltrator
+
 import Base.Threads.@spawn
 
 using ..Pool
@@ -311,16 +313,17 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
         hit.qry.seq = qry₀.sequence
         hit.ref.seq = ref₀.sequence
 
-        qry₀, strand =
+        qry, strand =
         if !hit.orientation
             reverse_complement!(hit)
-            reverse_complement(qry₀), false
+            reverse_complement(qry₀; keepid=true), false
         else
             qry₀, true
         end
+        ref = ref₀
 
         enforce_cutoff!(hit, minblock)
-        blks = combine(qry₀, ref₀, hit; minblock=minblock)
+        blks = combine(qry, ref, hit; minblock=minblock)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
         refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
@@ -328,6 +331,7 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
         replace!((qry=qry₀, ref=ref₀), (qry=qrys, ref=refs), strand)
 
         for blk in map(b->b.block, blks)
+            # check(blk; ids=false)
             blocks[blk.uuid] = blk
         end
     end
@@ -348,7 +352,8 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
            (hit.qry.name == hit.ref.name)
         || (hit.length < minblock)
         || (!(hit.qry.name in keys(G₀.block)) 
-        || !(hit.ref.name in keys(G₀.block))))
+        ||  !(hit.ref.name in keys(G₀.block))))
+
         block = (hit) -> (
             qry = pop!(G₀.block, hit.qry.name),
             ref = pop!(G₀.block, hit.ref.name),
@@ -365,7 +370,6 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
         end
 
         blocks, ok = align_kernel(hits, energy, minblock, skip, block, replace)
-        
         merge!(blocks, G₀.block)
 
         if ok 
@@ -373,8 +377,11 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
                 blocks,
                 G₀.sequence,
             )
+            # verify(G₀, "self: before detransitive")
+            # checkblocks(G₀)
             detransitive!(G₀)
             prune!(G₀)
+            # verify(G₀, "self: after detransitive")
             niter += 1
         end
     end
@@ -486,8 +493,16 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, mi
         blocks, 
         sequence,
     )
+    # verify(G, "pair: before detransitive")
     detransitive!(G)
     prune!(G)
+    # verify(G, "pair: after detransitive")
+
+    #=
+    for b in values(G.block)
+        check(b)
+    end
+    =#
 
     return G
 end
@@ -533,6 +548,8 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
                     println("--> mutate:           $(path.node[i].block.mutate[path.node[i]])")
                     println("--> insert:           $(path.node[i].block.insert[path.node[i]])")
                     println("--> delete:           $(path.node[i].block.delete[path.node[i]])")
+
+                    # @infiltrate
 
                     error("--> isolate '$name' incorrectly reconstructed")
                 end
