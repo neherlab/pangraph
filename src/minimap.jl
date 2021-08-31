@@ -195,7 +195,7 @@ const cigartypes = ['M','I','D','N','S','H','P','E','X']
 function unpackcigar(base::Ptr{UInt32}, n)
     return [let
         cg = unsafe_load(base,i)
-        type, len  = cigartypes[cg & 0xf + 1], Int(cg >> 4)
+        Int(cg >> 4), cigartypes[cg & 0xf + 1]
     end for i in 1:n]
 end
 
