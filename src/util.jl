@@ -367,36 +367,36 @@ function enforce_cutoff!(a::Alignment, χ)
     # left side of match
     if (0 < δqₗ ≤ χ) && (δrₗ == 0 || δrₗ > χ)
         a.qry.start = 1
-        a.cigar     = string(δqₗ) * "I" * a.cigar
+        pushfirst!(a.cigar, (δqₗ, 'I'))
     elseif (0 < δrₗ ≤ χ) && (δqₗ == 0 || δqₗ > χ)
         a.ref.start = 1
-        a.cigar     = string(δrₗ) * "D" * a.cigar
+        pushfirst!(a.cigar, (δrₗ, 'D'))
     elseif (0 < δqₗ ≤ χ) && (0 < δrₗ <= χ)
         a₁, a₂ = align(s₁[1:δqₗ], s₂[1:δrₗ], cost)
-        cg     = cigar(a₁, a₂)
+        cg     = collect(uncigar(cigar(a₁, a₂)))
 
         a.qry.start = 1
         a.ref.start = 1
 
-        a.cigar   = cg * a.cigar
+        prepend!(a.cigar, cg)
         a.length += length(a₁)
     end
 
     # right side of match
     if (0 < δqᵣ ≤ χ) && (δrᵣ == 0 || δrᵣ > χ)
         a.qry.stop  = a.qry.length
-        a.cigar     = a.cigar * string(δqᵣ) * "I"
+        push!(a.cigar, (δqᵣ, 'I'))
     elseif (0 < δrᵣ ≤ χ) && (δqᵣ == 0 || δqᵣ > χ)
         a.ref.stop  = a.ref.length
-        a.cigar     = a.cigar * string(δrᵣ) * "D"
+        push!(a.cigar, (δrᵣ, 'D'))
     elseif (0 < δqᵣ ≤ χ) && (δrᵣ <= χ)
         a₁, a₂ = align(s₁[end-δqᵣ+1:end], s₂[end-δrᵣ+1:end], cost)
-        cg     = cigar(a₁, a₂)
+        cg     = collect(uncigar(cigar(a₁, a₂)))
 
         a.qry.stop = a.qry.length
         a.ref.stop = a.ref.length
 
-        a.cigar   = a.cigar * cg
+        append!(a.cigar, cg)
         a.length += length(a₁)
     end
 end

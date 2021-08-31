@@ -320,7 +320,6 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
         replace!((qry=qry₀, ref=ref₀), (qry=qrys, ref=refs), strand)
 
         for blk in map(b->b.block, blks)
-            # check(blk; ids=false)
             blocks[blk.uuid] = blk
         end
     end
@@ -338,10 +337,11 @@ function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Functi
         hits = do_align(G₀, G₀, energy)
         
         skip  = (hit) -> (
-           (hit.qry.name == hit.ref.name)
-        || (hit.length < minblock)
-        || (!(hit.qry.name in keys(G₀.block)) 
-        ||  !(hit.ref.name in keys(G₀.block))))
+               (hit.qry.name == hit.ref.name)
+            || (hit.length < minblock)
+            || (!(hit.qry.name in keys(G₀.block)) 
+            ||  !(hit.ref.name in keys(G₀.block)))
+       )
 
         block = (hit) -> (
             qry = pop!(G₀.block, hit.qry.name),
