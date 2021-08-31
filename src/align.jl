@@ -5,8 +5,6 @@ using LinearAlgebra
 using ProgressMeter
 
 using Infiltrator
-using Profile
-
 import Base.Threads.@spawn
 
 using ..Pool
@@ -25,6 +23,7 @@ export align
 # global variables
 # TODO: move to a better location
 
+#=
 fifos       = pool(2) #pool(3*Threads.nthreads()) NOTE: uncomment when you want concurrency
 getio()     = take!(fifos)
 hasio()     = isready(fifos)
@@ -48,6 +47,7 @@ function getios()
 
     return io₁, io₂
 end
+=#
 
 # ------------------------------------------------------------------------
 # helper functions
@@ -72,9 +72,9 @@ end
 # ---------------------------
 # constructors
 
-Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(1))
-Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(1))
-Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(1))
+Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(0))
+Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(0))
+Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(0))
 
 function Clade(distance, names; algo=:nj)
     @match algo begin
@@ -244,22 +244,17 @@ end
 
 # TODO: assumes the input graphs are singletons! generalize
 function ordering(Gs...; compare=mash)
-    fifo = getio()
-
-    task = @async compare(path(fifo))
-
-    @async begin
-        open(fifo,"w") do io
-            for (i,G) ∈ enumerate(Gs)
-                serialize(io, G)
-            end
+    root = mktemp() do path, io
+        for (i,G) ∈ enumerate(Gs)
+            serialize(io, G)
         end
+
+        task = compare(path)
+
+        distance, names = fetch(task)
+        Clade(distance, names; algo=:nj)
     end
 
-    distance, names = fetch(task)
-    root = Clade(distance, names; algo=:nj)
-
-    putio(fifo)
     return root
 end
 
@@ -289,12 +284,15 @@ function do_align(G₁::Graph, G₂::Graph, energy::Function)
     return hits
 end
 
-function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
+function align_kernel(hits, energy, minblock, skip, blocks!, replace!, verbose)
     blocks = Dict{String,Block}()
     ok = false
     for hit in hits
         energy(hit) >= 0 && break
         skip(hit) && continue
+        if verbose
+            log(hit)
+        end
 
         ok   = true
         qry₀, ref₀ = blocks!(hit)
@@ -327,7 +325,7 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
     return blocks, ok
 end
 
-function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Function; maxiter=100)
+function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; maxiter=100)
     G₀ = G₁
     ok = true
 
@@ -358,7 +356,7 @@ function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Functi
             end
         end
 
-        blocks, ok = align_kernel(hits, energy, minblock, skip, block, replace)
+        blocks, ok = align_kernel(hits, energy, minblock, skip, block, replace, verbose)
         merge!(blocks, G₀.block)
 
         if ok 
@@ -366,11 +364,8 @@ function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Functi
                 blocks,
                 G₀.sequence,
             )
-            # verify(G₀, "self: before detransitive")
-            # checkblocks(G₀)
             detransitive!(G₀)
             prune!(G₀)
-            # verify(G₀, "self: after detransitive")
             niter += 1
         end
     end
@@ -453,7 +448,7 @@ function compare(old, new, strand)
 
 end
 
-function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function)
+function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool)
     hits = do_align(G₁, G₂, energy)
 
     skip  = (hit) -> !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block)) || (hit.length < minblock)
@@ -471,7 +466,7 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, v
         end
     end
 
-    blocks, _ = align_kernel(hits, energy, minblock, skip, block, replace)
+    blocks, _ = align_kernel(hits, energy, minblock, skip, block, replace, verbose)
     sequence  = merge(G₁.sequence, G₂.sequence)
 
     # XXX: worry about uuid collision?
@@ -482,16 +477,8 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, v
         blocks, 
         sequence,
     )
-    # verify(G, "pair: before detransitive")
     detransitive!(G)
     prune!(G)
-    # verify(G, "pair: after detransitive")
-
-    #=
-    for b in values(G.block)
-        check(b)
-    end
-    =#
 
     return G
 end
@@ -538,8 +525,6 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
                     println("--> insert:           $(path.node[i].block.insert[path.node[i]])")
                     println("--> delete:           $(path.node[i].block.delete[path.node[i]])")
 
-                    # @infiltrate
-
                     error("--> isolate '$name' incorrectly reconstructed")
                 end
             end
@@ -557,10 +542,9 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
 
-        G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, verify)
-        G₀ = align_self(G₀, energy, minblock, verify)
+        G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, verify, false)
+        G₀ = align_self(G₀, energy, minblock, verify, false)
 
-        next!(meter)
         put!(clade.graph, G₀)
     end
 
@@ -568,15 +552,17 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
     log("--> aligning pairs")
-    Profile.clear()
     for clade ∈ postorder(tree)
-        if isleaf(clade)
-            put!(clade.graph, tips[clade.name])
-            next!(meter)
-            close(clade.graph)
-        else
-            kernel(clade)
-            close(clade.graph)
+        @spawn begin
+            if isleaf(clade)
+                put!(clade.graph, tips[clade.name])
+                close(clade.graph)
+                next!(meter)
+            else
+                kernel(clade)
+                close(clade.graph)
+                next!(meter)
+            end
         end
     end
 

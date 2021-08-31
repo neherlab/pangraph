@@ -325,6 +325,8 @@ function hamming_align(qry::Array{UInt8,1}, ref::Array{UInt8,1})
 end
 
 include("static/watson-crick.jl")
+# XXX: This is the major allocator for us.
+#      Will require serious thought as to how to not create so much garbage
 reverse_complement(seq::Array{UInt8}) = UInt8[wcpair[nuc+1] for nuc in reverse(seq)]
 
 function reverse_complement!(hit::Hit)

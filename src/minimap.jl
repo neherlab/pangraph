@@ -17,7 +17,7 @@ const CIGAR   = 0x004
 # ------------------------------------------------------------------------
 # functions
 
-minimap2 = Libdl.dlopen("vendor/minimap2/libminimap2.so")
+minimap2 = Libdl.dlopen("vendor/libminimap2.so")
 
 idx_str  = Libdl.dlsym(minimap2, :mm_idx_str)
 idx_stat = Libdl.dlsym(minimap2, :mm_idx_stat)
@@ -220,8 +220,8 @@ function align(ref::PanContigs, qry::PanContigs)
 
             j = hit.rid+1 # minimap2 0 indexes
             push!(homologs, Alignment(
-                Hit(qry.name[i], length(seq), hit.qs, hit.qe, nothing),
-                Hit(ref.name[j], length(ref.sequence[j]), hit.rs, hit.re, nothing),
+                Hit(qry.name[i], length(seq), hit.qs+1, hit.qe, nothing),
+                Hit(ref.name[j], length(ref.sequence[j]), hit.rs+1, hit.re, nothing),
                 Int(hit.mlen),
                 Int(hit.blen),
                 Int(hit.pack & 0xff),
@@ -236,6 +236,7 @@ function align(ref::PanContigs, qry::PanContigs)
     end
 
     freebuffer(buffer)
+    freeindex(index)
 
     return homologs
 end

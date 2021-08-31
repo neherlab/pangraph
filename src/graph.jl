@@ -188,19 +188,18 @@ function detransitive!(G::Graph)
     end
 
     # merge chains into one block
-    # checkblocks(G)
     for c in Set(values(chain))
         isos = numisos[c[1].block]
         @assert all([numisos[C.block] == isos for C in c[2:end]])
 
         new = Block((s ? b : reverse_complement(b) for (b,s) ∈ c)...)
         for iso ∈ keys(isos)
-            oldseq = sequence(G.sequence[iso])
+            # oldseq = sequence(G.sequence[iso])
 
             replace!(G.sequence[iso], c, new)
 
-            newseq = sequence(G.sequence[iso])
-            if oldseq != newseq
+            # newseq = sequence(G.sequence[iso])
+            #= if oldseq != newseq
                 path = G.sequence[iso]
                 badloci = Int[]
                 for i ∈ 1:min(length(newseq),length(oldseq))
@@ -217,7 +216,7 @@ function detransitive!(G::Graph)
                 println("--> window:           $(left):$(badloci[1]):$(right)")
                 println("--> ref:              $(oldseq[left:right])") 
                 println("--> seq:              $(newseq[left:right])") 
-            end
+            end =#
         end
 
         for b ∈ first.(c)
