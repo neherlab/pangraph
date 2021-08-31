@@ -192,12 +192,10 @@ end
 
 # cigar string
 const cigartypes = ['M','I','D','N','S','H','P','E','X']
-function unpackcigar(base::Ptr{UInt32}, n)
-    return [let
-        cg = unsafe_load(base,i)
-        Int(cg >> 4), cigartypes[cg & 0xf + 1]
-    end for i in 1:n]
-end
+unpackcigar(base::Ptr{UInt32}, n) = [let
+    cg = unsafe_load(base,i)
+    (Int(cg>>4), cigartypes[cg&0xf+1])
+end for i in 1:n]
 
 # alignment
 function align(ref::PanContigs, qry::PanContigs)

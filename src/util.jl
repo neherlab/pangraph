@@ -176,7 +176,7 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
     return String(take!(aln))
 end
 
-uncigar(cg::Array{Int, Char}) = cg
+uncigar(cg::T) where T <: AbstractArray{Tuple{Int,Char}} = cg
 function uncigar(cg::String)
     chan = Channel{Tuple{Int, Char}}(0)
     @async begin
