@@ -3,7 +3,7 @@ module Paths
 import Base:
     length, show
 
-# using Infiltrator
+using Infiltrator
 
 using ..Nodes
 using ..Blocks
@@ -117,21 +117,16 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
 
     pack(i::A, s) where A <: AbstractArray = [(loci=i, strand=s, oldnode=oldnodes(i,s))]
     pack(i::Tuple{A,A}, s) where A <: AbstractArray = let 
-        it = if minimum(i[1]) < minimum(i[2])
-            Δ = sum(length(n.block, n) for n in p.node[i[2]])
-            [(loci=i[1], strand=s, oldnode=oldnodes(i,s)), (loci=i[2], strand=nothing, oldnode=nothing)]
-        else
-            Δ = sum(length(n.block, n) for n in p.node[i[1]])
-            [(loci=i[2], strand=s, oldnode=oldnodes(i,s)), (loci=i[1], strand=nothing, oldnode=nothing)]
-        end
+        i₁, i₂ = (minimum(i[1]) < minimum(i[2])) ? (1, 2) : (2, 1)
 
+        Δ = sum(length(n.block, n) for n in p.node[i[i₂]])
         if p.offset === nothing
             p.offset = -Δ
         else
             p.offset -= Δ
         end
 
-        return it
+        return [(loci=i[i₁], strand=s, oldnode=oldnodes(i,s)), (loci=i[i₂], strand=nothing, oldnode=nothing)]
     end
 
     # ----------------------------
@@ -169,14 +164,15 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
                 # @infiltrate
-                error("REVERSE")
+                # error("REVERSE")
 
-                return (interval=(1:start, stop:length(p.node)), strand=false)
+                return (interval=(stop:length(p.node), 1:start), strand=false)
             end
         end
     )
 
     data = sort([x for (i,s) in zip(interval, strand) for x in pack(i,s)]; by=(x)->minimum(x.loci), rev=true)
+
     for datum ∈ data
         if datum.oldnode !== nothing
             newnode = Node(new, datum.strand)

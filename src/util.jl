@@ -206,14 +206,14 @@ mutable struct Hit
     seq::Maybe{Array{UInt8,1}}
 end
 
-mutable struct Alignment
+mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Char,Int}}}}
     qry::Hit
     ref::Hit
     matches::Int
     length::Int
     quality::Int
     orientation::Bool
-    cigar::Union{String,Nothing}
+    cigar::T
     divergence::Union{Float64,Nothing}
     align::Union{Float64,Nothing}
 end

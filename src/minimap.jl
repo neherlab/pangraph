@@ -3,12 +3,9 @@ module Minimap
 import Libdl
 import Base: show
 
-include("interval.jl")
-include("node.jl")
-include("graph.jl")
+import ..Utility: Alignment, Hit
 
-include("util.jl")
-import .Utility: Alignment, Hit
+export align
 
 # ------------------------------------------------------------------------
 # globals
@@ -235,7 +232,6 @@ function align(ref::PanContigs, qry::PanContigs)
                 1 - ccall(divergence, Cdouble, (Ptr{Record},), Ref(hit)),
                 nothing
             ))
-
             Libc.free(hit.p)
         end
         Libc.free(hits)

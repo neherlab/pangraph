@@ -60,6 +60,7 @@ include("block.jl")
 include("path.jl")
 include("junction.jl")
 include("cmd.jl")
+include("minimap.jl")
 
 using .Utility: 
     read_fasta, write_fasta, name, columns, log, 
@@ -72,9 +73,12 @@ using .Intervals
 using .Pool: FIFO
 
 import .Shell: mafft
+import .Minimap: PanContigs
 
 export Graph
+
 export graphs, serialize, detransitive!, prune!, finalize!
+export pancontigs
 export checkblocks
 
 # ------------------------------------------------------------------------
@@ -252,6 +256,14 @@ end
 # i/o & (de)serialization
 
 Base.show(io::IO, G::Graph) = Base.show(io, (paths=values(G.sequence), blocks=values(G.block)))
+
+pancontigs(G::Graph) = let
+    uuid = collect(Base.keys(G.block))
+    PanContigs(
+        uuid,
+        [String(sequence(G.block[id])) for id in uuid],
+    )
+end
 
 # TODO: can we generalize to multiple individuals
 #       equivalent to "highway" detection

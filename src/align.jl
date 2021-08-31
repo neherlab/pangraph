@@ -4,7 +4,8 @@ using Rematch, Dates
 using LinearAlgebra
 using ProgressMeter
 
-# using Infiltrator
+using Infiltrator
+using Profile
 
 import Base.Threads.@spawn
 
@@ -15,7 +16,8 @@ using ..Paths: replace!
 using ..Nodes
 using ..Graphs
 
-import ..Shell: minimap2, mash
+import ..Shell: mash
+import ..Minimap
 
 export align
 
@@ -248,7 +250,7 @@ function ordering(Gs...; compare=mash)
 
     @async begin
         open(fifo,"w") do io
-            for G ∈ Gs
+            for (i,G) ∈ enumerate(Gs)
                 serialize(io, G)
             end
         end
@@ -272,7 +274,7 @@ function write(fifo, G::Graph)
     try
         marshal(io, G)
     catch e
-        log("ERROR: $(e)")
+        log("WRITE ERROR: $(e)")
         @goto write
         # error(e)
     finally
@@ -280,22 +282,9 @@ function write(fifo, G::Graph)
     end
 end
 
-function do_align(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function)
-    # NOTE: minimap2 opens up file descriptors in order!
-    #       must process 2 before 1 otherwise we deadlock
-    
-    cmd = minimap2(path(io₁), path(io₂))
-    @async begin
-        write(io₂, G₂) # ref
-        write(io₁, G₁) # qry
-    end
-
-    out = IOBuffer(fetch(cmd.out)) # NOTE: blocks until minimap finishes
-
-    hits = collect(read_paf(out))
+function do_align(G₁::Graph, G₂::Graph, energy::Function)
+    hits = Minimap.align(pancontigs(G₁), pancontigs(G₂))
     sort!(hits; by=energy)
-
-    close(out)
 
     return hits
 end
@@ -339,14 +328,14 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
     return blocks, ok
 end
 
-function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, verify::Function; maxiter=100)
+function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Function; maxiter=100)
     G₀ = G₁
     ok = true
 
     niter = 0
     while ok && niter < maxiter
         ok   = false
-        hits = do_align(G₀, G₀, io₁, io₂, energy)
+        hits = do_align(G₀, G₀, energy)
         
         skip  = (hit) -> (
            (hit.qry.name == hit.ref.name)
@@ -464,8 +453,8 @@ function compare(old, new, strand)
 
 end
 
-function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, minblock::Int, verify::Function)
-    hits = do_align(G₁, G₂, io₁, io₂, energy)
+function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function)
+    hits = do_align(G₁, G₂, energy)
 
     skip  = (hit) -> !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block)) || (hit.length < minblock)
     block = (hit) -> (
@@ -568,13 +557,8 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
 
-        io₁, io₂ = getios()
-
-        G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, minblock, verify)
-        G₀ = align_self(G₀, io₁, io₂, energy, minblock, verify)
-
-        putio(io₁)
-        putio(io₂)
+        G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, verify)
+        G₀ = align_self(G₀, energy, minblock, verify)
 
         next!(meter)
         put!(clade.graph, G₀)
@@ -584,6 +568,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
     tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
     log("--> aligning pairs")
+    Profile.clear()
     for clade ∈ postorder(tree)
         if isleaf(clade)
             put!(clade.graph, tips[clade.name])
