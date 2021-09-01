@@ -285,8 +285,11 @@ end
 
 # XXX: think of a way to break up function but maintain graph-wide node lookup table
 function marshal_json(io::IO, G::Graph)
-    NodeID = NamedTuple{(:id,:name,:number,:strand), Tuple{String,String,Int,Bool}}
-    nodes  = Dict{Node{Block}, NodeID}()
+    NodeID    = NamedTuple{(:id,:name,:number,:strand), Tuple{String,String,Int,Bool}}
+    nodes     = Dict{Node{Block}, NodeID}()
+    positions = Dict{Block, Dict{NodeID, Tuple{Int,Int}}}()
+
+    finalize!(G)
 
     # path serialization
     function dict(p::Path)
@@ -305,6 +308,11 @@ function marshal_json(io::IO, G::Graph)
             )
             nodes[node] = blocks[i]
             counts[node.block] += 1
+
+            if node.block ∉ keys(positions)
+                positions[node.block] = Dict{NodeID, Tuple{Int,Int}}()
+            end
+            positions[node.block][blocks[i]] = (p.position[i], p.position[i == length(p.node) ? 1 : i+1] - 1)
         end
 
         return (
@@ -320,14 +328,16 @@ function marshal_json(io::IO, G::Graph)
     pack(d::InsMap) = [(k,String(copy(v))) for (k,v) ∈ d]
     pack(d::DelMap) = [(k,v) for (k,v) ∈ d]
 
+    strip(id) = (name=id.name,number=id.number,strand=id.strand)
     function dict(b::Block)
         return (
-            id       = b.uuid,
-            sequence = String(sequence(b)),
-            gaps     = b.gaps,
-            mutate   = [(nodes[key], pack(val)) for (key,val) ∈ b.mutate],
-            insert   = [(nodes[key], pack(val)) for (key,val) ∈ b.insert],
-            delete   = [(nodes[key], pack(val)) for (key,val) ∈ b.delete]
+            id        = b.uuid,
+            sequence  = String(sequence(b)),
+            gaps      = b.gaps,
+            mutate    = [(strip(nodes[key]), pack(val)) for (key,val) ∈ b.mutate],
+            insert    = [(strip(nodes[key]), pack(val)) for (key,val) ∈ b.insert],
+            delete    = [(strip(nodes[key]), pack(val)) for (key,val) ∈ b.delete],
+            positions = [(strip(key), val) for (key,val) ∈ positions[b]]
         )
     end
 
@@ -431,10 +441,7 @@ end
 
 sequence(g::Graph) = [ name => join(String(sequence(node.block, node)) for node ∈ path.node) for (name, path) ∈ g.sequence ]
 
-function finalize!(g)
-    println(stderr, "-> finalizing graph...")
-
-    println(stderr, "--> realigning blocks with MAFFT...")
+function realign!(g)
     fifo = FIFO()
     for blk in values(g.block)
         cmd = mafft(path(fifo))
@@ -464,6 +471,13 @@ function finalize!(g)
         blk.gaps, blk.mutate, blk.delete, blk.insert, blk.sequence = alignment_alleles(consensus, aln, nodes)
     end
     delete(fifo)
+end
+
+function finalize!(g)
+    # realign!(g)
+    for p in values(g.sequence)
+        positions!(p)
+    end
 end
 
 # ------------------------------------------------------------------------
@@ -501,6 +515,8 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa") #"data/ge
             log("--> isolate '$name' correctly reconstructed")
         end
     end
+
+    finalize!(graph)
 
     graph
 end
