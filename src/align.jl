@@ -4,8 +4,6 @@ using Rematch, Dates
 using LinearAlgebra
 using ProgressMeter
 
-# using Infiltrator
-
 import Base.Threads.@spawn
 
 using ..Pool
@@ -15,7 +13,8 @@ using ..Paths: replace!
 using ..Nodes
 using ..Graphs
 
-import ..Shell: minimap2, mash
+import ..Shell: mash
+import ..Minimap
 
 export align
 
@@ -23,6 +22,7 @@ export align
 # global variables
 # TODO: move to a better location
 
+#=
 fifos       = pool(2) #pool(3*Threads.nthreads()) NOTE: uncomment when you want concurrency
 getio()     = take!(fifos)
 hasio()     = isready(fifos)
@@ -46,6 +46,7 @@ function getios()
 
     return io₁, io₂
 end
+=#
 
 # ------------------------------------------------------------------------
 # helper functions
@@ -70,9 +71,9 @@ end
 # ---------------------------
 # constructors
 
-Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(1))
-Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(1))
-Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(1))
+Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(0))
+Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(0))
+Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(0))
 
 function Clade(distance, names; algo=:nj)
     @match algo begin
@@ -242,22 +243,17 @@ end
 
 # TODO: assumes the input graphs are singletons! generalize
 function ordering(Gs...; compare=mash)
-    fifo = getio()
-
-    task = @async compare(path(fifo))
-
-    @async begin
-        open(fifo,"w") do io
-            for G ∈ Gs
-                serialize(io, G)
-            end
+    root = mktemp() do path, io
+        for (i,G) ∈ enumerate(Gs)
+            serialize(io, G)
         end
+
+        task = compare(path)
+
+        distance, names = fetch(task)
+        Clade(distance, names; algo=:nj)
     end
 
-    distance, names = fetch(task)
-    root = Clade(distance, names; algo=:nj)
-
-    putio(fifo)
     return root
 end
 
@@ -272,7 +268,7 @@ function write(fifo, G::Graph)
     try
         marshal(io, G)
     catch e
-        log("ERROR: $(e)")
+        log("WRITE ERROR: $(e)")
         @goto write
         # error(e)
     finally
@@ -280,32 +276,22 @@ function write(fifo, G::Graph)
     end
 end
 
-function do_align(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function)
-    # NOTE: minimap2 opens up file descriptors in order!
-    #       must process 2 before 1 otherwise we deadlock
-    
-    cmd = minimap2(path(io₁), path(io₂))
-    @async begin
-        write(io₂, G₂) # ref
-        write(io₁, G₁) # qry
-    end
-
-    out = IOBuffer(fetch(cmd.out)) # NOTE: blocks until minimap finishes
-
-    hits = collect(read_paf(out))
+function do_align(G₁::Graph, G₂::Graph, energy::Function)
+    hits = Minimap.align(pancontigs(G₁), pancontigs(G₂))
     sort!(hits; by=energy)
-
-    close(out)
 
     return hits
 end
 
-function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
+function align_kernel(hits, energy, minblock, skip, blocks!, replace!, verbose)
     blocks = Dict{String,Block}()
     ok = false
     for hit in hits
         energy(hit) >= 0 && break
         skip(hit) && continue
+        if verbose
+            log(hit)
+        end
 
         ok   = true
         qry₀, ref₀ = blocks!(hit)
@@ -331,7 +317,6 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
         replace!((qry=qry₀, ref=ref₀), (qry=qrys, ref=refs), strand)
 
         for blk in map(b->b.block, blks)
-            # check(blk; ids=false)
             blocks[blk.uuid] = blk
         end
     end
@@ -339,20 +324,21 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!)
     return blocks, ok
 end
 
-function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, verify::Function; maxiter=100)
+function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; maxiter=100)
     G₀ = G₁
     ok = true
 
     niter = 0
     while ok && niter < maxiter
         ok   = false
-        hits = do_align(G₀, G₀, io₁, io₂, energy)
+        hits = do_align(G₀, G₀, energy)
         
         skip  = (hit) -> (
-           (hit.qry.name == hit.ref.name)
-        || (hit.length < minblock)
-        || (!(hit.qry.name in keys(G₀.block)) 
-        ||  !(hit.ref.name in keys(G₀.block))))
+               (hit.qry.name == hit.ref.name)
+            || (hit.length < minblock)
+            || (!(hit.qry.name in keys(G₀.block)) 
+            ||  !(hit.ref.name in keys(G₀.block)))
+       )
 
         block = (hit) -> (
             qry = pop!(G₀.block, hit.qry.name),
@@ -369,7 +355,7 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
             end
         end
 
-        blocks, ok = align_kernel(hits, energy, minblock, skip, block, replace)
+        blocks, ok = align_kernel(hits, energy, minblock, skip, block, replace, verbose)
         merge!(blocks, G₀.block)
 
         if ok 
@@ -377,11 +363,8 @@ function align_self(G₁::Graph, io₁, io₂, energy::Function, minblock::Int, 
                 blocks,
                 G₀.sequence,
             )
-            # verify(G₀, "self: before detransitive")
-            # checkblocks(G₀)
             detransitive!(G₀)
             prune!(G₀)
-            # verify(G₀, "self: after detransitive")
             niter += 1
         end
     end
@@ -464,8 +447,8 @@ function compare(old, new, strand)
 
 end
 
-function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, minblock::Int, verify::Function)
-    hits = do_align(G₁, G₂, io₁, io₂, energy)
+function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool)
+    hits = do_align(G₁, G₂, energy)
 
     skip  = (hit) -> !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block)) || (hit.length < minblock)
     block = (hit) -> (
@@ -482,7 +465,7 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, mi
         end
     end
 
-    blocks, _ = align_kernel(hits, energy, minblock, skip, block, replace)
+    blocks, _ = align_kernel(hits, energy, minblock, skip, block, replace, verbose)
     sequence  = merge(G₁.sequence, G₂.sequence)
 
     # XXX: worry about uuid collision?
@@ -493,16 +476,8 @@ function align_pair(G₁::Graph, G₂::Graph, io₁, io₂, energy::Function, mi
         blocks, 
         sequence,
     )
-    # verify(G, "pair: before detransitive")
     detransitive!(G)
     prune!(G)
-    # verify(G, "pair: after detransitive")
-
-    #=
-    for b in values(G.block)
-        check(b)
-    end
-    =#
 
     return G
 end
@@ -549,8 +524,6 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
                     println("--> insert:           $(path.node[i].block.insert[path.node[i]])")
                     println("--> delete:           $(path.node[i].block.delete[path.node[i]])")
 
-                    # @infiltrate
-
                     error("--> isolate '$name' incorrectly reconstructed")
                 end
             end
@@ -568,15 +541,9 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
         Gₗ = take!(clade.left.graph)
         Gᵣ = take!(clade.right.graph)
 
-        io₁, io₂ = getios()
+        G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, verify, false)
+        G₀ = align_self(G₀, energy, minblock, verify, false)
 
-        G₀ = align_pair(Gₗ, Gᵣ, io₁, io₂, energy, minblock, verify)
-        G₀ = align_self(G₀, io₁, io₂, energy, minblock, verify)
-
-        putio(io₁)
-        putio(io₂)
-
-        next!(meter)
         put!(clade.graph, G₀)
     end
 
@@ -585,13 +552,18 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
 
     log("--> aligning pairs")
     for clade ∈ postorder(tree)
-        if isleaf(clade)
-            put!(clade.graph, tips[clade.name])
-            next!(meter)
-            close(clade.graph)
-        else
-            kernel(clade)
-            close(clade.graph)
+        @spawn try 
+            if isleaf(clade)
+                put!(clade.graph, tips[clade.name])
+                close(clade.graph)
+                next!(meter)
+            else
+                kernel(clade)
+                close(clade.graph)
+                next!(meter)
+            end
+        catch e
+            error(e)
         end
     end
 

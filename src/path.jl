@@ -3,8 +3,6 @@ module Paths
 import Base:
     length, show
 
-# using Infiltrator
-
 using ..Nodes
 using ..Blocks
 
@@ -13,19 +11,20 @@ import ..Graphs:
     Counter, add!
 
 export Path
-export count_isolates
+export count_isolates, positions!
 
 mutable struct Path
     name     :: String
     node     :: Array{Node{Block}}
     offset   :: Union{Int,Nothing}
     circular :: Bool
+    position :: Array{Int}
 end
 
 # --------------------------------
 # constructors
 
-Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],circular ? 0 : nothing,circular)
+Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],circular ? 0 : nothing, circular, Int[])
 
 # --------------------------------
 # operators
@@ -47,9 +46,6 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     indices = Int[]
     inserts = Array{Node{Block}}[]
 
-    # oldnode = []
-    # oldseq = sequence(p)
-
     for (i, n₁) in enumerate(p.node)
         n₁.block != old && continue
 
@@ -62,8 +58,6 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
             swap!(n₂.block, n₁, n₂)
         end
 
-        # push!(oldnode, n₁)
-
         push!(inserts, nodes)
     end
 
@@ -74,13 +68,6 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
     for (index, nodes) in zip(indices, inserts)
         splice!(p.node, index, nodes)
     end
-
-    newseq = sequence(p)
-
-    # if oldseq != newseq
-    #     # @infiltrate
-    #     error("bad merge")
-    # end
 end
 
 # XXX: should we create an interval data structure that unifies both cases?
@@ -117,21 +104,16 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
 
     pack(i::A, s) where A <: AbstractArray = [(loci=i, strand=s, oldnode=oldnodes(i,s))]
     pack(i::Tuple{A,A}, s) where A <: AbstractArray = let 
-        it = if minimum(i[1]) < minimum(i[2])
-            Δ = sum(length(n.block, n) for n in p.node[i[2]])
-            [(loci=i[1], strand=s, oldnode=oldnodes(i,s)), (loci=i[2], strand=nothing, oldnode=nothing)]
-        else
-            Δ = sum(length(n.block, n) for n in p.node[i[1]])
-            [(loci=i[2], strand=s, oldnode=oldnodes(i,s)), (loci=i[1], strand=nothing, oldnode=nothing)]
-        end
+        i₁, i₂ = (minimum(i[1]) < minimum(i[2])) ? (1, 2) : (2, 1)
 
+        Δ = sum(length(n.block, n) for n in p.node[i[i₂]])
         if p.offset === nothing
             p.offset = -Δ
         else
             p.offset -= Δ
         end
 
-        return it
+        return [(loci=i[i₁], strand=s, oldnode=oldnodes(i,s)), (loci=i[i₂], strand=nothing, oldnode=nothing)]
     end
 
     # ----------------------------
@@ -169,14 +151,15 @@ function Base.replace!(p::Path, old::Array{Link}, new::Block)
                 !p.circular  && error("invalid circular interval on linear path")   # broken case: | -)--(- |
 
                 # @infiltrate
-                error("REVERSE")
+                # error("REVERSE")
 
-                return (interval=(1:start, stop:length(p.node)), strand=false)
+                return (interval=(stop:length(p.node), 1:start), strand=false)
             end
         end
     )
 
     data = sort([x for (i,s) in zip(interval, strand) for x in pack(i,s)]; by=(x)->minimum(x.loci), rev=true)
+
     for datum ∈ data
         if datum.oldnode !== nothing
             newnode = Node(new, datum.strand)
@@ -210,6 +193,29 @@ function count_isolates(paths)
     end
 
     return blocks
+end
+
+function positions!(p::Path)
+    p.position = Array{Int}(undef,length(p.node)+1)
+    l = 0
+    for (i,n) in enumerate(p.node)
+        p.position[i] = l+1
+        l += length(n)
+    end
+    p.position[end] = l
+
+    if p.offset !== nothing
+        if p.offset > 0
+            p.offset = p.offset % l
+            ι = p.position .> p.offset
+            p.position[ι]   -= p.offset
+            p.position[.!ι] += l - p.offset
+        elseif p.offset < 0
+            p.position = ((p.position .- (p.offset + 1)) .% l) .+ 1
+        end
+    end
+
+    p.position
 end
 
 end

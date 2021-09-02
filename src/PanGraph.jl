@@ -40,8 +40,6 @@ pangraph = Command(
 )
 
 function main(args)
-    seed!(0)
-
     if length(args) == 0
         usage(pangraph)
         return 2
@@ -52,16 +50,16 @@ end
 
 function julia_main()::Cint
     try
-        main(ARGS)
-        return 0
+        return main(ARGS)
     catch
         # TODO: more sophisticated error handling
         return 1
     end
 end
 
+if !isdefined(Base, :active_repl)
+    main(ARGS)
 end
 
-if !isdefined(Base, :active_repl)
-    PanGraph.main(ARGS)
 end
+

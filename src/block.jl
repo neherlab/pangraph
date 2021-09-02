@@ -1,7 +1,6 @@
 module Blocks
 
 using Rematch
-# using Infiltrator
 
 import Base:
     show, length, append!, keys, merge!
@@ -1055,14 +1054,10 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
         @match (range.qry, range.ref) begin
             ( nothing, Δ )  => begin
                 r = Block(ref, Δ)
-                # check(r; ids=false)
-
                 push!(blocks, (block=r, kind=:ref))
             end
             ( Δ, nothing ) => begin
                 q = Block(qry, Δ)
-                # check(q; ids=false)
-
                 push!(blocks, (block=q, kind=:qry))
             end
             ( Δq, Δr )      => begin
@@ -1072,28 +1067,9 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
-                # qseqs = Dict(iso => sequence(q, iso) for iso in keys(q))
-                # rseqs = Dict(iso => sequence(r, iso) for iso in keys(r))
-
                 new = rereference(q, r, segment)
                 reconsensus!(new)
                 regap!(new)
-
-                # for (iso, seq) in qseqs
-                #     if sequence(new, iso) != seq
-                #         # @infiltrate
-                #         error("bad")
-                #     end
-                # end
-
-                # for (iso, seq) in rseqs
-                #     if sequence(new, iso) != seq
-                #         # @infiltrate
-                #         error("bad")
-                #     end
-                # end
-
-                # check(new; ids=false)
 
                 push!(blocks, (block=new, kind=:all))
             end

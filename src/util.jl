@@ -176,6 +176,7 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
     return String(take!(aln))
 end
 
+uncigar(cg::T) where T <: AbstractArray{Tuple{Int,Char}} = cg
 function uncigar(cg::String)
     chan = Channel{Tuple{Int, Char}}(0)
     @async begin
@@ -206,14 +207,14 @@ mutable struct Hit
     seq::Maybe{Array{UInt8,1}}
 end
 
-mutable struct Alignment
+mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Int,Char}}}}
     qry::Hit
     ref::Hit
     matches::Int
     length::Int
     quality::Int
     orientation::Bool
-    cigar::Union{String,Nothing}
+    cigar::T
     divergence::Union{Float64,Nothing}
     align::Union{Float64,Nothing}
 end
@@ -324,6 +325,8 @@ function hamming_align(qry::Array{UInt8,1}, ref::Array{UInt8,1})
 end
 
 include("static/watson-crick.jl")
+# XXX: This is the major allocator for us.
+#      Will require serious thought as to how to not create so much garbage
 reverse_complement(seq::Array{UInt8}) = UInt8[wcpair[nuc+1] for nuc in reverse(seq)]
 
 function reverse_complement!(hit::Hit)
@@ -366,36 +369,36 @@ function enforce_cutoff!(a::Alignment, χ)
     # left side of match
     if (0 < δqₗ ≤ χ) && (δrₗ == 0 || δrₗ > χ)
         a.qry.start = 1
-        a.cigar     = string(δqₗ) * "I" * a.cigar
+        pushfirst!(a.cigar, (δqₗ, 'I'))
     elseif (0 < δrₗ ≤ χ) && (δqₗ == 0 || δqₗ > χ)
         a.ref.start = 1
-        a.cigar     = string(δrₗ) * "D" * a.cigar
+        pushfirst!(a.cigar, (δrₗ, 'D'))
     elseif (0 < δqₗ ≤ χ) && (0 < δrₗ <= χ)
         a₁, a₂ = align(s₁[1:δqₗ], s₂[1:δrₗ], cost)
-        cg     = cigar(a₁, a₂)
+        cg     = collect(uncigar(cigar(a₁, a₂)))
 
         a.qry.start = 1
         a.ref.start = 1
 
-        a.cigar   = cg * a.cigar
+        prepend!(a.cigar, cg)
         a.length += length(a₁)
     end
 
     # right side of match
     if (0 < δqᵣ ≤ χ) && (δrᵣ == 0 || δrᵣ > χ)
         a.qry.stop  = a.qry.length
-        a.cigar     = a.cigar * string(δqᵣ) * "I"
+        push!(a.cigar, (δqᵣ, 'I'))
     elseif (0 < δrᵣ ≤ χ) && (δqᵣ == 0 || δqᵣ > χ)
         a.ref.stop  = a.ref.length
-        a.cigar     = a.cigar * string(δrᵣ) * "D"
+        push!(a.cigar, (δrᵣ, 'D'))
     elseif (0 < δqᵣ ≤ χ) && (δrᵣ <= χ)
         a₁, a₂ = align(s₁[end-δqᵣ+1:end], s₂[end-δrᵣ+1:end], cost)
-        cg     = cigar(a₁, a₂)
+        cg     = collect(uncigar(cigar(a₁, a₂)))
 
         a.qry.stop = a.qry.length
         a.ref.stop = a.ref.length
 
-        a.cigar   = a.cigar * cg
+        append!(a.cigar, cg)
         a.length += length(a₁)
     end
 end

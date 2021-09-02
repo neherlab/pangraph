@@ -3,11 +3,8 @@ module Graphs
 using GZip # NOTE: for debugging purposes
 using Random
 using Rematch
-# using Infiltrator
 
 import JSON
-
-Random.seed!(0)
 
 # ---------------------------
 # functions to extend in submodules
@@ -60,6 +57,7 @@ include("block.jl")
 include("path.jl")
 include("junction.jl")
 include("cmd.jl")
+include("minimap.jl")
 
 using .Utility: 
     read_fasta, write_fasta, name, columns, log, 
@@ -72,9 +70,12 @@ using .Intervals
 using .Pool: FIFO
 
 import .Shell: mafft
+import .Minimap: PanContigs
 
 export Graph
+
 export graphs, serialize, detransitive!, prune!, finalize!
+export pancontigs
 export checkblocks
 
 # ------------------------------------------------------------------------
@@ -184,19 +185,18 @@ function detransitive!(G::Graph)
     end
 
     # merge chains into one block
-    # checkblocks(G)
     for c in Set(values(chain))
         isos = numisos[c[1].block]
         @assert all([numisos[C.block] == isos for C in c[2:end]])
 
         new = Block((s ? b : reverse_complement(b) for (b,s) ∈ c)...)
         for iso ∈ keys(isos)
-            oldseq = sequence(G.sequence[iso])
+            # oldseq = sequence(G.sequence[iso])
 
             replace!(G.sequence[iso], c, new)
 
-            newseq = sequence(G.sequence[iso])
-            if oldseq != newseq
+            # newseq = sequence(G.sequence[iso])
+            #= if oldseq != newseq
                 path = G.sequence[iso]
                 badloci = Int[]
                 for i ∈ 1:min(length(newseq),length(oldseq))
@@ -213,7 +213,7 @@ function detransitive!(G::Graph)
                 println("--> window:           $(left):$(badloci[1]):$(right)")
                 println("--> ref:              $(oldseq[left:right])") 
                 println("--> seq:              $(newseq[left:right])") 
-            end
+            end =#
         end
 
         for b ∈ first.(c)
@@ -253,6 +253,14 @@ end
 
 Base.show(io::IO, G::Graph) = Base.show(io, (paths=values(G.sequence), blocks=values(G.block)))
 
+pancontigs(G::Graph) = let
+    uuid = collect(Base.keys(G.block))
+    PanContigs(
+        uuid,
+        [String(sequence(G.block[id])) for id in uuid],
+    )
+end
+
 # TODO: can we generalize to multiple individuals
 #       equivalent to "highway" detection
 function serialize(io, G::Graph)
@@ -274,8 +282,11 @@ end
 
 # XXX: think of a way to break up function but maintain graph-wide node lookup table
 function marshal_json(io::IO, G::Graph)
-    NodeID = NamedTuple{(:id,:name,:number,:strand), Tuple{String,String,Int,Bool}}
-    nodes  = Dict{Node{Block}, NodeID}()
+    NodeID    = NamedTuple{(:id,:name,:number,:strand), Tuple{String,String,Int,Bool}}
+    nodes     = Dict{Node{Block}, NodeID}()
+    positions = Dict{Block, Dict{NodeID, Tuple{Int,Int}}}()
+
+    finalize!(G)
 
     # path serialization
     function dict(p::Path)
@@ -294,6 +305,11 @@ function marshal_json(io::IO, G::Graph)
             )
             nodes[node] = blocks[i]
             counts[node.block] += 1
+
+            if node.block ∉ keys(positions)
+                positions[node.block] = Dict{NodeID, Tuple{Int,Int}}()
+            end
+            positions[node.block][blocks[i]] = (p.position[i], p.position[i == length(p.node) ? 1 : i+1] - 1)
         end
 
         return (
@@ -309,14 +325,16 @@ function marshal_json(io::IO, G::Graph)
     pack(d::InsMap) = [(k,String(copy(v))) for (k,v) ∈ d]
     pack(d::DelMap) = [(k,v) for (k,v) ∈ d]
 
+    strip(id) = (name=id.name,number=id.number,strand=id.strand)
     function dict(b::Block)
         return (
-            id       = b.uuid,
-            sequence = String(sequence(b)),
-            gaps     = b.gaps,
-            mutate   = [(nodes[key], pack(val)) for (key,val) ∈ b.mutate],
-            insert   = [(nodes[key], pack(val)) for (key,val) ∈ b.insert],
-            delete   = [(nodes[key], pack(val)) for (key,val) ∈ b.delete]
+            id        = b.uuid,
+            sequence  = String(sequence(b)),
+            gaps      = b.gaps,
+            mutate    = [(strip(nodes[key]), pack(val)) for (key,val) ∈ b.mutate],
+            insert    = [(strip(nodes[key]), pack(val)) for (key,val) ∈ b.insert],
+            delete    = [(strip(nodes[key]), pack(val)) for (key,val) ∈ b.delete],
+            positions = [(strip(key), val) for (key,val) ∈ positions[b]]
         )
     end
 
@@ -420,10 +438,7 @@ end
 
 sequence(g::Graph) = [ name => join(String(sequence(node.block, node)) for node ∈ path.node) for (name, path) ∈ g.sequence ]
 
-function finalize!(g)
-    println(stderr, "-> finalizing graph...")
-
-    println(stderr, "--> realigning blocks with MAFFT...")
+function realign!(g)
     fifo = FIFO()
     for blk in values(g.block)
         cmd = mafft(path(fifo))
@@ -453,6 +468,13 @@ function finalize!(g)
         blk.gaps, blk.mutate, blk.delete, blk.insert, blk.sequence = alignment_alleles(consensus, aln, nodes)
     end
     delete(fifo)
+end
+
+function finalize!(g)
+    # realign!(g)
+    for p in values(g.sequence)
+        positions!(p)
+    end
 end
 
 # ------------------------------------------------------------------------
@@ -490,6 +512,8 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa") #"data/ge
             log("--> isolate '$name' correctly reconstructed")
         end
     end
+
+    finalize!(graph)
 
     graph
 end
