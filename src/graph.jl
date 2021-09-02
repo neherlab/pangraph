@@ -7,8 +7,6 @@ using Rematch
 
 import JSON
 
-Random.seed!(0)
-
 # ---------------------------
 # functions to extend in submodules
 
