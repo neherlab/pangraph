@@ -1,7 +1,6 @@
 module Blocks
 
 using Rematch
-# using Infiltrator
 
 import Base:
     show, length, append!, keys, merge!

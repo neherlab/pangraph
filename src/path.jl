@@ -3,8 +3,6 @@ module Paths
 import Base:
     length, show
 
-using Infiltrator
-
 using ..Nodes
 using ..Blocks
 
