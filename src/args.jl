@@ -3,7 +3,7 @@ module Commands
 using ..PanGraph: panic
 
 export Arg, Command
-export flags, usage, parse, run
+export flags, usage
 
 Maybe{T} = Union{Missing,T}
 
@@ -104,7 +104,7 @@ function Base.parse(cmd::Command, args)
         itr = Iterators.Stateful(args)
         if isempty(itr)
             usage(cmd)
-            exit(2)
+            return nothing
         end
 
         @label ARGLOOP #-------------------------

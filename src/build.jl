@@ -41,8 +41,9 @@ Build = Command(
     ),
    ],
 
-   (args) -> begin
-       files  = parse(Build, args)
+   (args) -> let
+       files = parse(Build, args)
+       files === nothing && return 2
 
        minblock = Build.arg[1].value
        energy = (aln) -> let

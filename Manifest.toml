@@ -177,9 +177,9 @@ version = "0.11.1"
 
 [[PackageCompiler]]
 deps = ["Libdl", "Pkg", "UUIDs"]
-git-tree-sha1 = "d448727c4b86be81b225b738c88d30334fda6779"
+git-tree-sha1 = "bb40ed7cb3aac2b4cdf42f898c26a58ab797ac62"
 uuid = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
-version = "1.2.5"
+version = "1.3.0"
 
 [[Parsers]]
 deps = ["Dates"]

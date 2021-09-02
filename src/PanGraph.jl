@@ -50,8 +50,7 @@ end
 
 function julia_main()::Cint
     try
-        main(ARGS)
-        return 0
+        return main(ARGS)
     catch
         # TODO: more sophisticated error handling
         return 1
