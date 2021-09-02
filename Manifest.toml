@@ -287,6 +287,14 @@ uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
 
+[[minimap2_jll]]
+deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
+git-tree-sha1 = "0b157cf29e24122cb3b509c8b13215868296aced"
+repo-rev = "main"
+repo-url = "https://github.com/nnoll/minimap2_jll.jl"
+uuid = "d341526d-637d-5003-8fc4-9c6812cd2b55"
+version = "2.22.0+0"
+
 [[nghttp2_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850ede-7688-5339-a07c-302acd2aaf8d"
