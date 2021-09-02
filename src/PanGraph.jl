@@ -48,7 +48,7 @@ function main(args)
     return run(pangraph, parse(pangraph, args))
 end
 
-Base.@ccallable function julia_main()::Cint
+function julia_main()::Cint
     try
         main(ARGS)
         return 0
