@@ -13,19 +13,20 @@ import ..Graphs:
     Counter, add!
 
 export Path
-export count_isolates
+export count_isolates, positions!
 
 mutable struct Path
     name     :: String
     node     :: Array{Node{Block}}
     offset   :: Union{Int,Nothing}
     circular :: Bool
+    position :: Array{Int}
 end
 
 # --------------------------------
 # constructors
 
-Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],circular ? 0 : nothing,circular)
+Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],circular ? 0 : nothing, circular, Int[])
 
 # --------------------------------
 # operators
@@ -194,6 +195,29 @@ function count_isolates(paths)
     end
 
     return blocks
+end
+
+function positions!(p::Path)
+    p.position = Array{Int}(undef,length(p.node)+1)
+    l = 0
+    for (i,n) in enumerate(p.node)
+        p.position[i] = l+1
+        l += length(n)
+    end
+    p.position[end] = l
+
+    if p.offset !== nothing
+        if p.offset > 0
+            p.offset = p.offset % l
+            ι = p.position .> p.offset
+            p.position[ι]   -= p.offset
+            p.position[.!ι] += l - p.offset
+        elseif p.offset < 0
+            p.position = ((p.position .- (p.offset + 1)) .% l) .+ 1
+        end
+    end
+
+    p.position
 end
 
 end
