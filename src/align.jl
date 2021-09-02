@@ -553,7 +553,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
 
     log("--> aligning pairs")
     for clade ∈ postorder(tree)
-        @spawn begin
+        @spawn try 
             if isleaf(clade)
                 put!(clade.graph, tips[clade.name])
                 close(clade.graph)
@@ -563,6 +563,8 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
                 close(clade.graph)
                 next!(meter)
             end
+        catch e
+            error(e)
         end
     end
 

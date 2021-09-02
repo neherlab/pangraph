@@ -20,7 +20,7 @@ platforms = filter(supported_platforms()) do platform
 end
 
 products = [
-    LibraryProduct("libminimap2", :libminimap2),
+    LibraryProduct("libminimap2", :minimap2),
 ]
 
 dependencies = [

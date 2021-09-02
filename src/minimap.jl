@@ -1,8 +1,8 @@
 module Minimap
 
-import Libdl
-import Base: show
+using minimap2_jll
 
+import Base: show
 import ..Utility: Alignment, Hit
 
 export align
@@ -17,22 +17,20 @@ const CIGAR   = 0x004
 # ------------------------------------------------------------------------
 # functions
 
-minimap2 = Libdl.dlopen("/home/nolln/code/bio/PanGraph/vendor/libminimap2.so")
+const idx_str  = (:mm_idx_str, minimap2)
+const idx_stat = (:mm_idx_stat, minimap2)
+const idx_free = (:mm_idx_destroy, minimap2)
 
-idx_str  = Libdl.dlsym(minimap2, :mm_idx_str)
-idx_stat = Libdl.dlsym(minimap2, :mm_idx_stat)
-idx_free = Libdl.dlsym(minimap2, :mm_idx_destroy)
+const tbuf_init = (:mm_tbuf_init, minimap2)
+const tbuf_free = (:mm_tbuf_destroy, minimap2)
 
-tbuf_init = Libdl.dlsym(minimap2, :mm_tbuf_init)
-tbuf_free = Libdl.dlsym(minimap2, :mm_tbuf_destroy)
+const set_opt    = (:mm_set_opt, minimap2)
+const update_opt = (:mm_mapopt_update, minimap2)
 
-set_opt    = Libdl.dlsym(minimap2, :mm_set_opt)
-update_opt = Libdl.dlsym(minimap2, :mm_mapopt_update)
+const minimap  = (:mm_map, minimap2)
+const map_frag = (:mm_map_frag, minimap2)
 
-minimap  = Libdl.dlsym(minimap2, :mm_map)
-map_frag = Libdl.dlsym(minimap2, :mm_map_frag)
-
-divergence = Libdl.dlsym(minimap2, :mm_event_identity)
+const divergence = (:mm_event_identity, minimap2)
 
 # ------------------------------------------------------------------------
 # types
