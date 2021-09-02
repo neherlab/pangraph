@@ -17,7 +17,7 @@ const CIGAR   = 0x004
 # ------------------------------------------------------------------------
 # functions
 
-minimap2 = Libdl.dlopen("vendor/libminimap2.so")
+minimap2 = Libdl.dlopen("/home/nolln/code/bio/PanGraph/vendor/libminimap2.so")
 
 idx_str  = Libdl.dlsym(minimap2, :mm_idx_str)
 idx_stat = Libdl.dlsym(minimap2, :mm_idx_stat)

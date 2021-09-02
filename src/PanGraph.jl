@@ -40,8 +40,6 @@ pangraph = Command(
 )
 
 function main(args)
-    seed!(0)
-
     if length(args) == 0
         usage(pangraph)
         return 2
@@ -50,7 +48,7 @@ function main(args)
     return run(pangraph, parse(pangraph, args))
 end
 
-function julia_main()::Cint
+Base.@ccallable function julia_main()::Cint
     try
         main(ARGS)
         return 0
@@ -60,8 +58,9 @@ function julia_main()::Cint
     end
 end
 
+if !isdefined(Base, :active_repl)
+    main(ARGS)
 end
 
-if !isdefined(Base, :active_repl)
-    PanGraph.main(ARGS)
 end
+
