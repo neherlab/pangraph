@@ -31,8 +31,8 @@ function execute(cmd::Cmd; now=true)
 end
 
 function mash(input)
-    result = execute(`mash triangle $input`)
-    stdout = IOBuffer(result.out)
+    result = execute(`mash triangle $input`; now=false)
+    stdout = IOBuffer(fetch(result.out))
 
     N     = parse(Int64,readline(stdout))
     dist  = zeros(N,N)

@@ -19,36 +19,6 @@ import ..Minimap
 export align
 
 # ------------------------------------------------------------------------
-# global variables
-# TODO: move to a better location
-
-#=
-fifos       = pool(2) #pool(3*Threads.nthreads()) NOTE: uncomment when you want concurrency
-getio()     = take!(fifos)
-hasio()     = isready(fifos)
-putio(fifo) = put!(fifos, fifo)
-finalize()  = shutdown(fifos)
-atexit(finalize)
-
-# TODO: generalize to n > 2
-# NOTE: this is to ensure no deadlock for singleton pulls
-function getios()
-    @label getlock
-    io₁ = getio()
-    lock(fifos)
-    if !hasio()
-        putio(io₁)
-        unlock(fifos)
-        @goto getlock
-    end
-    io₂ = getio()
-    unlock(fifos)
-
-    return io₁, io₂
-end
-=#
-
-# ------------------------------------------------------------------------
 # helper functions
 
 function log(msg...)
@@ -244,13 +214,17 @@ end
 # TODO: assumes the input graphs are singletons! generalize
 function ordering(Gs...; compare=mash)
     root = mktemp() do path, io
-        for (i,G) ∈ enumerate(Gs)
-            serialize(io, G)
+        writer = @async let
+            for (i,G) ∈ enumerate(Gs)
+                serialize(io, G)
+            end
         end
 
-        task = compare(path)
+        reader = @async compare(path)
 
-        distance, names = fetch(task)
+        wait(writer)
+        distance, names = fetch(reader)
+
         Clade(distance, names; algo=:nj)
     end
 
