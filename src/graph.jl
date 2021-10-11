@@ -40,8 +40,8 @@ Maybe{T} = Union{T,Nothing}
 
 # aliases
 const SNPMap = Dict{Int,UInt8}
-const InsMap = Dict{Tuple{Int,Int},Array{UInt8,1}} 
-const DelMap = Dict{Int,Int} 
+const InsMap = Dict{Tuple{Int,Int},Array{UInt8,1}}
+const DelMap = Dict{Int,Int}
 
 export Maybe, SNPMap, InsMap, DelMap
 
@@ -59,8 +59,8 @@ include("junction.jl")
 include("cmd.jl")
 include("minimap.jl")
 
-using .Utility: 
-    read_fasta, write_fasta, name, columns, log, 
+using .Utility:
+    read_fasta, write_fasta, name, columns, log,
     make_consensus, alignment_alleles
 using .Nodes
 using .Blocks
@@ -100,7 +100,7 @@ function Graph(name::String, sequence::Array{UInt8}; circular=false)
     append!(block, path.node[1], SNPMap(), InsMap(), DelMap())
 
     return Graph(
-         Dict([pair(block)]), 
+         Dict([pair(block)]),
          Dict([pair(path)]),
          # TODO: more items...
     )
@@ -180,7 +180,7 @@ function detransitive!(G::Graph)
 
         else
             chain[j.left.block]  = [left(j), right(j)]
-            chain[j.right.block] = chain[j.left.block] 
+            chain[j.right.block] = chain[j.left.block]
         end
     end
 
@@ -211,8 +211,8 @@ function detransitive!(G::Graph)
                 println("--> number of nodes:  $(length(path.node))")
                 println("--> |badloci|:        $(length(badloci))")
                 println("--> window:           $(left):$(badloci[1]):$(right)")
-                println("--> ref:              $(oldseq[left:right])") 
-                println("--> seq:              $(newseq[left:right])") 
+                println("--> ref:              $(oldseq[left:right])")
+                println("--> seq:              $(newseq[left:right])")
             end =#
         end
 
@@ -300,8 +300,8 @@ function marshal_json(io::IO, G::Graph)
             blocks[i] = (
                 id     = node.block.uuid,
                 name   = p.name,
-                number = counts[node.block], 
-                strand = node.strand, 
+                number = counts[node.block],
+                strand = node.strand,
             )
             nodes[node] = blocks[i]
             counts[node.block] += 1
@@ -377,7 +377,7 @@ function unmarshal(io)
             b.sequence,
             b.gaps,
             # empty until we build the required node{block} objects
-            Dict{Node{Block},SNPMap}(), 
+            Dict{Node{Block},SNPMap}(),
             Dict{Node{Block},InsMap}(),
             Dict{Node{Block},DelMap}(),
         )
@@ -438,49 +438,54 @@ end
 
 sequence(g::Graph) = [ name => join(String(sequence(node.block, node)) for node ∈ path.node) for (name, path) ∈ g.sequence ]
 
-function realign!(g)
+function realign!(g::Graph)
     fifo = FIFO()
-    for blk in values(g.block)
-        cmd = mafft(path(fifo))
-        @async let
-            names = nothing
-            io    = open(fifo, "w")
-            @label write
-            sleep(1e-3)
-            try
-                # XXX: how to pass names out
-                names = marshal(io, blk, :fasta)
-            catch e
-                log("ERROR: $(e)")
-                @goto write
-            finally
-                close(io)
+    try
+        for blk in values(g.block)
+            writer = @async let
+                names = nothing
+                io    = open(fifo, "w")
+                @label write
+                sleep(1e-3)
+                try
+                    # XXX: how to pass names out
+                    names = marshal(io, blk, :fasta)
+                catch e
+                    log("ERROR: $(e)")
+                    @goto write
+                finally
+                    close(io)
+                end
             end
+            reader = @async mafft(path(fifo))
+
+            wait(writer)
+            out = IOBuffer(fetch(reader.out))
+
+            seq = collect(read_fasta(out))
+            aln = reduce(vcat, map((r)->r.seq, seq))
+            ref = make_consensus(aln)
+
+            iso = map((r)->names[r.name], seq)
+            blk.gaps, blk.mutate, blk.delete, blk.insert, blk.sequence = alignment_alleles(consensus, aln, nodes)
         end
-
-        out = IOBuffer(fetch(cmd.out))
-
-        seq = collect(read_fasta(out))
-        aln = reduce(vcat, map((r)->r.seq, seq))
-        ref = make_consensus(aln)
-
-        iso = map((r)->names[r.name], seq)
-        blk.gaps, blk.mutate, blk.delete, blk.insert, blk.sequence = alignment_alleles(consensus, aln, nodes)
+    finally
+        delete(fifo)
     end
-    delete(fifo)
 end
 
 function finalize!(g)
-    # realign!(g)
     for p in values(g.sequence)
         positions!(p)
     end
+
+    realign!(g)
 end
 
 # ------------------------------------------------------------------------
 # main point of entry
 
-function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa") #"data/generated/assemblies/isolates.fna.gz")
+function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa")
     open = endswith(file,".gz") ? GZip.open : Base.open
 
     log("> running graph test...")
@@ -507,7 +512,7 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa") #"data/ge
             println("> reconstructed ($(length(seq₁))): ", seq₁[1:20])
             println("> offset:                          $(path.offset)")
             println("> needed offset:                   $(x)")
-            error("--> isolate '$name' incorrectly reconstructed")
+            log("--> isolate '$name' incorrectly reconstructed")
         else
             log("--> isolate '$name' correctly reconstructed")
         end

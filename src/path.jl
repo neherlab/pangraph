@@ -205,13 +205,29 @@ function positions!(p::Path)
     p.position[end] = l
 
     if p.offset !== nothing
-        if p.offset > 0
-            p.offset = p.offset % l
-            ι = p.position .> p.offset
-            p.position[ι]   -= p.offset
-            p.position[.!ι] += l - p.offset
-        elseif p.offset < 0
-            p.position = ((p.position .- (p.offset + 1)) .% l) .+ 1
+        if p.offset < 0
+            offset = -p.offset
+            #=
+                example (offset=-2):
+                    *           1 2 3 4 5 6
+                1 2 3 4 5 6  => 3 4 5 6 1 2
+                A B C D E F  => C D E F A B
+            =#
+
+            offset = offset % l
+
+            ι = p.position .> offset
+
+            p.position[ι]   = p.position[ι]   .- offset
+            p.position[.!ι] = p.position[.!ι] .+ (l - offset)
+        elseif p.offset > 0
+            #=
+                example (offset=+2):
+                    *           1 2 3 4 5 6
+                1 2 3 4 5 6  => 5 6 1 2 3 4
+                A B C D E F  => E F A B C D
+            =#
+            p.position = ((p.position .+ (p.offset - 1)) .% l) .+ 1
         end
     end
 
