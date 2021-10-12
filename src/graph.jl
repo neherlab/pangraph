@@ -479,7 +479,7 @@ function finalize!(g)
         positions!(p)
     end
 
-    realign!(g)
+    # realign!(g)
 end
 
 # ------------------------------------------------------------------------

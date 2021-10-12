@@ -41,9 +41,9 @@ end
 # ---------------------------
 # constructors
 
-Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(0))
-Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(0))
-Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(0))
+Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(1))
+Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(1))
+Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(1))
 
 function Clade(distance, names; algo=:nj)
     @match algo begin
@@ -233,22 +233,6 @@ end
 
 # ------------------------------------------------------------------------
 # align functions
-
-function write(fifo, G::Graph)
-    io = open(fifo, "w")
-
-    @label write
-    sleep(1e-3) # NOTE: hack to allow for minimap2 to open file
-    try
-        marshal(io, G)
-    catch e
-        log("WRITE ERROR: $(e)")
-        @goto write
-        # error(e)
-    finally
-        close(io)
-    end
-end
 
 function do_align(G₁::Graph, G₂::Graph, energy::Function)
     hits = Minimap.align(pancontigs(G₁), pancontigs(G₂))
@@ -511,28 +495,24 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
     log("--> tree: ", tree)
 
     meter = Progress(length(tree); desc="alignment progress", output=stderr)
-    function kernel(clade)
-        Gₗ = take!(clade.left.graph)
-        Gᵣ = take!(clade.right.graph)
-
-        G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, verify, false)
-        G₀ = align_self(G₀, energy, minblock, verify, false)
-
-        put!(clade.graph, G₀)
-    end
-
-    # sequences on tips of tree
-    tips = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
+    tips  = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
     log("--> aligning pairs")
     for clade ∈ postorder(tree)
-        @spawn try 
+        @spawn try
             if isleaf(clade)
                 put!(clade.graph, tips[clade.name])
                 close(clade.graph)
                 next!(meter)
             else
-                kernel(clade)
+                Gₗ = take!(clade.left.graph)
+                Gᵣ = take!(clade.right.graph)
+
+                G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, verify, false)
+                G₀ = align_self(G₀, energy, minblock, verify, false)
+
+                put!(clade.graph, G₀)
+
                 close(clade.graph)
                 next!(meter)
             end
