@@ -486,12 +486,24 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa")
     log("-> building graph...")
 
     sequences = String[]
+    energy = (aln) -> let
+        len = aln.length
+        len < 100 && return Inf
+
+        cuts(hit) = (hit.start > 100) + ((hit.length-hit.stop) > 100)
+
+        ncuts = cuts(aln.qry)+cuts(aln.ref)
+        nmuts = aln.divergence*aln.length
+
+        return -len + 100*ncuts + 20*nmuts
+    end
+
     graph, isolates = open(file, "r") do io
         isolates  = graphs(io; circular=true)
         sequences = [first(sequence(iso)) for iso in isolates]
 
         println("-->aligning...")
-        align(isolates...;minblock=50,reference=Dict(sequences)), isolates
+        align(isolates...;energy=energy,minblock=100), isolates
     end
 
     log("-> verifying graph...")
