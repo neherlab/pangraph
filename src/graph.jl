@@ -362,7 +362,9 @@ function unmarshal(io)
         b = (
             id       = String(blk["id"]),
             sequence = Array{UInt8}(blk["sequence"]),
-            gaps     = Dict{Int,Int}(blk["gaps"]),
+            gaps     = Dict{Int,Int}(
+                parse(Int,k) => v for (k,v) ∈ blk["gaps"]
+            ),
             mutate   = Dict(k=>v for (k,v) ∈ blk["mutate"]),
             insert   = Dict(k=>v for (k,v) ∈ blk["insert"]),
             delete   = Dict(k=>v for (k,v) ∈ blk["delete"]),
@@ -403,24 +405,35 @@ function unmarshal(io)
             push!(nodes, Node(blocks[b.id], b.strand))
 
             # fill in block variant dictionaries
+            filter!(p->p.first!="id", blk)
+
             blocks[b.id].mutate[nodes[i]] = Dict(
                 snp[1] => UInt8(snp[2][1]) for snp ∈ unpack.snp[b.id][blk]
             )
 
             blocks[b.id].insert[nodes[i]] = Dict(
-                ins[1] => Array{UInt8}(ins[2]) for ins ∈ unpack.ins[b.id][blk]
+                let
+                    @assert length(ins[1]) == 2
+                    key = (ins[1][1], ins[1][2])
+                    key => Array{UInt8}(ins[2])
+                end for ins ∈ unpack.ins[b.id][blk]
             )
 
             blocks[b.id].delete[nodes[i]] = Dict(
                 del[1] => del[2] for del ∈ unpack.del[b.id][blk]
             )
         end
-        p.name => Path(
+
+        path = Path(
             p.name,
             nodes,
             p.offset,
             p.circular,
+            [],
         )
+        positions!(path)
+
+        p.name => path
     end)
 
     return Graph(blocks, paths)
