@@ -1,7 +1,10 @@
 module PanGraph
 
+using GZip
 using Rematch
 using Random: seed!
+
+include("graph.jl")
 
 # ------------------------------------------------------------------------
 # errors
@@ -16,6 +19,11 @@ function panic(msg...)
     exit(2)
 end
 
+function open(func, path)
+    endswith(path, ".gz") && return GZip.open(func, path)
+    return Base.open(func, path)
+end
+
 # ------------------------------------------------------------------------
 # subcommands and arguments
 
@@ -27,6 +35,7 @@ using .Commands
 
 include("build.jl")
 include("generate.jl")
+include("polish.jl")
 
 pangraph = Command(
     "pangraph",
@@ -36,6 +45,7 @@ pangraph = Command(
     [
      Build,
      Generate,
+     Polish,
     ],
 )
 

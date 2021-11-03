@@ -1,6 +1,3 @@
-using GZip
-
-include("graph.jl")
 using .Graphs
 
 Build = Command(

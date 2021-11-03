@@ -616,8 +616,8 @@ function alignment_alleles(ref, aln, nodes)
     coord   = cumsum(.!refdel)
     refgaps = contiguous_trues(refdel)
     gaps    = Dict{Int,Int}(coord[gap.lo] => length(gap) for gap in refgaps)
-    
-    mutate = Dict{Node,SNPMap}( 
+
+    mutate = Dict{Node,SNPMap}(
             node => SNPMap(
                    coord[l] => aln[l,i] 
                 for l in findall(δ.snp[:,i])

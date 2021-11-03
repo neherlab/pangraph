@@ -3,6 +3,7 @@ module Graphs
 using GZip # NOTE: for debugging purposes
 using Random
 using Rematch
+using ProgressMeter
 
 import JSON
 
@@ -52,9 +53,9 @@ include("interval.jl")
 include("counter.jl")
 include("node.jl")
 include("util.jl")
-include("pool.jl")
 include("block.jl")
 include("path.jl")
+include("pool.jl")
 include("junction.jl")
 include("cmd.jl")
 include("minimap.jl")
@@ -67,7 +68,7 @@ using .Blocks
 using .Paths
 using .Junctions
 using .Intervals
-using .Pool: FIFO
+using .Pool
 
 import .Shell: mafft
 import .Minimap: PanContigs
@@ -452,38 +453,17 @@ end
 sequence(g::Graph) = [ name => join(String(sequence(node.block, node)) for node ∈ path.node) for (name, path) ∈ g.sequence ]
 
 function realign!(g::Graph)
-    fifo = FIFO()
-    try
-        for blk in values(g.block)
-            writer = @async let
-                names = nothing
-                io    = open(fifo, "w")
-                @label write
-                sleep(1e-3)
-                try
-                    # XXX: how to pass names out
-                    names = marshal(io, blk, :fasta)
-                catch e
-                    log("ERROR: $(e)")
-                    @goto write
-                finally
-                    close(io)
-                end
-            end
-            reader = @async mafft(path(fifo))
+    meter = Progress(length(g.block); desc="polishing progress", output=stderr)
+    Threads.@threads for blk in collect(values(g.block))
+        io, node = mafft(blk)
 
-            wait(writer)
-            out = IOBuffer(fetch(reader.out))
+        seq = collect(read_fasta(io))
+        aln = reduce(hcat, map((r)->r.seq, seq))
+        ref = make_consensus(aln)
 
-            seq = collect(read_fasta(out))
-            aln = reduce(vcat, map((r)->r.seq, seq))
-            ref = make_consensus(aln)
-
-            iso = map((r)->names[r.name], seq)
-            blk.gaps, blk.mutate, blk.delete, blk.insert, blk.sequence = alignment_alleles(consensus, aln, nodes)
-        end
-    finally
-        delete(fifo)
+        nodes = map((r)->node[r.name], seq)
+        blk.gaps, blk.mutate, blk.delete, blk.insert, blk.sequence = alignment_alleles(ref, aln, nodes)
+        next!(meter)
     end
 end
 

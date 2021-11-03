@@ -1,5 +1,7 @@
 module Shell
 
+using ..Graphs: marshal
+
 export minimap2, mash, mafft
 
 # command line execution
@@ -52,8 +54,21 @@ function minimap2(qry::String, ref::String)
     return execute(`minimap2 -x asm10 -m 10 -n 1 -s 30 -D -c $ref $qry`; now=false)
 end
 
-function mafft(path::AbstractString)
-    return execute(`mafft --auto --quiet --nuc $path`; now=false)
+function mafft(block)
+    out = IOBuffer()
+    aln = IOBuffer()
+
+    names = marshal(aln, block, :fasta)
+    aln = IOBuffer(String(take!(aln)))
+
+    run(pipeline(pipeline(
+        aln, `mafft --auto --nuc /dev/stdin`, out
+        ); stderr=devnull ); wait=true
+    )
+
+    close(aln)
+
+    return IOBuffer(String(take!(out))), names
 end
 
 end

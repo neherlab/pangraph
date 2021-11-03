@@ -1154,7 +1154,7 @@ function check(b::Block; ids=true)
 end
 
 function marshal_fasta(io::IO, b::Block)
-    isolate = (i) -> "isolate_$i"
+    isolate = (i) -> "isolate_$(i)"
 
     nodes = collect(keys(b))
     names = Dict(isolate(i) => node for (i,node) in enumerate(nodes))
