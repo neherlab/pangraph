@@ -234,8 +234,8 @@ end
 # ------------------------------------------------------------------------
 # align functions
 
-function do_align(G₁::Graph, G₂::Graph, energy::Function)
-    hits = Minimap.align(pancontigs(G₁), pancontigs(G₂))
+function do_align(G₁::Graph, G₂::Graph, energy::Function, minblock::Int)
+    hits = Minimap.align(pancontigs(G₁), pancontigs(G₂), minblock)
     sort!(hits; by=energy)
 
     return hits
@@ -289,8 +289,8 @@ function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Functi
     niter = 0
     while ok && niter < maxiter
         ok   = false
-        hits = do_align(G₀, G₀, energy)
-        
+        hits = do_align(G₀, G₀, energy, minblock)
+
         skip  = (hit) -> (
                (hit.qry.name == hit.ref.name)
             || (hit.length < minblock)
@@ -406,7 +406,7 @@ function compare(old, new, strand)
 end
 
 function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool)
-    hits = do_align(G₁, G₂, energy)
+    hits = do_align(G₁, G₂, energy, minblock)
 
     skip  = (hit) -> !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block)) || (hit.length < minblock)
     block = (hit) -> (

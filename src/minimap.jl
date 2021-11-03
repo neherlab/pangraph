@@ -83,7 +83,7 @@ struct IndexOptions
     IndexOptions() = new()
 end
 
-mutable struct MapOptions 
+mutable struct MapOptions
 	flag :: Int64
 	seed :: Cint
 	sdust_thres :: Cint
@@ -125,7 +125,6 @@ mutable struct MapOptions
 	pe_ori :: Cint; pe_bonus :: Cint
 
 	mid_occ_frac :: Cfloat
-	q_occ_frac :: Cfloat
 	min_mid_occ :: Int32; max_mid_occ :: Int32
 	mid_occ :: Int32
 	max_occ :: Int32; max_max_occ :: Int32; occ_dist :: Int32;
@@ -135,7 +134,7 @@ mutable struct MapOptions
 
 	split_prefix :: Cstring
 
-    function MapOptions(idx::Ref{IndexOptions})
+    function MapOptions(idx::Ref{IndexOptions}, minblock::Int)
         opt = Ref{MapOptions}(new())
 
         # TODO: error handling
@@ -146,6 +145,8 @@ mutable struct MapOptions
               "asm10", idx, opt
         )
 
+        # manual overrides
+        opt[].min_dp_max = minblock-10
         opt[].flag |= (NO_DIAG|CIGAR)
 
         return opt
@@ -196,12 +197,13 @@ unpackcigar(base::Ptr{UInt32}, n) = [let
 end for i in 1:n]
 
 # alignment
-function align(ref::PanContigs, qry::PanContigs)
+function align(ref::PanContigs, qry::PanContigs, minblock::Int)
     iopt = Ref{IndexOptions}(IndexOptions()) 
-    mopt = MapOptions(iopt) 
+    mopt = MapOptions(iopt, minblock)
     len  = Ref{Cint}(0)
 
     index  = makeindex(iopt[].w, iopt[].k, ref.name, ref.sequence)
+
     buffer = makebuffer()
 
     ccall(update_opt, Cvoid, (Ptr{MapOptions}, Ptr{Cvoid}), mopt, index.handle)
@@ -212,6 +214,7 @@ function align(ref::PanContigs, qry::PanContigs)
                 (Ptr{Cvoid}, Cint, Ptr{Cchar}, Ptr{Cint}, Ptr{Cvoid}, Ptr{Cvoid}, Cstring),
                 index.handle, length(seq), seq, len, buffer.handle, mopt, qry.name[i]
         )
+
         for n in 1:len[]
             hit = unsafe_load(hits, n)
             aln = unsafe_load(hit.p, 1)
@@ -228,6 +231,7 @@ function align(ref::PanContigs, qry::PanContigs)
                 1 - ccall(divergence, Cdouble, (Ptr{Record},), Ref(hit)),
                 nothing
             ))
+
             Libc.free(hit.p)
         end
         Libc.free(hits)
