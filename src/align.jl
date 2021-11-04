@@ -12,6 +12,7 @@ using ..Blocks
 using ..Paths: replace!
 using ..Nodes
 using ..Graphs
+using ..Mash
 
 import ..Shell: mash
 import ..Minimap
@@ -491,6 +492,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
     end
 
     log("--> ordering")
+    Mash.distance(Gs...)
     tree = ordering(Gs...)
     log("--> tree: ", tree)
 

@@ -59,6 +59,7 @@ include("pool.jl")
 include("junction.jl")
 include("cmd.jl")
 include("minimap.jl")
+include("mash.jl")
 
 using .Utility:
     read_fasta, write_fasta, name, columns, log,
