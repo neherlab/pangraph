@@ -1,6 +1,6 @@
 module Shell
 
-using ..Graphs: marshal
+using ..Graphs: marshal, serialize
 
 export minimap2, mash, mafft
 
@@ -32,22 +32,37 @@ function execute(cmd::Cmd; now=true)
     end
 end
 
-function mash(input)
-    result = execute(`mash triangle $input`; now=false)
-    stdout = IOBuffer(fetch(result.out))
+function mash(Gs...)
+    function compare(path)
+        result = execute(`mash triangle $path`; now=false)
+        stdout = IOBuffer(fetch(result.out))
 
-    N     = parse(Int64,readline(stdout))
-    dist  = zeros(N,N)
-    names = Array{String}(undef, N)
-    for (i, line) in enumerate(eachline(stdout))
-        elt = split(strip(line))
-        names[i] = elt[1]
-        dist[i,1:(i-1)] = [parse(Float64,x) for x in elt[2:end]]
+        N     = parse(Int64,readline(stdout))
+        dist  = zeros(N,N)
+        names = Array{String}(undef, N)
+        for (i, line) in enumerate(eachline(stdout))
+            elt = split(strip(line))
+            names[i] = elt[1]
+            dist[i,1:(i-1)] = [parse(Float64,x) for x in elt[2:end]]
+        end
+
+        dist = dist + dist';
+
+        return dist, names
     end
 
-    dist = dist + dist';
+    distance, names = mktemp() do path, io
+        writer = @async let
+            for (i,G) ∈ enumerate(Gs)
+                serialize(io, G)
+            end
+        end
 
-    return dist, names
+        reader = @async compare(path)
+
+        wait(writer)
+        distance, names = fetch(reader)
+    end
 end
 
 function minimap2(qry::String, ref::String)

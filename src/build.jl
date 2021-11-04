@@ -36,6 +36,17 @@ Build = Command(
         "toggle if input genomes are circular",
         false,
     ),
+    Arg(
+        String,
+        "distance calculator",
+        (short="-d", long="--distance-backend"),
+        """
+        backend to use to estimate pairwise distance for guide tree
+                    recognized options:
+                        native
+                        mash""",
+        "native",
+    ),
    ],
 
    (args) -> let
@@ -55,10 +66,20 @@ Build = Command(
            return -len + Build.arg[2].value*ncuts + Build.arg[3].value*nmuts
        end
 
-       graph(io) = graphs(io; circular=Build.arg[end].value)
+       graph(io) = graphs(io; circular=Build.arg[4].value)
        isolates  = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graph,file) : open(graph,file)))
 
-       graph = Graphs.align(isolates...; energy=energy, minblock=minblock)
+       compare = @match Build.arg[5].value begin
+           "native" => Graphs.Mash.distance
+           "mash"   => Graphs.mash
+           _        => begin
+                Build.arg[5].value = "native" # XXX: hacky...
+                usage(Build)
+                exit(1)
+           end
+       end
+
+       graph = Graphs.align(isolates...; compare=compare, energy=energy, minblock=minblock)
        marshal(stdout, graph, :json)
    end
 )

@@ -120,7 +120,7 @@ function Base.parse(cmd::Command, args)
         popfirst!(itr) # advance iterator
         for arg ∈ cmd.arg
             if arg.flag.long == in || arg.flag.short == in 
-                arg.value = 
+                arg.value =
                 if arg.type == Bool
                     true
                 else
@@ -132,7 +132,7 @@ function Base.parse(cmd::Command, args)
 
                     val = popfirst!(itr)
                     try
-                        Base.parse(arg.type, val)
+                        arg.type == String ? val : Base.parse(arg.type, val)
                     catch e
                         if isa(e, ArgumentError)
                             panic("""flag '$(in)' requires input data of type '$(arg.type)'. recieved '$(val)'

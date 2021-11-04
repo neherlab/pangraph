@@ -145,27 +145,46 @@ function sketch(seq::Array{UInt8}, k::Int, w::Int, id::Int)
     return minimizer
 end
 
-function distance(graphs...; k=20, w=200)
+tuples(iter) = ((x,y) for (i,x) in enumerate(iter) for y in iter[i:end])
+
+function distance(graphs...; k=15, w=100)
     sequences = Dict(seq for graph in graphs for seq in sequence(graph))
 
     names = collect(keys(sequences))
-    seqs  = [sequences[name] for name in names]
+    seqs = [sequences[name] for name in names]
 
     minimizers = Minimizer[]
     for (i,seq) in enumerate(seqs)
         append!(minimizers, sketch(Array{UInt8}(seq), k, w, i))
     end
 
-    @time sort!(minimizers, by=(m)->m.value)
-    l = 1
+    sort!(minimizers, by=(m)->m.value)
+    distance = zeros(Float64, length(seqs), length(seqs))
+
+    l, r = 1, 1
     while l ≤ length(minimizers)
-        l = r
         while r ≤ length(minimizers) && minimizers[r].value == minimizers[l].value
             r += 1
         end
+
+        hits = sort(collect(Set(Int(m.position >> 32) for m in minimizers[l:(r-1)])))
+
+        for (i,j) in tuples(hits)
+            distance[i,j] += 1
+        end
+
+        l = r
     end
 
-    exit(1)
+    for i ∈ 1:length(seqs)
+        for j ∈ (i+1):length(seqs)
+            distance[i,j] = 1 - distance[i,j]/distance[i,i]
+            distance[j,i] = distance[i,j]
+        end
+        distance[i,i] = 0
+    end
+
+    return distance, names
 end
 
 end

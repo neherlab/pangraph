@@ -14,7 +14,6 @@ using ..Nodes
 using ..Graphs
 using ..Mash
 
-import ..Shell: mash
 import ..Minimap
 
 export align
@@ -213,23 +212,9 @@ end
 # ordering functions
 
 # TODO: assumes the input graphs are singletons! generalize
-function ordering(Gs...; compare=mash)
-    root = mktemp() do path, io
-        writer = @async let
-            for (i,G) ∈ enumerate(Gs)
-                serialize(io, G)
-            end
-        end
-
-        reader = @async compare(path)
-
-        wait(writer)
-        distance, names = fetch(reader)
-
-        Clade(distance, names; algo=:nj)
-    end
-
-    return root
+function ordering(compare, Gs...)
+    distance, names = compare(Gs...)
+    return Clade(distance, names; algo=:nj)
 end
 
 # ------------------------------------------------------------------------
@@ -443,7 +428,7 @@ end
 
 # TODO: the associative array is a bit hacky...
 #       can we push it directly into the channel?
-function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothing)
+function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing)
     function verify(graph, msg="")
         if reference !== nothing
             log(msg)
@@ -492,8 +477,7 @@ function align(Gs::Graph...; energy=(hit)->(-Inf), minblock=100, reference=nothi
     end
 
     log("--> ordering")
-    Mash.distance(Gs...)
-    tree = ordering(Gs...)
+    tree = ordering(compare, Gs...)
     log("--> tree: ", tree)
 
     meter = Progress(length(tree); desc="alignment progress", output=stderr)

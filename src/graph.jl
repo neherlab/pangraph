@@ -34,6 +34,9 @@ function marshal(io::IO, x, fmt=:fasta)
     end
 end
 
+export serialize
+function serialize(io::IO, x) end
+
 # ------------------------------------------------------------------------
 # aux types
 
@@ -71,12 +74,12 @@ using .Junctions
 using .Intervals
 using .Pool
 
-import .Shell: mafft
+import .Shell: mash, mafft
 import .Minimap: PanContigs
 
 export Graph
 
-export graphs, serialize, detransitive!, prune!, finalize!
+export graphs, detransitive!, prune!, finalize!
 export pancontigs
 export checkblocks
 
@@ -265,7 +268,7 @@ end
 
 # TODO: can we generalize to multiple individuals
 #       equivalent to "highway" detection
-function serialize(io, G::Graph)
+function serialize(io::IO, G::Graph)
     if length(G.sequence) != 1
         error("only singleton graphs implemented")
     end
