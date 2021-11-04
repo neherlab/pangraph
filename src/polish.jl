@@ -26,6 +26,9 @@ Polish = Command(
            return 2
        end
 
+       if !Graphs.havecommand("mafft")
+           panic("external command mafft not found. please install before running polish step\n")
+       end
        Graphs.realign!(graph)
 
        marshal(stdout, graph, :json)

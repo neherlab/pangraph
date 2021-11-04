@@ -71,7 +71,12 @@ Build = Command(
 
        compare = @match Build.arg[5].value begin
            "native" => Graphs.Mash.distance
-           "mash"   => Graphs.mash
+           "mash"   => begin
+               if !Graphs.havecommand("mash")
+                   panic("external command mash not found. either install or use native backend\n")
+               end
+               Graphs.mash
+           end
            _        => begin
                 Build.arg[5].value = "native" # XXX: hacky...
                 usage(Build)

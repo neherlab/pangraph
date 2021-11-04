@@ -74,7 +74,7 @@ using .Junctions
 using .Intervals
 using .Pool
 
-import .Shell: mash, mafft
+import .Shell: mash, mafft, havecommand
 import .Minimap: PanContigs
 
 export Graph

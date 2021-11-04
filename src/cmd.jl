@@ -2,7 +2,10 @@ module Shell
 
 using ..Graphs: marshal, serialize
 
+export havecommand
 export minimap2, mash, mafft
+
+havecommand(cmd) = Sys.which(cmd) !== nothing
 
 # command line execution
 function execute(cmd::Cmd; now=true)
