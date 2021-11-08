@@ -6,6 +6,8 @@ using Random: seed!
 
 include("graph.jl")
 
+export Graphs
+
 # ------------------------------------------------------------------------
 # errors
 
@@ -67,7 +69,7 @@ function julia_main()::Cint
     end
 end
 
-if !isdefined(Base, :active_repl)
+if abspath(PROGRAM_FILE) == @__FILE__
     main(ARGS)
 end
 

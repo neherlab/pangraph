@@ -1,8 +1,3 @@
-function open(func, path)
-    endswith(path, ".gz") && return GZip.open(func, path)
-    return Base.open(func, path)
-end
-
 Polish = Command(
    "polish",
    "pangraph polish <options> [pangraph.json]",

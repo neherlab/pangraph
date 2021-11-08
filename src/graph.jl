@@ -58,7 +58,8 @@ include("node.jl")
 include("util.jl")
 include("block.jl")
 include("path.jl")
-include("pool.jl")
+include("edge.jl")
+# include("pool.jl")
 include("junction.jl")
 include("cmd.jl")
 include("minimap.jl")
@@ -70,9 +71,10 @@ using .Utility:
 using .Nodes
 using .Blocks
 using .Paths
+using .Edges
 using .Junctions
 using .Intervals
-using .Pool
+# using .Pool
 
 import .Shell: mash, mafft, havecommand
 import .Minimap: PanContigs
