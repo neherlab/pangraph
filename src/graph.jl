@@ -24,18 +24,20 @@ function reverse_complement(item)  end
 function reverse_complement!(item) end
 
 export marshal, marshal_fasta, marshal_json, marshal_gfa
-function marshal_fasta(io::IO, x) end
-function marshal_json(io::IO, x) end
-function marshal_gfa(io::IO, x) end
+function marshal_fasta(io::IO, x; opt=nothing) end
+function marshal_json(io::IO, x; opt=nothing) end
+function marshal_gfa(io::IO, x; opt=nothing) end
 
-function marshal(io::IO, x, fmt=:fasta)
+function marshal(io::IO, x; fmt=:fasta, opt=nothing)
     @match fmt begin
-        :fasta || :fa => return marshal_fasta(io, x)
-        :json         => return marshal_json(io, x)
-        :gfa          => return marshal_gfa(io, x)
+        :fasta || :fa => return marshal_fasta(io, x; opt)
+        :json         => return marshal_json(io, x; opt)
+        :gfa          => return marshal_gfa(io, x; opt)
         _ => error("$fmt not a recognized output format")
     end
 end
+
+export unmarshal
 
 export serialize
 function serialize(io::IO, x) end
@@ -83,6 +85,7 @@ import .Shell: mash, mafft, havecommand
 import .Minimap: PanContigs
 
 export Graph
+export Shell, Blocks
 
 export graphs, detransitive!, prune!, finalize!
 export pancontigs
@@ -287,14 +290,14 @@ function serialize(io::IO, G::Graph)
     write_fasta(io, name, seq)
 end
 
-function marshal_fasta(io::IO, G::Graph)
-    for (i, b) in enumerate(values(G.block))
+function marshal_fasta(io::IO, G::Graph; opt=nothing)
+    for b in values(G.block)
         write_fasta(io, b.uuid, b.sequence)
     end
 end
 
 # XXX: think of a way to break up function but maintain graph-wide node lookup table
-function marshal_json(io::IO, G::Graph)
+function marshal_json(io::IO, G::Graph; opt=nothing)
     NodeID    = NamedTuple{(:id,:name,:number,:strand), Tuple{String,String,Int,Bool}}
     nodes     = Dict{Node{Block}, NodeID}()
     positions = Dict{Block, Dict{NodeID, Tuple{Int,Int}}}()

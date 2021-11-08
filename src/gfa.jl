@@ -36,24 +36,44 @@ end
 struct Path
     name     :: String
     segments :: Array{Node,1}
+    circular :: Bool
 end
 
 function print(io::IO, nodes::Array{Node,1})
     print(io, join(("$(n.segment.name)$(polarity(n.orientation))" for n in nodes ), ","))
 end
 
+circular(flag::Bool) =  flag ? "TP:Z:circular" : "TP:Z:linear"
+
 function print(io::IO, p::Path)
-    print(io, "P\t$(p.name)\t$(p.segments)\t*")
+    print(io, "P\t$(p.name)\t$(p.segments)\t$(circular(p.circular))*")
 end
 
-function marshal_gfa(io::IO, G::Graph)
+function marshal_gfa(io::IO, G::Graph; opt=nothing)
+    # unpack options
+    filter = (
+        opt === nothing 
+        ? (
+            connect = (node)    -> false,
+            output  = (segment) -> false,
+          )
+        : (
+            connect = opt.connect,
+            output  = opt.output,
+          )
+    )
+
     # wrangle data
     segments = Dict(
-        block => Segment(
-            block.uuid,
-            sequence(block),
-            length(block.mutate)
-        ) for block in values(G.block)
+        let
+            segment = Segment(
+                block.uuid,
+                sequence(block),
+                length(block.mutate)
+            ) 
+
+            block => filter.output(segment) ? nothing : segment
+        end for block in values(G.block)
     )
 
     links = Dict{Set{Node}, Link}()
@@ -69,16 +89,20 @@ function marshal_gfa(io::IO, G::Graph)
     end
 
     for (i,path) in enumerate(values(G.sequence))
-        nodes = [let
-             if length(node.block.mutate) ≤ 30 & length(node.block.mutate) > 1
-                (
-                 segment     = segments[node.block],
-                 orientation = node.strand,
-                )
-            else
-                nothing
+        nodes = [
+            let
+                segment = segments[node.block]
+                if segment !== nothing && !filter.connect(node)
+                    (
+                     segment     = segment,
+                     orientation = node.strand,
+                    )
+                else
+                    nothing
+                end
             end
-        end for node in path.node]
+            for node in path.node
+        ]
         filter!(n->n!==nothing, nodes)
 
         for (j,node) in enumerate(nodes[2:end])
@@ -89,7 +113,7 @@ function marshal_gfa(io::IO, G::Graph)
             addlink!(nodes[end], nodes[1])
         end
 
-        paths[i] = Path(path.name, nodes)
+        paths[i] = Path(path.name, nodes, path.circular)
     end
 
     # export data
@@ -97,15 +121,17 @@ function marshal_gfa(io::IO, G::Graph)
 
     write(io, "# pancontigs\n")
     for segment in values(segments)
+        segment === nothing && continue
+
         write(io, "$(segment)\n")
     end
 
-    write(io, "# edges \n")
+    write(io, "# edges\n")
     for link in values(links)
         write(io,"$(link)\n")
     end
 
-    write(io, "# sequences \n")
+    write(io, "# sequences\n")
     for path in values(paths)
         write(io,"$(path)\n")
     end

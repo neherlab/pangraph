@@ -1153,7 +1153,7 @@ function check(b::Block; ids=true)
     end
 end
 
-function marshal_fasta(io::IO, b::Block)
+function marshal_fasta(io::IO, b::Block; opt=nothing)
     isolate = (i) -> "isolate_$(i)"
 
     nodes = collect(keys(b))

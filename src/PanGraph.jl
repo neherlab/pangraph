@@ -5,6 +5,7 @@ using Rematch
 using Random: seed!
 
 include("graph.jl")
+using .Graphs
 
 export Graphs
 
@@ -16,7 +17,7 @@ struct Error <: Exception
 end
 Base.showerror(io::IO, e::Error) = print(io, "PanGraph Error: ", e.msg)
 
-function panic(msg...) 
+function panic(msg...)
     print(stderr, string(msg...))
     exit(2)
 end
@@ -24,6 +25,19 @@ end
 function open(func, path)
     endswith(path, ".gz") && return GZip.open(func, path)
     return Base.open(func, path)
+end
+
+function load(path, cmd)
+   if path === nothing
+       unmarshal(stdin)
+   elseif length(path) == 1
+       path = path[1]
+       !isfile(path) && error("file '$(path)' not found")
+       open(unmarshal, path)
+   else
+       usage(cmd)
+       return 2
+   end
 end
 
 # ------------------------------------------------------------------------
@@ -38,6 +52,7 @@ using .Commands
 include("build.jl")
 include("generate.jl")
 include("polish.jl")
+include("export.jl")
 
 pangraph = Command(
     "pangraph",
@@ -48,6 +63,7 @@ pangraph = Command(
      Build,
      Generate,
      Polish,
+     Export,
     ],
 )
 

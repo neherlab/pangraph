@@ -3,7 +3,7 @@ module Commands
 using ..PanGraph: panic
 
 export Arg, Command
-export flags, usage
+export flags, usage, arg
 
 Maybe{T} = Union{Missing,T}
 
@@ -16,7 +16,7 @@ mutable struct Arg
     value
 end
 
-flags(arg::Arg) = 
+flags(arg::Arg) =
     if !ismissing(arg.flag.long) && !ismissing(arg.flag.short) 
         "$(arg.flag.long), $(arg.flag.short)"
     elseif !ismissing(arg.flag.long) && ismissing(arg.flag.short) 
@@ -148,6 +148,11 @@ function Base.parse(cmd::Command, args)
             end
         end
 
+        if in == "-h"
+            usage(cmd)
+            exit(2)
+        end
+
         panic("""provided flag '$(in)' not expected
         Run 'pangraph help' for usage.
         """)
@@ -164,6 +169,16 @@ function Base.run(cmd::Command, args)
         error("command $(cmd.cmd) does not have a valid execution function")
     end
     cmd.run(args)
+end
+
+function arg(cmd::Command, short::AbstractString)
+    i = 1
+    while i ≤ length(cmd.arg) && cmd.arg[i].flag.short != short
+        i += 1
+    end
+    cmd.arg[i].flag.short != short && error("flag $(short) not found")
+
+    return cmd.arg[i].value
 end
 
 end

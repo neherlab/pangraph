@@ -1,5 +1,3 @@
-using .Graphs
-
 Build = Command(
    "build",
    "pangraph build <options> [arguments]",
@@ -53,7 +51,11 @@ Build = Command(
        files = parse(Build, args)
        files === nothing && return 2
 
-       minblock = Build.arg[1].value
+       minblock = arg(Build, "-l")
+       circular = arg(Build, "-c")
+       μ = arg(Build, "-m")
+       β = arg(Build, "-b")
+
        energy = (aln) -> let
            len = aln.length
            len < minblock && return Inf
@@ -63,13 +65,13 @@ Build = Command(
            ncuts = cuts(aln.qry)+cuts(aln.ref)
            nmuts = aln.divergence*aln.length
 
-           return -len + Build.arg[2].value*ncuts + Build.arg[3].value*nmuts
+           return -len + μ*ncuts + β*nmuts
        end
 
-       graph(io) = graphs(io; circular=Build.arg[4].value)
+       graph(io) = graphs(io; circular=circular)
        isolates  = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graph,file) : open(graph,file)))
 
-       compare = @match Build.arg[5].value begin
+       compare = @match arg(Build, "-d") begin
            "native" => Graphs.Mash.distance
            "mash"   => begin
                if !Graphs.havecommand("mash")
@@ -78,7 +80,8 @@ Build = Command(
                Graphs.mash
            end
            _        => begin
-                Build.arg[5].value = "native" # XXX: hacky...
+                # XXX: hacky...
+                Build.arg[5].value = "native" 
                 usage(Build)
                 exit(1)
            end

@@ -6,22 +6,13 @@ Polish = Command(
       if no file, reads from stdin
       stream can be optionally gzipped.""",
    Arg[],
-   (args) -> let
+   function(args)
        path = parse(Polish, args)
-       length(path) > 1
+       length(path) > 1 && return 2
 
-       graph = if path === nothing
-           Graphs.unmarshal(stdin)
-       elseif length(path) == 1
-           path = path[1]
-           !isfile(path) && error("file '$(path)' not found")
-           open(Graphs.unmarshal, path)
-       else
-           usage(Polish)
-           return 2
-       end
+       graph = load(path, Polish)
 
-       if !Graphs.havecommand("mafft")
+       if !Shell.havecommand("mafft")
            panic("external command mafft not found. please install before running polish step\n")
        end
        Graphs.realign!(graph)
