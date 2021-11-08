@@ -23,13 +23,16 @@ export reverse_complement, reverse_complement!
 function reverse_complement(item)  end
 function reverse_complement!(item) end
 
-export marshal, marshal_fasta, marshal_json
+export marshal, marshal_fasta, marshal_json, marshal_gfa
 function marshal_fasta(io::IO, x) end
 function marshal_json(io::IO, x) end
+function marshal_gfa(io::IO, x) end
+
 function marshal(io::IO, x, fmt=:fasta)
     @match fmt begin
         :fasta || :fa => return marshal_fasta(io, x)
         :json         => return marshal_json(io, x)
+        :gfa          => return marshal_gfa(io, x)
         _ => error("$fmt not a recognized output format")
     end
 end
@@ -96,6 +99,9 @@ end
 
 include("align.jl")
 using .Align
+
+# export file formats
+include("gfa.jl")
 
 # --------------------------------
 # constructors
