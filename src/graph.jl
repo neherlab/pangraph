@@ -467,9 +467,13 @@ end
 
 sequence(g::Graph) = [ name => join(String(sequence(node.block, node)) for node ∈ path.node) for (name, path) ∈ g.sequence ]
 
-function realign!(g::Graph)
+function realign!(g::Graph; accept=(_)->true)
     meter = Progress(length(g.block); desc="polishing progress", output=stderr)
     Threads.@threads for blk in collect(values(g.block))
+        if !accept(blk)
+            next!(meter)
+            continue
+        end
         io, node = mafft(blk)
 
         seq = collect(read_fasta(io))

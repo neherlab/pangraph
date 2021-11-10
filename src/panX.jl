@@ -62,7 +62,6 @@ function dictionary(tree::PyCall.PyObject, level::Int, i::Int; mutations=false)
         else
             tree.name
         end,
-        "clade" => level,
         "branch_length" => tree.dist,
     )
 
@@ -70,6 +69,8 @@ function dictionary(tree::PyCall.PyObject, level::Int, i::Int; mutations=false)
         # TODO: actually write mutations?
         node["muts"]    = ""
         node["aa_muts"] = ""
+    else
+        node["clade"] = level
     end
 
     if tree.name != ""
@@ -154,7 +155,7 @@ function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
         names = [identifier(node,i) for (i,node) in enumerate(nodes)]
 
         open(path, "w") do io
-            for (name, seq) in zip(names, eachrow(align))
+            for (name, seq) in zip(names, eachcol(align))
                 Graphs.Utility.write_fasta(io, name, seq)
             end
         end
@@ -195,7 +196,7 @@ function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
     GZip.open("$root/$(prefix)_na_aln_reduced.fa.gz", "w") do io
         Graphs.Utility.write_fasta(io, "consensus", consensus)
 
-        for (name, seq) in zip(names, eachrow(align))
+        for (name, seq) in zip(names, eachcol(align))
             Graphs.Utility.write_fasta(io, name, seq)
         end
     end
@@ -248,7 +249,7 @@ function emitcore(genes::Array{Graphs.Block}, root::String, identifier)
     names = map(isolate, nodes)
     path  = "$(root)/core_na_reduced.fa"
     open(path, "w") do io
-        for (name, seq) in zip(names, eachrow(aln))
+        for (name, seq) in zip(names, eachcol(aln))
             Graphs.Utility.write_fasta(io, name, seq)
         end
     end
