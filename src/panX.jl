@@ -197,6 +197,7 @@ function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
         Graphs.Utility.write_fasta(io, "consensus", consensus)
 
         for (name, seq) in zip(names, eachcol(align))
+            seq[seq.==consensus] .= '.'
             Graphs.Utility.write_fasta(io, name, seq)
         end
     end
