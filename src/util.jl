@@ -13,7 +13,7 @@ import ..Graphs:
 # exports
 export random_id, log
 export Alignment
-export enforce_cutoff, cigar, uncigar, blocks 
+export cigar, uncigar
 export hamming_align
 
 export contiguous_trues

@@ -17,7 +17,7 @@ Polish = Command(
        end
        Graphs.realign!(graph)
 
-       marshal(stdout, graph, :json)
+       marshal(stdout, graph; fmt=:json)
        return 0
    end
 )

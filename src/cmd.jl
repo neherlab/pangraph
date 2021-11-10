@@ -76,7 +76,7 @@ function mafft(block)
     out = IOBuffer()
     aln = IOBuffer()
 
-    names = marshal(aln, block, :fasta)
+    names = marshal(aln, block; fmt=:fasta)
     aln = IOBuffer(String(take!(aln)))
 
     run(pipeline(pipeline(

@@ -23,9 +23,10 @@ import ..Graphs:
     SNPMap, InsMap, DelMap, Maybe
 
 # exports
-export Block 
-export combine, swap!, check  # operators
+export Block
+export depth, combine, swap!, check  # operators
 export assertequivalent
+export alignment, diversity
 
 const AlleleMaps{T} = Union{Dict{Node{T},SNPMap},Dict{Node{T},InsMap},Dict{Node{T},DelMap}} 
 
@@ -423,6 +424,15 @@ length(b::Block, n::Node) = (length(b)
 
 keys(b::Block) = keys(b.mutate)
 
+function diversity(b::Block)
+    d = depth(b)
+    l = length(b)
+    μ = sum(length(m) for m in values(b.mutate))
+
+    return μ / (l*d)
+end
+
+
 # internal structure to allow us to sort all allelic types
 Locus = Union{
     NamedTuple{(:pos, :kind), Tuple{Int, Symbol}},
@@ -728,10 +738,7 @@ function regap!(b::Block)
     end
 end
 
-function reconsensus!(b::Block)
-    # NOTE: no point to compute this for blocks with 1 or 2 individuals
-    depth(b) <= 2 && return false 
-
+function alignment(b::Block)
     # NOTE: we can't assume that keys(b) will return the same order on subsequent calls
     #       thus we collect into array here for a static ordering of the nodes
     nodes = collect(keys(b))
@@ -742,6 +749,15 @@ function reconsensus!(b::Block)
         aln[:,i] = ref
         sequence!(view(aln,:,i), b, node; gaps=true)
     end
+
+    return aln, nodes, ref
+end
+
+function reconsensus!(b::Block)
+    # NOTE: no point to compute this for blocks with 1 or 2 individuals
+    depth(b) <= 2 && return false 
+
+    aln, nodes, ref = alignment(b)
 
     consensus = make_consensus(aln)
     if all(consensus .== ref) # hot path: if consensus sequence did not change, abort!
@@ -1154,13 +1170,18 @@ function check(b::Block; ids=true)
 end
 
 function marshal_fasta(io::IO, b::Block; opt=nothing)
-    isolate = (i) -> "isolate_$(i)"
+    gaps = opt === nothing ? false : try
+        getproperty(opt,:gaps)
+    catch
+        false
+    end
+    isolate = opt === nothing ? (_,i) -> "isolate_$(i)" : getproperty(opt,:name)
 
     nodes = collect(keys(b))
-    names = Dict(isolate(i) => node for (i,node) in enumerate(nodes))
+    names = Dict(isolate(node,i) => node for (i,node) in enumerate(nodes))
 
     for (i,node) in enumerate(nodes)
-        write_fasta(io, isolate(i), sequence(b, node; forward=true))
+        write_fasta(io, isolate(node,i), sequence(b, node; gaps=opt!==nothing, forward=true))
     end
 
     return names

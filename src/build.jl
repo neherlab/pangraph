@@ -88,6 +88,6 @@ Build = Command(
        end
 
        graph = Graphs.align(isolates...; compare=compare, energy=energy, minblock=minblock)
-       marshal(stdout, graph, :json)
+       marshal(stdout, graph; fmt=:json)
    end
 )

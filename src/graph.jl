@@ -85,7 +85,7 @@ import .Shell: mash, mafft, havecommand
 import .Minimap: PanContigs
 
 export Graph
-export Shell, Blocks
+export Shell, Blocks, Utility
 
 export graphs, detransitive!, prune!, finalize!
 export pancontigs
