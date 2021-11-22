@@ -16,7 +16,7 @@ using ..Utility:
     write_fasta
 
 import ..Graphs:
-    pair, 
+    pair,
     marshal_fasta,
     sequence, sequence!,
     reverse_complement, reverse_complement!,
@@ -431,7 +431,6 @@ function diversity(b::Block)
 
     return μ / (l*d)
 end
-
 
 # internal structure to allow us to sort all allelic types
 Locus = Union{
@@ -1185,14 +1184,6 @@ function marshal_fasta(io::IO, b::Block; opt=nothing)
     end
 
     return names
-end
-
-function diversity(b::Block)
-    l = length(b.sequence)
-    n = length(b.mutate)
-    m = sum(length(muts) for muts in values(b.mutate))
-
-    return (1.0*m) / (n * l)
 end
 
 # ------------------------------------------------------------------------
