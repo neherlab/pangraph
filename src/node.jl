@@ -22,7 +22,11 @@ Node{T}(b::T; strand=true) where T = Node{T}(b,strand)
 # --------------------------------
 # operators
 
-show(io::IO, n::Node) = Base.show(io, UInt64(pointer_from_objref(n)))
+# Base.show(io::IO, n::Node) = Base.show(io, UInt64(pointer_from_objref(n)))
+Base.show(io::IO, n::Node) = Base.show(io,
+    (block = n.block, strand = n.strand)
+)
+
 length(n::Node) = length(n.block, n)
 
 end
