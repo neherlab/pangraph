@@ -22,9 +22,9 @@ function panic(msg...)
     exit(2)
 end
 
-function open(func, path)
-    endswith(path, ".gz") && return GZip.open(func, path)
-    return Base.open(func, path)
+function open(func, path, args...)
+    endswith(path, ".gz") && return GZip.open(func, path, args...)
+    return Base.open(func, path, args...)
 end
 
 function load(path, cmd)
@@ -52,6 +52,7 @@ using .Commands
 include("build.jl")
 include("generate.jl")
 include("polish.jl")
+include("marginalize.jl")
 include("export.jl")
 
 pangraph = Command(
@@ -63,6 +64,7 @@ pangraph = Command(
      Build,
      Generate,
      Polish,
+     Marginalize,
      Export,
     ],
 )

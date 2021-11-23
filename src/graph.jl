@@ -130,8 +130,7 @@ graphs(io::IO; circular=false) = [Graph(record.name, record.seq; circular=circul
 const Link  = NamedTuple{(:block,:strand),Tuple{Block, Bool}}
 const Chain = Array{Link, 1}
 
-# XXX: break into smaller functions
-#      too long
+# XXX: break into smaller functions: too long
 function detransitive!(G::Graph)
     numisos = count_isolates(values(G.sequence))
 
@@ -207,29 +206,7 @@ function detransitive!(G::Graph)
 
         new = Block((s ? b : reverse_complement(b) for (b,s) ∈ c)...)
         for iso ∈ keys(isos)
-            # oldseq = sequence(G.sequence[iso])
-
             replace!(G.sequence[iso], c, new)
-
-            # newseq = sequence(G.sequence[iso])
-            #= if oldseq != newseq
-                path = G.sequence[iso]
-                badloci = Int[]
-                for i ∈ 1:min(length(newseq),length(oldseq))
-                    if newseq[i] != oldseq[i]
-                        push!(badloci, i)
-                    end
-                end
-                left, right = max(badloci[1]-10, 1), min(badloci[1]+10, length(newseq))
-                cumulative_lengths = cumsum([length(n.block, n) for n in path.node])
-
-                println("--> length:           ref($(length(oldseq))) <=> seq($(length(newseq)))")
-                println("--> number of nodes:  $(length(path.node))")
-                println("--> |badloci|:        $(length(badloci))")
-                println("--> window:           $(left):$(badloci[1]):$(right)")
-                println("--> ref:              $(oldseq[left:right])")
-                println("--> seq:              $(newseq[left:right])")
-            end =#
         end
 
         for b ∈ first.(c)
@@ -237,19 +214,34 @@ function detransitive!(G::Graph)
         end
 
         G.block[new.uuid] = new
-
-        #=
-        for b ∈ values(G.block)
-            check(b)
-        end
-        =#
     end
-    # checkblocks(G)
 end
 
 function prune!(G::Graph)
     used = Set(n.block.uuid for p in values(G.sequence) for n in p.node)
     filter!((blk)->first(blk) ∈ used, G.block)
+end
+
+function keeponly!(G::Graph, names::String...)
+    nameset = Set(names)
+    isolate = collect(keys(G.sequence))
+    for name in isolate
+        name ∉ nameset || continue
+        path = G.sequence[name]
+        for node in path.node
+            pop!(node.block, node)
+        end
+        delete!(G.sequence, name)
+    end
+
+    uuids = collect(keys(G.block))
+    for uuid in uuids
+        block = G.block[uuid]
+        if depth(block) == 0
+            delete!(G.block, uuid)
+        end
+        # TODO: reconsensus?
+    end
 end
 
 function checkblocks(G::Graph)
@@ -490,8 +482,15 @@ function finalize!(g)
     for p in values(g.sequence)
         positions!(p)
     end
+end
 
-    # realign!(g)
+function align(G::Graph, name₁::String, name₂::String)
+    path = [G.sequence[name₁], G.sequence[name₂]]
+    interval = [
+        [(p.positions[i],
+          p.positions[i+1],
+          node.block) for (i,node) ∈ enumerate(p.node)]
+    for p in path]
 end
 
 # ------------------------------------------------------------------------

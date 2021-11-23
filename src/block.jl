@@ -3,12 +3,12 @@ module Blocks
 using Rematch
 
 import Base:
-    show, length, append!, keys, merge!
+    show, length, append!, keys, merge!, pop!
 
 # internal modules
 using ..Intervals
 using ..Nodes
-using ..Utility: 
+using ..Utility:
     random_id,
     uncigar, wcpair, Alignment,
     hamming_align,
@@ -253,6 +253,7 @@ end
 
 # simple helpers
 Block(sequence,gaps,mutate,insert,delete) = Block(random_id(),sequence,gaps,mutate,insert,delete)
+Block(sequence,gaps) = Block(sequence,gaps,Dict{Node{Block},SNPMap}(),Dict{Node{Block},InsMap}(),Dict{Node{Block},DelMap}())
 Block(sequence) = Block(sequence,Dict{Int,Int}(),Dict{Node{Block},SNPMap}(),Dict{Node{Block},InsMap}(),Dict{Node{Block},DelMap}())
 Block()         = Block(UInt8[])
 
@@ -1184,6 +1185,13 @@ function marshal_fasta(io::IO, b::Block; opt=nothing)
     end
 
     return names
+end
+
+function pop!(b::Block, n::Node)
+    delete!(b.mutate, n)
+    delete!(b.insert, n)
+    delete!(b.delete, n)
+    # TODO: reconsensus?
 end
 
 # ------------------------------------------------------------------------

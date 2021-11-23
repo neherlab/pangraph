@@ -5,15 +5,26 @@ using ..Nodes
 using ..Blocks
 using ..Graphs
 
-using Infiltrator
-
-export edges
+export edges, deparalog!
 
 struct Position
     path  :: Path
     node  :: Tuple{Node{Block},Node{Block}}
     index :: Tuple{Int,Int} # positions on path
     locus :: Int # breakpoint on sequence
+end
+
+function isolates(positions::Array{Position,1})
+    isolate = Dict{String,Array{Position,1}}()
+    for pos in positions
+        if pos.path.name ∈ keys(isolate)
+            push!(isolate[pos.path.name],pos)
+        else
+            isolate[pos.path.name] = [ pos ]
+        end
+    end
+
+    return isolate
 end
 
 function next(x::Position, blk::Block)
@@ -41,10 +52,6 @@ function next(x::Position, blk::Block)
     else
         ι = index(i+1)
         x.path.node[i], x.path.node[ι], i, ι, x.path.position[i]
-    end
-
-    if x.locus != pos
-        @infiltrate
     end
 
     if (n.block.uuid > m.block.uuid) || (n.block.uuid == m.block.uuid && pointer_from_objref(n) > pointer_from_objref(m))
@@ -168,6 +175,219 @@ function edges(G)
     return edgeset
 end
 
+function deparalog!(G)
+    edgeset = edges(G)
+
+    # collect all edges for each block, segregated by position
+    vertex = Dict(
+        block => (
+            edge = Set{Edge}(),
+            link = Dict{Position,Edge}(),
+        ) for block in values(G.block)
+    )
+
+    function duplicates(vertex, block)
+        loci = [
+            let
+                if k.node[1].block == block
+                    (k.path.name,k.index[1])
+                elseif k.node[2].block == block
+                    (k.path.name,k.index[2])
+                else
+                    error("bad indexing")
+                end
+            end for k in keys(vertex)
+        ] |> unique
+        names = unique(map(first, loci))
+        return length(loci) > length(names)
+    end
+
+    function connect(edge, block)
+        for locus in edge.nodes
+            push!(vertex[block].edge, edge)
+            vertex[block].link[locus] = edge
+        end
+    end
+
+    for edge in edgeset
+        block = edge.block
+        connect(edge, block[1])
+        connect(edge, block[2])
+    end
+
+    touched = Set{Block}()
+    blocks  = collect(values(G.block))
+
+    for block ∈ blocks
+        block ∉ touched || continue
+        vert = vertex[block]
+
+        duplicates(vert.link,block) || continue
+
+        split = true
+        links = Dict{Tuple{Edge,Edge}, Set{Position}}()
+        for edge in vert.edge
+            dest = Dict{Edge,Array{Position,1}}()
+            for pos in edge.nodes
+                x = next(pos,block)
+                x ∈ keys(vert.link) || @goto nosplit
+
+                e = vert.link[x]
+                if e ∈ keys(dest)
+                    push!(dest[e], x)
+                else
+                    dest[e] = [x]
+                end
+            end
+
+            if length(dest) > 1
+                # XXX: last effort to split paralogs:
+                # if the set positions contained by dest edges
+                # is equal to the the set positions we flow to,
+                # then we are still transitive
+                linkpos = reduce(union, map((link)->Set(link.nodes), collect(keys(dest))))
+                edgepos = reduce(union, map((v)->Set(v), collect(values(dest))))
+                if linkpos == edgepos
+                    for link in keys(dest)
+                        if (link,edge) ∉ keys(links)
+                            linkpos = Set(link.nodes)
+                            links[edge,link] = Set(
+                                pos for pos in edge.nodes if next(pos, block) ∈ linkpos
+                            )
+                        end
+                    end
+                else @label nosplit
+                    split = false
+                    break
+                end
+            else
+                link = collect(keys(dest))[1]
+                if (link,edge) ∉ keys(links)
+                    links[(edge,link)] = Set(edge.nodes)
+                end
+            end
+        end
+
+        (split && length(links) > 1) || continue
+
+        seennodes = Set{Node}()
+        for positions in collect(values(links))[2:end]
+            new = Block(block.sequence, block.gaps)
+            for pos in positions
+                i,j = if pos.node[1].block == block
+                    (1,2)
+                elseif pos.node[2].block == block
+                    (2,1)
+                else
+                    error("bad edge")
+                end
+                push!(touched, pos.node[j].block)
+
+                # rewire node to new block
+                n = pos.node[i]
+                push!(seennodes,n)
+                new.mutate[n] = pop!(block.mutate, n)
+                new.insert[n] = pop!(block.insert, n)
+                new.delete[n] = pop!(block.delete, n)
+                n.block = new
+            end
+
+            G.block[new.uuid] = new
+        end
+    end
+end
+
+#=
+function breakpoints(G)
+    edgeset = edges(G)
+
+    # collect all edges for each block, segregated by position
+    vertex = Dict(
+        block => (
+            edge = Set{Edge}(),
+            link = Dict{Position,Edge}(),
+        ) for block in values(G.block)
+    )
+
+    function connect(edge, block)
+        for locus in edge.nodes
+            push!(vertex[block].edge, edge)
+            vertex[block].link[locus] = edge
+        end
+    end
+
+    for edge in edgeset
+        block = edge.block
+        connect(edge, block[1])
+        connect(edge, block[2])
+    end
+
+    breakpoints = Dict{Tuple{String,String}, Breakpoints}()
+    for block ∈ values(G.block)
+        vert = vertex[block]
+        for edge in vert.edge
+            dest = Dict{Edge,Array{Position,1}}()
+            for pos in edge.nodes
+                #next(pos,block) ∉ keys(vert.link) && @infiltrate # XXX: for debugging
+
+                x = next(pos, block)
+                e = vert.link[x]
+                if e ∈ keys(dest)
+                    push!(dest[e], x)
+                else
+                    dest[e] = [x]
+                end
+            end
+
+            length(dest) > 1 || continue # if all edges flow to same spot
+
+            # iterate over all partitions
+            groups = collect(keys(dest))
+            for (i,g1) in enumerate(groups)
+                ig1 = isolates(dest[g1])
+                for g2 in groups[i+1:end]
+                    ig2 = isolates(dest[g2])
+                    for (name1, positions1) in ig1
+                        for (name2, positions2) in ig2
+                            name1 != name2 || continue # don't look for breaks within the same genome
+
+                            #=
+                            if (((name1 ==  "NZ_CP007727" && name2 == "NZ_CP008827")
+                             ||  (name2 ==  "NZ_CP007727" && name1 == "NZ_CP008827"))
+                             &&  block.uuid == "USBZGBXYEO")
+                                @infiltrate
+                            end
+                            =#
+
+                            index1 = map((p)->p.index, positions1)
+                            index2 = map((p)->p.index, positions2)
+
+                            key, val1, val2 = if name1 > name2
+                                (name2, name1),
+                                index2, index1
+                            else
+                                (name1, name2),
+                                index1, index2
+                            end
+
+                            if key ∈ keys(breakpoints)
+                                append!(breakpoints[key][1],val1)
+                                append!(breakpoints[key][2],val2)
+                            else
+                                breakpoints[key] = (val1,val2)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return breakpoints
+end
+=#
+
+#=
 function breakpoints(G)
     edgeset = edges(G)
 
@@ -260,50 +480,8 @@ function breakpoints(G)
         return breakpoints[(name₁,name₂)]
     end
 end
-#=
-function breakpoints(G)
-    edgeset = edges(G)
-
-    # collect all edges for each block, segregated by position
-    vertex = Dict(
-        block => (
-            edge = Set{Edge}(),
-            link = Dict{Position,Edge}(),
-        ) for block in values(G.block)
-    )
-
-    function connect(edge, block)
-        for locus in edge.nodes
-            push!(vertex[block].edge, edge)
-            vertex[block].link[locus] = edge
-        end
-    end
-
-    for edge in edgeset
-        block = edge.block
-        connect(edge, block[1])
-        connect(edge, block[2])
-    end
-
-    breakpoints = Dict{Tuple{String,String}, Breakpoints}()
-    for block ∈ values(G.block)
-        vert = vertex[block]
-        for edge in vert.edge
-            to = Dict{Edge,Array{Position,1}}()
-            for from in edge.nodes
-                # XXX: for debugging
-                next(from,block) ∉ keys(vert.link) && @infiltrate
-
-                key = vert.link[next(from, block)]
-                if key ∈ to
-                    push!(to[key], from)
-                else
-                    to[key] = [from]
-                end
-            end
-        end
-    end
-end
 =#
+
+
 
 end

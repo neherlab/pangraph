@@ -16,6 +16,7 @@ Polish = Command(
    ],
    function(args)
        path = parse(Polish, args)
+       path === nothing && return 2
        length(path) > 1 && return 2
 
        graph = load(path, Polish)
