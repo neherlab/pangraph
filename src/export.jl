@@ -140,6 +140,9 @@ Export = Command(
            Base.open("$(directory)/$(prefix).gfa", "w") do io
                marshal(io, graph; fmt=:gfa, opt=filter)
            end
+           Base.open("$(directory)/$(prefix).fa", "w") do io
+               marshal(io, graph; fmt=:fa)
+           end
        end
 
        # panX export (doesn't fit into marshal paradigm)
