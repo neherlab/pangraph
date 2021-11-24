@@ -123,7 +123,7 @@ struct IntervalSet{T<:Real}
     Is  :: Array{Interval{T},1}
     min :: T
     max :: T
-    
+
     function IntervalSet{T}(Is, min, max) where T <: Real
         # ensures atomic intervals are disjoint
         𝕀 = Interval{T}[]
@@ -133,7 +133,7 @@ struct IntervalSet{T<:Real}
             for i ∈ 1:n
                 W = [x for w in W for x in w \ 𝕀[i]]
             end
-            
+
             append!(𝕀, W)
         end
 
