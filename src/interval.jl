@@ -10,7 +10,7 @@ import Base:
     show
 
 export Interval, IntervalSet
-export containing, add
+export containing, partition
 
 # -------------------------------------------------------------------------
 # atomic interval
@@ -94,6 +94,16 @@ function \(a::Interval, b::Interval)
     a.hi == ab.hi && return [Interval(a.lo, ab.lo)]     # a ≤ b
 
     return [Interval(a.lo, b.lo), Interval(b.hi, a.hi)] # a ⊃ b
+end
+
+function partition(a::Interval, b::Interval)
+	ab = a ∩ b
+	isnothing(ab) && return [a] # disjoint
+	ab == a		  && return [a] # a ⊆ b
+	a.lo == ab.lo && return [ab, Interval(ab.hi, a.hi)]
+	a.hi == ab.hi && return [Interval(a.lo, ab.lo), ab]
+
+	return [Interval(a.lo, ab.lo), ab, Interval(ab.hi, a.hi)] # a ⊃ b
 end
 
 # -------------------------------------------------------------------------
@@ -247,13 +257,6 @@ function containing(A::IntervalSet, b::Interval)
     end
 
     return nothing
-end
-
-function add(A::IntervalSet, a::Interval)
-    A = A \ a
-    A = A ∪ a
-
-    return A
 end
 
 # -------------------------------------------------------------------------
