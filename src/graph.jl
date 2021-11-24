@@ -94,6 +94,15 @@ export checkblocks
 # ------------------------------------------------------------------------
 # graph data structure
 
+"""
+    struct Graph
+        block    :: Dict{String, Block}
+        sequence :: Dict{String, Path}
+    end
+
+Representation of a multiple sequence alignment. Alignments of homologous sequences
+are stored as blocks. A genome is stored as a path, i.e. a list of blocks.
+"""
 struct Graph
     block    :: Dict{String,Block}   # uuid      -> block
     sequence :: Dict{String,Path}    # isolation -> path
@@ -109,6 +118,12 @@ include("gfa.jl")
 # --------------------------------
 # constructors
 
+"""
+    Graph(name::String, sequence::Array{UInt8}; circular=false)
+
+Creates a singleton graph from `sequence`. `name` is assumed to be a unique identifier.
+If `circular` is unspecified, the sequence is assumed to be linear.
+"""
 function Graph(name::String, sequence::Array{UInt8}; circular=false)
     block = Block(sequence)
     path  = Path(name, Node{Block}(block); circular=circular)
@@ -122,6 +137,12 @@ function Graph(name::String, sequence::Array{UInt8}; circular=false)
     )
 end
 
+"""
+    graphs(io::IO; circular=false)
+
+Parse a fasta file from stream `io` and return an array of singleton graphs.
+If circular is unspecified, all genomes are assumed to be linear.
+"""
 graphs(io::IO; circular=false) = [Graph(record.name, record.seq; circular=circular) for record in read_fasta(io)]
 
 # --------------------------------
@@ -131,6 +152,14 @@ const Link  = NamedTuple{(:block,:strand),Tuple{Block, Bool}}
 const Chain = Array{Link, 1}
 
 # XXX: break into smaller functions: too long
+"""
+    detransitive!(G::Graph)
+
+Find and remove all transitive edges within the given graph.
+A transitive chain of edges is defined to be unambiguous: all
+sequences must enter on one edge and leave on another. Thus,
+this will not perform paralog splitting.
+"""
 function detransitive!(G::Graph)
     numisos = count_isolates(values(G.sequence))
 
@@ -217,11 +246,24 @@ function detransitive!(G::Graph)
     end
 end
 
+"""
+    prune!(G::Graph)
+
+Remove all blocks from graph `G` that are not currently used by any extant sequence.
+Internal function used during guide tree alignment.
+"""
 function prune!(G::Graph)
     used = Set(n.block.uuid for p in values(G.sequence) for n in p.node)
     filter!((blk)->first(blk) ∈ used, G.block)
 end
 
+"""
+    keeponly!(G::Graph, names::String...)
+
+Remove all sequences from graph `G` that are passed as variadic parameters `names`.
+This will marginalize a graph, i.e. return the subgraph that contains only
+isolates contained in `names`
+"""
 function keeponly!(G::Graph, names::String...)
     nameset = Set(names)
     isolate = collect(keys(G.sequence))
@@ -282,6 +324,15 @@ function serialize(io::IO, G::Graph)
     write_fasta(io, name, seq)
 end
 
+"""
+    marshal_fasta(io::IO, G::Graph; opt=nothing)
+
+Serialize graph `G` as a fasta format output stream `io`.
+Importantly, this will only serialize the consensus sequences for each block
+and not the full multiple sequence alignment.
+
+`opt` is currently ignored. It is kept for signature uniformity for other marshal functions
+"""
 function marshal_fasta(io::IO, G::Graph; opt=nothing)
     for b in values(G.block)
         write_fasta(io, b.uuid, b.sequence)
@@ -289,6 +340,15 @@ function marshal_fasta(io::IO, G::Graph; opt=nothing)
 end
 
 # XXX: think of a way to break up function but maintain graph-wide node lookup table
+"""
+    marshal_json(io::IO, G::Graph; opt=nothing)
+
+Serialize graph `G` as a json format output stream `io`.
+This is the main storage/exported format for PanGraph.
+Currently it is the only format that can reconstruct an in-memory pangraph.
+
+`opt` is currently ignored. It is kept for signature uniformity for other marshal functions
+"""
 function marshal_json(io::IO, G::Graph; opt=nothing)
     NodeID    = NamedTuple{(:id,:name,:number,:strand), Tuple{String,String,Int,Bool}}
     nodes     = Dict{Node{Block}, NodeID}()
@@ -357,6 +417,12 @@ function marshal_json(io::IO, G::Graph; opt=nothing)
 end
 
 # NOTE: only recognizes json input right now
+"""
+    unmarshal(io::IO)
+
+Deserialize the json formatted input stream `io` into a Graph data structure.
+Return a `Graph` type.
+"""
 function unmarshal(io)
     graph = JSON.parse(io)
 
@@ -450,6 +516,11 @@ end
 # ------------------------------------------------------------------------
 # operators
 
+"""
+    sequence(G::Graph, name::String)
+
+Return the sequence corresponding to genome `name` within graph `G`
+"""
 function sequence(g::Graph, name::AbstractString)
     name ∉ keys(g.sequence) && error("'$name' not a valid sequence identifier")
     path = g.sequence[name]
@@ -457,8 +528,21 @@ function sequence(g::Graph, name::AbstractString)
     return sequence(path)
 end
 
+"""
+    sequence(G::Graph)
+
+Return all pairs of `name` => `sequence` encoded within graph `G`
+"""
 sequence(g::Graph) = [ name => join(String(sequence(node.block, node)) for node ∈ path.node) for (name, path) ∈ g.sequence ]
 
+"""
+    realign!(G::Graph; accept)
+
+Realign blocks contained within graph `G`.
+Usage of this function requires [MAFFT](https://mafft.cbrc.jp/alignment/software/source.html) to be on the system **PATH**
+`accept` should be a function that returns true on blocks you wish to realign.
+By default, all blocks are realigned.
+"""
 function realign!(g::Graph; accept=(_)->true)
     meter = Progress(length(g.block); desc="polishing progress", output=stderr)
     Threads.@threads for blk in collect(values(g.block))
@@ -478,24 +562,27 @@ function realign!(g::Graph; accept=(_)->true)
     end
 end
 
+"""
+    finalize!(G::Graph)
+
+Compute the position of the breakpoints for each homologous alignment across all sequences within Graph `G`.
+Intended to be ran after multiple sequence alignment is complete
+"""
 function finalize!(g)
     for p in values(g.sequence)
         positions!(p)
     end
 end
 
-function align(G::Graph, name₁::String, name₂::String)
-    path = [G.sequence[name₁], G.sequence[name₂]]
-    interval = [
-        [(p.positions[i],
-          p.positions[i+1],
-          node.block) for (i,node) ∈ enumerate(p.node)]
-    for p in path]
-end
-
 # ------------------------------------------------------------------------
 # main point of entry
 
+"""
+    test(path)
+
+Align all sequences found in the fasta file at `path` into a pangraph.
+Verifies that after the alignment is complete, all sequences are correctly reconstructed
+"""
 function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa")
     open = endswith(file,".gz") ? GZip.open : Base.open
 

@@ -10,7 +10,7 @@ import Base:
     show
 
 export Interval, IntervalSet
-export containing
+export containing, add
 
 # -------------------------------------------------------------------------
 # atomic interval
@@ -119,7 +119,7 @@ end
 # ---------------------------------
 # typedef
 
-struct IntervalSet{T<:Real} 
+struct IntervalSet{T<:Real}
     Is  :: Array{Interval{T},1}
     min :: T
     max :: T
@@ -187,7 +187,7 @@ isempty(I::IntervalSet) = length(I) == 0
 
 # arithmetic
 
-function ~(I::IntervalSet) 
+function ~(I::IntervalSet)
     starts = (i == 0 ? I.min : I[i].hi for i in 0:length(I))
     stops  = ((i<=length(I)) ? I[i].lo : I.max for i in 1:(length(I)+1))
 
@@ -206,7 +206,7 @@ end
     )
 ∩(j::Interval, I::IntervalSet) = I ∩ j
 
-∩(I::IntervalSet{T}, J::IntervalSet{T}) where T <: Real = 
+∩(I::IntervalSet{T}, J::IntervalSet{T}) where T <: Real =
     IntervalSet{T}(
        sort([ x for i ∈ I for j ∈ J for x in [i ∩ j] if !isnothing(x) ]),
        min(I.min,J.min),
@@ -214,7 +214,7 @@ end
     )
 
 function ∪(I::IntervalSet, J::IntervalSet)
-    IJ = copy(I) 
+    IJ = copy(I)
     K  = J \ I
     for k ∈ K
         ι = searchsortedfirst(IJ.Is, k)
@@ -247,6 +247,13 @@ function containing(A::IntervalSet, b::Interval)
     end
 
     return nothing
+end
+
+function add(A::IntervalSet, a::Interval)
+    A = A \ a
+    A = A ∪ a
+
+    return A
 end
 
 # -------------------------------------------------------------------------

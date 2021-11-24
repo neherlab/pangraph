@@ -7,6 +7,9 @@ using Random: seed!
 include("graph.jl")
 using .Graphs
 
+include("simulate.jl")
+using .Simulation
+
 export Graphs
 
 # ------------------------------------------------------------------------

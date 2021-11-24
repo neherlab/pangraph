@@ -3,4 +3,5 @@ data
 viewer
 figs
 log
+docs/build
 pangraph/__pycache__

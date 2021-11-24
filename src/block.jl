@@ -84,6 +84,16 @@ function applyalleles(seq, mutate, insert, delete)
     return new
 end
 
+"""
+    mutable struct Pos
+        start :: Int
+        stop  :: Int
+    end
+
+Representation of a single interval within a pairwise alignment.
+Inclusive on both ends, i.e. includes `start` and `stop`
+Used internally to unpack cigar strings.
+"""
 mutable struct Pos
     start::Int
     stop::Int
@@ -93,6 +103,17 @@ Base.to_index(x::Pos) = x.start:x.stop
 advance!(x::Pos)      = x.start=x.stop
 copy(x::Pos)          = Pos(x.start,x.stop)
 
+"""
+    mutable struct PairPos
+        qry :: Maybe{Pos}
+        ref :: Maybe{Pos}
+    end
+
+Representation of matched pair of intervals within a pairwise alignment.
+`qry` can be of type `Pos` or `Nothing`
+`ref` can be of type `Pos` or `Nothing`
+If either `ref` or `qry` is nothing, the PairPos corresponds to an insertion or deletion respectively.
+"""
 mutable struct PairPos
     qry::Maybe{Pos}
     ref::Maybe{Pos}
@@ -100,6 +121,16 @@ end
 
 # TODO: relax hardcoded reliance on cigar suffixes. make symbols instead
 const PosPair = NamedTuple{(:qry, :ref), Tuple{Maybe{Pos}, Maybe{Pos}}} 
+
+"""
+    partition(alignment; minblock=500)
+
+Parse the alignment into matched intervals of a pairwise alignment.
+If any insertion or deletion is larger than `minblock`, a new block is created to hold the homologous interval.
+This ensures that all blocks are at least `minblock` long **and** no block contains an insertion or deletion longer than itself.
+
+`alignment` is assumed to be an data structure from the Utility module
+"""
 function partition(alignment; minblock=500)
     qry = Pos(1,1)
     ref = Pos(1,1)
@@ -229,6 +260,18 @@ end
 # ------------------------------------------------------------------------
 # Block data structure
 
+"""
+    mutable struct Block
+        uuid     :: String
+        sequence :: Array{UInt8}
+        gaps     :: Dict{Int,Int}
+        mutate   :: Dict{Node{Block},SNPMap}
+        insert   :: Dict{Node{Block},InsMap}
+        delete   :: Dict{Node{Block},DelMap}
+    end
+
+A block stores all information
+"""
 mutable struct Block
     uuid     :: String
     sequence :: Array{UInt8}

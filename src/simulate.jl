@@ -2,24 +2,33 @@ module Simulation
 
 using Random, Distributions
 
+include("src/interval.jl")
+using .Intervals
+
 # ------------------------------------------------------------------------
 # types
 
-struct Params
-    pop_size :: Int
-    seq_len  :: Int
-
-    snp_rate :: Float64
-    hgt_rate :: Float64
-    del_rate :: Float64
-    inv_rate :: Float64
+struct Rates
+    snp :: Float64
+    hgt :: Float64
+    del :: Float64
+    inv :: Float64
 end
-Params(;pop_size=100, seq_len=Int(1e6), snp_rate=1e-6, hgt_rate=0, del_rate=0, inv_rate=0) = Params(pop_size, seq_len, snp_rate, hgt_rate, del_rate, inv_rate)
+Rates(;snp=0, hgt=0, del=0, inv=0) = Rates(snp, hgt, del, inv)
+
+struct Params
+    N    :: Int
+    L    :: Int
+    σₗ   :: Int
+    rate :: Rates
+end
+
+Params(; N=100, L=Int(1e6), σₗ=Int(1e5), snp=0, hgt=0, del=0, inv=0) = Params(N, L, σₗ, Rates(snp, hgt, del, inv))
 
 # bitpacked: 30 bytes(ancestor) | 30 bytes (location) | 3 bytes (mutation) | 1 byte strand
 Sequence = Array{UInt64,1}
 # states of mutuation
-# 0** -> no mutation
+# 0** -> no mutation, ** ignored
 # 1** -> mutation given by **
 const shift = (
     ancestor = 34,
@@ -50,23 +59,25 @@ mutate!(s::Sequence, at::Int) = s[at] |= ((rand(0:3) << 1) | 8)
 delete!(s::Sequence, from::Int, to::Int) = splice!(s, from:to, [])
 insert!(acceptor::Sequence, donor::Sequence, at::Int) = splice!(acceptor, at:at+1, donor)
 function invert!(s::Sequence, from::Int, to::Int)
-    s[from:to] .⊻= 1
-    reverse!(s, from, to)
+    s[from:to] .⊻= 1        # complement
+    reverse!(s, from, to)   # reverse
 end
 
 function model(param::Params)
-    parent = Array{Int}(undef, param.pop_size)
-    indel = Normal(param.seq_len, param.seq_len/10)
+    parent = Array{Int}(undef, param.N)
+    indel = Normal(param.L, param.σₗ)
+
+    int(x) = Int(round(x))
 
     return function(population::Array{Sequence}, offspring::Array{Sequence})
-        rand!(parent, 1:param.pop_size)
+        rand!(parent, 1:param.N)
 
-        for n in 1:param.pop_size
+        for n in 1:param.N
             copy!(offspring[n], population[parent[n]])
 
             # test to mutate
             L = length(offspring[n])
-            μ = rand(Poisson(L*param.snp_rate))
+            μ = rand(Poisson(L*param.rate.snp))
             if μ > 0
                 for locus in rand(1:L, μ)
                     mutate!(offspring[n], locus)
@@ -74,11 +85,11 @@ function model(param::Params)
             end
 
             # test to pick up donation
-            if rand() ≤ param.hgt_rate
-                donor = population[rand(1:param.pop_size)]
+            if rand() ≤ param.rate.hgt
+                donor = population[rand(1:param.N)]
 
                 from = rand(1:length(donor))
-                area = Int(rand(indel))
+                area = int(rand(indel))
                 if area > length(offspring[n])
                     d  = area - length(offspring[n])
                     to = (from + d - 1) % length(donor) + 1
@@ -97,9 +108,9 @@ function model(param::Params)
             end
 
             # test to delete
-            if rand() ≤ param.del_rate
+            if rand() ≤ param.rate.del
                 from = rand(1:length(offspring[n]))
-                area = Int(rand(indel))
+                area = int(rand(indel))
                 if area < length(offspring[n])
                     d  = length(offspring[n]) - area
                     to = (from + d - 1) % length(offspring[n]) + 1
@@ -116,9 +127,9 @@ function model(param::Params)
             end
 
             # test to invert
-            if rand() ≤ param.inv_rate
+            if rand() ≤ param.rate.inv
                 from = rand(1:length(offspring[n]))
-                area = Int(rand(indel))
+                area = int(rand(indel))
                 d  = abs(area - length(offspring[n]))
                 to = (from + d - 1) % length(offspring[n]) + 1
 
@@ -135,21 +146,48 @@ function model(param::Params)
     end
 end
 
+function pancontig!(s::Sequence, lengths::Int, ancestor::Dict{Int,IntervalSet})
+    start = last = unpack.location(s[0])
+    id = unpack.ancestor(s[0])
+    for state in s[2:end]
+        locus = unpack.location(state)
+        ident = unpack.ancestor(state)
+
+        # still in tile
+        if ((locus == last + 1 || locus == 1 && last == lengths[indent])
+        &&  (ident == id))
+            last = locus
+            continue
+        end
+
+        if id ∈ ancestor
+            ancestor[id] = add(ancestor[id], Interval(start, locus))
+        else
+            ancestor[id] = IntervalSet((start,locus))
+        end
+        start = last = locus
+        id = ident
+    end
+end
+
 function test()
     N = 50
     L = Int(1e6)
-    evolve! = model(Params(;pop_size=N,seq_len=L,snp_rate=5e-6))
+    r = 5e-1
+    μ = 0
+    evolve! = model(Params(;N=N,L=L,snp=μ,hgt=r))
 
     isolate   = population(fill(L, N))
     offspring = [ Array{UInt64,1}(undef,L) for _ in 1:N ]
 
-    for _ in 1:2*N
+    for _ in 1:N
         evolve!(isolate, offspring)
         isolate, offspring = offspring, isolate
     end
 
     for n in 1:N
-        @show Int(mode(unpack.ancestor.(isolate[n])))
+        @show length(isolate[n])
+        @show unique(Int.(unpack.ancestor.(isolate[n])))
         @show Int(sum(unpack.snp.(isolate[n])))
     end
 
