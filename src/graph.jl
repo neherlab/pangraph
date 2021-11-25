@@ -48,8 +48,26 @@ function serialize(io::IO, x) end
 Maybe{T} = Union{T,Nothing}
 
 # aliases
+"""
+	SNPMap = Dict{Int,UInt8}
+
+A sparse array of single nucleotide polymorphisms relative to a consensus.
+The key is the locus of the mutation; the value is the modified nucleotide.
+"""
 const SNPMap = Dict{Int,UInt8}
+"""
+	InsMap = Dict{Tuple{Int,Int},Array{UInt8,1}}
+
+A sparse array of insertion sequences relative to a consensus.
+The key is the (locus(after),offset) of the insertion; the value is the sequence.
+"""
 const InsMap = Dict{Tuple{Int,Int},Array{UInt8,1}}
+"""
+	DelMap = Dict{Int,Int}
+
+A sparse array of deletion events relative to a consensus.
+The key is the locus (inclusive) of the deletion; the value is the length.
+"""
 const DelMap = Dict{Int,Int}
 
 export Maybe, SNPMap, InsMap, DelMap

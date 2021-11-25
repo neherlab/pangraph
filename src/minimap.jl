@@ -35,16 +35,42 @@ const divergence = (:mm_event_identity, minimap2)
 # ------------------------------------------------------------------------
 # types
 
+"""
+	struct Index
+		handle :: Ptr{Cvoid}
+	end
+
+Store the untyped address to a minimap2 sequence index (set of minimizers).
+"""
 struct Index
     handle :: Ptr{Cvoid}
 end
 
+"""
+	struct Buffer
+		handle :: Ptr{Cvoid}
+	end
+
+Store the untyped address to a minimap2 sequence buffer (working space).
+"""
 struct Buffer
     handle :: Ptr{Cvoid}
 end
 
 # copied from minimap2.h
+"""
+	struct Extra
+		capacity :: UInt32
+		dp_score :: Int32
+		dp_max   :: Int32
+		dp_max2  :: Int32
+		packed   :: UInt32 # n_ambi (30 bits) / strand (2 bits)
+		n_cigar  :: UInt32
+		cigar UInt32[] (variable length array)
+	end
 
+Copied from minimap2.h. See mm_extra_t.
+"""
 struct Extra
     capacity :: UInt32
     dp_score :: Int32
@@ -55,6 +81,26 @@ struct Extra
     # cigar UInt32[] (variable length array)
 end
 
+"""
+	struct Record
+		id :: Int32; cnt :: Int32; rid :: Int32; score :: Int32
+		qs :: Int32; qe  :: Int32; rs  :: Int32; re :: Int32
+
+		parent :: Int32; subsc :: Int32
+
+		as     :: Int32
+		mlen   :: Int32; blen :: Int32
+		nsub   :: Int32;
+		score0 :: Int32;
+
+		pack :: UInt32 # mapq(8) ; split(2); rev(1); inv(1); sam_pri(1); proper_frag(1); pe_thru(1); seg_split(1); seg_id(8); split_inv(1); is_alt(1); dummy(6)
+		hash :: UInt32
+		div  :: Cfloat
+		p    :: Ptr{Extra}
+	end
+
+Copied from minimap2.h. See mm_reg1_t.
+"""
 struct Record
     id :: Int32; cnt :: Int32; rid :: Int32; score :: Int32
     qs :: Int32; qe  :: Int32; rs  :: Int32; re :: Int32
@@ -72,6 +118,20 @@ struct Record
     p    :: Ptr{Extra}
 end
 
+"""
+	struct IndexOptions
+		k    :: Cshort
+		w    :: Cshort
+		flag :: Cshort
+		bucket_bits :: Cshort
+		mini_batch_size :: Int64
+		batch_size :: UInt64
+
+		IndexOptions() = new()
+	end
+
+Copied from minimap2.h. See mm_idxopt_t.
+"""
 struct IndexOptions
     k    :: Cshort
     w    :: Cshort
@@ -83,6 +143,61 @@ struct IndexOptions
     IndexOptions() = new()
 end
 
+"""
+	mutable struct MapOptions
+		flag :: Int64
+		seed :: Cint
+		sdust_thres :: Cint
+
+		max_qlen :: Cint
+
+		bw :: Cint; bw_long :: Cint
+		max_gap :: Cint; max_gap_ref :: Cint 
+		max_frag_len :: Cint
+		max_chain_skip :: Cint; max_chain_iter :: Cint
+		min_cnt :: Cint
+		min_chain_score :: Cint
+		chain_gap_scale :: Cfloat
+		rmq_size_cap :: Cint; rmq_inner_dist :: Cint
+		rmq_rescue_size :: Cint
+		rmq_rescue_ratio :: Cfloat
+
+		mask_level :: Cfloat
+		mask_len :: Cint
+		pri_ratio :: Cfloat
+		best_n :: Cint
+
+		alt_drop :: Cfloat
+
+		a :: Cint; b :: Cint; q :: Cint; e :: Cint; q2 :: Cint; e2 :: Cint
+		sc_ambi :: Cint
+		noncan :: Cint 
+		junc_bonus :: Cint
+		zdrop :: Cint; zdrop_inv :: Cint
+		end_bonus :: Cint
+		min_dp_max :: Cint
+		min_ksw_len :: Cint
+		anchor_ext_len :: Cint; anchor_ext_shift :: Cint
+		max_clip_ratio :: Cfloat
+
+		rank_min_len :: Cint
+		rank_frac :: Cfloat
+
+		pe_ori :: Cint; pe_bonus :: Cint
+
+		mid_occ_frac :: Cfloat
+		min_mid_occ :: Int32; max_mid_occ :: Int32
+		mid_occ :: Int32
+		max_occ :: Int32; max_max_occ :: Int32; occ_dist :: Int32;
+		mini_batch_size :: Int64
+		max_sw_mat :: Int64
+		cap_kalloc :: Int64
+
+		split_prefix :: Cstring
+	end
+
+Copied from minimap2.h. See mm_mapopt_t.
+"""
 mutable struct MapOptions
 	flag :: Int64
 	seed :: Cint
@@ -153,6 +268,14 @@ mutable struct MapOptions
     end
 end
 
+"""
+	struct PanContigs
+		name     :: T
+		sequence :: T
+	end
+
+A synonym for a consensus sequence of `Block`.
+"""
 struct PanContigs{T <: AbstractArray{S} where S <: AbstractString}
     name     :: T
     sequence :: T
@@ -162,6 +285,12 @@ end
 # wrapper
 
 # reference index
+"""
+	makeindex(w, k, names, sequence; bucketbits::Int=14)
+
+Given a window size `w` and kmer length `k`, return a handle to a minimizer index
+for sequences `sequence`.
+"""
 function makeindex(w, k, names, sequence; bucketbits::Int=14)
     @assert length(names) == length(sequence)
 
@@ -176,15 +305,30 @@ function show(ref::Index)
     ccall(idx_stat, Cvoid, (Ptr{Cvoid},), ref.handle)
 end
 
+"""
+	freeindex()
+
+Free memory associated to an opaque handle to a sequence index.
+"""
 function freeindex(ref::Index)
     ccall(idx_free, Cvoid, (Ptr{Cvoid},), ref.handle)
 end
 
 # thread buffer
+"""
+	makebuffer()
+
+Return an opaque handle thread buffer
+"""
 function makebuffer()
     return Buffer(ccall(tbuf_init, Ptr{Cvoid}, ()))
 end
 
+"""
+	freebuffer()
+
+Free memory associated to an opaque handle thread buffer
+"""
 function freebuffer(buf::Buffer)
     return ccall(tbuf_free, Cvoid, (Ptr{Cvoid},), buf.handle)
 end
@@ -197,6 +341,13 @@ unpackcigar(base::Ptr{UInt32}, n) = [let
 end for i in 1:n]
 
 # alignment
+"""
+	align(ref::PanContigs, qry::PanContigs, minblock::Int)
+
+Call into minimap to align the set of blocks `qry` to blocks `ref`.
+This is probably the function you want.
+If you call into the function specifically, all memory management is taken care of for you.
+"""
 function align(ref::PanContigs, qry::PanContigs, minblock::Int)
     iopt = Ref{IndexOptions}(IndexOptions()) 
     mopt = MapOptions(iopt, minblock)

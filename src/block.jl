@@ -33,6 +33,12 @@ const AlleleMaps{T} = Union{Dict{Node{T},SNPMap},Dict{Node{T},InsMap},Dict{Node{
 # ------------------------------------------------------------------------
 # utility functions
 
+"""
+	applyalleles(seq::Array{UInt8}, mutate::SNPMap, insert::InsMap, delete::DelMap)
+
+Take a sequence and apply polymorphisms, as given by `mutate`, `insert`, and `delete`.
+Return the brand new allocated sequence.
+"""
 function applyalleles(seq, mutate, insert, delete)
     len = length(seq) - reduce(+,values(delete);init=0) + reduce(+,length(v) for v in values(insert);init=0)
     len ≤ 0 && return UInt8[]
@@ -270,7 +276,12 @@ end
         delete   :: Dict{Node{Block},DelMap}
     end
 
-A block stores all information
+Store a multiple sequence alignment of contiguous DNA related by homology.
+Use as a component of a larger, branching multiple genome alignment.
+`uuid` is a string identifier unique to each block
+`sequence` is the consensus (majority-rule) sequence
+`gaps` recapitulate all locations of insertions for generating the full sequence alignment.
+`mutate`, `insert`, and `delete` store polymorphisms of each genome contained within the block.
 """
 mutable struct Block
     uuid     :: String
@@ -295,9 +306,30 @@ end
 # constructors
 
 # simple helpers
+"""
+	Block(sequence,gaps,mutate,insert,delete)
+
+Construct a block with a unique `uuid`.
+"""
 Block(sequence,gaps,mutate,insert,delete) = Block(random_id(),sequence,gaps,mutate,insert,delete)
+"""
+	Block(sequence,gaps)
+
+Construct a block with a unique `uuid` with fixed `sequence` and `gaps`.
+No individuals and thus polymorphisms are initialized.
+"""
 Block(sequence,gaps) = Block(sequence,gaps,Dict{Node{Block},SNPMap}(),Dict{Node{Block},InsMap}(),Dict{Node{Block},DelMap}())
+"""
+	Block(sequence,gaps)
+
+Construct a block with a unique `uuid` with fixed `sequence`.
+"""
 Block(sequence) = Block(sequence,Dict{Int,Int}(),Dict{Node{Block},SNPMap}(),Dict{Node{Block},InsMap}(),Dict{Node{Block},DelMap}())
+"""
+	Block(sequence,gaps)
+
+Construct a block with a unique `uuid`. All fields are empty.
+"""
 Block()         = Block(UInt8[])
 
 # move alleles
@@ -406,6 +438,12 @@ end
 
 # TODO: rename to concatenate?
 # serial concatenate list of blocks
+"""
+	Block(bs::Block...)
+
+Concatenate a variable number of blocks into one larger block.
+The returned block has a newly generated `uuid`.
+"""
 function Block(bs::Block...)
     sequence = vcat((b.sequence for b in bs)...)
 
@@ -433,6 +471,12 @@ end
 
 # TODO: rename to slice?
 # returns a subslice of block b
+"""
+	Block(b::Block, slice)
+
+Return a subsequence associated to block `b` at interval `slice`.
+The returned block has a newly generated `uuid`.
+"""
 function Block(b::Block, slice)
     if (slice.start == 1 && slice.stop == length(b))
         Block(b.sequence,b.gaps,b.mutate,b.insert,b.delete)
@@ -456,18 +500,38 @@ end
 # operations
 
 # simple operations
+"""
+	depth(b::Block)
+
+Return the number of genomes contained within the alignment
+"""
 depth(b::Block) = length(b.mutate)
 pair(b::Block)  = b.uuid => b
 
 show(io::IO, b::Block) = show(io, (id=b.uuid, depth=depth(b)))
 
+"""
+	length(b::Block)
+
+Return the length of consensus sequence of the multiple alignment of block `b`.
+"""
 length(b::Block) = length(b.sequence)
+"""
+	length(b::Block, n::Node)
+
+Return the length of the sequence of node `n` within the multiple alignment of block `b`.
+"""
 length(b::Block, n::Node) = (length(b)
                           + reduce(+, length(i) for i in values(b.insert[n]); init=0)
                           - reduce(+, values(b.delete[n]); init=0))
 
 keys(b::Block) = keys(b.mutate)
 
+"""
+	diversity(b::Block)
+
+Return the averaged fraction of loci that are mutated within the multiple sequence alignment of block `b`.
+"""
 function diversity(b::Block)
     d = depth(b)
     l = length(b)
@@ -489,6 +553,12 @@ islesser(a::Tuple{Int,Int}, b::Tuple{Int,Int}) = isless(a, b)
 
 islesser(a::Locus, b::Locus) = islesser(a.pos, b.pos)
 
+"""
+	allele_positions(snp::SNPMap, ins::InsMap, del::DelMap)
+
+Return an iterator over polymorphic loci, i.e. SNPs and Indels.
+The iterator will be sorted by position in ascending order.
+"""
 function allele_positions(snp::SNPMap, ins::InsMap, del::DelMap)
     keys(dict, sym) = [(pos=key, kind=sym) for key in Base.keys(dict)]
     loci = [keys(snp,:snp); keys(ins,:ins); keys(del,:del)]
@@ -496,9 +566,21 @@ function allele_positions(snp::SNPMap, ins::InsMap, del::DelMap)
 
     return loci
 end
+"""
+	allele_positions(b::Block, n::Node)
+
+Return an iterator over polymorphic loci for node `n` contained within block `b`
+The iterator will be sorted by position in ascending order.
+"""
 allele_positions(b::Block, n::Node) = allele_positions(b.mutate[n], b.insert[n], b.delete[n])
 
 # complex operations
+"""
+	reverse_complement(b::Block; keepid=false)
+
+Return the reverse complement of the multiple sequence alignment within Block `b`.
+By default, will return a block with a new `uuid`, unless keepid is set to `true`.
+"""
 function reverse_complement(b::Block; keepid=false)
     seq = reverse_complement(b.sequence)
     len = length(seq)
@@ -515,6 +597,12 @@ function reverse_complement(b::Block; keepid=false)
     return keepid ? Block(b.uuid, seq,gaps,mutate,insert,delete) : Block(seq,gaps,mutate,insert,delete)
 end
 
+"""
+	assert_equal(b₁::Block, b₂::Block)
+
+Throw an error in block `b₁` is not equivalent to block `b₂`.
+Useful for internal debugging.
+"""
 function assert_equals(b₁::Block, b₂::Block)
     !all(b₁.sequence .== b₂.sequence) && error("bad sequence")
 
@@ -523,9 +611,16 @@ function assert_equals(b₁::Block, b₂::Block)
     b₁.delete != b₂.delete && error("bad delete")
 end
 
+"""
+	sequence(b::Block; gaps=false)
+
+Return the consensus of the multiple sequence alignment within block `b`.
+By default, gaps (charater '-') will not be returned, unless `gaps` is set to `true`.
+Return the consensus alignment with gaps is useful for generating the full sequence alignment.
+"""
 function sequence(b::Block; gaps=false)
     !gaps && return Base.copy(b.sequence)
-    
+
     len = length(b) + sum(values(b.gaps))
     seq = Array{UInt8}(undef, len)
 
@@ -595,6 +690,13 @@ function sequence_gaps(b::Block, node::Node{Block})
 end
 
 # returns the sequence WITH mutations and indels applied to the consensus for a given tag 
+"""
+	sequence!(seq, b::Block, node::Node{Block}; gaps=false)
+
+Mutate the sequence buffer `seq` in place to hold the sequence associated to genome `node` within sequence alignment of block `b`.
+By default, gaps (charater '-') will not be returned, unless `gaps` is set to `true`.
+Return the sequence with gap characters to generate the full sequence alignment.
+"""
 function sequence!(seq, b::Block, node::Node{Block}; gaps=false, debug=false)
     gaps && return sequence_gaps!(seq, b, node; debug=debug)
 
@@ -661,6 +763,14 @@ function sequence!(seq, b::Block, node::Node{Block}; gaps=false, debug=false)
     return seq
 end
 
+"""
+	sequence(seq, b::Block, node::Node{Block}; gaps=false, forward=false)
+
+Return the sequence associated to genome `node` within sequence alignment of block `b`.
+By default, gaps (charater '-') will not be returned, unless `gaps` is set to `true`.
+Return the sequence with gap characters can be used to generate the full sequence alignment.
+If `forward` is true, the true orientation of the genome is ignored and will be returned to align to the forward consensus.
+"""
 function sequence(b::Block, node::Node{Block}; gaps=false, debug=false, forward=false)
     seq = gaps ? sequence(b; gaps=true) : Array{UInt8}('-'^length(b, node))
     sequence!(seq, b, node; gaps=gaps, debug=debug)
@@ -695,6 +805,12 @@ function gapconsensus(b::Block, x::Int)
     return gapconsensus(b.insert, b.gaps[x], x)
 end
 
+"""
+	append!(b::Block, node::Node{Block}, snp::Maybe{SNPMap}, ins::Maybe{InsMap}, del::Maybe{DelMap})
+
+Adds a new genome at `node` to multiple sequence alignment block `b`.
+Polymorphisms are optional. If nothing is passed instead, an empty dictionary will be used.
+"""
 function append!(b::Block, node::Node{Block}, snp::Maybe{SNPMap}, ins::Maybe{InsMap}, del::Maybe{DelMap})
     @assert node ∉ keys(b)
 
@@ -715,12 +831,23 @@ function append!(b::Block, node::Node{Block}, snp::Maybe{SNPMap}, ins::Maybe{Ins
     b.delete[node] = del
 end
 
+"""
+	swap!(b::Block, oldkey::Node{Block}, newkey::Node{Block})
+
+Remove all polymorphisms associated to `oldkey` and reassociate them to `newkey`.
+"""
 function swap!(b::Block, oldkey::Node{Block}, newkey::Node{Block})
     b.mutate[newkey] = pop!(b.mutate, oldkey)
     b.insert[newkey] = pop!(b.insert, oldkey)
     b.delete[newkey] = pop!(b.delete, oldkey)
 end
 
+"""
+	swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
+
+Remove all polymorphisms associated to all keys within `oldkey`.
+Concatenate and reassociate them to `newkey`.
+"""
 function swap!(b::Block, oldkey::Array{Node{Block}}, newkey::Node{Block})
     mutate = pop!(b.mutate, oldkey[1])
     insert = pop!(b.insert, oldkey[1])
@@ -770,6 +897,11 @@ function checknogaps(b::Block)
     end
 end
 
+"""
+	regap!(b::Block)
+
+Recompute the positions of gaps within the multiple sequence of block `b`
+"""
 function regap!(b::Block)
     for (node, subdict) in b.insert
         for ((locus, offset), ins) in subdict
@@ -796,6 +928,11 @@ function alignment(b::Block)
     return aln, nodes, ref
 end
 
+"""
+	reconsensus!(b::Block)
+
+Update the consensus sequence of block `b` by majority-rule over the multiple sequence alignment.
+"""
 function reconsensus!(b::Block)
     # NOTE: no point to compute this for blocks with 1 or 2 individuals
     depth(b) <= 2 && return false 
@@ -817,6 +954,13 @@ end
 #           -> independent of alignability
 #           -> errors accrue over time
 #       this would entail allowing the reference alleles to change!
+"""
+	rerefence(qry::Block, ref::Block, aligment)
+
+Take a pairwise alignment `segments` from the consensus of `qry` to `ref` and rereference
+all polymorphisms of `qry` to the consensus sequence of `ref.
+Low-level function used by higher-level API.
+"""
 function rereference(qry::Block, ref::Block, segments)
     combined = (
         gaps   = Base.copy(ref.gaps),
@@ -1104,6 +1248,15 @@ function coordinates(blk::Block, node::Node)
     return coords
 end
 
+
+"""
+	combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
+
+Take a pairwise alignment `aln` from the consensus of `qry` to `ref` and merge both.
+The resultant new block, with a novel uuid is returned.
+Alignment `aln` is a segmented set of intervals mapping homologous regions of one block into the other.
+Parameter `minblock` is the cutoff length of an indel, above which a new block will be created.
+"""
 function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
     blocks = NamedTuple{(:block,:kind),Tuple{Block,Symbol}}[]
 
@@ -1138,6 +1291,12 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
     return blocks
 end
 
+"""
+	check(b::Block)
+
+Check whether block `b` is internally self-consistent.
+Useful for debugging internals.
+"""
 function check(b::Block; ids=true)
     if ids && !all( n.block == b for n ∈ keys(b) )
         error("bad bookkeeping of nodes")
@@ -1212,6 +1371,16 @@ function check(b::Block; ids=true)
     end
 end
 
+"""
+	marshal_fasta(io::IO, b::Block; opt=nothing)
+
+Serialize the multiple sequence alignment of block `b` to a fasta format to IO stream `io`.
+Each sequence will be serialized as-is, i.e. with no gaps.
+
+If `opt` is not `nothing`, the output will be an aligned fasta file.
+Futhermore, opt is interpreted as a function to be called per internal `node`
+that gives a unique name for each fasta record that is generated per `node`.
+"""
 function marshal_fasta(io::IO, b::Block; opt=nothing)
     gaps = opt === nothing ? false : try
         getproperty(opt,:gaps)
@@ -1230,6 +1399,11 @@ function marshal_fasta(io::IO, b::Block; opt=nothing)
     return names
 end
 
+"""
+	pop!(b::Block, n::Node)
+
+Remove genome of Node `n` from Block `b`.
+"""
 function pop!(b::Block, n::Node)
     delete!(b.mutate, n)
     delete!(b.insert, n)

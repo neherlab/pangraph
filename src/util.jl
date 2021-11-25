@@ -28,6 +28,11 @@ Maybe{T} = Union{Nothing,T}
 # random functions
 
 # random string of fixed length
+"""
+	random_id(;len=10, alphabet=UInt8[])
+
+Generate a random string of length `len` drawn from letters in `alphabet`.
+"""
 function random_id(;len=10, alphabet=UInt8[])
     if length(alphabet) == 0
         alphabet = ['A','B','C','D','E','F','G','H','I','J','K','L','M',
@@ -37,6 +42,11 @@ function random_id(;len=10, alphabet=UInt8[])
 end
 
 # helper functions w/ common functionality
+"""
+	write_fasta(io::IO, name, seq)
+
+Output a single FASTA record with sequence `seq` and name `name` to IO stream `io`.
+"""
 function write_fasta(io::IO, name, seq)
     write(io::IO, '>', name, '\n')
     write(io::IO, columns(seq), '\n')
@@ -45,6 +55,19 @@ end
 # ------------------------------------------------------------------------
 # banded alignment data structure
 
+"""
+	struct Score <: AbstractArray{Float64,2}
+		rows::Int
+		cols::Int
+		band::NamedTuple{(:lower, :upper)}
+		data::Array{Float64}
+		offset::Array{Int}
+		starts::Array{Int}
+		stops::Array{Int}
+	end
+
+Store information about a banded pairwise alignment.
+"""
 struct Score <: AbstractArray{Float64,2}
     rows::Int
     cols::Int
@@ -119,6 +142,11 @@ end
 # cigar functions
 
 # alignment -> cigar
+"""
+	cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
+
+Given two sequences, `seq₁` and `seq₂`, perform a pairwise banded alignment and return the cigar string of alignment.
+"""
 function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
     if length(seq₁) != length(seq₂)
         error("not an alignment")
@@ -177,6 +205,12 @@ function cigar(seq₁::Array{UInt8}, seq₂::Array{UInt8})
 end
 
 uncigar(cg::T) where T <: AbstractArray{Tuple{Int,Char}} = cg
+
+"""
+	uncigar(cg::String)
+
+Return an interator over intervals of alignment defined by cigar string `cg`.
+"""
 function uncigar(cg::String)
     chan = Channel{Tuple{Int, Char}}(0)
     @async begin
@@ -199,6 +233,17 @@ end
 # alignment functions
 
 # paf alignment pair
+"""
+	mutable struct Hit
+		name::String
+		length::Int
+		start::Int
+		stop::Int
+		seq::Maybe{Array{UInt8,1}}
+	end
+
+Hit is one side of a pairwise alignment between homologous sequences.
+"""
 mutable struct Hit
     name::String
     length::Int
@@ -207,6 +252,21 @@ mutable struct Hit
     seq::Maybe{Array{UInt8,1}}
 end
 
+"""
+	mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Int,Char}}}}
+		qry::Hit
+		ref::Hit
+		matches::Int
+		length::Int
+		quality::Int
+		orientation::Bool
+		cigar::T
+		divergence::Union{Float64,Nothing}
+		align::Union{Float64,Nothing}
+	end
+
+Alignment is a pairwise homologous alignment between two sequences.
+"""
 mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Int,Char}}}}
     qry::Hit
     ref::Hit
@@ -220,6 +280,12 @@ mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Int,Char}}}}
 end
 
 # dynamic programming
+"""
+	align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost::Score)
+
+Perform a pairwise alignment using Needleman-Wunsch style dynamic programming between
+`seq₁` and `seq₂` given `cost`. The cost is defined by the Score structure.
+"""
 function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
     flip = if length(seq₁) > length(seq₂)
         seq₁, seq₂ = seq₂, seq₁
@@ -313,6 +379,12 @@ function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
     return flip ? (b₂, b₁) : (b₁, b₂)
 end
 
+"""
+	hamming_align(qry::Array{UInt8,1}, ref::Array{UInt8,1})
+
+Perform a simple alignment of `qry` to `ref` by minimizing hamming distance.
+Useful for fast, approximate alignments of small sequences.
+"""
 function hamming_align(qry::Array{UInt8,1}, ref::Array{UInt8,1})
     matches = [ 
         let
@@ -327,8 +399,18 @@ end
 include("static/watson-crick.jl")
 # XXX: This is the major allocator for us.
 #      Will require serious thought as to how to not create so much garbage
+"""
+	reverse_complement(seq::Array{UInt8})
+
+Return a newly allocated sequence array that is the reverse complement of `seq`.
+"""
 reverse_complement(seq::Array{UInt8}) = UInt8[wcpair[nuc+1] for nuc in reverse(seq)]
 
+"""
+	reverse_complement!(hit::Hit)
+
+Reverse complement the qry of Hit in place.
+"""
 function reverse_complement!(hit::Hit)
     if hit.seq !== nothing
         hit.seq = reverse_complement(hit.seq)
@@ -348,6 +430,20 @@ end
 # ------------------------------------------------------------------------
 # alignment modification
 
+"""
+	cost = (
+		open   = -6.0,
+		extend = -1.0,
+		band   = (
+			lower = Inf,
+			upper = Inf,
+		),
+		gap    = k -> k == 0 ? 0 : cost.open + cost.extend*(k-1),
+		match  = (c₁, c₂) -> 6.0*(c₁ == c₂) - 3.0,
+	)
+
+`cost` are the default dynamic alignment parameters used.
+"""
 const cost = (
     open   = -6.0,
     extend = -1.0,
@@ -359,6 +455,12 @@ const cost = (
     match  = (c₁, c₂) -> 6.0*(c₁ == c₂) - 3.0,
 )
 # TODO: come up with a better function name
+"""
+	enforce_cutoff!(a::Alignment, χ)
+
+Ensure that the alignment `a` does not have insertion or deletion segments larger than `χ`.
+Return the list of segments created by parsing the alignment such that all segments are larger than `χ`.
+"""
 function enforce_cutoff!(a::Alignment, χ)
     δqₗ, δqᵣ = a.qry.start-1, a.qry.length - a.qry.stop
     δrₗ, δrᵣ = a.ref.start-1, a.ref.length - a.ref.stop
@@ -412,6 +514,15 @@ end
 log(msg...) = println(stderr, msg...)
 
 # fasta sequence record
+"""
+	struct Record
+		seq::Array{UInt8}
+		name::String
+		meta::String
+	end
+
+A record obtained when parsing a single entry of a FASTA file.
+"""
 struct Record
     seq::Array{UInt8}
     name::String
@@ -423,7 +534,13 @@ name(r::Record) = isempty(r.meta) ? r.name : r.name * " " * r.meta
 NL = '\n'
 Base.show(io::IO, rec::Record) = print(io, ">$(rec.name) $(rec.meta)$(NL)$(String(rec.seq[1:40]))...$(String(rec.seq[end-40:end]))")
 
-function read_fasta(io)
+"""
+	read_fasta(io::IO)
+
+Parse a FASTA file from IO stream `io`.
+Return an iterator over all records.
+"""
+function read_fasta(io::IO)
     chan = Channel{Record}(0)
     @async begin
         buf=IOBuffer()
@@ -458,7 +575,13 @@ function Base.show(io::IO, a::Alignment)
     print(io, "polarity: $(a.orientation)")
 end
 
-function read_paf(io)
+"""
+	read_paf(io::IO)
+
+Parse a PAF file from IO stream `io`.
+Return an iterator over all pairwise alignments.
+"""
+function read_paf(io::IO)
     chan = Channel{Alignment}(0)
 
     int(x)   = parse(Int,x)
@@ -515,6 +638,11 @@ end
 # ------------------------------------------------------------------------
 # string processing functions
 
+"""
+	columns(s; nc=80)
+
+Partition string `s` into an array of strings such that no string is longer than `nc` characters.
+"""
 function columns(s; nc=80)
     nr   = ceil(Int64, length(s)/nc)
     l(i) = 1+(nc*(i-1)) 

@@ -29,6 +29,21 @@ end
 # guide tree for order of pairwise comparison for multiple alignments
 
 # TODO: distance?
+"""
+	mutable struct Clade
+		name   :: String
+		parent :: Union{Clade,Nothing}
+		left   :: Union{Clade,Nothing}
+		right  :: Union{Clade,Nothing}
+		graph  :: Channel{Graph}
+	end
+
+Clade is a node (internal or leaf) of a binary guide tree used to order pairwise alignments
+associated to a multiple genome alignment in progress.
+`name` is only non-empty for leaf nodes.
+`parent` is `nothing` for the root node.
+`graph` is a 0-sized channel that is used as a message passing primitive in alignment.
+"""
 mutable struct Clade
     name   :: String
     parent :: Union{Clade,Nothing}
@@ -40,10 +55,33 @@ end
 # ---------------------------
 # constructors
 
+"""
+	Clade()
+
+Generate an empty, disconnected clade.
+"""
 Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(1))
+"""
+	Clade(name)
+
+Generate an empty, disconnected clade with name `name`.
+"""
 Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(1))
+"""
+	Clade(left::Clade, right::Clade)
+
+Generate an nameless clade with `left` and `right` children.
+"""
 Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(1))
 
+"""
+	Clade(distance, names; algo=:nj)
+
+Generate a tree from a matrix of pairwise distances `distance`.
+The names of leafs are given by an array of strings `names`.
+`algo` dictates the algorithm used to transform the distance matrix into a tree.
+Currently on neighbor joining (:nj) is supported.
+"""
 function Clade(distance, names; algo=:nj)
     @match algo begin
         :nj => return nj(distance, names)
@@ -51,6 +89,14 @@ function Clade(distance, names; algo=:nj)
     end
 end
 
+"""
+	nj(distance, names)
+
+Lower-level function.
+Generate a tree from a matrix of pairwise distances `distance`.
+The names of leafs are given by an array of strings `names`.
+Uses neighbor joining.
+"""
 function nj(distance, names)
     nodes = [Clade(names[i]) for i in 1:size(distance,1)]
 
@@ -125,6 +171,11 @@ end
 # ---------------------------
 # operators
 
+"""
+	isleaf(c::Clade)
+
+Return if Clade `c` is a terminal node, i.e. a leaf.
+"""
 isleaf(c::Clade) = isnothing(c.left) && isnothing(c.right)
 
 # serialization to newick format
@@ -140,6 +191,11 @@ function Base.show(io::IO, c::Clade)
     end
 end
 
+"""
+	leaves(root::Clade)
+
+Return all terminal nodes that have `root` as their common ancestor.
+"""
 function leaves(root::Clade)
     itr = Channel{Clade}(0)
     function traverse(node::Clade)
@@ -159,6 +215,11 @@ function leaves(root::Clade)
     return itr
 end
 
+"""
+	postorder(root::Clade)
+
+Return an postorder iterator over descendents of `root`.
+"""
 function postorder(root::Clade)
     itr = Channel{Clade}(0)
     function traverse(node::Clade)
@@ -179,6 +240,11 @@ function postorder(root::Clade)
     return itr
 end
 
+"""
+	preorder(root::Clade)
+
+Return an preorder iterator over descendents of `root`.
+"""
 function preorder(root::Clade)
     itr = Channel{Clade}(0)
     function traverse(node::Clade)
@@ -211,6 +277,13 @@ end
 # ordering functions
 
 # TODO: assumes the input graphs are singletons! generalize
+"""
+	ordering(compare, Gs...)
+
+Return a guide tree based upon distances computed from a collection of graphs `Gs`, using method `compare`.
+The signature of `compare` is expected to be `compare(G::Graphs....) -> distance, names`.
+Graphs `Gs...` are expected to be singleton graphs.
+"""
 function ordering(compare, Gs...)
     distance, names = compare(Gs...)
     return Clade(distance, names; algo=:nj)
@@ -267,6 +340,18 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!, verbose)
     return blocks, ok
 end
 
+"""
+	align_self(G₁::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; maxiter=100)
+
+Align graph `G₁` to itself by looking for homology between blocks.
+This is a low-level function.
+
+`energy` is to be a function that takes an alignment between two blocks and produces a score.
+The _lower_ the score, the _better_ the alignment. Only negative energies are considered.
+
+`minblock` is the minimum size block that will be produced from the algorithm.
+`maxiter` is maximum number of duplications that will be considered during this alignment.
+"""
 function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; maxiter=100)
     G₀ = G₁
     ok = true
@@ -390,6 +475,19 @@ function compare(old, new, strand)
 
 end
 
+"""
+	align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; maxiter=100)
+
+
+Align graph `G₁` to graph `G₂` by looking for homology between consensus sequences of blocks.
+This is a low-level function.
+
+`energy` is to be a function that takes an alignment between two blocks and produces a score.
+The _lower_ the score, the _better_ the alignment. Only negative energies are considered.
+
+`minblock` is the minimum size block that will be produced from the algorithm.
+`maxiter` is maximum number of duplications that will be considered during this alignment.
+"""
 function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool)
     hits = do_align(G₁, G₂, energy, minblock)
 
@@ -427,6 +525,21 @@ end
 
 # TODO: the associative array is a bit hacky...
 #       can we push it directly into the channel?
+"""
+	align(G::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100)
+
+Align graph `G₁` to itself by looking for homology between blocks.
+Multithreaded by default.
+This is usually the function you want.
+
+`energy` is to be a function that takes an alignment between two blocks and produces a score.
+The _lower_ the score, the _better_ the alignment. Only negative energies are considered.
+
+`minblock` is the minimum size block that will be produced from the algorithm.
+`maxiter` is maximum number of duplications that will be considered during this alignment.
+
+`compare` is the function to be used to generate pairwise distances that generate the internal guide tree.
+"""
 function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing)
     function verify(graph, msg="")
         if reference !== nothing

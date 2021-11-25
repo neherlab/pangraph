@@ -6,13 +6,30 @@ import Base:
 using ..Nodes
 using ..Blocks
 
-import ..Graphs: 
+import ..Graphs:
     pair, sequence, reverse_complement,
     Counter, add!
 
 export Path
 export count_isolates, positions!
 
+"""
+	mutable struct Path
+		name     :: String
+		node     :: Array{Node{Block}}
+		offset   :: Union{Int,Nothing}
+		circular :: Bool
+		position :: Array{Int}
+	end
+
+Path is a single genome entry within the pangraph.
+`name` stores the unique identifier of the genome.
+`node` is an array of Nodes. The concatenation of all Nodes recapitulates the original sequence.
+`offset` is the circular shift that must be applied to the concatenation to retain the original starting positition.
+It is nothing if the Path is linear.
+`circular` is true only if the path should be considered circular, i.e. the last node is implictly connected to the first node.
+`position` represents the array of breakpoints each node corresponds to.
+"""
 mutable struct Path
     name     :: String
     node     :: Array{Node{Block}}
@@ -24,6 +41,12 @@ end
 # --------------------------------
 # constructors
 
+"""
+	Path(name::String,node::Node{Block};circular::Bool=false)
+
+Return a new Path structure obtained from a single `node` and name `name`. 
+By default will be interpreted as a linear path.
+"""
 Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],circular ? 0 : nothing, circular, Int[])
 
 # --------------------------------
@@ -31,8 +54,18 @@ Path(name::String,node::Node{Block};circular::Bool=false) = Path(name,[node],cir
 
 pair(p::Path) = p.name => p
 show(io::IO, p::Path) = Base.show(io, (name=p.name, blocks=p.node))
+"""
+	length(p::Path)
+
+Return the number of nodes associated to Path `p`.
+"""
 length(p::Path) = length(p.node)
 
+"""
+	sequence(p::Path; shift=true)
+
+Return the reconstructed sequence of Path `p`. If shift is false, the circular offset will be ignored.
+"""
 function sequence(p::Path; shift=true)
     seq = join(String(sequence(n.block, n)) for n ∈ p.node)
     if p.offset !== nothing && shift
@@ -42,6 +75,14 @@ function sequence(p::Path; shift=true)
 end
 
 # used for block merging
+"""
+	replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool)
+
+Replace all instances of Block `old` with the array of blocks `new`.
+Operates on Path `p` in place.
+`orientation` is the relative orientation assumed between `old` and `new`,
+i.e. if it is false, `new` is assumed to be the reverse complement of `old`.
+"""
 function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool)
     indices = Int[]
     inserts = Array{Node{Block}}[]
@@ -89,7 +130,18 @@ function intervals(starts, stops, gap, len)
 end
 
 # used for detransitive
+"""
+	Link = NamedTuple{(:block, :strand), Tuple{Block, Bool}}
+
+A shorthand wrapper for an abstract Node object.
+"""
 const Link = NamedTuple{(:block, :strand), Tuple{Block, Bool}}
+"""
+	replace!(p::Path, old::Array{Link}, new::Block)
+
+Replace all instances of oriented Block list `old` with the single block `new`.
+Operates on Path `p` in place.
+"""
 function Base.replace!(p::Path, old::Array{Link}, new::Block)
     # ----------------------------
     # internal functions
@@ -179,6 +231,11 @@ end
 #      for now we keep it global to have memory usage be minimal.
 #      important to consider
 # XXX: strongly type iterator for more specificity?
+"""
+	count_isolates(paths)
+
+Return the number of times each isolate within `paths` appears in each block.
+"""
 function count_isolates(paths)
     blocks  = Dict{Block, Counter}()
 
@@ -195,6 +252,12 @@ function count_isolates(paths)
     return blocks
 end
 
+"""
+	positions!(p::Path)
+
+Compute the positions of each breakpoint represented by a node in Path `p`.
+Modifies `p` in place.
+"""
 function positions!(p::Path)
     p.position = Array{Int}(undef,length(p.node)+1)
     l = 0

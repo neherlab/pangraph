@@ -11,6 +11,16 @@ using .Graphs
 # ------------------------------------------------------------------------
 # types
 
+"""
+	struct Rates
+		snp :: Float64
+		hgt :: Float64
+		del :: Float64
+		inv :: Float64
+	end
+
+Store the rates of evolution of mutation `snp`, recombination `hgt`, deletion `del`, and inversion `inv`.
+"""
 struct Rates
     snp :: Float64
     hgt :: Float64
@@ -19,6 +29,17 @@ struct Rates
 end
 Rates(;snp=0, hgt=0, del=0, inv=0) = Rates(snp, hgt, del, inv)
 
+"""
+	struct Params
+		N    :: Int
+		L    :: Int
+		σₗ   :: Int
+		rate :: Rates
+	end
+
+Store all parameters of a single recombinative Wright-Fisher model.
+Used to
+"""
 struct Params
     N    :: Int
     L    :: Int
@@ -29,6 +50,12 @@ end
 Params(; N=100, L=Int(1e6), σₗ=Int(1e5), snp=0, hgt=0, del=0, inv=0) = Params(N, L, σₗ, Rates(snp, hgt, del, inv))
 
 # bitpacked: 30 bytes(ancestor) | 30 bytes (location) | 3 bytes (mutation) | 1 byte strand
+"""
+	Sequence = Array{UInt64,1}
+
+A bitpacked array of sequence state. Each UInt64 bits are interpreted as
+  > 30 bytes(ancestor) | 30 bytes (location) | 3 bytes (mutation) | 1 byte strand
+"""
 Sequence = Array{UInt64,1}
 # states of mutuation
 # 0** -> no mutation, ** ignored
@@ -58,14 +85,39 @@ population(L::Array{Int}) = [ ancestor(n,len) for (n,len) in enumerate(L)]
 # ------------------------------------------------------------------------
 # evolution operators
 
+"""
+	mutate!(s::Sequence, at::Int)
+
+Apply a random mutation to sequence `s` at locus `at`.
+"""
 mutate!(s::Sequence, at::Int) = s[at] |= ((rand(0:3) << 1) | 8)
+"""
+	delete!(s::Sequence, from::Int, to::Int)
+
+Delete the interval `from`:`to` from sequence `s`.
+"""
 delete!(s::Sequence, from::Int, to::Int) = splice!(s, from:to, [])
+"""
+	insert!(acceptor::Sequence, donor::Sequence, at::Int)
+
+Insert sequence `donor` into `acceptor` at locus `at`.
+"""
 insert!(acceptor::Sequence, donor::Sequence, at::Int) = splice!(acceptor, at:at+1, donor)
+"""
+	invert!(s::Sequence, from::Int, to::Int)
+
+Replace the interval `from`:`to` of sequence `s` with its reverse complement.
+"""
 function invert!(s::Sequence, from::Int, to::Int)
     s[from:to] .⊻= 1        # complement
     reverse!(s, from, to)   # reverse
 end
 
+"""
+	model(param::Params)
+
+Return an evolution function based upon parameters `param`.
+"""
 function model(param::Params)
     parent = Array{Int}(undef, param.N)
     indel = Normal(param.L, param.σₗ)
@@ -143,6 +195,11 @@ function model(param::Params)
     end
 end
 
+"""
+	pancontig!(s::Sequence, ancestor::Dict{Int,Array{Interval}})
+
+Return the ancestral tiling imprinted upon Sequence `s`. Modifies ancestor in place.
+"""
 function pancontig!(s::Sequence, ancestor::Dict{Int,Array{Interval}})
 	isolate = NamedTuple{(:loci, :strand, :ancestor), Tuple{Interval,Bool,Int}}[]
 
@@ -214,6 +271,11 @@ function pancontig!(s::Sequence, ancestor::Dict{Int,Array{Interval}})
 	return isolate
 end
 
+"""
+	pancontigs(s::Sequence)
+
+Return the ancestral tiling imprinted upon a set of Sequences `isolates`.
+"""
 function pancontigs(isolates::Array{Sequence})
 	ancestors = Dict{Int, Array{Interval}}()
 	isolates  = [ pancontig!(isolate, ancestors) for isolate in isolates ]
@@ -240,6 +302,11 @@ function nodes(isolate, ancestors, blocks)
 end
 
 const ntab = UInt8['A', 'C', 'G', 'T' ]
+"""
+	nucleotide(sequence::Array{Sequence}, ancestor::Array{Array{UInt8,1},1})
+
+Generate the set of extant sequences from the ancestral mosiacs `sequence` and the original sequences `ancestor`.
+"""
 function nucleotide(sequence::Array{Sequence}, ancestor::Array{Array{UInt8,1},1})
 	function transform(x::UInt64)
 		if unpack.snp(x) == 1
@@ -255,7 +322,14 @@ function nucleotide(sequence::Array{Sequence}, ancestor::Array{Array{UInt8,1},1}
 	return transform.(sequence)
 end
 
-function run(evolve!, time::Int, initial::Array{Array{UInt8,1},1}; graph=false)
+"""
+	run(evolve!::Function, time::Int, initial::Array{Array{UInt8,1},1}; graph=false)
+
+The high level API of the module.
+Evolves a set of initial sequences `initial` for `time` generations using the one-step evolution function `evolve!`
+If graph is true, the function will return the pangraph associated to the ancestral tiling.
+"""
+function run(evolve!::Function, time::Int, initial::Array{Array{UInt8,1},1}; graph=false)
 	sequence  = population(length.(initial))
 	offspring = [ Array{UInt64,1}(undef,maximum(length.(initial))) for _ in 1:length(initial) ]
 
