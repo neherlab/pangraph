@@ -2,11 +2,9 @@ module Simulation
 
 using Statistics, Random, Distributions
 
-include("interval.jl")
-using .Intervals
-
-include("graph.jl")
-using .Graphs
+using ..Graphs
+using ..Graphs.Utility
+using ..Graphs.Intervals
 
 # ------------------------------------------------------------------------
 # types
@@ -357,7 +355,7 @@ function run(evolve!::Function, time::Int, initial::Array{Array{UInt8,1},1}; gra
 		Graphs.detransitive!(G)
 		Graphs.finalize!(G)
 
-		return nucleotide(sequence,initial), (isolates, ancestors, G)
+		return nucleotide(sequence,initial), G
 	end
 
 	return nucleotide(sequence,initial), nothing
@@ -367,10 +365,20 @@ randseq(len::Int) = rand(UInt8.(['A','C','G','T']), len)
 
 function test()
     N = 10
-    L = Int(1e4)
+    L = Int(1e5)
 	evolve! = model(Params(;N=N,L=L,snp=1e-3,hgt=0,inv=0))
 	ancestors = [randseq(L) for _ in 1:N]
-	return run(evolve!, 20, ancestors; graph=true)
+
+	sequences, G = run(evolve!, 20, ancestors; graph=true)
+    open("data/synthetic/test.fa", "w") do io
+        for (i,sequence) in enumerate(sequences)
+            write_fasta(io, "isolate_$(i)", sequence)
+        end
+    end
+
+    open("data/synthetic/test.json", "w") do io
+        marshal(io, G; fmt=:json)
+    end
 end
 
 

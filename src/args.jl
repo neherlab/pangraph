@@ -94,6 +94,10 @@ function Base.parse(cmd::Command, args)
     end
 
     if length(cmd.sub) > 0
+        if length(cmd.sub) ≥ 1 && cmd.sub[1] == "-h"
+            usage(cmd)
+            exit(2)
+        end
         panic("""
         pangraph $(args[1]): unknown command
         Run 'pangraph help' for usage.

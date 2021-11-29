@@ -7,10 +7,12 @@ using Random: seed!
 include("graph.jl")
 using .Graphs
 
+import .Graphs.Utility: read_fasta, write_fasta
+
 include("simulate.jl")
 using .Simulation
 
-export Graphs
+export Graphs, Simulation
 
 # ------------------------------------------------------------------------
 # errors

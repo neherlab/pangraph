@@ -2,16 +2,19 @@
 .SUFFIXES:
 .SECONDARY:
 
-ifeq ($(JC),)
-JC := ./vendor/julia-1.6.0/bin/julia
+version := 1.6.3
+
+ifeq ($(jc),)
+jc := ./vendor/julia-$(version)/bin/julia
 endif
 
-JFLAGS := -q --project=.
+jflags := -q --project=.
+srcs   := $(wildcard src/*.jl src/*/*.jl)
 
 all: pangraph
 
-pangraph:
-	$(JC) $(JFLAGS) compile.jl
+pangraph: compile.jl trace.jl $(srcs)
+	$(jc) $(jflags) $<
 
 clean:
 	rm -rf pangraph

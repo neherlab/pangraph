@@ -96,8 +96,8 @@ Export = Command(
 
    function(args)
        path = parse(Export, args)
-       path === nothing && return 2
-       length(path) > 1 && return 2
+       path === nothing  && return 2
+       length(path) != 1 && return 2
 
        graph = load(path, Export)
 
