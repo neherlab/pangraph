@@ -4,4 +4,7 @@ viewer
 figs
 log
 docs/build
-pangraph/__pycache__
+notes/
+vendor
+pangraph
+bin
