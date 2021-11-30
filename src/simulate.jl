@@ -36,7 +36,10 @@ Rates(;snp=0, hgt=0, del=0, inv=0) = Rates(snp, hgt, del, inv)
 	end
 
 Store all parameters of a single recombinative Wright-Fisher model.
-Used to
+`N` is the population size.
+`L` is the expected genome size of all descendants.
+`σ` is the variance of genome size of all descendants.
+`rate` is the various rate of evolutionary processes.
 """
 struct Params
     N    :: Int

@@ -1,5 +1,13 @@
-# Mash Submodule
+# Mash Implementation
+
+## Types
 ```@autodocs
 Modules = [PanGraph.Graphs.Mash]
-Order = [:type, :function]
+Order = [:type, :constant]
+```
+
+## Functions
+```@autodocs
+Modules = [PanGraph.Graphs.Mash]
+Order = [:function]
 ```

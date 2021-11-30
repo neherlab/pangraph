@@ -6,13 +6,6 @@ Generate = Command(
       if zero, sequences are assumed to be supplied via stdin.""",
    [
     Arg(
-        Int,
-        "population size",
-        (short="-n", long="--size"),
-        "simulated population size",
-        100,
-    ),
-    Arg(
         Float64,
         "mutation rate",
         (short="-m", long="--snp-rate"),

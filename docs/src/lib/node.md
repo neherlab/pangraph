@@ -1,5 +1,13 @@
-# Nodes Submodule
+# Nodes
+
+## Types
 ```@autodocs
 Modules = [PanGraph.Graphs.Nodes]
-Order = [:type, :function]
+Order = [:type, :constant]
+```
+
+## Functions
+```@autodocs
+Modules = [PanGraph.Graphs.Nodes]
+Order = [:function]
 ```

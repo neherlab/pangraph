@@ -1,4 +1,4 @@
-.PHONY:	all app clean
+.PHONY:	all pangraph documentation clean
 .SUFFIXES:
 .SECONDARY:
 
@@ -15,6 +15,9 @@ all: pangraph
 
 pangraph: compile.jl trace.jl $(srcs)
 	$(jc) $(jflags) $<
+
+documentation:
+	cd docs && julia make.jl
 
 clean:
 	rm -rf pangraph

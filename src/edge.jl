@@ -7,6 +7,20 @@ using ..Graphs
 
 export edges, deparalog!
 
+"""
+    struct Position
+        path  :: Path
+        node  :: Tuple{Node{Block},Node{Block}}
+        index :: Tuple{Int,Int} # positions on path
+        locus :: Int # breakpoint on sequence
+    end
+
+Store a single position of an edge/breakpoint between homologous pancontigs in an individual genome.
+`path` is the containing `Path` object.
+`node` stores the junction of nodes that represent the position of the breakpoint.
+`index` is the indices of `node` within `path`.
+`locus` is the physical location on the genome of the breakpoint.
+"""
 struct Position
     path  :: Path
     node  :: Tuple{Node{Block},Node{Block}}
@@ -14,6 +28,11 @@ struct Position
     locus :: Int # breakpoint on sequence
 end
 
+"""
+    isolates(positions::Array{Position,1})
+
+Compute the array of `Position` values for each isolate.
+"""
 function isolates(positions::Array{Position,1})
     isolate = Dict{String,Array{Position,1}}()
     for pos in positions
@@ -27,6 +46,12 @@ function isolates(positions::Array{Position,1})
     return isolate
 end
 
+"""
+    next(x::Position, blk::Block)
+
+Compute the next position from `x` that is connected through block `blk`.
+Use to traverse the path of an individual genome through a pangraph.
+"""
 function next(x::Position, blk::Block)
     function index(i::Int)
         i ≤ 0 && return length(x.path)+i
@@ -114,6 +139,17 @@ Base.show(io::IO, x::Position) = Base.show(io,
     )
 )
 
+"""
+    mutable struct Edge
+        block  :: Tuple{Block, Block}
+        invert :: Bool # changes strand
+        nodes  :: Array{Position}
+    end
+
+Store a unique edge within a pangraph.
+An edge is undirected and is defined by the two juxtaposed blocks, as well as a relative orientation.
+Contain all positions of all genomes that contain the edge.
+"""
 mutable struct Edge
     block  :: Tuple{Block, Block}
     invert :: Bool # changes strand
@@ -128,6 +164,11 @@ end
 
 Edge(block₁::Block, block₂::Block, invert::Bool, pos::Position) = Edge((block₁, block₂), invert, Position[pos])
 
+"""
+    edges(G)
+
+Compute all edges associated with pangraph `G`.
+"""
 function edges(G)
     edgeset = Edge[]
 
@@ -175,6 +216,12 @@ function edges(G)
     return edgeset
 end
 
+"""
+    deparalog!(G)
+
+Split duplicated blocks that have non-intersecting, seperable paths that run in parallel and transitively connect associated genomes.
+Use to simplify high copy number blocks found in all individuals in equivalent contexts within pangraph `G`.
+"""
 function deparalog!(G)
     edgeset = edges(G)
 

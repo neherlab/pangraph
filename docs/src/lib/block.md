@@ -3,7 +3,7 @@
 ## Types
 ```@autodocs
 Modules = [PanGraph.Graphs.Blocks]
-Order = [:type]
+Order = [:type, :constant]
 ```
 
 ## Functions

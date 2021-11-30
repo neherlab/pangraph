@@ -524,9 +524,9 @@ log(msg...) = println(stderr, msg...)
 A record obtained when parsing a single entry of a FASTA file.
 """
 struct Record
-    seq::Array{UInt8}
-    name::String
-    meta::String
+    seq  :: Array{UInt8}
+    name :: String
+    meta :: String
 end
 
 name(r::Record) = isempty(r.meta) ? r.name : r.name * " " * r.meta 

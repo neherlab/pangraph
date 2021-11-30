@@ -6,7 +6,7 @@ CurrentModule = PanGraph
 ## Types
 ```@autodocs
 Modules = [Graphs]
-Order = [:type]
+Order = [:type, :constant]
 ```
 
 ## Functions

@@ -3,6 +3,16 @@ module GFA
 import Base: print
 import ..Graphs: Graph, sequence, marshal_gfa
 
+"""
+    struct Segment
+        name     :: String
+        sequence :: Array{UInt8}
+        depth    :: Int
+    end
+
+Store a GFA segment, i.e. an edge of an alignment graph that holds a contiguous sequence
+Depth is the number of genomes, including duplications, that contain the sequence.
+"""
 struct Segment
     name     :: String
     sequence :: Array{UInt8}
@@ -33,6 +43,15 @@ function print(io::IO, l::Link)
     print(io, "L\t$(l.from)\t$(l.to)\t*\tRC:i:$(l.depth)")
 end
 
+"""
+    struct Path
+        name     :: String
+        segments :: Array{Node,1}
+        circular :: Bool
+    end
+
+Store a GFA path, i.e. a sequence of segments that represents an observed genome.
+"""
 struct Path
     name     :: String
     segments :: Array{Node,1}
@@ -49,6 +68,14 @@ function print(io::IO, p::Path)
     print(io, "P\t$(p.name)\t$(p.segments)\t$(circular(p.circular))*")
 end
 
+"""
+    marshal_gfa(io::IO, G::Graph; opt=nothing)
+
+Output pangraph `G` to IO stream `io`.
+`opt` can include two functions, to be accessed in fields `connect` and `output`.
+`connect` is a function that takes a node and returns true or false if it should be connected in the GFA output.
+`output` is an equivalent function signature, but controls whether the node is output at all.
+"""
 function marshal_gfa(io::IO, G::Graph; opt=nothing)
     # unpack options
     filter = (
