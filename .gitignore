@@ -1,0 +1,9 @@
+.dep
+data
+viewer
+figs
+log
+notes/
+vendor
+pangraph
+bin

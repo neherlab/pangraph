@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Minimap2 Wrapper · PanGraph.jl</title><script data-outdated-warner src="../../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.039/juliamono-regular.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.13.11/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../../">PanGraph.jl</a></span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Home</a></li><li><span class="tocitem">Library</span><ul><li><a class="tocitem" href="../align/">Alignment</a></li><li><a class="tocitem" href="../block/">Blocks</a></li><li><a class="tocitem" href="../edge/">Edges</a></li><li><a class="tocitem" href="../graph/">Graphs</a></li><li><a class="tocitem" href="../gfa/">GFA</a></li><li><a class="tocitem" href="../mash/">Mash Implementation</a></li><li class="is-active"><a class="tocitem" href>Minimap2 Wrapper</a><ul class="internal"><li><a class="tocitem" href="#Types"><span>Types</span></a></li><li><a class="tocitem" href="#Functions"><span>Functions</span></a></li></ul></li><li><a class="tocitem" href="../node/">Nodes</a></li><li><a class="tocitem" href="../path/">Paths</a></li><li><a class="tocitem" href="../simulate/">Simulation</a></li><li><a class="tocitem" href="../utility/">Utility</a></li></ul></li><li><span class="tocitem">Command Line</span><ul><li><a class="tocitem" href="../../cli/build/">Build</a></li><li><a class="tocitem" href="../../cli/export/">Export</a></li><li><a class="tocitem" href="../../cli/generate/">Generate</a></li><li><a class="tocitem" href="../../cli/marginalize/">Marginalize</a></li><li><a class="tocitem" href="../../cli/polish/">Polish</a></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Library</a></li><li class="is-active"><a href>Minimap2 Wrapper</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Minimap2 Wrapper</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/nnoll/pangraph/blob/master/docs/src/lib/minimap.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Minimap2-Wrapper"><a class="docs-heading-anchor" href="#Minimap2-Wrapper">Minimap2 Wrapper</a><a id="Minimap2-Wrapper-1"></a><a class="docs-heading-anchor-permalink" href="#Minimap2-Wrapper" title="Permalink"></a></h1><h2 id="Types"><a class="docs-heading-anchor" href="#Types">Types</a><a id="Types-1"></a><a class="docs-heading-anchor-permalink" href="#Types" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.Buffer" href="#PanGraph.Graphs.Minimap.Buffer"><code>PanGraph.Graphs.Minimap.Buffer</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia hljs">struct Buffer
+	handle :: Ptr{Cvoid}
+end</code></pre><p>Store the untyped address to a minimap2 sequence buffer (working space).</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L49-L55">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.Extra" href="#PanGraph.Graphs.Minimap.Extra"><code>PanGraph.Graphs.Minimap.Extra</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia hljs">struct Extra
+	capacity :: UInt32
+	dp_score :: Int32
+	dp_max   :: Int32
+	dp_max2  :: Int32
+	packed   :: UInt32 # n_ambi (30 bits) / strand (2 bits)
+	n_cigar  :: UInt32
+	cigar UInt32[] (variable length array)
+end</code></pre><p>Copied from minimap2.h. See mm<em>extra</em>t.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L61-L73">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.Index" href="#PanGraph.Graphs.Minimap.Index"><code>PanGraph.Graphs.Minimap.Index</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia hljs">struct Index
+	handle :: Ptr{Cvoid}
+end</code></pre><p>Store the untyped address to a minimap2 sequence index (set of minimizers).</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L38-L44">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.IndexOptions" href="#PanGraph.Graphs.Minimap.IndexOptions"><code>PanGraph.Graphs.Minimap.IndexOptions</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia hljs">struct IndexOptions
+	k    :: Cshort
+	w    :: Cshort
+	flag :: Cshort
+	bucket_bits :: Cshort
+	mini_batch_size :: Int64
+	batch_size :: UInt64
+
+	IndexOptions() = new()
+end</code></pre><p>Copied from minimap2.h. See mm<em>idxopt</em>t.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L121-L134">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.MapOptions" href="#PanGraph.Graphs.Minimap.MapOptions"><code>PanGraph.Graphs.Minimap.MapOptions</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia hljs">mutable struct MapOptions
+	flag :: Int64
+	seed :: Cint
+	sdust_thres :: Cint
+
+	max_qlen :: Cint
+
+	bw :: Cint; bw_long :: Cint
+	max_gap :: Cint; max_gap_ref :: Cint 
+	max_frag_len :: Cint
+	max_chain_skip :: Cint; max_chain_iter :: Cint
+	min_cnt :: Cint
+	min_chain_score :: Cint
+	chain_gap_scale :: Cfloat
+	rmq_size_cap :: Cint; rmq_inner_dist :: Cint
+	rmq_rescue_size :: Cint
+	rmq_rescue_ratio :: Cfloat
+
+	mask_level :: Cfloat
+	mask_len :: Cint
+	pri_ratio :: Cfloat
+	best_n :: Cint
+
+	alt_drop :: Cfloat
+
+	a :: Cint; b :: Cint; q :: Cint; e :: Cint; q2 :: Cint; e2 :: Cint
+	sc_ambi :: Cint
+	noncan :: Cint 
+	junc_bonus :: Cint
+	zdrop :: Cint; zdrop_inv :: Cint
+	end_bonus :: Cint
+	min_dp_max :: Cint
+	min_ksw_len :: Cint
+	anchor_ext_len :: Cint; anchor_ext_shift :: Cint
+	max_clip_ratio :: Cfloat
+
+	rank_min_len :: Cint
+	rank_frac :: Cfloat
+
+	pe_ori :: Cint; pe_bonus :: Cint
+
+	mid_occ_frac :: Cfloat
+	min_mid_occ :: Int32; max_mid_occ :: Int32
+	mid_occ :: Int32
+	max_occ :: Int32; max_max_occ :: Int32; occ_dist :: Int32;
+	mini_batch_size :: Int64
+	max_sw_mat :: Int64
+	cap_kalloc :: Int64
+
+	split_prefix :: Cstring
+end</code></pre><p>Copied from minimap2.h. See mm<em>mapopt</em>t.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L146-L200">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.PanContigs" href="#PanGraph.Graphs.Minimap.PanContigs"><code>PanGraph.Graphs.Minimap.PanContigs</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia hljs">struct PanContigs
+	name     :: T
+	sequence :: T
+end</code></pre><p>A synonym for a consensus sequence of <code>Block</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L271-L278">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.Record" href="#PanGraph.Graphs.Minimap.Record"><code>PanGraph.Graphs.Minimap.Record</code></a> — <span class="docstring-category">Type</span></header><section><div><pre><code class="language-julia hljs">struct Record
+	id :: Int32; cnt :: Int32; rid :: Int32; score :: Int32
+	qs :: Int32; qe  :: Int32; rs  :: Int32; re :: Int32
+
+	parent :: Int32; subsc :: Int32
+
+	as     :: Int32
+	mlen   :: Int32; blen :: Int32
+	nsub   :: Int32;
+	score0 :: Int32;
+
+	pack :: UInt32 # mapq(8) ; split(2); rev(1); inv(1); sam_pri(1); proper_frag(1); pe_thru(1); seg_split(1); seg_id(8); split_inv(1); is_alt(1); dummy(6)
+	hash :: UInt32
+	div  :: Cfloat
+	p    :: Ptr{Extra}
+end</code></pre><p>Copied from minimap2.h. See mm<em>reg1</em>t.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L84-L103">source</a></section></article><h2 id="Functions"><a class="docs-heading-anchor" href="#Functions">Functions</a><a id="Functions-1"></a><a class="docs-heading-anchor-permalink" href="#Functions" title="Permalink"></a></h2><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.align-Tuple{PanGraph.Graphs.Minimap.PanContigs, PanGraph.Graphs.Minimap.PanContigs, Int64}" href="#PanGraph.Graphs.Minimap.align-Tuple{PanGraph.Graphs.Minimap.PanContigs, PanGraph.Graphs.Minimap.PanContigs, Int64}"><code>PanGraph.Graphs.Minimap.align</code></a> — <span class="docstring-category">Method</span></header><section><div><pre><code class="language-julia hljs">align(ref::PanContigs, qry::PanContigs, minblock::Int)</code></pre><p>Call into minimap to align the set of blocks <code>qry</code> to blocks <code>ref</code>. This is probably the function you want. If you call into the function specifically, all memory management is taken care of for you.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L344-L350">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.freebuffer-Tuple{PanGraph.Graphs.Minimap.Buffer}" href="#PanGraph.Graphs.Minimap.freebuffer-Tuple{PanGraph.Graphs.Minimap.Buffer}"><code>PanGraph.Graphs.Minimap.freebuffer</code></a> — <span class="docstring-category">Method</span></header><section><div><pre><code class="language-julia hljs">freebuffer()</code></pre><p>Free memory associated to an opaque handle thread buffer</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L327-L331">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.freeindex-Tuple{PanGraph.Graphs.Minimap.Index}" href="#PanGraph.Graphs.Minimap.freeindex-Tuple{PanGraph.Graphs.Minimap.Index}"><code>PanGraph.Graphs.Minimap.freeindex</code></a> — <span class="docstring-category">Method</span></header><section><div><pre><code class="language-julia hljs">freeindex()</code></pre><p>Free memory associated to an opaque handle to a sequence index.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L308-L312">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.makebuffer-Tuple{}" href="#PanGraph.Graphs.Minimap.makebuffer-Tuple{}"><code>PanGraph.Graphs.Minimap.makebuffer</code></a> — <span class="docstring-category">Method</span></header><section><div><pre><code class="language-julia hljs">makebuffer()</code></pre><p>Return an opaque handle thread buffer</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L318-L322">source</a></section></article><article class="docstring"><header><a class="docstring-binding" id="PanGraph.Graphs.Minimap.makeindex-NTuple{4, Any}" href="#PanGraph.Graphs.Minimap.makeindex-NTuple{4, Any}"><code>PanGraph.Graphs.Minimap.makeindex</code></a> — <span class="docstring-category">Method</span></header><section><div><pre><code class="language-julia hljs">makeindex(w, k, names, sequence; bucketbits::Int=14)</code></pre><p>Given a window size <code>w</code> and kmer length <code>k</code>, return a handle to a minimizer index for sequences <code>sequence</code>.</p></div><a class="docs-sourcelink" target="_blank" href="https://github.com/nnoll/pangraph/blob/bce226cbcc0930e4961d1dd54176d14597236017/src/minimap.jl#L288-L293">source</a></section></article></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../mash/">« Mash Implementation</a><a class="docs-footer-nextpage" href="../node/">Nodes »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 0.27.10 on <span class="colophon-date" title="Monday 29 November 2021 16:12">Monday 29 November 2021</span>. Using Julia version 1.6.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
