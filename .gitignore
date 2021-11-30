@@ -4,6 +4,7 @@ viewer
 figs
 log
 docs/build
+docs/repo
 notes/
 vendor
 pangraph

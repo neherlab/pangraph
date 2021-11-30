@@ -23,12 +23,28 @@ const map = UInt64[
 
 const maxU64 = typemax(UInt64)
 
+"""
+    struct Minimizer
+        value    :: UInt64
+        position :: UInt64
+    end
+
+A minimizer is a kmer that, given a hash function that maps kmers to integers, is the minimum kmer within a given set of kmers.
+The value is the result of applying the hash function to the kmer.
+The position is a bitpacked integer that includes reference ID, locus, and strand
+"""
 struct Minimizer
     value    :: UInt64
     position :: UInt64
 end
 
 # transliteration of the invertible hash function found in minimap
+"""
+    hash(x::UInt64, mask::UInt64)
+
+A transliteration of Jenkin's invertible hash function for 64 bit integers.
+Bijectively maps any kmer to an integer.
+"""
 function hash(x::UInt64, mask::UInt64)::UInt64
     x = (~x + (x << 21)) & mask
     x = x ⊻ x >> 24
@@ -40,6 +56,14 @@ function hash(x::UInt64, mask::UInt64)::UInt64
     return x
 end
 
+"""
+    sketch(seq::Array{UInt8}, k::Int, w::Int, id::Int)
+
+Sketch a linear sequence into a vector of minimizers.
+`k` sets the kmer size.
+`w` sets the number of contiguous kmers that will be used in the window minimizer comparison.
+`id` is a unique integer that corresponds to the sequence. It will be bitpacked into the minimizer position.
+"""
 function sketch(seq::Array{UInt8}, k::Int, w::Int, id::Int)
     (k < 0 || k > 32)  && error("k='$(k)' must be ∈ [0,32]")
     (w < 0 || w > 255) && error("w='$(w)' must be ∈ [0,255]")
@@ -147,6 +171,13 @@ end
 
 tuples(iter) = ((x,y) for (i,x) in enumerate(iter) for y in iter[i:end])
 
+"""
+    distance(graphs...; k=15, w=100)
+
+Compute the pairwise distance between all input graphs.
+Distance is the set distance between minimizers.
+Linear-time algorithm using hash collisions.
+"""
 function distance(graphs...; k=15, w=100)
     sequences = Dict(seq for graph in graphs for seq in sequence(graph))
 
