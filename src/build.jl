@@ -1,7 +1,7 @@
 Build = Command(
    "build",
    "pangraph build <options> [arguments]",
-   "builds a multiple sequence alignment graph",
+   "align genomes into a multiple sequence alignment graph",
    """one or more fasta files.
       files can be optionally gzipped.
       multiple records within one file are treated as seperate genomes""",
@@ -38,11 +38,7 @@ Build = Command(
         String,
         "distance calculator",
         (short="-d", long="--distance-backend"),
-        """
-        backend to use to estimate pairwise distance for guide tree
-                    recognized options:
-                        native
-                        mash""",
+        "backend to use to estimate pairwise distance for guide tree\n\trecognized options: [native, mash]",
         "native",
     ),
    ],

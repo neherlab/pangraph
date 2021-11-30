@@ -1,7 +1,7 @@
 Generate = Command(
    "generate",
    "pangraph generate <options> [input fasta file]",
-   "generates a simulated sequence alignment graph",
+   "outputs a simulated sequence alignment graph",
    """zero or one fasta file.
       if zero, sequences are assumed to be supplied via stdin.""",
    [

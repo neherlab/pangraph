@@ -1,7 +1,7 @@
 Polish = Command(
    "polish",
    "pangraph polish <options> [pangraph.json]",
-   "polishes a multiple sequence alignment graph",
+   "realigns pancontigs of multiple sequence alignment graph",
    """zero or one pangraph file (native json)
       if no file, reads from stdin
       stream can be optionally gzipped.""",

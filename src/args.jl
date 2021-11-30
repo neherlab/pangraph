@@ -60,6 +60,8 @@ function usage(io::IO, cmd::Command)
         for sub in cmd.sub
             println(io, "\t$(sub.cmd)$(" "^(maxlen-length(sub.cmd)))\t$(sub.meta)")
         end
+
+		println(io,"")
     end
 
     if length(cmd.arg) > 0
@@ -75,12 +77,16 @@ function usage(io::IO, cmd::Command)
                 println("")
             end
         end
+
+		println(io,"")
     end
 
     if length(cmd.foot) > 0
-        println(io,"\n", "The expected arguments are:\n")
+        println(io,"The expected arguments are:\n")
         println(io,"\t", join(split(cmd.foot,"\n"), "\n\t"))
     end
+
+	return 2
 end
 
 usage(cmd::Command) = usage(stderr, cmd)
@@ -94,7 +100,7 @@ function Base.parse(cmd::Command, args)
     end
 
     if length(cmd.sub) > 0
-        if length(cmd.sub) ≥ 1 && cmd.sub[1] == "-h"
+        if length(cmd.sub) ≥ 1 && args[1] == "-h"
             usage(cmd)
             exit(2)
         end
@@ -103,6 +109,8 @@ function Base.parse(cmd::Command, args)
         Run 'pangraph help' for usage.
         """)
     end
+
+	length(cmd.arg) > 0 || return length(args) > 0 ? args : nothing
 
     let arg = ""
         itr = Iterators.Stateful(args)

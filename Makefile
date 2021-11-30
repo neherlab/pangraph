@@ -1,4 +1,4 @@
-.PHONY:	all pangraph environment documentation clean
+.PHONY:	all pangraph environment release documentation clean
 .SUFFIXES:
 .SECONDARY:
 
@@ -22,5 +22,8 @@ pangraph: compile.jl trace.jl $(srcs)
 documentation:
 	cd docs && julia make.jl
 
+release:
+	tar czf pangraph.tar.gz pangraph
+
 clean:
-	rm -rf pangraph
+	rm -rf pangraph pangraph.tar.gz

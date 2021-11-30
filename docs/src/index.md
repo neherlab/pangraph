@@ -76,9 +76,11 @@ It assumes GNU coreutils are available.
 
 ## User's Guide
 
-Basic functionality of PanGraph is provided by a command line interface.
+Basic functionality of **PanGraph** is provided by a command line interface.
 This includes multiple genome alignment, the export of a genome alignment to various visualization formats, alignment polishing, and genome comparison tool.
 Additionally, generation of basic synthetic data is included for testing.
+Multithreading support is baked into the provided binary.
+Unfortunately, due to limitations in *julia*, the number of threads is set by the environment variable `JULIA_NUM_THREADS`
 
 For uncovered use cases, functionality can be added by utilizing the underlying library functions.
 Please see the high-level overview for definitions of library terminology.

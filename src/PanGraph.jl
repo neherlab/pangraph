@@ -58,18 +58,20 @@ using .Commands
 
 include("build.jl")
 include("generate.jl")
+include("help.jl")
 include("polish.jl")
 include("marginalize.jl")
 include("export.jl")
 
-pangraph = Command(
+Dispatch = Command(
     "pangraph",
     "pangraph <command> [arguments]",
-    "pangraph is a tool for aligning large sets of genomes in the presence of horizontal gene transfer",
+    "a tool for aligning large sets of closely related genomes in the presence of horizontal gene transfer",
     "passed directly to the chosen command",
     [
      Build,
      Generate,
+	 Help,
      Polish,
      Marginalize,
      Export,
@@ -78,11 +80,11 @@ pangraph = Command(
 
 function main(args)
     if length(args) == 0
-        usage(pangraph)
+        usage(Dispatch)
         return 2
     end
 
-    return run(pangraph, parse(pangraph, args))
+    return run(Dispatch, parse(Dispatch, args))
 end
 
 function julia_main()::Cint
@@ -99,4 +101,3 @@ if abspath(PROGRAM_FILE) == @__FILE__
 end
 
 end
-
