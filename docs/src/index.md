@@ -31,7 +31,7 @@ The documentation, and source code, uses the following terminology:
 
 ## Installation
 
-There are multiple ways to install PanGraph
+There are multiple ways to install PanGraph (either the library or just command line interface)
 
 ### From Julia REPL
 ```julia
@@ -40,7 +40,7 @@ There are multiple ways to install PanGraph
 
 ### From Command Line
 ```bash
-    julia -e 'using Pkg; Pkg.add("https://github.com/nnoll/pangraph.git")'
+    julia -e 'using Pkg; Pkg.add("https://github.com/nnoll/pangraph.git"); Pkg.build()'
 ```
 
 ### Local Environment
@@ -50,9 +50,9 @@ Clone the repository.
     git clone https://github.com/nnoll/pangraph.git && cd pangraph
 ```
 
-Instantiate the package. This will create a seperate Julia environment for PanGraph
+Build the package. This will create a seperate Julia environment for PanGraph
 ```bash
-    julia -e 'using Pkg; Pkg.instantiate(".")'
+    julia -e 'using Pkg; Pkg.build(".")'
 ```
 
 Enter the REPL
@@ -60,12 +60,19 @@ Enter the REPL
     julia --project=.
 ```
 
+### Binary
+Additionally, `pangraph` is available as a standalone, relocatable binary that should work on any Linux or MacOSX machine.
+Releases can be obtained from [Github](https://github.com/nnoll/pangraph/releases)
+
 ### Optional dependencies
 
 There are a few **optional** external programs that PanGraph can utilize
 1. [Mash](https://github.com/marbl/Mash) can be used to construct a guide tree in place of our internal algorithm.
 2. [MAFFT](https://mafft.cbrc.jp/alignment/software/) can be optionally used to polish homologous alignments. Only recommended for short alignments.
 In order to invoke functionality from PanGraph, these tools must be installed and available on **$PATH**
+
+For convenience, a script `bin/setup-pangraph` is provided within the repository to install both dependencies for a Linux machine without access to root.
+It assumes GNU coreutils are available.
 
 ## User's Guide
 

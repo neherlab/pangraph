@@ -1,7 +1,8 @@
 import PanGraph
 
-home = ENV["HOME"]
-root = "$home/src/pangraph/data/synthetic"
+cdir = pwd()
+home = replace(cdir,"/pangraph/lib/julia"=>"")
+root = "$home/data/synthetic"
 
 # usage
 PanGraph.main([])              # main usage

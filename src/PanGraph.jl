@@ -1,5 +1,7 @@
 module PanGraph
 
+ENV["PYTHON"] = ""
+
 using GZip
 using Rematch
 using Random: seed!

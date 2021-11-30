@@ -5,7 +5,6 @@ using Rematch
 using ProgressMeter
 
 import ..Graphs
-
 # ------------------------------------------------------------------------
 # Phylogenetic tree manipulation
 
@@ -13,10 +12,8 @@ module Phylo
 
 using Rematch
 
-ENV["PYTHON"] = ""; import PyCall # use internal python so we can build a conda environment
-# XXX: might need this to make it automatically work...
-# import Pkg
-# Pkg.build("PyCall")
+# use internal python so we can build a conda environment
+import PyCall
 
 # ignore syntax warnings
 PyCall.pyimport("warnings").filterwarnings("ignore")
