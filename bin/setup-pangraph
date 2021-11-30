@@ -1,0 +1,43 @@
+#!/bin/sh -e
+
+os="Linux64"
+root=$(realpath ".local")
+
+mkdir -p $root
+
+download()
+{
+    name="$1"; shift 1
+    url="$1";  shift 1
+    tag="$1";  shift 1
+
+    cd $root
+
+    curl -L -o "$name-$os.tar" "$url/$tag/$name-$os-$tag.tar"
+    tar xf "$name-$os.tar" -C . 2>/dev/null
+    mv "$name-$os-$tag"/$name "../bin/$name"
+}
+
+build()
+{
+    name="$1"; shift 1
+    url="$1";  shift 1
+    tag="$1";  shift 1
+
+    cd $root
+
+    curl -L -o "$name.tgz" "$url/$name-$tag-without-extensions-src.tgz"
+    tar xzf "$name.tgz" 2>/dev/null
+    mv $name-$tag-without-extensions $name && cd $name/core
+
+    sed -i "s|PREFIX = /usr/local|PREFIX = $root|" Makefile
+    sed -i 's|BINDIR = $(PREFIX)/bin|BINDIR = ../../../bin|' Makefile
+
+    make clean
+    make
+    make install
+}
+
+#(download "mash" "https://github.com/marbl/Mash/releases/download" "v2.2")
+(build "mafft" "https://mafft.cbrc.jp/alignment/software" "7.490")
+# rm -r $root

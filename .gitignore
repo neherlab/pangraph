@@ -1,4 +1,5 @@
 .dep
+.local
 data
 viewer
 figs
@@ -8,4 +9,5 @@ docs/repo
 notes/
 vendor
 pangraph
+pangraph.tar.gz
 bin
