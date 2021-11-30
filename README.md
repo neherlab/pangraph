@@ -1,6 +1,6 @@
 # pangraph
 
-![readthedocs](https://nnoll.github.io/pangraph/)
+[![Documentation](https://img.shields.io/badge/Documentation-Link-blue.svg)](https://nnoll.github.io/pangraph/)
 
 > a bioinformatic toolkit to align large sets of closely related genomes into a graph data structure
 
