@@ -1,4 +1,4 @@
-.PHONY:	all pangraph environment release documentation clean
+.PHONY:	all install pangraph environment release documentation clean
 .SUFFIXES:
 .SECONDARY:
 
@@ -11,7 +11,10 @@ endif
 jflags := -q --project=.
 srcs   := $(wildcard src/*.jl src/*/*.jl)
 
-all: pangraph
+all: install
+
+install: pangraph
+	ln -s $(pwd)/pangraph/bin/pangraph bin/$<
 
 environment:
 	bin/setup-pangraph

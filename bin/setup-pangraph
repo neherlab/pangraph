@@ -38,6 +38,6 @@ build()
     make install
 }
 
-#(download "mash" "https://github.com/marbl/Mash/releases/download" "v2.2")
+(download "mash" "https://github.com/marbl/Mash/releases/download" "v2.2")
 (build "mafft" "https://mafft.cbrc.jp/alignment/software" "7.490")
 # rm -r $root

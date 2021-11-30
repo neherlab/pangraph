@@ -11,6 +11,7 @@ PanGraph.main(["export"])      # export usage
 PanGraph.main(["generate"])    # generate usage
 PanGraph.main(["marginalize"]) # marginalize usage
 PanGraph.main(["polish"])      # polish usage
+PanGraph.main(["help"])		   # help usage
 
 # build
 PanGraph.main(["build", "--circular", "-b", "0", "-m", "0", "$root/test.fa"])
@@ -26,3 +27,6 @@ PanGraph.main(["marginalize", "-o", "$root/pairs", "$root/test.json"])
 
 # polish
 PanGraph.main(["polish", "$root/test.json"])
+
+# help
+PanGraph.main(["help", "build"])
