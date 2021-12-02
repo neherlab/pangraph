@@ -35,7 +35,7 @@ Enter the REPL
 ### Relocatable binary
 Releases can be obtained from [GitHub](https://github.com/nnoll/pangraph/releases)
 
-Alternatively, **pangraph** can be built locally on your machine by running
+Alternatively, **pangraph** can be built locally on your machine by running (inside the cloned repo)
 ```bash
     jc="path/to/julia/executable" make pangraph && make install
 ```
