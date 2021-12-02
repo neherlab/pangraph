@@ -89,11 +89,13 @@ end
 
 function julia_main()::Cint
     try
-        return main(ARGS)
+        main(ARGS)
     catch
-        # TODO: more sophisticated error handling
+        Base.invokelatest(Base.display_error, Base.catch_stack())
         return 1
     end
+
+    return 0
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

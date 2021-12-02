@@ -13,8 +13,8 @@ srcs   := $(wildcard src/*.jl src/*/*.jl)
 
 all: install
 
-install: pangraph
-	ln -s $(pwd)/pangraph/bin/pangraph bin/$<
+install:
+	ln -s $$(pwd)/pangraph/bin/pangraph bin/pangraph
 
 environment:
 	bin/setup-pangraph
