@@ -52,7 +52,7 @@ Clone the repository.
 
 Build the package. This will create a seperate Julia environment for PanGraph
 ```bash
-    julia -e 'using Pkg; Pkg.build(".")'
+    julia --project=. -e 'using Pkg; Pkg.build()'
 ```
 
 Enter the REPL
