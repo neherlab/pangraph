@@ -5,13 +5,13 @@ home = replace(cdir,"/pangraph/lib/julia"=>"")
 root = "$home/data/synthetic"
 
 # usage
-PanGraph.main([])              # main usage
-PanGraph.main(["build"])       # build usage
-PanGraph.main(["export"])      # export usage
-PanGraph.main(["generate"])    # generate usage
-PanGraph.main(["marginalize"]) # marginalize usage
-PanGraph.main(["polish"])      # polish usage
-PanGraph.main(["help"])		   # help usage
+PanGraph.main([])                      # main usage
+PanGraph.main(["help", "build"])       # build usage
+PanGraph.main(["help", "export"])      # export usage
+PanGraph.main(["help", "generate"])    # generate usage
+PanGraph.main(["help", "marginalize"]) # marginalize usage
+PanGraph.main(["help", "polish"])      # polish usage
+PanGraph.main(["help", "help"])		   # help usage
 
 # build
 PanGraph.main(["build", "--circular", "-b", "0", "-m", "0", "$root/test.fa"])

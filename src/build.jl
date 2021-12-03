@@ -2,9 +2,10 @@ Build = Command(
    "build",
    "pangraph build <options> [arguments]",
    "align genomes into a multiple sequence alignment graph",
-   """one or more fasta files.
+   """zero, one or more fasta files.
       files can be optionally gzipped.
-      multiple records within one file are treated as seperate genomes""",
+      multiple records within one file are treated as seperate genomes.
+      if no file is given, reads fasta record from stdin""",
    [
     Arg(
         Int,
@@ -45,7 +46,11 @@ Build = Command(
 
    (args) -> let
        files = parse(Build, args)
-       files === nothing && return 2
+       files = if files === nothing || length(files) == 0
+           "/dev/stdin"
+       else
+           files
+       end
 
        minblock = arg(Build, "-l")
        circular = arg(Build, "-c")

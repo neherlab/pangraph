@@ -55,8 +55,8 @@ Generate = Command(
         end
 
         input = parse(Generate, args)
-        input = if (input === nothing) 
-            stdin
+        input = if (input === nothing || length(input) == 0)
+            "/dev/stdin"
         elseif length(input) == 1
             input[1]
         else

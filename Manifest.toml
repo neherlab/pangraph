@@ -82,6 +82,12 @@ git-tree-sha1 = "039be665faf0b8ae36e089cd694233f5dee3f7d6"
 uuid = "92fee26a-97fe-5a0c-ad85-20a5f3185b63"
 version = "0.5.1"
 
+[[Hungarian]]
+deps = ["LinearAlgebra", "SparseArrays"]
+git-tree-sha1 = "371a7df7a6cce5909d6c576f234a2da2e3fa0c98"
+uuid = "e91730f6-4275-51fb-a7a0-7064cfbd3b39"
+version = "0.6.0"
+
 [[InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
