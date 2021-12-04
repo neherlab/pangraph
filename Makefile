@@ -9,6 +9,7 @@ jc := ./vendor/julia-$(version)/bin/julia
 endif
 
 jflags := -q --project=.
+julia  := julia $(jflags)
 srcs   := $(wildcard src/*.jl src/*/*.jl)
 
 all: install
@@ -30,3 +31,5 @@ release:
 
 clean:
 	rm -rf pangraph pangraph.tar.gz
+
+include script/rules.mk

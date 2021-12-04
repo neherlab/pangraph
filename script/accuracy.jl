@@ -1,27 +1,64 @@
 module Accuracy
 
 using PanGraph
+using PanGraph.Graphs
 using Hungarian
+using Statistics
 
 # ------------------------------------------------------------------------
 # cost computation
 
 δ(q, r; L=100) = mod(q-r, L)
-distance(qry, ref; L=100) = δ.(qry, ref'; L=L)
+distance(qry, ref; L=100) = min.(δ.(qry, ref'; L=L), δ.(ref', qry; L=L))
+
+function cutoff(position, len, low; match=nothing)
+    measurable = copy(position)
+
+    @label loop
+    D = mod.(measurable.- measurable', len)
+    i = findfirst(0 .< D .< low)
+    i !== nothing || @goto endloop
+
+        if match === nothing
+            deleteat!(measurable, i.I[2])
+        else
+            m1 = minimum(distance(measurable[i.I[1]], match; L=len))
+            m2 = minimum(distance(measurable[i.I[2]], match; L=len))
+            if m1 < m2
+                deleteat!(measurable, i.I[2])
+            else
+                deleteat!(measurable, i.I[1])
+            end
+        end
+
+    @goto  loop
+    @label endloop
+
+    return measurable
+end
 
 function compare(path)
 	graph = (
-		known = open(Graphs.unmarshal,path.known),
-		guess = open(Graphs.unmarshal,path.guess),
+		known = open(unmarshal,path.known),
+		guess = open(unmarshal,path.guess),
 	)
 
-	for (name,known) in graph.known.sequence
-		guess = graph.guess.sequence[name]
-		dists = distance(guess.position[1:end-1],known.position[1:end-1]; L=known.position[end])
-        @show guess.position, known.position
-        assignment, cost = hungarian(dists)
-        @show cost
-	end
+    costs = [
+        let
+            L = length(sequence(known))
+            guess = graph.guess.sequence[name]
+
+            x = cutoff(guess.position,L,100)
+            y = cutoff(known.position,L,100; match=x)
+            d = distance(x,y; L=L)
+
+            _, cost = hungarian(d)
+            cost / min(length(x),length(y))
+        end for (name,known) in graph.known.sequence
+    ]
+
+    @show mean(costs), std(costs)
+    return costs
 end
 
 # ------------------------------------------------------------------------

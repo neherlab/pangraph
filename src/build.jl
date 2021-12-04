@@ -47,7 +47,7 @@ Build = Command(
    (args) -> let
        files = parse(Build, args)
        files = if files === nothing || length(files) == 0
-           "/dev/stdin"
+           ["/dev/stdin"]
        else
            files
        end

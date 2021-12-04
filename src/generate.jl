@@ -21,6 +21,13 @@ Generate = Command(
     ),
     Arg(
         Float64,
+        "Length variance prefactor (σ=L/s)",
+        (short="-s", long="--sigma-pre"),
+        "divisor of mean length that sets the variance",
+        10,
+    ),
+    Arg(
+        Float64,
         "Deletion rate",
         (short="-d", long="--delete-rate"),
         "rate of deletion events per genome per generation",
@@ -69,13 +76,13 @@ Generate = Command(
 
         N = length(ancestors)
         L = Int(round(sum(length.(ancestors)) / N))
-        σ = L / 10
+        σ = L ÷ arg(Generate,"-s")
 
         evolve! = Simulation.model(
             Simulation.Params(;
                 N   = N,
                 L   = L,
-                σₗ  = σ,
+                σ   = σ,
                 snp = arg(Generate,"-m"),
                 hgt = arg(Generate,"-r"),
                 del = arg(Generate,"-d"),

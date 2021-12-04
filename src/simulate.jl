@@ -31,7 +31,7 @@ Rates(;snp=0, hgt=0, del=0, inv=0) = Rates(snp, hgt, del, inv)
 	struct Params
 		N    :: Int
 		L    :: Int
-		σₗ   :: Int
+		σ    :: Int
 		rate :: Rates
 	end
 
@@ -44,11 +44,11 @@ Store all parameters of a single recombinative Wright-Fisher model.
 struct Params
     N    :: Int
     L    :: Int
-    σₗ   :: Int
+    σ    :: Int
     rate :: Rates
 end
 
-Params(; N=100, L=Int(1e6), σₗ=Int(1e5), snp=0, hgt=0, del=0, inv=0) = Params(N, L, σₗ, Rates(snp, hgt, del, inv))
+Params(; N=100, L=Int(1e6), σ=Int(1e5), snp=0, hgt=0, del=0, inv=0) = Params(N, L, σ, Rates(snp, hgt, del, inv))
 
 # bitpacked: 30 bytes(ancestor) | 30 bytes (location) | 3 bytes (mutation) | 1 byte strand
 """
@@ -121,7 +121,7 @@ Return an evolution function based upon parameters `param`.
 """
 function model(param::Params)
     parent = Array{Int}(undef, param.N)
-    indel = Normal(param.L, param.σₗ)
+    indel = Normal(param.L, param.σ)
 
     int(x) = Int(round(x))
 
