@@ -12,15 +12,24 @@ jflags := -q --project=.
 julia  := julia $(jflags)
 srcs   := $(wildcard src/*.jl src/*/*.jl)
 
-all: install
+datadir := data/synthetic
+jcdata  := $(datadir)/test.fa
 
-install:
+all:
+
+install: pangraph
 	ln -s $$(pwd)/pangraph/bin/pangraph bin/pangraph
 
 environment:
 	bin/setup-pangraph
 
-pangraph: compile.jl trace.jl $(srcs)
+$(datadir):
+	mkdir -p $@
+
+$(jcdata): | $(datadir)
+	julia $(jflags) -e 'using PanGraph; PanGraph.Simulation.test()'
+
+pangraph: compile.jl trace.jl $(jcdata) $(srcs)
 	$(jc) $(jflags) $<
 
 documentation:
