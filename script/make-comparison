@@ -1,0 +1,42 @@
+#!/bin/bash -e
+
+if [[ $# -lt 3 ]]; then
+    echo 'please provide a path to the script and a path store the resulting JLD2 file'
+    exit 1
+fi
+
+seq="$1"
+cmd="$2"
+out="$3"
+data="data/synthetic"
+
+trap 'cleanup' ERR
+cleanup()
+{
+    rm -f $out
+}
+
+# simulation parameters
+N=100; T=75; L=100000
+
+hgts="1e-2 1e-1"
+snps="1e-6 1e-2"
+
+# main loop
+# TODO: allow for parallelism
+for hgt in $hgts
+do
+    for snp in $snps
+    do
+        echo "processing hgt=$hgt snp=$snp..."
+
+        known="$data/known.json"
+        guess="$data/guess.json"
+
+        julia --project=. $seq -N $N -L $L \
+      | pangraph generate -m $snp -r $hgt -t $T -o $known \
+      | pangraph build --circular -m 0 -b 0 1>$guess 2>/dev/null
+
+        julia --project=. "$cmd" "$known" "$guess" "$hgt" "$snp" "$out"
+    done
+done

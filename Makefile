@@ -12,8 +12,8 @@ jflags := -q --project=.
 julia  := julia $(jflags)
 srcs   := $(wildcard src/*.jl src/*/*.jl)
 
-datadir := data/synthetic
-jcdata  := $(datadir)/test.fa
+datadir   := data/synthetic
+testdatum := $(datadir)/test.fa
 
 all:
 
@@ -26,10 +26,10 @@ environment:
 $(datadir):
 	mkdir -p $@
 
-$(jcdata): | $(datadir)
+$(testdatum): | $(datadir)
 	julia $(jflags) -e 'using PanGraph; PanGraph.Simulation.test()'
 
-pangraph: compile.jl trace.jl $(jcdata) $(srcs)
+pangraph: compile.jl trace.jl $(testdatum) $(srcs)
 	$(jc) $(jflags) $<
 
 documentation:

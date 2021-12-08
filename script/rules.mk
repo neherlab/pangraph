@@ -1,5 +1,9 @@
-data := data/synthetic/accuracy
-d := script
+.PHONY: fig1
 
-compare:
-	$(julia) $(d)/ancestors.jl -N 100 -L 200000 | pangraph generate -m 0 -t 75 -r 5e-2 -o $(data)/known.json | pangraph build --circular -m 0 -b 0 > $(data)/guess.json
+fig1-data := $(datadir)/alignment-compare.jld2
+
+$(fig1-data): script/make-sequence.jl script/assay-alignment.jl
+	@echo "collecting data for figure 1...";\
+	script/make-comparison $^ $@
+
+fig1: $(fig1-data)
