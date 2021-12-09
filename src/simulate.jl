@@ -103,7 +103,7 @@ delete!(s::Sequence, from::Int, to::Int) = splice!(s, from:to, [])
 
 Insert sequence `donor` into `acceptor` at locus `at`.
 """
-insert!(acceptor::Sequence, donor::Sequence, at::Int) = splice!(acceptor, at:at+1, donor)
+insert!(acceptor::Sequence, donor::Sequence, at::Int) = splice!(acceptor, at:at-1, donor)
 """
 	invert!(s::Sequence, from::Int, to::Int)
 

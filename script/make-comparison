@@ -9,34 +9,87 @@ seq="$1"
 cmd="$2"
 out="$3"
 data="data/synthetic"
+pipe="$data/pipe"
 
 trap 'cleanup' ERR
+
+initpipe()
+{
+    if [[ -e $pipe ]]; then
+        closepipe
+    fi
+    mkfifo "$pipe"
+}
+
+closepipe()
+{
+    exec 3>&-
+    rm "$pipe"
+}
+
 cleanup()
 {
-    rm -f $out
+    closepipe
+    rm -f "$out"
+}
+
+blockif()
+{
+    while [[ $(jobs -pr | wc -l) -gt "$1" ]]
+    do
+        sleep 5
+    done
 }
 
 # simulation parameters
-N=100; T=75; L=100000
+# N=100; T=75; L=100000
+N=50; T=25; L=10000
 
 hgts="1e-2 1e-1"
 snps="1e-6 1e-2"
 
-# main loop
-# TODO: allow for parallelism
+# open up the consumer process
+initpipe
+{ julia --project=. "$cmd" "$pipe" "$out"; }&
+pid=$!
+exec 3>"$pipe"
+
+# main simulation loop
+i=0
 for hgt in $hgts
 do
     for snp in $snps
     do
-        echo "processing hgt=$hgt snp=$snp..."
+        for nit in {1..10}
+        do
+            blockif 8 # ensure we don't throttle the system
+            (
+                known=$(mktemp /tmp/known.json.XXXXXX)
+                guess=$(mktemp /tmp/guess.json.XXXXXX)
 
-        known="$data/known.json"
-        guess="$data/guess.json"
+                julia --project=. "$seq" -N "$N" -L "$L" \
+              | pangraph generate -m "$snp" -r "$hgt" -t "$T" -o "$known" \
+              | pangraph build --circular -m 0 -b 0 1>"$guess" 2>/dev/null
 
-        julia --project=. $seq -N $N -L $L \
-      | pangraph generate -m $snp -r $hgt -t $T -o $known \
-      | pangraph build --circular -m 0 -b 0 1>$guess 2>/dev/null
+                # NOTE: concurrent writes to a pipe are guaranteed to be atomic,
+                # provided they are smaller than the buffer. This, in turn, is
+                # at minimum 512 bytes. We are fine without explicit locking...
+                printf "%.1e;%.1e;%02d;%s;%s\n" "$hgt" "$snp" "$nit" "$known" "$guess" 1>&3
 
-        julia --project=. "$cmd" "$known" "$guess" "$hgt" "$snp" "$out"
+                # NOTE: dont remove here for data race reason.
+                # instead, do so in the write kernel
+                # rm $known $guess
+            )&
+            children[${i}]=$!
+            i=$((i+1))
+        done
     done
 done
+
+for child in "${children[@]}"; do
+    wait $child
+done
+
+closepipe
+
+wait "$pid"

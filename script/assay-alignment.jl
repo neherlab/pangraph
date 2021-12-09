@@ -65,7 +65,7 @@ function breakpoints(known, guess)
     L = length(sequence(known))
     #  x1->     x2->     x3->
     #  | node 1 | node 2 |
-    bps = [(x,j,p.node[i].block,p.node[i]) for (j,p) in enumerate([known,guess]) for (i,x) in enumerate(p.position[1:end-1])]
+    bps = [(x,j,p.node[i].block) for (j,p) in enumerate([known,guess]) for (i,x) in enumerate(p.position[1:end-1])]
     sort!(bps, by=first)
 
     # get the start block
@@ -78,6 +78,11 @@ function breakpoints(known, guess)
             blocks[j] = bps[i][3]
             break
         end
+    end
+
+    # edge case: if length(bps) == 2 (the whole genome for both)
+    if length(bps) == 2
+        return [Partition(L, known.node[1].block, guess.node[1].block)]
     end
 
     # edge case, if i = 1 and i = 2 correspond to equal break points
@@ -152,25 +157,49 @@ end
 # ------------------------------------------------------------------------
 # main point of entry
 
+function unpack(message)
+    entry = split(message,';')
+
+    return(
+        hgt = parse(Float64, entry[1]),
+        snp = parse(Float64, entry[2]),
+        nit = parse(Int64,   entry[3]),
+        known = entry[4],
+        guess = entry[5]
+    )
+end
+
 function usage()
-	println("usage: julia script/assay-alignment.jl <known.json> <guess.json> <output.jld2>")
+	println("usage: julia script/assay-alignment.jl <input-fifo> <output.jld2>")
 	exit(2)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-	length(ARGS) == 5 || usage()
+	length(ARGS) == 2 || usage()
+    pipe = ARGS[1]
+    data = ARGS[2]
 
-	costs, tiles, dists, input = compare((known=ARGS[1], guess=ARGS[2]))
-
-    hgt, snp, output = ARGS[3:5]
-
-    jldopen(output, "a+") do database
-        group = JLD2.Group(database, "$(hgt)/$(snp)")
-        # group["input"] = input # NOTE: increases the stored data massively
-        group["costs"] = costs
-        group["tiles"] = tiles
-        group["dists"] = dists
-    end
+    jldopen(data, "w") do database; open(pipe) do io
+        for msg in eachline(io)
+            param = unpack(msg)
+            group = JLD2.Group(database, "$(param.hgt)/$(param.snp)/$(param.nit)")
+            try
+                costs, tiles, dists, input = compare((known=param.known, guess=param.guess))
+                group["input"] = input # NOTE: increases the stored data massively
+                group["costs"] = costs
+                group["tiles"] = tiles
+                group["dists"] = dists
+            catch
+                group["input"] = input # NOTE: increases the stored data massively
+                group["costs"] = nothing
+                group["tiles"] = nothing
+                group["dists"] = nothing
+                continue # skip the message
+            finally
+                rm(param.known); rm(param.guess)
+            end
+        end
+    end; end
 end
 
 end
