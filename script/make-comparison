@@ -41,12 +41,15 @@ blockif()
     done
 }
 
+export JULIA_NUM_THREADS=1 # ensure we don't run mulithreaded
+
 # simulation parameters
  # N=100; T=50; L=100000
 N=50; T=25; L=50000
 
-hgts="1e-2 5e-2 1e-1 5e-1"
-snps="1e-4 2.5e-4 5e-4 7.5e-4 1e-3 2.5e-3 5e-3 7.5e-3 1e-2"
+hgts="1e-2 5e-2 1e-1 5e-1 1"
+# snps="1e-4 2.5e-4 5e-4 7.5e-4 1e-3 2.5e-3 5e-3 7.5e-3 1e-2" # broad
+snps="1e-3 2e-3 3e-3 4e-3 5e-3 6e-3 7e-3 8e-3 9e-3 1e-2" #region of largest change
 
 # open up the consumer process
 initpipe
@@ -59,7 +62,7 @@ for hgt in $hgts
 do
     for snp in $snps
     do
-        for nit in {1..20}
+        for nit in {1..25}
         do
             blockif 10 # ensure we don't throttle the system
             (
@@ -84,7 +87,7 @@ do
 done
 
 # find extant pids (that are not consumer), wait for them
-children=($(jobs -p | grep -v "$pid"))
+mapfile -t children < <(jobs -p | grep -v "$pid")
 for child in "${children[@]}"
 do
     wait "$child"

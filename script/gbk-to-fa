@@ -1,0 +1,9 @@
+#!/bin/bash -e
+
+if [[ $# -lt 1 ]]; then
+    echo 'please provide a name'
+    exit 1
+fi
+
+printf '>%s\n' "$1"
+awk 'BEGIN{ctg=0; seq=0}/\/\/$/{ctg++} /ORIGIN/{seq++} (ctg==1){exit} (NF>1 && seq==1){for (i=2; i <= NF; i++) printf $i; printf "\n"}'

@@ -1,0 +1,29 @@
+#!/bin/awk -f
+
+BEGIN{ctg=0;nl=0}
+
+# exit condition (stop after first contig, assumed chromosome)
+/\/\/$/{ctg++}
+(ctg==1){exit}
+
+# locus tag of previously encountered gene
+(nl && /locus_tag/){
+    nl=0;
+    sub(/^.*\/locus_tag=/, " ", $0);
+    gsub(/"/,"",$0)
+    print $0
+}
+
+# new gene
+(/^     CDS/){
+    if(/complement/){
+        sub(/complement\(/, "", $2);
+        sub(/\)/,"",$2);
+        gsub(/[<>]/,"",$2); # don't care about frameshifts
+        printf "- %-17s", $2;
+    }else{
+        gsub(/[<>]/,"",$2); # don't care about frameshifts
+        printf "+ %-17s", $2;
+    }
+    nl=1;
+}

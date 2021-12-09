@@ -149,10 +149,12 @@ function compare(path)
 
     μ = [Graphs.Blocks.diversity(b) for b in values(graph.guess.block)]
     l = [Graphs.Blocks.length(b) for b in values(graph.guess.block)]
+    n = mean( length(p.node) for p in values(graph.known.sequence) )
     return (
         filter((l)->l≤1000, nearestbreaks(graph)),
         mutualentropy(graph),
         sum(μ.*l) ./ sum(l),
+        n,
         graph
     )
 end
@@ -188,10 +190,11 @@ if abspath(PROGRAM_FILE) == @__FILE__
             param = unpack(msg)
             group = JLD2.Group(database, "$(param.hgt)/$(param.snp)/$(param.nit)")
             try
-                costs, tiles, dists, input = compare((known=param.known, guess=param.guess))
+                costs, tiles, dists, nblks, input = compare((known=param.known, guess=param.guess))
                 group["input"] = nothing #input # NOTE: increases the stored data massively
                 group["costs"] = costs
                 group["tiles"] = tiles
+                group["nblks"] = nblks
                 group["dists"] = dists
 
                 rm(param.known); rm(param.guess)
