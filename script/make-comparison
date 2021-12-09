@@ -24,7 +24,7 @@ initpipe()
 closepipe()
 {
     exec 3>&-
-    rm "$pipe"
+    rm -f "$pipe"
 }
 
 cleanup()
@@ -55,7 +55,6 @@ pid=$!
 exec 3>"$pipe"
 
 # main simulation loop
-i=0
 for hgt in $hgts
 do
     for snp in $snps
@@ -80,17 +79,19 @@ do
                 # instead, do so in the write kernel
                 # rm $known $guess
             )&
-            children[${i}]=$!
-            i=$((i+1))
         done
     done
 done
 
-for child in "${children[@]}"; do
-    wait $child
+# find extant pids (that are not consumer), wait for them
+children=($(jobs -p | grep -v "$pid"))
+for child in "${children[@]}"
+do
+    wait "$child"
 done
-
+# done, now close our pipe
 closepipe
-
+# wait for our consumer to cleanup
 wait "$pid"
-rm /tmp/{guess,known}.json.??????
+# verify cleanup
+rm -f /tmp/{guess,known}.json.??????
