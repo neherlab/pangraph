@@ -42,11 +42,11 @@ blockif()
 }
 
 # simulation parameters
-# N=100; T=75; L=100000
-N=50; T=25; L=10000
+ # N=100; T=50; L=100000
+N=50; T=25; L=50000
 
-hgts="1e-2 1e-1"
-snps="1e-6 1e-2"
+hgts="1e-2 5e-2 1e-1 5e-1"
+snps="1e-4 2.5e-4 5e-4 7.5e-4 1e-3 2.5e-3 5e-3 7.5e-3 1e-2"
 
 # open up the consumer process
 initpipe
@@ -60,15 +60,15 @@ for hgt in $hgts
 do
     for snp in $snps
     do
-        for nit in {1..10}
+        for nit in {1..20}
         do
-            blockif 8 # ensure we don't throttle the system
+            blockif 10 # ensure we don't throttle the system
             (
                 known=$(mktemp /tmp/known.json.XXXXXX)
                 guess=$(mktemp /tmp/guess.json.XXXXXX)
 
                 julia --project=. "$seq" -N "$N" -L "$L" \
-              | pangraph generate -m "$snp" -r "$hgt" -t "$T" -o "$known" \
+              | pangraph generate -m "$snp" -r "$hgt" -t "$T" -i "1e-2" -o "$known" \
               | pangraph build --circular -m 0 -b 0 1>"$guess" 2>/dev/null
 
                 # NOTE: concurrent writes to a pipe are guaranteed to be atomic,
@@ -93,3 +93,4 @@ done
 closepipe
 
 wait "$pid"
+rm /tmp/{guess,known}.json.??????

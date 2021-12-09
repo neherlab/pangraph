@@ -61,11 +61,14 @@ struct Partition
     b2 :: Graphs.Block
 end
 
-function breakpoints(known, guess)
+function breakpoints(known, guess, name)
     L = length(sequence(known))
     #  x1->     x2->     x3->
     #  | node 1 | node 2 |
-    bps = [(x,j,p.node[i].block) for (j,p) in enumerate([known,guess]) for (i,x) in enumerate(p.position[1:end-1])]
+    bps = [
+        (x,j,p.node[i].block) for (j,p) in enumerate([known,guess]) 
+        for (i,x) in enumerate(p.position[1:end-1])
+    ]
     sort!(bps, by=first)
 
     # get the start block
@@ -73,9 +76,9 @@ function breakpoints(known, guess)
     i, j = (bps[1][2] == 1) ? (1, 2) : (2, 1)
 
     blocks[i] = bps[1][3]
-    for i in length(bps)-1:-1:1
-        if bps[i][2] == 2
-            blocks[j] = bps[i][3]
+    for k in length(bps):-1:1
+        if bps[k][2] == j
+            blocks[j] = bps[k][3]
             break
         end
     end
@@ -127,8 +130,8 @@ function tiling(breaks)
 end
 
 function mutualentropy(graph)
-    self  = (breakpoints(known, known) for (name, known) in graph.known.sequence if name == "isolate_2")
-    cross = (breakpoints(known, graph.guess.sequence[name]) for (name, known) in graph.known.sequence if name == "isolate_2")
+    self  = (breakpoints(known, known, name) for (name, known) in graph.known.sequence)
+    cross = (breakpoints(known, graph.guess.sequence[name], name) for (name, known) in graph.known.sequence)
 
     function entropy(tile)
         len = sum(values(tile))
@@ -147,7 +150,7 @@ function compare(path)
     μ = [Graphs.Blocks.diversity(b) for b in values(graph.guess.block)]
     l = [Graphs.Blocks.length(b) for b in values(graph.guess.block)]
     return (
-        nearestbreaks(graph),
+        filter((l)->l≤1000, nearestbreaks(graph)),
         mutualentropy(graph),
         sum(μ.*l) ./ sum(l),
         graph
@@ -181,22 +184,21 @@ if abspath(PROGRAM_FILE) == @__FILE__
 
     jldopen(data, "w") do database; open(pipe) do io
         for msg in eachline(io)
+            println("Recieved: ", msg)
             param = unpack(msg)
             group = JLD2.Group(database, "$(param.hgt)/$(param.snp)/$(param.nit)")
             try
                 costs, tiles, dists, input = compare((known=param.known, guess=param.guess))
-                group["input"] = input # NOTE: increases the stored data massively
+                group["input"] = nothing #input # NOTE: increases the stored data massively
                 group["costs"] = costs
                 group["tiles"] = tiles
                 group["dists"] = dists
+
+                rm(param.known); rm(param.guess)
             catch
-                group["input"] = input # NOTE: increases the stored data massively
-                group["costs"] = nothing
-                group["tiles"] = nothing
-                group["dists"] = nothing
+                println("PROBLEM: ", param.known, " ", param.guess)
                 continue # skip the message
             finally
-                rm(param.known); rm(param.guess)
             end
         end
     end; end
