@@ -1,0 +1,20 @@
+#!/bin/bash -e
+
+self="${0}"
+path=$1
+shift 1
+args=( "$@" )
+
+fasta=("${args[@]::$((${#args[@]} / 2))}")
+genbk=("${args[@]:$((${#args[@]} / 2))}")
+
+echo $path
+{
+    for i in "${!fasta[@]}"
+    do
+        cat "${fasta[i]}"
+        echo "ENDSEQ"
+        script/extract-gene "${genbk[i]}"
+        echo "ENDGENE"
+    done
+} | julia --project=. "$self.jl" $path 1>/dev/null

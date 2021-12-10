@@ -1,4 +1,4 @@
-.PHONY: fig1 panX
+.PHONY: fig1 panX panX2
 
 panx-dir  := data/panx/kleb
 fig1-data := $(datadir)/alignment-compare.jld2
@@ -9,7 +9,8 @@ $(fig1-data): script/make-sequence.jl script/assay-alignment.jl
 	script/make-comparison $^ $@
 
 # comparison to panX
-panx-input := $(patsubst $(panx-dir)/input_GenBank/%.gbk, $(panx-dir)/fa/%.fa, $(wildcard $(panx-dir)/input_GenBank/*.gbk))
+panx-input-gb := $(wildcard $(panx-dir)/input_GenBank/*.gbk)
+panx-input-fa := $(patsubst $(panx-dir)/input_GenBank/%.gbk, $(panx-dir)/fa/%.fa, $(panx-input-gb))
 
 $(panx-dir)/fa:
 	mkdir -p $@
@@ -17,9 +18,14 @@ $(panx-dir)/fa:
 $(panx-dir)/fa/%.fa: $(panx-dir)/input_GenBank/%.gbk | $(panx-dir)/fa
 	script/gbk-to-fa $* <$< >$@
 
-$(panx-dir)/pangraph.json: $(panx-input)
-	pangraph build --circular -m 0 -b 50 -l 50 $^ 2>/dev/null 1>$@
+$(panx-dir)/panx.json: $(panx-input-fa) $(panx-input-gb)
+	@echo making $@;\
+	script/panx-to-pangraph $(panx-dir)/allclusters_final.tsv $^
 
+$(panx-dir)/pangraph.json: $(panx-input-fa)
+	JULIA_NUM_THREADS=8 pangraph build --circular -m 0 -b 50 -l 50 $^ 2>/dev/null 1>$@
+
+panX2: $(panx-dir)/panx.json
 panX: $(panx-dir)/pangraph.json
 
 fig1: $(fig1-data)
