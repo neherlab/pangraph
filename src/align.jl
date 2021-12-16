@@ -386,12 +386,13 @@ function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Functi
         blocks, ok = align_kernel(hits, energy, minblock, skip, block, replace, verbose)
         merge!(blocks, G₀.block)
 
-        if ok 
+        if ok
             G₀ = Graph(
                 blocks,
                 G₀.sequence,
             )
             detransitive!(G₀)
+            purge!(G₀)
             prune!(G₀)
             niter += 1
         end
@@ -514,10 +515,11 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, v
     merge!(blocks, G₂.block)
 
     G = Graph(
-        blocks, 
+        blocks,
         sequence,
     )
     detransitive!(G)
+    purge!(G)
     prune!(G)
 
     return G

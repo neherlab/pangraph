@@ -105,7 +105,7 @@ import .Minimap: PanContigs
 export Graph
 export Shell, Blocks, Utility
 
-export graphs, detransitive!, prune!, finalize!
+export graphs, detransitive!, purge!, prune!, finalize!
 export pancontigs
 export checkblocks
 
@@ -276,6 +276,25 @@ Internal function used during guide tree alignment.
 function prune!(G::Graph)
     used = Set(n.block.uuid for p in values(G.sequence) for n in p.node)
     filter!((blk)->first(blk) ∈ used, G.block)
+end
+
+"""
+    purge!(G::Graph)
+
+Remove all blocks from paths found in graph `G` that have zero length.
+Internal function used during guide tree alignment.
+"""
+function purge!(G::Graph)
+    for p in values(G.sequence)
+        index = Int[]
+        for (i, n) in enumerate(p.node)
+            if length(n) == 0
+                push!(index, i)
+                pop!(n.block, n)
+            end
+        end
+        deleteat!(p.node, index)
+    end
 end
 
 """
@@ -628,7 +647,7 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa")
         sequences = [first(sequence(iso)) for iso in isolates]
 
         println("-->aligning...")
-        align(isolates...;energy=energy,minblock=100), isolates
+        align(isolates...;reference=sequences,energy=energy,minblock=100), isolates
     end
 
     log("-> verifying graph...")
@@ -650,7 +669,6 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa")
     end
 
     finalize!(graph)
-
     graph
 end
 
