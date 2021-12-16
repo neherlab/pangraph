@@ -72,15 +72,20 @@ function minimap2(qry::String, ref::String)
     return execute(`minimap2 -x asm10 -m 10 -n 1 -s 30 -D -c $ref $qry`; now=false)
 end
 
-function mafft(block)
+function mafft(block, case)
     out = IOBuffer()
     aln = IOBuffer()
+    cmd = if case
+        `mafft --auto --nuc --preservecase /dev/stdin`
+    else
+        `mafft --auto --nuc /dev/stdin`
+    end
 
     names = marshal(aln, block; fmt=:fasta)
     aln = IOBuffer(String(take!(aln)))
 
     run(pipeline(pipeline(
-        aln, `mafft --auto --nuc /dev/stdin`, out
+        aln, cmd, out
         ); stderr=devnull ); wait=true
     )
 

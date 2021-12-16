@@ -561,14 +561,14 @@ Usage of this function requires [MAFFT](https://mafft.cbrc.jp/alignment/software
 `accept` should be a function that returns true on blocks you wish to realign.
 By default, all blocks are realigned.
 """
-function realign!(g::Graph; accept=(_)->true)
+function realign!(g::Graph; accept=(_)->true, case=false)
     meter = Progress(length(g.block); desc="polishing progress", output=stderr)
     Threads.@threads for blk in collect(values(g.block))
         if !accept(blk)
             next!(meter)
             continue
         end
-        io, node = mafft(blk)
+        io, node = mafft(blk, case)
 
         seq = collect(read_fasta(io))
         aln = reduce(hcat, map((r)->r.seq, seq))

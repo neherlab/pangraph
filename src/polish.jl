@@ -13,6 +13,13 @@ Polish = Command(
         "cutoff above which we won't realign",
         typemax(Int),
     ),
+    Arg(
+        Bool,
+        "preserve case",
+        (short="-c", long="--preserve-case"),
+        "ensure case (upper/lower) is preserved after realignment",
+        false,
+    ),
    ],
    function(args)
        path = parse(Polish, args)
@@ -25,15 +32,15 @@ Polish = Command(
        end
 
        graph = load(path, Polish)
-
        if !Shell.havecommand("mafft")
            panic("external command mafft not found. please install before running polish step\n")
        end
 
+       case = arg(Polish, "-c")
        accept = function(blk)
            length(blk) ≤ arg(Polish, "-l") && Graphs.depth(blk) > 1
        end
-       Graphs.realign!(graph; accept=accept)
+       Graphs.realign!(graph; accept=accept, case=case)
 
        marshal(stdout, graph; fmt=:json)
        return 0
