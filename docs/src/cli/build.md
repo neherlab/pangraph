@@ -9,6 +9,7 @@ Name | Type | Short Flag | Long Flag | Description
 minimum length | Integer | l | len | minimum block size for alignment graph (in nucleotides)
 block junction cost | Float | b | beta | energy cost for interblock diversity due to alignment merger,
 circular genomes | Boolean | c | circular | toggle if input genomes are circular
+enforce uppercase | Boolean | u | upper-case | toggle if input genomes are set to uppercase characters
 distance calculator | String | d | distance-backend | only accepts "native" or "mash"
 
 ## Arguments

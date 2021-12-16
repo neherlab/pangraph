@@ -14,7 +14,7 @@ PanGraph.main(["help", "polish"])      # polish usage
 PanGraph.main(["help", "help"])		   # help usage
 
 # build
-PanGraph.main(["build", "--circular", "-b", "0", "-m", "0", "$root/test.fa"])
+PanGraph.main(["build", "-c", "-u", "-b", "0", "-m", "0", "$root/test.fa"])
 
 # export
 PanGraph.main(["export", "-o", "$root/export", "$root/test.json"])

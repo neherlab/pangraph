@@ -36,6 +36,13 @@ Build = Command(
         false,
     ),
     Arg(
+        Bool,
+        "enforce uppercase",
+        (short="-u", long="--upper-case"),
+        "transforms all sequence to upper case",
+        false,
+    ),
+    Arg(
         String,
         "distance calculator",
         (short="-d", long="--distance-backend"),
@@ -52,8 +59,10 @@ Build = Command(
            files
        end
 
-       minblock = arg(Build, "-l")
-       circular = arg(Build, "-c")
+       minblock  = arg(Build, "-l")
+       circular  = arg(Build, "-c")
+       uppercase = arg(Build, "-u")
+
        μ = arg(Build, "-m")
        β = arg(Build, "-b")
 
@@ -69,7 +78,7 @@ Build = Command(
            return -len + μ*ncuts + β*nmuts
        end
 
-       graph(io) = graphs(io; circular=circular)
+       graph(io) = graphs(io; circular=circular, upper=uppercase)
        isolates  = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graph,file) : open(graph,file)))
 
        compare = @match arg(Build, "-d") begin

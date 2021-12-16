@@ -161,7 +161,10 @@ end
 Parse a fasta file from stream `io` and return an array of singleton graphs.
 If circular is unspecified, all genomes are assumed to be linear.
 """
-graphs(io::IO; circular=false) = [Graph(record.name, record.seq; circular=circular) for record in read_fasta(io)]
+function graphs(io::IO; circular=false, upper=false)
+    case = upper ? (c::UInt8) -> UInt8(uppercase(Char(c))) : (c::UInt8) -> c
+    return [Graph(record.name, case.(record.seq); circular=circular) for record in read_fasta(io)]
+end
 
 # --------------------------------
 # operators
@@ -621,7 +624,7 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa")
     end
 
     graph, isolates = open(file, "r") do io
-        isolates  = graphs(io; circular=true)
+        isolates  = graphs(io; circular=true, upper=true)
         sequences = [first(sequence(iso)) for iso in isolates]
 
         println("-->aligning...")
