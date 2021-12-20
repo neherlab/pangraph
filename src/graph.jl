@@ -562,7 +562,7 @@ end
 Return the sequence corresponding to genome `name` within graph `G`
 """
 function sequence(g::Graph, name::AbstractString)
-    name ∉ keys(g.sequence) && error("'$name' not a valid sequence identifier")
+    name ∈ keys(g.sequence) || error("'$name' not a valid sequence identifier: have $(collect(keys(g.sequence)))")
     path = g.sequence[name]
 
     return sequence(path)
@@ -646,8 +646,10 @@ function test(file="data/marco/mycobacterium_tuberculosis/genomes.fa")
         isolates  = graphs(io; circular=true, upper=true)
         sequences = [first(sequence(iso)) for iso in isolates]
 
+        reference = Dict(first.(sequence.(isolates)))
+
         println("-->aligning...")
-        align(isolates...;reference=sequences,energy=energy,minblock=100), isolates
+        align(isolates...;reference=reference,energy=energy,minblock=100), isolates
     end
 
     log("-> verifying graph...")

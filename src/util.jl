@@ -6,7 +6,7 @@ using StatsBase
 # internal modules
 using ..Intervals, ..Nodes
 
-import ..Graphs: 
+import ..Graphs:
     reverse_complement, reverse_complement!,
     SNPMap, InsMap, DelMap
 
@@ -611,14 +611,14 @@ function read_paf(io::IO)
                             int(elt[2]),   # length
                             int(elt[3])+1, # start
                             int(elt[4]),   # stop
-                            nothing
+                            nothing,
                         ),
                         Hit(
                             elt[6],
                             int(elt[7]),   # length
                             int(elt[8])+1, # start
                             int(elt[9]),   # stop
-                            nothing
+                            nothing,
                         ),
                         int(elt[10]), 
                         int(elt[11]), 

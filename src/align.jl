@@ -4,7 +4,7 @@ using Rematch, Dates
 using LinearAlgebra
 using ProgressMeter
 
-import Base.Threads.@spawn
+using Base.Threads: @spawn, @threads
 
 using ..Utility: read_paf, enforce_cutoff!
 using ..Blocks
@@ -60,19 +60,26 @@ end
 
 Generate an empty, disconnected clade.
 """
-Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(1))
+Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(2))
 """
 	Clade(name)
 
 Generate an empty, disconnected clade with name `name`.
 """
-Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(1))
+Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(2))
 """
 	Clade(left::Clade, right::Clade)
 
 Generate an nameless clade with `left` and `right` children.
 """
-Clade(left::Clade, right::Clade) = Clade("",nothing,left,right,Channel{Graph}(1))
+function Clade(left::Clade, right::Clade)
+    parent = Clade("",nothing,left,right,Channel{Graph}(2))
+
+    left.parent = parent
+    right.parent = parent
+
+    parent
+end
 
 """
 	Clade(distance, names; algo=:nj)
@@ -265,6 +272,27 @@ function preorder(root::Clade)
     return itr
 end
 
+function bisect(tips)
+    length(tips) > 1 || return tips[1]
+
+    m = length(tips) ÷ 2
+    l = bisect(tips[1:m])
+    r = bisect(tips[(m+1):end])
+
+    return Clade(l, r)
+end
+
+"""
+	balance(root::Clade)
+
+Rotate a binary tree to a balanced configuration.
+Preserves the topological ordering of the leaves.
+"""
+function balance(root::Clade)
+    tips = collect(leaves(root))
+    return bisect(tips)
+end
+
 function Base.length(node::Clade)
     if isleaf(node)
         return 1
@@ -292,6 +320,37 @@ end
 # ------------------------------------------------------------------------
 # align functions
 
+function preprocess(hits, skip, energy, blocks!)
+    hits = [
+        let
+            qry₀, ref₀ = blocks!(hit)
+
+            hit.qry.seq = qry₀.sequence
+            hit.ref.seq = ref₀.sequence
+
+            qry, strand =
+            if !hit.orientation
+                reverse_complement!(hit)
+                reverse_complement(qry₀; keepid=true), false
+            else
+                qry₀, true
+            end
+            ref = ref₀
+
+            (
+                hit=hit,
+                qry=qry,
+                ref=ref,
+                qry₀=qry₀,
+                ref₀=ref₀,
+                strand=strand,
+           )
+        end for hit in hits if (energy(hit) < 0 && !skip(hit))
+    ]
+
+    return hits
+end
+
 function do_align(G₁::Graph, G₂::Graph, energy::Function, minblock::Int)
     hits = Minimap.align(pancontigs(G₁), pancontigs(G₂), minblock)
     sort!(hits; by=energy)
@@ -299,30 +358,14 @@ function do_align(G₁::Graph, G₂::Graph, energy::Function, minblock::Int)
     return hits
 end
 
-function align_kernel(hits, energy, minblock, skip, blocks!, replace!, verbose)
-    blocks = Dict{String,Block}()
-    ok = false
-    for hit in hits
-        energy(hit) >= 0 && break
-        skip(hit) && continue
-        if verbose
-            log(hit)
-        end
+# TODO: make thread safe
+function align_kernel(matches, minblock, replace!, verbose)
+    blocks   = Array{Array{Block,1},1}(undef, length(matches))
+    for (i, match) in enumerate(matches)
+        # destructure precomputed hit
+        hit,qry,ref,qry₀,ref₀,strand = match
 
-        ok   = true
-        qry₀, ref₀ = blocks!(hit)
-
-        hit.qry.seq = qry₀.sequence
-        hit.ref.seq = ref₀.sequence
-
-        qry, strand =
-        if !hit.orientation
-            reverse_complement!(hit)
-            reverse_complement(qry₀; keepid=true), false
-        else
-            qry₀, true
-        end
-        ref = ref₀
+        verbose && log(hit)
 
         enforce_cutoff!(hit, minblock)
         blks = combine(qry, ref, hit; minblock=minblock)
@@ -332,12 +375,10 @@ function align_kernel(hits, energy, minblock, skip, blocks!, replace!, verbose)
 
         replace!((qry=qry₀, ref=ref₀), (qry=qrys, ref=refs), strand)
 
-        for blk in map(b->b.block, blks)
-            blocks[blk.uuid] = blk
-        end
+        blocks[i] = map(b->b.block, blks)
     end
 
-    return blocks, ok
+    return Dict(blk.uuid => blk for block in blocks for blk in block)
 end
 
 """
@@ -354,25 +395,20 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 """
 function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; maxiter=100)
     G₀ = G₁
-    ok = true
 
-    niter = 0
-    while ok && niter < maxiter
-        ok   = false
+    for niter in 1:maxiter
+        # calculate pairwise hits
         hits = do_align(G₀, G₀, energy, minblock)
 
-        skip  = (hit) -> (
+        skip = (hit) -> (
                (hit.qry.name == hit.ref.name)
             || (hit.length < minblock)
-            || (!(hit.qry.name in keys(G₀.block)) 
-            ||  !(hit.ref.name in keys(G₀.block)))
-       )
-
+            || (!(hit.qry.name in keys(G₀.block)) || !(hit.ref.name in keys(G₀.block)))
+        )
         block = (hit) -> (
             qry = pop!(G₀.block, hit.qry.name),
             ref = pop!(G₀.block, hit.ref.name),
         )
-
         replace = (old, new, orientation) -> let
             for path in values(G₀.sequence)
                 replace!(path, old.qry, new.qry, orientation)
@@ -383,19 +419,23 @@ function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Functi
             end
         end
 
-        blocks, ok = align_kernel(hits, energy, minblock, skip, block, replace, verbose)
+        # filter out according to energy & skip conditions
+        # only continue if at least one hit survived
+        merges = preprocess(hits, skip, energy, block)
+        length(merges) > 0 || break
+
+        blocks = align_kernel(merges, minblock, replace, verbose)
         merge!(blocks, G₀.block)
 
-        if ok
-            G₀ = Graph(
-                blocks,
-                G₀.sequence,
-            )
-            detransitive!(G₀)
-            purge!(G₀)
-            prune!(G₀)
-            niter += 1
-        end
+        G₀ = Graph(
+            blocks,
+            G₀.sequence,
+        )
+        detransitive!(G₀)
+        purge!(G₀)
+        prune!(G₀)
+
+        verify(G₀)
     end
 
     return G₀
@@ -473,7 +513,6 @@ function compare(old, new, strand)
 
         error("bad sequence reconstruction")
     end
-
 end
 
 """
@@ -492,11 +531,16 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool)
     hits = do_align(G₁, G₂, energy, minblock)
 
-    skip  = (hit) -> !(hit.qry.name in keys(G₁.block)) || !(hit.ref.name in keys(G₂.block)) || (hit.length < minblock)
+    skip = (hit) -> (
+            !(hit.qry.name in keys(G₁.block))
+         || !(hit.ref.name in keys(G₂.block))
+         || (hit.length < minblock)
+    )
     block = (hit) -> (
         qry = pop!(G₁.block, hit.qry.name),
         ref = pop!(G₂.block, hit.ref.name),
     )
+
     replace = (old, new, orientation) -> let
         for path in values(G₁.sequence)
             replace!(path, old.qry, new.qry, orientation)
@@ -507,8 +551,10 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, v
         end
     end
 
-    blocks, _ = align_kernel(hits, energy, minblock, skip, block, replace, verbose)
-    sequence  = merge(G₁.sequence, G₂.sequence)
+    merges = preprocess(hits, skip, energy, block)
+
+    blocks   = align_kernel(merges, minblock, replace, verbose)
+    sequence = merge(G₁.sequence, G₂.sequence)
 
     # XXX: worry about uuid collision?
     merge!(blocks, G₁.block)
@@ -518,9 +564,12 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, v
         blocks,
         sequence,
     )
+
     detransitive!(G)
     purge!(G)
     prune!(G)
+
+    verify(G)
 
     return G
 end
@@ -545,8 +594,6 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing)
     function verify(graph, msg="")
         if reference !== nothing
-            log(msg)
-
             for (name,path) ∈ graph.sequence
                 seq = sequence(path)
                 ref = reference[name]
@@ -591,37 +638,55 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
     end
 
     log("--> ordering")
-    tree = ordering(compare, Gs...)
+    tree = ordering(compare, Gs...) |> balance
     log("--> tree: ", tree)
 
     meter = Progress(length(tree); desc="alignment progress", output=stderr)
     tips  = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
     log("--> aligning pairs")
+
+    events = Channel{Bool}(Inf);
+    result = Channel{Graph}(1);
+
+    @spawn let
+        while isopen(events)
+            take!(events)
+            next!(meter)
+        end
+    end
+
     for clade ∈ postorder(tree)
         @spawn try
             if isleaf(clade)
-                put!(clade.graph, tips[clade.name])
                 close(clade.graph)
-                next!(meter)
+                put!(clade.parent.graph, tips[clade.name])
+                put!(events, true)
             else
-                Gₗ = take!(clade.left.graph)
-                Gᵣ = take!(clade.right.graph)
+                Gₗ = take!(clade.graph)
+                Gᵣ = take!(clade.graph)
+                close(clade.graph)
 
                 G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, verify, false)
                 G₀ = align_self(G₀, energy, minblock, verify, false)
 
-                put!(clade.graph, G₀)
+                if clade.parent !== nothing
+                    put!(clade.parent.graph, G₀)
+                    put!(events, true)
+                else
+                    put!(result, G₀)
+                    put!(events, true)
 
-                close(clade.graph)
-                next!(meter)
+                    close(result)
+                    close(events)
+                end
             end
         catch e
             error(e)
         end
     end
 
-    return take!(tree.graph)
+    return take!(result)
 end
 
 # ------------------------------------------------------------------------
@@ -632,6 +697,7 @@ function test()
     distance, names = mash("data/generated/assemblies/isolates.fna.gz")
     tree = Clade(distance, names; algo=:nj) 
     log("done!")
+
 end
 
 end
