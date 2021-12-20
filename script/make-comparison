@@ -69,7 +69,7 @@ do
                 known=$(mktemp /tmp/known.json.XXXXXX)
                 guess=$(mktemp /tmp/guess.json.XXXXXX)
 
-                julia --project=. "$seq" -N "$N" -L "$L" \
+                julia --project=script "$seq" -N "$N" -L "$L" \
               | pangraph generate -m "$snp" -r "$hgt" -t "$T" -i "1e-2" -o "$known" \
               | pangraph build --circular -m 0 -b 0 1>"$guess" 2>/dev/null
 

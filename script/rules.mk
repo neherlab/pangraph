@@ -2,11 +2,16 @@
 
 panx-dir  := data/panx/kleb
 fig1-data := $(datadir)/alignment-compare.jld2
+benchmark := $(datadir)/benchmark.txt
 
 # comparison to synthetic
 $(fig1-data): script/make-sequence.jl script/assay-alignment.jl
 	@echo "collecting data for figure 1...";\
 	script/make-comparison $^ $@
+
+# benchmark
+$(benchmark): script/benchmark
+	$^ > $@
 
 # comparison to panX
 panx-input-gb := $(wildcard $(panx-dir)/input_GenBank/*.gbk)
