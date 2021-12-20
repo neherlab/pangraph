@@ -2,7 +2,7 @@
 .SUFFIXES:
 .SECONDARY:
 
-version := 1.6.4
+version := 1.7.0
 
 ifeq ($(jc),)
 jc := ./vendor/julia-$(version)/bin/julia
