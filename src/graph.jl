@@ -103,7 +103,7 @@ import .Shell: mash, mafft, havecommand
 import .Minimap: PanContigs
 
 export Graph
-export Shell, Blocks, Utility
+export Shell, Blocks, Nodes, Utility
 
 export graphs, detransitive!, purge!, prune!, finalize!
 export pancontigs
@@ -144,7 +144,7 @@ If `circular` is unspecified, the sequence is assumed to be linear.
 """
 function Graph(name::String, sequence::Array{UInt8}; circular=false)
     block = Block(sequence)
-    path  = Path(name, Node{Block}(block); circular=circular)
+    path  = Path(name, Node(block); circular=circular)
 
     append!(block, path.node[1], SNPMap(), InsMap(), DelMap())
 

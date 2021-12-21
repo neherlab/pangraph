@@ -747,13 +747,13 @@ function alignment_alleles(ref, aln, nodes)
 
     mutate = Dict{Node,SNPMap}(
             node => SNPMap(
-                   coord[l] => aln[l,i] 
+                   coord[l] => aln[l,i]
                 for l in findall(δ.snp[:,i])
             )
         for (i,node) in enumerate(nodes)
     )
 
-    delete = Dict{Node,DelMap}( 
+    delete = Dict{Node,DelMap}(
             node => DelMap(
                       del.lo => length(del)
                 for del in contiguous_trues(δ.del[.~refdel,i])
@@ -762,7 +762,7 @@ function alignment_alleles(ref, aln, nodes)
     )
 
     Δ(I) = (R = containing(refgaps, I)) == nothing ? 0 : I.lo - R.lo
-    insert = Dict{Node,InsMap}( 
+    insert = Dict{Node,InsMap}(
             node => InsMap(
                       (coord[ins.lo],Δ(ins)) => aln[ins,i] 
                 for ins in contiguous_trues(δ.ins[:,i])

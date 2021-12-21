@@ -44,6 +44,20 @@ Build = Command(
     ),
     Arg(
         String,
+        "pairwise sensitivity",
+        (short="-s", long="--sensitivity"),
+        "used to set pairwise alignment sensitivity\n\trecognized options: [5, 10, 20]",
+        "10",
+    ),
+    Arg(
+        Int,
+        "maximum self maps",
+        (short="-x", long="--max-self-map"),
+        "maximum number of self mappings to consider per pairwise graph merger",
+        100,
+    ),
+    Arg(
+        String,
         "distance calculator",
         (short="-d", long="--distance-backend"),
         "backend to use to estimate pairwise distance for guide tree\n\trecognized options: [native, mash]",
@@ -78,6 +92,17 @@ Build = Command(
            return -len + μ*ncuts + β*nmuts
        end
 
+       maxiter = arg(Build, "-x")
+       sensitivity = @match arg(Build, "-s") begin
+           "5"  => "asm5"
+           "10" => "asm10"
+           "20" => "asm20"
+            _   => begin
+                usage(Build)
+                exit(1)
+            end
+       end
+
        graph(io) = graphs(io; circular=circular, upper=uppercase)
        isolates  = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graph,file) : open(graph,file)))
 
@@ -91,13 +116,20 @@ Build = Command(
            end
            _        => begin
                 # XXX: hacky...
-                Build.arg[5].value = "native" 
+                Build.arg[8].value = "native"
+
                 usage(Build)
                 exit(1)
            end
        end
 
-       graph = Graphs.align(isolates...; compare=compare, energy=energy, minblock=minblock)
+       graph = Graphs.align(isolates...;
+            compare     = compare,
+            energy      = energy,
+            minblock    = minblock,
+            maxiter     = maxiter,
+            sensitivity = sensitivity,
+       )
        marshal(stdout, graph; fmt=:json)
    end
 )

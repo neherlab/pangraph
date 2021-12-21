@@ -14,10 +14,12 @@ using Rematch
 
 # use internal python so we can build a conda environment
 import PyCall
+Ete3 = PyCall.PyNULL()
 
-# ignore syntax warnings
-PyCall.pyimport("warnings").filterwarnings("ignore")
-Ete3 = PyCall.pyimport_conda("ete3", "ete3", "etetoolkit")
+function __init__()
+    PyCall.pyimport("warnings").filterwarnings("ignore") # ignore syntax warnings
+    copy!(Ete3, PyCall.pyimport_conda("ete3", "ete3", "etetoolkit"))
+end
 
 function tree(newick)
     return Ete3.Tree(newick)

@@ -294,11 +294,8 @@ function balance(root::Clade)
 end
 
 function Base.length(node::Clade)
-    if isleaf(node)
-        return 1
-    else
-        return 1 + Base.length(node.left) + Base.length(node.right)
-    end
+    isleaf(node) && return 1
+    return 1 + Base.length(node.left) + Base.length(node.right)
 end
 
 # ------------------------------------------------------------------------
@@ -351,8 +348,8 @@ function preprocess(hits, skip, energy, blocks!)
     return hits
 end
 
-function do_align(G₁::Graph, G₂::Graph, energy::Function, minblock::Int)
-    hits = Minimap.align(pancontigs(G₁), pancontigs(G₂), minblock)
+function do_align(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, sensitivity::String)
+    hits = Minimap.align(pancontigs(G₁), pancontigs(G₂), minblock, sensitivity)
     sort!(hits; by=energy)
 
     return hits
@@ -393,12 +390,12 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 `minblock` is the minimum size block that will be produced from the algorithm.
 `maxiter` is maximum number of duplications that will be considered during this alignment.
 """
-function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; maxiter=100)
+function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; maxiter=100, sensitivity="asm10")
     G₀ = G₁
 
     for niter in 1:maxiter
         # calculate pairwise hits
-        hits = do_align(G₀, G₀, energy, minblock)
+        hits = do_align(G₀, G₀, energy, minblock, sensitivity)
 
         skip = (hit) -> (
                (hit.qry.name == hit.ref.name)
@@ -434,8 +431,6 @@ function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Functi
         detransitive!(G₀)
         purge!(G₀)
         prune!(G₀)
-
-        verify(G₀)
     end
 
     return G₀
@@ -528,8 +523,8 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 `minblock` is the minimum size block that will be produced from the algorithm.
 `maxiter` is maximum number of duplications that will be considered during this alignment.
 """
-function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool)
-    hits = do_align(G₁, G₂, energy, minblock)
+function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; sensitivity="asm10")
+    hits = do_align(G₁, G₂, energy, minblock, sensitivity)
 
     skip = (hit) -> (
             !(hit.qry.name in keys(G₁.block))
@@ -569,8 +564,6 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, v
     purge!(G)
     prune!(G)
 
-    verify(G)
-
     return G
 end
 
@@ -591,7 +584,7 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 
 `compare` is the function to be used to generate pairwise distances that generate the internal guide tree.
 """
-function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing)
+function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, sensitivity="asm10", maxiter=100)
     function verify(graph, msg="")
         if reference !== nothing
             for (name,path) ∈ graph.sequence
@@ -646,7 +639,7 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
 
     log("--> aligning pairs")
 
-    events = Channel{Bool}(Inf);
+    events = Channel{Bool}(10);
     result = Channel{Graph}(1);
 
     @spawn let
@@ -667,18 +660,14 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
                 Gᵣ = take!(clade.graph)
                 close(clade.graph)
 
-                G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, verify, false)
-                G₀ = align_self(G₀, energy, minblock, verify, false)
+                G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, verify, false; sensitivity=sensitivity)
+                G₀ = align_self(G₀, energy, minblock, verify, false; sensitivity=sensitivity, maxiter=maxiter)
 
+                put!(events, true)
                 if clade.parent !== nothing
                     put!(clade.parent.graph, G₀)
-                    put!(events, true)
                 else
-                    put!(result, G₀)
-                    put!(events, true)
-
-                    close(result)
-                    close(events)
+                    put!(result, G₀); close(result)
                 end
             end
         catch e
@@ -686,7 +675,9 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
         end
     end
 
-    return take!(result)
+    G = take!(result)
+    close(events)
+    return G
 end
 
 # ------------------------------------------------------------------------

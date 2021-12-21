@@ -32,7 +32,7 @@ end
 Create a Node that passed through block `b`.
 Default to forward strand orientation.
 """
-Node{T}(b::T; strand=true) where T = Node{T}(b,strand)
+Node(b::T; strand=true) where T = Node{T}(b,strand)
 
 # --------------------------------
 # operators

@@ -249,7 +249,7 @@ mutable struct MapOptions
 
 	split_prefix :: Cstring
 
-    function MapOptions(idx::Ref{IndexOptions}, minblock::Int)
+    function MapOptions(idx::Ref{IndexOptions}, minblock::Int, preset::String)
         opt = Ref{MapOptions}(new())
 
         # TODO: error handling
@@ -257,7 +257,7 @@ mutable struct MapOptions
               C_NULL, idx, opt
         )
         err = ccall(set_opt, Cint, (Cstring, Ptr{Cvoid}, Ptr{Cvoid}),
-              "asm10", idx, opt
+              preset, idx, opt
         )
 
         # manual overrides
@@ -342,15 +342,16 @@ end for i in 1:n]
 
 # alignment
 """
-	align(ref::PanContigs, qry::PanContigs, minblock::Int)
+	align(ref::PanContigs, qry::PanContigs, minblock::Int, preset::String)
 
 Call into minimap to align the set of blocks `qry` to blocks `ref`.
+Preset should be a string ∈ ["asm5","asm10","asm20"]. See minimap2 manual for details.
 This is probably the function you want.
 If you call into the function specifically, all memory management is taken care of for you.
 """
-function align(ref::PanContigs, qry::PanContigs, minblock::Int)
-    iopt = Ref{IndexOptions}(IndexOptions()) 
-    mopt = MapOptions(iopt, minblock)
+function align(ref::PanContigs, qry::PanContigs, minblock::Int, preset::String)
+    iopt = Ref{IndexOptions}(IndexOptions())
+    mopt = MapOptions(iopt, minblock, preset)
     len  = Ref{Cint}(0)
 
     index  = makeindex(iopt[].w, iopt[].k, ref.name, ref.sequence)

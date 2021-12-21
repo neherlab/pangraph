@@ -92,9 +92,9 @@ function Base.replace!(p::Path, old::Block, new::Array{Block}, orientation::Bool
 
         push!(indices, i)
 
-        nodes = ((n₁.strand==orientation) 
-                     ? [Node{Block}(nb;strand=true) for nb in new] 
-                     : [Node{Block}(nb;strand=false) for nb in reverse(new)])
+        nodes = ((n₁.strand==orientation)
+                     ? [Node(nb;strand=true) for nb in new] 
+                     : [Node(nb;strand=false) for nb in reverse(new)])
         for n₂ in nodes
             swap!(n₂.block, n₁, n₂)
         end
