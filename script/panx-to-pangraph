@@ -1,14 +1,13 @@
 #!/bin/bash -e
 
 self="${0}"
-path=$1
-shift 1
+input=$1;  shift 1
+output=$1; shift 1
 args=( "$@" )
 
 fasta=("${args[@]::$((${#args[@]} / 2))}")
 genbk=("${args[@]:$((${#args[@]} / 2))}")
 
-echo $path
 {
     for i in "${!fasta[@]}"
     do
@@ -17,4 +16,4 @@ echo $path
         script/extract-gene "${genbk[i]}"
         echo "ENDGENE"
     done
-} | julia --project=. "$self.jl" $path 1>/dev/null
+} | julia --project=script "$self.jl" "$input" 1>"$output"

@@ -6,17 +6,17 @@ null="/dev/null"
 export JULIA_NUM_THREADS=8
 hgt="1e-1";snp="5e-3";ins="1e-2"
 
-Ns="10 50 100 500 100"
-Ls="1000 5000 10000 50000 100000"
+Ns="10 50 100 500 1000 5000"
+Ls="1000 5000 10000 50000 100000 500000"
 
 for N in $Ns
 do
     T=$((N/2))
     for L in $Ls
     do
-        for n in {1..10}
+        for n in {1..20}
         do
-            printf "%03d;%06d;%02d => " "$N" "$L" "$n"
+            printf "%04d;%06d;%02d => " "$N" "$L" "$n"
 
             julia --project=script "$seq" -N "$N" -L "$L" \
             | pangraph generate -m "$snp" -r "$hgt" -i "$ins" -t "$T" \
