@@ -1,9 +1,11 @@
 #!/bin/bash -e
 
-if [[ $# -lt 3 ]]; then
+if [[ $# -lt 4 ]]; then
     echo 'please provide a path to the script and a path store the resulting JLD2 file'
     exit 1
 fi
+
+asm="$1"; shift 1
 
 seq="$1"
 cmd="$2"
@@ -44,16 +46,16 @@ blockif()
 export JULIA_NUM_THREADS=1 # ensure we don't run mulithreaded
 
 # simulation parameters
- # N=100; T=50; L=100000
-N=50; T=25; L=50000
+N=100; T=50; L=50000
 
 hgts="1e-2 5e-2 1e-1 5e-1 1"
 # snps="1e-4 2.5e-4 5e-4 7.5e-4 1e-3 2.5e-3 5e-3 7.5e-3 1e-2" # broad
-snps="1e-3 2e-3 3e-3 4e-3 5e-3 6e-3 7e-3 8e-3 9e-3 1e-2" #region of largest change
+# snps="1e-3 2e-3 3e-3 4e-3 5e-3 6e-3 7e-3 8e-3 9e-3 1e-2" #extends too far
+snps="5e-4 6e-4 7e-4 8e-4 9e-4 1e-3 2e-3 3e-3 4e-3 5e-3"
 
 # open up the consumer process
 initpipe
-{ julia --project=. "$cmd" "$pipe" "$out"; }&
+{ julia --project=script "$cmd" "$pipe" "$out"; }&
 pid=$!
 exec 3>"$pipe"
 
@@ -71,7 +73,7 @@ do
 
                 julia --project=script "$seq" -N "$N" -L "$L" \
               | pangraph generate -m "$snp" -r "$hgt" -t "$T" -i "1e-2" -o "$known" \
-              | pangraph build --circular -m 0 -b 0 1>"$guess" 2>/dev/null
+              | pangraph build --circular -m 0 -b 0 -s "$asm" 1>"$guess" 2>/dev/null
 
                 # NOTE: concurrent writes to a pipe are guaranteed to be atomic,
                 # provided they are smaller than the buffer. This, in turn, is

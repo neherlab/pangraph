@@ -416,7 +416,7 @@ uuid = "38a345b3-de98-5d2b-a5d3-14cd9215e700"
 version = "2.36.0+0"
 
 [[LinearAlgebra]]
-deps = ["Libdl"]
+deps = ["Libdl", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 
 [[LogExpFunctions]]
@@ -479,6 +479,10 @@ git-tree-sha1 = "7937eda4681660b4d6aeeecc2f7e1c81c8ee4e2f"
 uuid = "e7412a2a-1a6e-54c0-be00-318e2571c051"
 version = "1.3.5+0"
 
+[[OpenBLAS_jll]]
+deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
+uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
+
 [[OpenLibm_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "05823500-19ac-5b8b-9628-191a04bc5112"
@@ -525,12 +529,12 @@ uuid = "9b87118b-4619-50d2-8e1e-99f35a4d4d9d"
 version = "2.0.4"
 
 [[PanGraph]]
-deps = ["Dates", "Distributions", "GZip", "Hungarian", "JLD2", "JSON", "LinearAlgebra", "PackageCompiler", "Pkg", "ProgressMeter", "PyCall", "Random", "Rematch", "Statistics", "StatsBase", "minimap2_jll"]
-git-tree-sha1 = "8436f0ed88cba6fdd38fa3b48370b573d7c34178"
+deps = ["Dates", "Distributions", "GZip", "JLD2", "JSON", "LinearAlgebra", "PackageCompiler", "Pkg", "ProgressMeter", "PyCall", "Random", "Rematch", "Statistics", "StatsBase", "minimap2_jll"]
+git-tree-sha1 = "9a55088b0411203be2e3bcc0e290245c7df263ec"
 repo-rev = "master"
 repo-url = ".."
 uuid = "0f9f61ca-f32c-45e1-b3bc-00138f4f8814"
-version = "0.2.1"
+version = "0.3.0"
 
 [[Parsers]]
 deps = ["Dates"]
@@ -605,7 +609,7 @@ deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
 uuid = "3fa0cd96-eef1-5676-8a61-b3b8758bbffb"
 
 [[Random]]
-deps = ["Serialization"]
+deps = ["SHA", "Serialization"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [[RecipesBase]]
@@ -950,6 +954,10 @@ deps = ["Artifacts", "Bzip2_jll", "FreeType2_jll", "FriBidi_jll", "HarfBuzz_jll"
 git-tree-sha1 = "5982a94fcba20f02f42ace44b9894ee2b140fe47"
 uuid = "0ac62f75-1d6f-5e53-bd7c-93b484bb37c0"
 version = "0.15.1+0"
+
+[[libblastrampoline_jll]]
+deps = ["Artifacts", "Libdl", "OpenBLAS_jll"]
+uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
 
 [[libfdk_aac_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
