@@ -130,6 +130,8 @@ Build = Command(
             maxiter     = maxiter,
             sensitivity = sensitivity,
        )
+       finalize!(graph)
+
        marshal(stdout, graph; fmt=:json)
    end
 )

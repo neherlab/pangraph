@@ -394,8 +394,6 @@ function marshal_json(io::IO, G::Graph; opt=nothing)
     nodes     = Dict{Node{Block}, NodeID}()
     positions = Dict{Block, Dict{NodeID, Tuple{Int,Int}}}()
 
-    finalize!(G)
-
     # path serialization
     function dict(p::Path)
         blocks = Array{NodeID}(undef, length(p.node))
@@ -424,6 +422,7 @@ function marshal_json(io::IO, G::Graph; opt=nothing)
             name     = p.name,
             offset   = p.offset,
             circular = p.circular,
+            position = p.position,
             blocks   = blocks,
         )
     end
@@ -505,7 +504,8 @@ function unmarshal(io)
             name     = String(path["name"]),
             offset   = path["offset"],
             circular = path["circular"],
-            blocks   = path["blocks"]
+            blocks   = path["blocks"],
+            position = "position" ∈ keys(path) ? path["position"] : [], # to ease upgrade from old pangraph files
         )
 
         nodes = Node{Block}[]
@@ -543,9 +543,9 @@ function unmarshal(io)
             nodes,
             p.offset,
             p.circular,
-            [],
+            p.position,
         )
-        positions!(path)
+        length(path.position) > 0 || positions!(path)
 
         p.name => path
     end)
