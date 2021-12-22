@@ -266,6 +266,12 @@ git-tree-sha1 = "371a7df7a6cce5909d6c576f234a2da2e3fa0c98"
 uuid = "e91730f6-4275-51fb-a7a0-7064cfbd3b39"
 version = "0.6.0"
 
+[[Infiltrator]]
+deps = ["REPL"]
+git-tree-sha1 = "1bbcd4d9df8fffda7bfaa1660477d29d4c435c6c"
+uuid = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
+version = "1.1.0"
+
 [[IniFile]]
 deps = ["Test"]
 git-tree-sha1 = "098e4d2c533924c921f9f9847274f2ad89e018b8"
