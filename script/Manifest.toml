@@ -530,7 +530,7 @@ version = "2.0.4"
 
 [[PanGraph]]
 deps = ["Dates", "Distributions", "GZip", "JLD2", "JSON", "LinearAlgebra", "PackageCompiler", "Pkg", "ProgressMeter", "PyCall", "Random", "Rematch", "Statistics", "StatsBase", "minimap2_jll"]
-git-tree-sha1 = "9a55088b0411203be2e3bcc0e290245c7df263ec"
+git-tree-sha1 = "6b1390a4c40805c5be95cdfed5d91c1ed2b46560"
 repo-rev = "master"
 repo-url = ".."
 uuid = "0f9f61ca-f32c-45e1-b3bc-00138f4f8814"
