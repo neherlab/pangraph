@@ -1,3 +1,4 @@
+using Printf
 using Plots, ColorSchemes
 using JLD2, FileIO
 
@@ -43,7 +44,9 @@ function collectentry(data, type, name, accumulate!, post!)
         i = findfirst(hgt .== param.hgt)
         j = findfirst(snp .== param.snp)
 
-        data[key] !== nothing || continue
+        data[key] !== nothing   || continue
+        !any(isnan.(data[key])) || continue
+
         accumulate!(val,i,j,data[key])
         num[i,j] += 1
     end
@@ -56,11 +59,13 @@ accuracy(data)   = collectentry(data,Array{Float64,1},"costs",(arr,i,j,x)->appen
 diversity(data)  = collectentry(data,Float64,"dists",(arr,i,j,x)->arr[i,j]+=x, (arr,num)->arr./num)
 complexity(data) = collectentry(data,Float64,"nblks",(arr,i,j,x)->arr[i,j]+=x, (arr,num)->arr./num)
 
-function plotgrid(data, x, y; group="")
-    heatmap(string.(x), string.(10 .* y), data';
-        xlabel = "HGT rate / genome / generation",
-        ylabel = "pairwise diversity",
-        title  = length(group) > 0 ? "intersection entropy $(group)" : ""
+function plotgrid(data, x, y; group="", labels=true)
+    heatmap(string.(x), [@sprintf("%.1E",5*Y) for Y in y], data';
+        xlabel = labels ? "HGT rate / genome / generation" : "",
+        ylabel = labels ? "pairwise diversity" : "",
+        title  = length(group) > 0 ? "entropy $(group)" : "",
+        legend = :none,
+        clim   = (0,1.5),
     )
 end
 
@@ -69,16 +74,17 @@ function plotcdfs(data, x, y; group="")
     c = cgrad(:matter, size(data,2), categorical=true)
     p = plot(;
         legend = :bottomright,
-        xlabel = "avg. breakpoint misplacement / genome (bp)",
+        xscale = :log10,
+        xlabel = "breakpoint misplacement (bp)",
         ylabel = "fraction of breakpoints",
         title  = length(group) > 0 ? "accuracy $(group)" : ""
     )
 
     for j in 1:size(data,2)
-        cdfplot!(data[i,j];
+        cdfplot!(data[i,j].+1;
             linewidth = 2,
             color     = c[j],
-            label     = "δ=$(10*y[j])",
+            label     = @sprintf("%.1E", 5*y[j]),
          )
     end
 
@@ -90,13 +96,37 @@ function group(path)
     return match(re, path)[1]
 end
 
-function main(paths)
+function main(paths, destdir)
     data = [ load(path) for path in paths ]
     grid = [ plotgrid(entropy(datum)...;  group=group(path)) for (path,datum) in zip(paths,data) ]
-    cost = [ plotgrid(entropy(datum)...;  group=group(path)) for (path,datum) in zip(paths,data) ]
     cdfs = [ plotcdfs(accuracy(datum)...; group=group(path)) for (path,datum) in zip(paths,data) ]
 
-    return plot(grid...), plot(cdfs...)
+    save(plot, base, name) = savefig(plot, "$(destdir)/$(base)-$(name).png")
+    base(name) = basename(name)[1:end-5]
+
+    for (plt,path) in zip(grid,paths)
+        save(plt,"heatmap",base(path))
+    end
+
+    for (plt,path) in zip(cdfs,paths)
+        save(plt,"cdf",base(path))
+    end
+
+#=
+    TODO: return one figure with correct layout
+    l = @layout[Plots.grid(1,2) a{0.05w}]
+    return (
+        plot(grid...,
+            heatmap((0:0.01:1).*ones(101,1);
+                    legend=:none,
+                    xticks=:none,
+                    yticks=(1:10:101, [@sprintf("%1.1f",1.5*x) for x in 0:0.1:1]),
+             ); layout=l
+        ),
+        plot(cdfs...),
+        plot(grid[1], cdfs[1])
+    )
+=#
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

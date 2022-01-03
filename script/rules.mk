@@ -1,8 +1,10 @@
 .PHONY: fig1 panx
 
-panx-dir  := data/panx/kleb
 accuracy  := $(datadir)/accuracy
 benchmark := $(datadir)/benchmark.txt
+
+# ------------------------------------------------------------------------
+#  synthetic data
 
 # benchmarking
 $(benchmark): script/benchmark
@@ -14,25 +16,43 @@ $(accuracy)-%.jld2: script/make-sequence.jl script/make-accuracy.jl
 	@echo "MAKE $@";\
 	script/make-accuracy $* $^ $@
 
+figs/benchmark.png: $(benchmark)
+	julia --project=script script/plot-benchmark.jl $< $@
+
+figs/cdf-accuracy-%.png: $(accuracy)-%.jld2
+	julia --project=script script/plot-accuracy.jl $< figs
+
+# ------------------------------------------------------------------------
+#  comparison to panx for multiple species
+
 # accuracy relative to panX gene boundaries
-panx-input-gb := $(wildcard $(panx-dir)/input_GenBank/*.gbk)
-panx-input-fa := $(patsubst $(panx-dir)/input_GenBank/%.gbk, $(panx-dir)/fa/%.fa, $(panx-input-gb))
+define PANX
+$(eval input-gb := $(wildcard data/panx/$(1)/input_GenBank/*.gbk))
+$(eval input-fa := $(patsubst data/panx/$(1)/input_GenBank/%.gbk, data/panx/$(1)/fa/%.fa, $(input-gb)))
+data/panx/$(1)/fa:
+	mkdir -p $$@
 
-$(panx-dir)/fa:
-	mkdir -p $@
+data/panx/$(1)/fa/%.fa: data/panx/$(1)/input_GenBank/%.gbk | data/panx/$(1)/fa
+	@echo "MAKE	$$@";\
+	script/gbk-to-fa $$* <$$< >$$@
 
-$(panx-dir)/fa/%.fa: $(panx-dir)/input_GenBank/%.gbk | $(panx-dir)/fa
-	@echo "MAKE	$@";\
-	script/gbk-to-fa $* <$< >$@
+data/panx/$(1)/panx.json: $(input-fa) $(input-gb)
+	@echo "MAKE	$$@";\
+	script/panx-to-pangraph data/panx/$(1)/vis/geneCluster.json $$@ $$^
 
-$(panx-dir)/panx.json: $(panx-input-fa) $(panx-input-gb)
-	@echo "MAKE	$@";\
-	script/panx-to-pangraph $(panx-dir)/vis/geneCluster.json $@ $^
+data/panx/$(1)/pangraph.json: $(input-fa)
+	@echo "MAKE	$$@";\
+	JULIA_NUM_THREADS=8 pangraph build --circular --upper-case --max-self-map 50 $$^ 1>$$@
 
-$(panx-dir)/pangraph.json: $(panx-input-fa)
-	@echo "MAKE	$@";\
-	JULIA_NUM_THREADS=8 pangraph build --circular --upper-case --max-self-map 50 $^ 1>$@
+$(eval panx-targets += data/panx/$(1)/pangraph.json data/panx/$(1)/panx.json)
+endef
 
-panx: $(panx-dir)/pangraph.json $(panx-dir)/panx.json
+panx-targets =
+$(eval $(call PANX,kleb))
+$(eval $(call PANX,helio))
+# $(eval $(call PANX,ecoli))
+$(eval $(call PANX,myco))
+$(eval $(call PANX,proc))
 
-fig1: $(accuracy)-10.jld2 $(accuracy)-20.jld2 $(benchmark)
+figs/panx-compare.png: $(panx-targets)
+	julia --project=script script/plot-panx-compare.jl $^

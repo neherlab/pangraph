@@ -78,7 +78,6 @@ function benchmarks(io)
         end
     end
 
-    @show duration
     return duration
 end
 
@@ -107,13 +106,16 @@ function plots(benchmark)
         )
     end
 
+    plot!(L, 8e-4*L.*log10.(L), color=:black, linewidth=2, linestyle=:dashdot, label="log linear trend")
+
     p
 end
 
-function main(path)
-    open(benchmarks, path) |> plots
+function main(path, dest)
+    plt = open(benchmarks, path) |> plots
+    savefig(plt, dest)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main(ARGS[1])
+    main(ARGS[1], ARGS[2])
 end

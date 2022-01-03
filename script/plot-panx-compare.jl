@@ -50,44 +50,83 @@ function unmarshal(path)
     )
 end
 
-function main(path)
-    data, null = path |> unmarshal |> compare
+function group(args)
+    i = 1
+    sorted = sort(args)
+    species = Dict(
+        "kleb"  => "Klebsiella Pneumoniae",
+        "myco"  => "Mycobacterium Tuberculosis",
+        "proc"  => "Prochlorococcus Mariunus",
+        "ecoli" => "Escherichia Coli",
+        "helio" => "Helicobacter Pylori",
+    )
 
-    p = plot(;
+    pairs = NamedTuple{(:pang,:panx,:name),Tuple{String,String,String}}[]
+    while i ≤ length(sorted)
+        push!(pairs, (
+            pang=sorted[i],
+            panx=sorted[i+1],
+            name=species[basename(dirname(sorted[i]))],
+        ))
+        i += 2
+    end
+
+    @show pairs
+    return pairs
+end
+
+function main(paths)
+    figure = plot(;
             xlabel="distance to nearest gene (bp)",
             ylabel="CDF",
-            title="Klebsiella Pneumoniae",
             legend=:bottomright,
             xscale=:log10,
     )
+    colors = cgrad(:matter, length(paths), categorical=true)
+
+    for (i,path) in enumerate(paths)
+        plots!(path, colors[i])
+    end
+
+    figure
+end
+
+function plots!(path, color)
+    data, null = path |> unmarshal |> compare
+
     cdfplot!(data.+1;
-        color=:black,
+        color=color,
         linewidth=2,
-        label="algorithm"
+        label="$(path.name) data"
     )
     cdfplot!(null.+1;
-        color=:red,
+        color=color,
         linewidth=2,
-        label="random null",
+        linestyle=:dashdot,
+        label="$(path.name) null",
     )
 
+    #=
     vline!([median(data)];
         label="",
-        color=:black,
+        color=color,
         linestyle=:dashdot,
     )
     vline!([median(null)];
         label="",
-        color=:red,
+        color=color,
         linestyle=:dashdot,
     )
 
     annotate!(20,  .85, "median≈70",  :black)
     annotate!(800, .25, "median≈300", :red)
+    =#
+end
 
-    return p
+function save(plt)
+    savefig(plt, "figs/panx-compare.png")
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main((pang=ARGS[1], panx=ARGS[2]))
+    ARGS |> group |> main |> save
 end

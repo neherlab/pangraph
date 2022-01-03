@@ -6,7 +6,7 @@ null="/dev/null"
 export JULIA_NUM_THREADS=8
 hgt="1e-1";snp="5e-3";ins="1e-2"
 
-Ns="10 50 100 500 1000 5000"
+Ns="10 50 100 500 1000"
 Ls="1000 5000 10000 50000 100000 500000"
 
 for N in $Ns

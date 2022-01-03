@@ -66,7 +66,7 @@ do
     do
         for nit in {1..25}
         do
-            blockif 10 # ensure we don't throttle the system
+            blockif 9 # ensure we don't throttle the system
             (
                 known=$(mktemp /tmp/known.json.XXXXXX)
                 guess=$(mktemp /tmp/guess.json.XXXXXX)
