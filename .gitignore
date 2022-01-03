@@ -11,3 +11,12 @@ vendor
 pangraph
 pangraph.tar.gz
 bin
+
+*.aux
+*.bbl
+*.blg
+*.fls
+*.log
+*.out
+*.pdf
+*.fdb_latexmk

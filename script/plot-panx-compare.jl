@@ -71,7 +71,6 @@ function group(args)
         i += 2
     end
 
-    @show pairs
     return pairs
 end
 
@@ -82,7 +81,7 @@ function main(paths)
             legend=:bottomright,
             xscale=:log10,
     )
-    colors = cgrad(:matter, length(paths), categorical=true)
+    colors = cgrad(:Accent_8, length(paths), categorical=true)
 
     for (i,path) in enumerate(paths)
         plots!(path, colors[i])

@@ -50,7 +50,7 @@ endef
 panx-targets =
 $(eval $(call PANX,kleb))
 $(eval $(call PANX,helio))
-# $(eval $(call PANX,ecoli))
+$(eval $(call PANX,ecoli))
 $(eval $(call PANX,myco))
 $(eval $(call PANX,proc))
 

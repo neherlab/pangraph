@@ -1,0 +1,36 @@
+\documentclass[aps,rmp,superscriptaddress,notitlepage,10pt]{revtex4-1}
+\usepackage{amsmath,amsthm,amsfonts,amssymb,amscd}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{wrapfig}
+\usepackage{enumerate}
+\usepackage[utf8x]{inputenc}
+
+\begin{document}
+\title{PanGraph: scalable multiple genome alignment for pan-genome analysis}
+\author{Nicholas Noll}
+\affiliation{Kavli Institute for Theoretical Physics, University of California, Santa Barbara}
+\author{Marco Molari}
+\affiliation{Swiss Institute of Bioinformatics, Basel, Switzerland}
+\affiliation{Biozentrum, University of Basel, Basel, Switzerland}
+\author{Richard Neher}
+\affiliation{Swiss Institute of Bioinformatics, Basel, Switzerland}
+\affiliation{Biozentrum, University of Basel, Basel, Switzerland}
+
+\begin{abstract}
+    Reference genomes, a simple coordinate system used to parameterize population alleles relative to a given isolate, fail to capture genomic diversity.
+    As such, progress has focused on the elucidation of the \emph{pangenome}: the set of all genes observed within \emph{all} isolates of a given species.
+    With the wide-spread usage of long-read sequencing, the number of high-quality, complete genome assemblies has increased dramatically.
+    However, traditional computational approaches towards whole-genome analysis either scale poorly, or treat genomes as dissociated bags of genes, and thus are not suited for this new era.
+    Here, we present PanGraph, a Julia based library and command line interface for aligning whole genomes into a graph, wherein each genome is represented as an undirected path along vertices, which in turn, encapsulate homologous multiple sequence alignments.
+    The resultant data structure succinctly summarizes population-level nucleotide and structural polymorphisms and can be exported into a myriad of formats for either downstream analysis or immediate visualization.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction}
+\section{Algorithms and implementation}
+\section{Validation and performance}
+\section{Discussion}
+
+\end{document}
