@@ -1,10 +1,10 @@
-\documentclass[aps,rmp,superscriptaddress,notitlepage,10pt]{revtex4-1}
+\documentclass[aps,rmp,reprint,superscriptaddress,notitlepage,10pt]{revtex4-1}
+\usepackage[utf8x]{inputenc}
 \usepackage{amsmath,amsthm,amsfonts,amssymb,amscd}
-\usepackage{hyperref}
 \usepackage{graphicx}
 \usepackage{wrapfig}
 \usepackage{enumerate}
-\usepackage[utf8x]{inputenc}
+\usepackage[final]{hyperref}
 
 \begin{document}
 \title{PanGraph: scalable multiple genome alignment for pan-genome analysis}
@@ -18,19 +18,72 @@
 \affiliation{Biozentrum, University of Basel, Basel, Switzerland}
 
 \begin{abstract}
-    Reference genomes, a simple coordinate system used to parameterize population alleles relative to a given isolate, fail to capture genomic diversity.
-    As such, progress has focused on the elucidation of the \emph{pangenome}: the set of all genes observed within \emph{all} isolates of a given species.
-    With the wide-spread usage of long-read sequencing, the number of high-quality, complete genome assemblies has increased dramatically.
-    However, traditional computational approaches towards whole-genome analysis either scale poorly, or treat genomes as dissociated bags of genes, and thus are not suited for this new era.
-    Here, we present PanGraph, a Julia based library and command line interface for aligning whole genomes into a graph, wherein each genome is represented as an undirected path along vertices, which in turn, encapsulate homologous multiple sequence alignments.
-    The resultant data structure succinctly summarizes population-level nucleotide and structural polymorphisms and can be exported into a myriad of formats for either downstream analysis or immediate visualization.
+Reference genomes, simple coordinate systems used to parameterize population alleles relative to a given isolate, fail to capture genomic diversity.
+As such, progress has focused on the elucidation of the \emph{pangenome}: the set of all genes observed within \emph{all} isolates of a given species.
+With the wide-spread usage of long-read sequencing, the number of high-quality, complete genome assemblies has increased dramatically.
+However, traditional computational approaches towards whole-genome analysis either scale poorly, or treat genomes as dissociated bags of genes, and thus are not suited for this new era.
+Here, we present \emph{PanGraph}, a Julia based library and command line interface for aligning whole genomes into a graph, wherein each genome is represented as an undirected path along vertices, which in turn, encapsulate homologous multiple sequence alignments.
+The resultant data structure succinctly summarizes population-level nucleotide and structural polymorphisms and can be exported into a myriad of formats for either downstream analysis or immediate visualization.
 \end{abstract}
 
 \maketitle
 
 \section{Introduction}
+The era of the \emph{pangenome} demands novel data structures to encapsulate the \emph{full} genomic diversity of a given sample.
+
 \section{Algorithms and implementation}
+\emph{PanGraph} transforms an arbitrary set of genomes into a \emph{graph} that simultaneously compresses the collection of sequences and exhaustively summarizes both the structural and nucleotide-level polymorphisms.
+The graph is composed of \emph{pancontigs}, which represent linear multiple-sequence alignments of homologous sequence found within one or more input genomes.
+\emph{Pancontigs} are connected by an edge if they are syntenic on at least one input sequence; individual sequences are then recapitulated by contiguous \emph{paths} through the graph.
+
+\emph{PanGraph's} overarching strategy is to approximate multiple-genome alignment by iterative pairwise alignment, in the spirit of progressive alignment tools \cite{darling2010progressivemauve,armstrong2020progressive}.
+A guide tree is utilized to linearize the problem complexity by approximating multiple-sequence alignment as a quenched order of successive pairwise alignments.
+Pairwise graph alignment is performed by an all-to-all alignment of the \emph{pancontigs} between both graphs.
+
+\subsection{Guide tree construction}
+The alignment guide tree is constructed subject to three design constraints: (i) sequences are aligned sequentially based upon similarity, (ii) the similarity computation scales sub-quadratically with the number of input sequences, and (iii) the resultant tree is balanced.
+To this end, we formulate the algorithm as a two step process.
+The initial guide tree is constructed by neighbor-joining; the pairwise distance between sequences is approximated by the Jaccard distance between sequence minimizers \cite{roberts2004reducing}.
+Computationally, each sequence can be sketched into its set of minimizers in linear time while the cardinality of all pairwise intersections can be computed by sorting the list of all minimizers to efficiently count overlaps.
+Hence, the pairwise distance matrix is estimated in log-linear time.
+The final guide tree is constructed as the balanced binary tree constrained to reproduce the topological ordering of leaves found initially.
+
+\subsection{Pairwise graph alignment}
+The utilization of a guide tree reduces the multiple-genome alignment combinatorics to sequential pairwise graph alignment.
+Full genome alignment between two closely related isolates is a well-studied problem with many high-quality tools available \cite{li2018minimap2,marccais2018mummer4}.
+We chose to use \emph{minimap2} as the core pairwise genome aligner for its proven speed, sensitivity, and exported library API \cite{li2018minimap2}.
+However, we note that \emph{PanGraph} is written to be modular; in the future, additional alignment kernels can be added with ease.
+The \emph{minimap2} alignment kernel is included within a custom Julia wrapper, available at \url{github.com/nnoll/minimap2_jll.jl}.
+The kernel interface expects two lists of \emph{pancontigs} to align as input and will output a list of potentially overlapping alignments between both input lists.
+
+\emph{Pancontigs} encapsulate linear multiple-sequence alignments which are modelled internally by a star phylogeny, i.e. are assumed to be well-described by a reference sequence augmented by SNPs and indels for each contained isolate.
+Importantly, during the all-to-all alignment phase, \emph{pancontigs} are aligned based \emph{solely} upon their consensus sequence.
+All putative homologous alignments found by \emph{pancontig} alignment are ranked according to the pseudo-energy
+\begin{equation}
+    E = -\ell + \alpha N_c + \beta N_m
+\end{equation}
+where $\ell$, $N_c$, and $N_m$ denote the alignment length, number of \emph{pancontigs} created by the merger, and number of polymorphisms per genome in the newly created {pancontig} respectively.
+Additionally, $\alpha$ and $\beta$ are hyperparameters of the algorithm, respectively controlling the tradeoff between fragmentation of the graph and the maximum diversity within each block.
+Only alignments with negative energy are performed.
+
+At the graph level, the merger of two \emph{pancontigs} defines a new \emph{pancontig}, connected on both sides by edges to the neighboring \emph{pancontigs} of both inputs, and thus locally collapses the two graphs under consideration.
+At the nucleotide level, the pairwise alignment of two \emph{pancontigs} maps the reference of one onto the other; the merger of two \emph{pancontigs} requires the application of the map onto the underlying multiple-sequence alignment.
+Once both sets of sequences are placed onto a common coordinate system, the resultant consensus sequence, and thus polymorphisms, are recomputed.
+This procedure can be viewed as an online multiple sequence alignment algorithm.
+
+The above procedure is repeated until no alignments with negative energy remain.
+Upon completion, transitive edges within the graph are removed by merging adjacent \emph{pancontig}.
+
+\subsection{Parallelism}
+\emph{PanGraph} is designed with a message-passing architecture to enable scalable parallelism.
+Each internal node of the guide tree represents a job that performs a single pairwise graph alignment.
+The process will block until both of its children processes have completed and subsequently pass the result up to the parent.
+All jobs run concurrently from the start of the algorithm; the Julia scheduler resolves the order of dependencies naturally.
+As such, the number of parallel computations is automatically scales to the number of available threads.
+
 \section{Validation and performance}
 \section{Discussion}
+
+\bibliography{cite}{}
 
 \end{document}

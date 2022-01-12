@@ -1,5 +1,5 @@
 TEX   := latexmk
-FLAGS := -pdf -quiet -use-make -pdflatex="lualatex -interaction=nonstopmode"
+FLAGS := -pdf -quiet -bibtex -use-make -pdflatex="lualatex -interaction=nonstopmode"
 
 all: paper/draft.pdf
 
