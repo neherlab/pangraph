@@ -6,6 +6,8 @@
 \usepackage{enumerate}
 \usepackage[final]{hyperref}
 
+\graphicspath{{../figs/}}
+
 \begin{document}
 \title{PanGraph: scalable multiple genome alignment for pan-genome analysis}
 \author{Nicholas Noll}
@@ -18,10 +20,10 @@
 \affiliation{Biozentrum, University of Basel, Basel, Switzerland}
 
 \begin{abstract}
-Reference genomes, simple coordinate systems used to parameterize population alleles relative to a given isolate, fail to capture genomic diversity.
+Reference genomes, simple coordinate systems used to parameterize population alleles relative to a given isolate, fail to fully capture the genomic diversity of microbial species.
 As such, progress has focused on the elucidation of the \emph{pangenome}: the set of all genes observed within \emph{all} isolates of a given species.
-With the wide-spread usage of long-read sequencing, the number of high-quality, complete genome assemblies has increased dramatically.
-However, traditional computational approaches towards whole-genome analysis either scale poorly, or treat genomes as dissociated bags of genes, and thus are not suited for this new era.
+Additionally, with the wide-spread usage of long-read sequencing, the number of high-quality, complete genome assemblies has increased dramatically.
+Traditional computational approaches towards whole-genome analysis either scale poorly, or treat genomes as dissociated bags of genes, and thus are not suited for this new era.
 Here, we present \emph{PanGraph}, a Julia based library and command line interface for aligning whole genomes into a graph, wherein each genome is represented as an undirected path along vertices, which in turn, encapsulate homologous multiple sequence alignments.
 The resultant data structure succinctly summarizes population-level nucleotide and structural polymorphisms and can be exported into a myriad of formats for either downstream analysis or immediate visualization.
 \end{abstract}
@@ -29,7 +31,31 @@ The resultant data structure succinctly summarizes population-level nucleotide a
 \maketitle
 
 \section{Introduction}
-The era of the \emph{pangenome} demands novel data structures to encapsulate the \emph{full} genomic diversity of a given sample.
+During evolution, microbial genomes mutate according to both local and large-scale dynamics.
+Local mutations conserve sequence architecture and only change a few nucleotides by substitution, insertion or deletion.
+Conversely, large-scale mutations reorganize the sequence, and involve either the homologous recombination of large segments or wholesale gene gain and loss from the environment.
+The accumulation of such polymorphisms over time complicates comparative genomic analyses of present day isolates; microbial genomes are mosaics of homologous sequence, locally related by an asexual phylogenetic tree.
+Scalable inference techniques of this complicated relatedness structure would, in part, spur the advance of critical epidemiological surveillance tools, analogous to NextStrain, for bacterial pathogens.
+
+Recent advances in long-read sequencing have enabled the low-cost assembly of isolated genomes at the quality of reference databases.
+The accumulation of many complete genomes promises to rapidly improve our ability to quantify the evolutionary dynamics that drive microbial diversity in natural populations.
+Unfortunately, comparative genomic analyses have not kept pace with the technological advance, opting either for reference-based approaches that only partially capture microbial diversity or to construct a \emph{pangenome} that accurately captures nucleotide polymorphisms but approximates structural polymorphisms as simple gene presence-absence relationships.
+This new era of pangenomics demands novel data structures to encapsulate the \emph{complete} diversity of a given genomic sample set.
+
+In recent years, efforts have focused on generalizing the \emph{pangenome} framework of microbial diversity to graphical models.
+At a high level, pangenome graphs generalize the reference sequence coordinate system conventionally used; microbial diversity is, instead, encapsulated by a graph-based data structure, with vertices or edges labelled by homologous DNA sequences, in which a walk recapitulates a subset of mosaic genomes.
+As such, pangenome graphs can be thought of as an analogous construct to the well-known assembly graph, in which whole genomes are individual "reads" of the underlying microbial structure.
+
+While easy to conceptualize, the construction of pangenome graphs has proven computationally challenging.
+Colored generalizations of the de Bruijin graph-based assemblers have been successively used to build graphs from large sequence sets, however the underlying efficiency derives from a fixed kmer size which prevents modelling long-range homology.
+An orthogonal approach has been to formulate the inference of the pangenome graph as a multiple genome alignment.
+However, current methods either scale poorly to large sets of genomes \cite{darling2010progressivemauve}, focus on comparisons across diverse sets of species across the tree of life at the cost of memory \cite{armstrong2020progressive}, or utilize a reference-guided approach by partitioning genomes first into annotated genes \cite{gautreau2020ppanggolin}.
+
+Here we present PanGraph, a Julia library and command line interface, designed to efficiently align large sets of closely related genomes into a pangenome graph on personal computers.
+The resulting graph both compresses the input sequence set and succinctly captures the population diversity at multiple scales ranging from nucleotide mutations and indels to structural polymorphisms driven by inversions, rearrangements, and gene gain/loss.
+The underlying graph data structure can be exported into numerous formats for downstream analysis and visualization in software such as Bandage \cite{wick2015bandage}.
+The algorithm, along with extensive documentation, examples, and instructions for installation, are open source and can be found on GitHub.
+We anticipate PanGraph to be immediately useful in understanding microbial evolution in natural populations.
 
 \section{Algorithms and implementation}
 \emph{PanGraph} transforms an arbitrary set of genomes into a \emph{graph} that simultaneously compresses the collection of sequences and exhaustively summarizes both the structural and nucleotide-level polymorphisms.
@@ -72,16 +98,29 @@ Once both sets of sequences are placed onto a common coordinate system, the resu
 This procedure can be viewed as an online multiple sequence alignment algorithm.
 
 The above procedure is repeated until no alignments with negative energy remain.
-Upon completion, transitive edges within the graph are removed by merging adjacent \emph{pancontig}.
+Upon completion, transitive edges within the graph are removed by merging adjacent \emph{pancontigs}.
 
 \subsection{Parallelism}
 \emph{PanGraph} is designed with a message-passing architecture to enable scalable parallelism.
-Each internal node of the guide tree represents a job that performs a single pairwise graph alignment.
-The process will block until both of its children processes have completed and subsequently pass the result up to the parent.
+Each internal node of the guide tree represents a job that performs a single pairwise graph alignment between its two children.
+The process will block until both of its children processes have completed and subsequently pass the result of their pairwise graph alignment up to the parent.
 All jobs run concurrently from the start of the algorithm; the Julia scheduler resolves the order of dependencies naturally.
-As such, the number of parallel computations is automatically scales to the number of available threads.
+As such, the number of parallel computations is automatically scales to the number of available threads allocated by the user at the onset of the alignment.
 
 \section{Validation and performance}
+In order to assess the accuracy of the pangenome graph inferred by PanGraph, and to quantify its performance 
+characteristics as a function of input size, we generated synthetic data.
+We simulated populations of size $N=100$ and length $L=50000$ utilizing a Wright-Fisher model evolved for $T=50$ generations.
+In addition to nucleotide mutations that occur at rate $\mu$ per generation, we additionally modelled inversions, deletions (each with independent rates set to $1e-2$ per generation), and horizontal sequence transfer that occurs with rate $r$ per generation.
+The ancestral state for each sequence is tracked through each evolutionary event so that the true mosaic relatedness structure can easily be converted to a graph.
+The simulation framework is distributed within the PanGraph command line toolsuite for external use.
+
+\begin{figure*}[htb]
+    \includegraphics[width=\textwidth]{errors/errorCharacterization.png}
+    \caption{{\bf Algorithm accuracy}.}
+    \label{fig:accuracy}
+\end{figure*}
+
 \section{Discussion}
 
 \bibliography{cite}{}
