@@ -107,6 +107,25 @@ The process will block until both of its children processes have completed and s
 All jobs run concurrently from the start of the algorithm; the Julia scheduler resolves the order of dependencies naturally.
 As such, the number of parallel computations is automatically scales to the number of available threads allocated by the user at the onset of the alignment.
 
+\subsection{Graph Export and Availability}
+The constructed pangenome graph can be exported in a variety of file formats for downstream analysis and visualization.
+In addition to a custom JSON schema, PanGraph can export the alignment as a GFA file, where each \emph{pancontig} is represented as a segment and each genome as a path.
+This allows for visualization in software such as Bandage \cite{wick2015bandage}, see Fig. \ref{fig:visualization} for an example displaying $51$ mycobacterium genomes.
+Lastly, we provide functionality to export as a conventional pangenome, however wherein \emph{pancontigs} supplant putative gene clusters, that can be visualized directly by the PanX toolkit \cite{ding2018panx}.
+\begin{figure}[htb]
+    \includegraphics[width=.5\textwidth]{bandage.png}
+    \caption{{\bf Example of exported Pangraph visualization}.
+    The graph constructed from the multiple genome alignment of 51 mycobacterium genomes obtained from RefSeq \cite{o2016reference} is visualized using Bandage \cite{wick2015bandage}.
+    Independent pancontigs are shown as different colors and are connected if they are found juxtaposed on at least one genome.
+    The number of sequences within each multiple sequence alignment is exported as coverage.
+    }
+    \label{fig:visualization}
+\end{figure}
+
+PanGraph is published under an MIT license with source code available at \url{github.com/nnoll/pangraph}.
+Additionally, pre-built binaries are available as GitHub releases.
+All data and scripts used to validate PanGraph are available within the same repository.
+
 \section{Validation and performance}
 In order to assess the accuracy of the pangenome graph inferred by PanGraph, and to quantify its performance 
 characteristics as a function of input size, we generated synthetic data.
@@ -115,13 +134,85 @@ In addition to nucleotide mutations that occur at rate $\mu$ per generation, we 
 The ancestral state for each sequence is tracked through each evolutionary event so that the true mosaic relatedness structure can easily be converted to a graph.
 The simulation framework is distributed within the PanGraph command line toolsuite for external use.
 
-\begin{figure*}[htb]
-    \includegraphics[width=\textwidth]{errors/errorCharacterization.png}
-    \caption{{\bf Algorithm accuracy}.}
-    \label{fig:accuracy}
-\end{figure*}
+\begin{figure}[htb]
+    \includegraphics[width=.5\textwidth]{paper-accuracy-20.png}
+    \caption{{\bf Accuracy against synthetic data}. Cumulative density functions for breakpoint accuracy comparing simulated and reconstructed pangenome graphs for various SNP rates, $\mu$.}
+    \label{fig:toy-accuracy}
+\end{figure}
+
+We quantified the accuracy of PanGraph algorithm by computing the pairwise distance, $\delta$, of the putative breakpoints measured, relative to their known locus stored from the evolutionary simulation.
+Critically, we found that the accuracy was \emph{independent} of the rate of horizontal gene transfer $r$ and thus underlying graph complexity.
+The predominant determinant of accuracy was the sample diversity, shown in Fig. \ref{fig:toy-performance} which displays the distributions of $\delta$ for $100$ independent simulations ran for each mutation rate $\mu$.
+For approximately clonal populations, $\sim 80\%$ of breakpoints were estimated to be within $10$bp away from the ``true" location.
+Conversely, for samples with average pairwise diversity above $2\%$, $\sim 80\%$ of breakpoints are estimated only within $100$ bp.
+This limitation is primarily driven by lack of sensitivity in the pairwise alignment phase performed using \emph{minimap2} \cite{li2018minimap2}.
+
+\begin{figure}[htb]
+    \includegraphics[width=.5\textwidth]{benchmark.png}
+    \caption{{\bf Algorithm performance}.
+        PanGraph scales linearly with the number of input genomes.
+        This is a direct result of the guide tree simplification.
+        The solid line and ribbons display the mean and standard deviation respectively.
+        All runs were performed on an AMD Ryzen 7 2700X utilizing 8 cores.
+    }
+    \label{fig:toy-performance}
+\end{figure}
+
+The algorithmic complexity was measured empirically by simulating populations of increasing size and average sequence length.
+The mean and standard deviation of results obtained from 25 iterations are shown in Fig. \ref{fig:toy-performance}.
+Importantly, PanGraph's computational complexity grows \emph{linearly} with the number of input genomes.
+We note that the PanGraph scales approximately log-linear with average sequence length, as expected from the underlying algorithmic complexity of Minimap2 \cite{li2018minimap2}.
+
+We additionally validated PanGraph on natural populations sampled from RefSeq \cite{o2016reference}.
+Obviously the ``true" breakpoints are not known \emph{a priori} and thus the direct analog of Fig. \ref{fig:toy-accuracy} is not possible.
+However, we postulate that most \emph{bone fide} breakpoints generated from evolutionary events will happen at or near gene boundaries; there is preliminary evidence for this assumption \cite{oliveira2017chromosomal}.
+We compared the empirical distribution of distances to gene boundaries is compared to a null distribution generated from the data, in which breakpoints are sampled uniformly from each genome, constrained to produce the same number of partitions as was measured by PanGraph.
+For all tested cases, we find our boundaries cluster closer to genes than would be expected by chance.
+The median distance from a Pangraph boundary to annotated gene ranges between 50-100 bp, depending on the species, while the random breakpoint is, on average, 600 bp off.
+
+\begin{figure}[htb]
+    \includegraphics[width=.5\textwidth]{panx-compare.png}
+    \caption{{\bf Pancontigs cluster towards gene boundaries}.
+    The distribution of the nearest gene boundary for each pancontig breakpoint, shown for five species, with samples obtained from RefSeq \cite{o2016reference}.
+    (Left) Empirical distribution obtained over all genomes.
+    (Right) Null distribution constructed by randomly sampling positions on each genome, constrained to conserve the number of breakpoints.
+    }
+    \label{fig:panx-accuracy}
+\end{figure}
+
+The computational time and maximum memory required to build each alignment is summarized in Table \ref{table:panx-performance}.
+
+\begin{table}[hb]
+    \caption{{\bf Real-world Performance}.
+    Elapsed time and maximum RAM usage needed to compute the pangraph for the following collections of RefSeq genomes.
+    All runs were performed on an AMD Ryzen 7 2700X utilizing 8 cores.
+    }
+    \begin{tabular}{c c c c}
+    \hline\hline
+    Species & Sample size & Wall time (min) & Max memory (GB) \\
+    \hline
+    E. coli         & 307 & 426 & 11.7 \\
+    H. Pylori       & 85 & 102 & 1.2 \\
+    K. Pneumoniae   & 109 & 132 & 2.1 \\
+    M. Tuberculosis & 51 & 91 & 0.4 \\
+    P. Marinus      & 10 & 12 & 0.1 \\
+    \hline
+    \end{tabular}
+    \label{table:panx-performance}
+\end{table}
 
 \section{Discussion}
+The ability to rapidly align large sets of closely related, fully assembled genomes is a critical tool for the investigation of the processes governing microbial evolution.
+We hope PanGraph will spur novel insight into the effects of horizontal gene transfer on population genetics.
+
+PanGraph was designed as a modular tool.
+In the future, we anticipate utilizing other pairwise ``alignment" kernels in addition to minimap2 that will allow the user to trade-off speed for sensitivity.
+
+\section*{Acknowledgement}
+We are grateful to Boris Shraiman for stimulating discussions.
+This study was funded by the University of Basel and the NSF.
+
+\clearpage
 
 \bibliography{cite}{}
 

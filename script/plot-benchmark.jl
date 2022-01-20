@@ -1,5 +1,5 @@
 using Statistics
-using Plots, ColorSchemes
+using CairoMakie, ColorSchemes
 
 import Base: parse, +, /
 
@@ -86,34 +86,39 @@ function plots(benchmark)
     L = field(benchmark, :L)
     N = field(benchmark, :N)
 
-    colors = cgrad(:matter, length(N), categorical=true)
-    p = plot(;
-        legend = :topleft,
-        xlabel = "bp/genome",
-        ylabel = "time(sec)",
+    colors = cgrad(:matter, length(L), categorical=true)
+
+    fig  = Figure(font="Latin Modern Math", fontsize=26)
+    axis = Axis(fig[1,1],
+                xscale=CairoMakie.log10,
+                yscale=CairoMakie.log10,
+                xlabel="number of genomes",
+                ylabel="time(sec)",
+                xticks=([10, 100, 1000],    [L"10^1", L"10^2", L"10^3"]),
+                yticks=([1, 10, 100, 1000], [L"10^0", L"10^1", L"10^2", L"10^3"]),
     )
-    for (i,n) in enumerate(N)
-        data = [seconds.(benchmark[Params(n,l)]) for l in L]
+    hidespines!(axis, :t, :r)
+    for (i,l) in enumerate(L)
+        data = [seconds.(benchmark[Params(n,l)]) for n in N]
         μ, σ = mean.(data), std.(data)
-        plot!(L, μ;
-            ribbon=σ,
-            fillalpha=0.25,
+        lines!(axis, N, μ;
             color=colors[i],
             linewidth=2,
-            xscale=:log10,
-            yscale=:log10,
-            label="population size=$(n)"
+            label="$(l)"
+        )
+
+        band!(axis, N, μ-σ, μ+σ;
+            color=(colors[i],0.25),
         )
     end
-
-    plot!(L, 8e-4*L.*log10.(L), color=:black, linewidth=2, linestyle=:dashdot, label="log linear trend")
-
-    p
+    lines!(N, .5*N, color=:black, linewidth=3, linestyle=:dash, label="linear trend")
+    axislegend("Avg. genome length", position = :lt, nbanks=2)
+    fig
 end
 
 function main(path, dest)
     plt = open(benchmarks, path) |> plots
-    savefig(plt, dest)
+    save(dest, plt, px_per_unit=2)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

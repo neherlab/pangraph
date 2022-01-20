@@ -1,6 +1,9 @@
 using Printf
+using LaTeXStrings
 using Plots, ColorSchemes
 using JLD2, FileIO
+
+import CairoMakie
 
 include("plot-util.jl")
 
@@ -69,7 +72,7 @@ function plotgrid(data, x, y; group="", labels=true)
     )
 end
 
-function plotcdfs(data, x, y; group="")
+function plotcdfs(data, x, y; group="", fontsize=12, kwargs...)
     i = size(data,1)÷2
     c = cgrad(:matter, size(data,2), categorical=true)
     p = plot(;
@@ -77,12 +80,18 @@ function plotcdfs(data, x, y; group="")
         xscale = :log10,
         xlabel = "breakpoint misplacement (bp)",
         ylabel = "fraction of breakpoints",
-        title  = length(group) > 0 ? "accuracy $(group)" : ""
+        title  = length(group) > 0 ? "accuracy $(group)" : "",
+        xtickfontsize  = fontsize,
+        ytickfontsize  = fontsize,
+        xguidefontsize = fontsize,
+        yguidefontsize = fontsize,
+        legendfontsize = fontsize,
+        kwargs...
     )
 
     for j in 1:size(data,2)
         cdfplot!(data[i,j].+1;
-            linewidth = 2,
+            linewidth = 1,
             color     = c[j],
             label     = @sprintf("%.1E", 5*y[j]),
          )
@@ -91,27 +100,54 @@ function plotcdfs(data, x, y; group="")
     return p
 end
 
+function publication(data, x, y)
+    i = size(data,1)÷2
+    c = cgrad(:matter, size(data,2), categorical=true)
+
+    fig  = CairoMakie.Figure(font="Latin Modern Math", fontsize=26)
+    axis = CairoMakie.Axis(fig[1,1],
+                xscale=CairoMakie.log10,
+                xlabel="breakpoint misplacement (bp)",
+                ylabel="fraction of breakpoints",
+                xticks=([1, 10, 100, 1000], [L"10^0", L"10^1", L"10^2", L"10^3"]),
+                yticks=CairoMakie.LinearTicks(5)
+    )
+    CairoMakie.hidespines!(axis, :t, :r)
+
+    for j in 1:size(data,2)
+        points = sort(reduce(vcat, data[i,j] for i in 1:size(data,1))).+1
+        CairoMakie.lines!(axis, points , range(0,1,length(points)),
+            color = c[j],
+            label = @sprintf("%.1e", 5*y[j])
+        )
+    end
+
+    CairoMakie.axislegend("Avg. pairwise diversity", position = :rb, nbanks=3)
+
+    return fig
+end
+
 const re = r"-([0-9]+).jld2"
 function group(path)
     return match(re, path)[1]
 end
 
-function main(paths, destdir)
-    data = [ load(path) for path in paths ]
-    grid = [ plotgrid(entropy(datum)...;  group=group(path)) for (path,datum) in zip(paths,data) ]
-    cdfs = [ plotcdfs(accuracy(datum)...; group=group(path)) for (path,datum) in zip(paths,data) ]
+function main(path, destdir)
+    data = load(path)
+    grid = plotgrid(entropy(data)...;  group=group(path))
+    cdfs = plotcdfs(accuracy(data)...; group=group(path))
 
+    save(base, name) = savefig("$(destdir)/$(base)-$(name).png")
     save(plot, base, name) = savefig(plot, "$(destdir)/$(base)-$(name).png")
+
     base(name) = basename(name)[1:end-5]
 
-    for (plt,path) in zip(grid,paths)
-        save(plt,"heatmap",base(path))
-    end
+    save(grid,"heatmap",base(path))
+    save(cdfs,"cdf",base(path))
 
-    for (plt,path) in zip(cdfs,paths)
-        save(plt,"cdf",base(path))
-    end
-
+    # publication plot
+    fig = publication(accuracy(data)...)
+    CairoMakie.save("$(destdir)/paper-$(base(path)).png", fig, px_per_unit=2)
 #=
     TODO: return one figure with correct layout
     l = @layout[Plots.grid(1,2) a{0.05w}]
@@ -130,5 +166,5 @@ function main(paths, destdir)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main(ARGS)
+    main(ARGS[1], ARGS[2])
 end

@@ -1,8 +1,7 @@
+using FileIO, JLD2
 using Statistics, StatsBase
 using PanGraph
-using Plots, ColorSchemes
-
-include("plot-util.jl")
+using CairoMakie, ColorSchemes
 
 delta(X,x,len) = minimum(mod.(abs.(X .- x), len))
 
@@ -21,10 +20,10 @@ function compare(qry, ref; cutoff=150)
     end
 
     # generate null distribution (uniform sampling of fixed number of breakpoints)
-    null = Array{Int,1}(undef,length(data))
+    x = sort(sample(1:len, length(data)÷2, replace=false))
+    null = Array{Int,1}(undef,length(x))
 
-    x = sort(sample(1:len, 1+length(data), replace=false))
-    for i in 1:length(data)
+    for i in 1:length(x)
         null[i] = delta(ref.position, x[i], len)
     end
 
@@ -74,56 +73,61 @@ function group(args)
     return pairs
 end
 
-function main(paths)
-    figure = plot(;
-            xlabel="distance to nearest gene (bp)",
-            ylabel="CDF",
-            legend=:bottomright,
-            xscale=:log10,
-    )
-    colors = cgrad(:Accent_8, length(paths), categorical=true)
+function shorten(name)
+    words = split(name)
 
-    for (i,path) in enumerate(paths)
-        plots!(path, colors[i])
-    end
-
-    figure
+    return "$(uppercase(words[1][1])). $(words[2])"
 end
 
-function plots!(path, color)
-    data, null = path |> unmarshal |> compare
+function main(paths)
+    fig = Figure(font="Latin Modern Math", fontsize=26)
+    axis = Axis(fig[1,1],
+        xlabel="Species",
+        ylabel="distance to nearest gene (bp)",
+        xticks=(1:5, map((p)->shorten(p.name), paths)),
+        xticklabelrotation=π/6,
+        yticks=(0:4, [L"10^0", L"10^1", L"10^2", L"10^3", L"10^4"]),
+    )
+    colors = cgrad(:Spectral_5, length(paths), categorical=true)
 
-    cdfplot!(data.+1;
-        color=color,
-        linewidth=2,
-        label="$(path.name) data"
-    )
-    cdfplot!(null.+1;
-        color=color,
-        linewidth=2,
-        linestyle=:dashdot,
-        label="$(path.name) null",
-    )
+    for (i,path) in enumerate(paths)
+        plots!(axis, path, i, colors[i])
+    end
 
-    #=
-    vline!([median(data)];
-        label="",
-        color=color,
-        linestyle=:dashdot,
-    )
-    vline!([median(null)];
-        label="",
-        color=color,
-        linestyle=:dashdot,
-    )
+    fig
+end
 
-    annotate!(20,  .85, "median≈70",  :black)
-    annotate!(800, .25, "median≈300", :red)
-    =#
+function plots!(axis, path, i, color)
+    exported = "$(dirname(path.pang))/export.jld2"
+    data, null = if !isfile(exported)
+        data, null = path |> unmarshal |> compare
+        FileIO.save(exported, Dict("data"=>data, "null"=>null))
+        data, null
+    else
+        load(exported, "data", "null")
+    end
+
+    x = vcat(fill(i,length(data)+length(null)))
+    y = log10.(vcat(data, null) .+ 1)
+    s = vcat(fill(:left, size(data)), fill(:right, size(null)))
+    c = vcat(fill((color,1.0),size(data)), fill((color,0.5),size(null)))
+
+    violin!(axis, x, y, side=s, color=c)
+    # cdfplot!(data.+1;
+    #     color=color,
+    #     linewidth=2,
+    #     label="$(path.name) data"
+    # )
+    # cdfplot!(null.+1;
+    #     color=color,
+    #     linewidth=2,
+    #     linestyle=:dashdot,
+    #     label="$(path.name) null",
+    # )
 end
 
 function save(plt)
-    savefig(plt, "figs/panx-compare.png")
+    CairoMakie.save("figs/panx-compare.png", plt, px_per_unit=2)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

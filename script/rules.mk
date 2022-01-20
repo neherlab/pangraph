@@ -19,7 +19,7 @@ $(accuracy)-%.jld2: script/make-sequence.jl script/make-accuracy.jl
 figs/benchmark.png: $(benchmark)
 	julia --project=script script/plot-benchmark.jl $< $@
 
-figs/cdf-accuracy-%.png: $(accuracy)-%.jld2
+figs/paper-accuracy-%.png: $(accuracy)-%.jld2
 	julia --project=script script/plot-accuracy.jl $< figs
 
 # ------------------------------------------------------------------------
