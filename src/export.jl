@@ -92,6 +92,13 @@ Export = Command(
         "emit vis directory to input to panX-visualization",
         false,
     ),
+    Arg(
+        Bool,
+        "no duplications in export",
+        (short="-nd", long="--no-duplications"),
+        "do not export any block that contains at least one strain more than once",
+        false
+    ),
    ],
 
    function(args)
@@ -118,6 +125,7 @@ Export = Command(
               )
            )
        end
+       noduplications = arg(Export, "-nd")
 
        node = cutoffs("")
        edge = cutoffs("e")
@@ -127,9 +135,10 @@ Export = Command(
                 return (!(edge.depth.min  ≤ Blocks.depth(node.block)  ≤ edge.depth.max)
                      || !(edge.length.min ≤ Blocks.length(node.block) ≤ edge.length.max))
             end,
-            output = function(segment)
+            output = function(segment, isolates)
                 return (!(node.depth.min  ≤ segment.depth  ≤ node.depth.max)
-                     || !(node.length.min ≤ length(segment.sequence) ≤ node.length.max))
+                     || !(node.length.min ≤ length(segment.sequence) ≤ node.length.max)
+                     ||  (noduplications && (length(isolates) != length(unique(isolates)))))
             end
        )
 

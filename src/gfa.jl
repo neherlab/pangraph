@@ -79,7 +79,7 @@ Output pangraph `G` to IO stream `io`.
 function marshal_gfa(io::IO, G::Graph; opt=nothing)
     # unpack options
     filter = (
-        opt === nothing 
+        opt === nothing
         ? (
             connect = (node)    -> false,
             output  = (segment) -> false,
@@ -97,9 +97,20 @@ function marshal_gfa(io::IO, G::Graph; opt=nothing)
                 block.uuid,
                 sequence(block),
                 length(block.mutate)
-            ) 
-
-            block => filter.output(segment) ? nothing : segment
+            )
+            isolates = [
+                let
+                    isolate = ""
+                    for (name, path) in G.sequence
+                        if key ∈ path.node
+                            isolate = name
+                            break
+                        end
+                    end
+                    isolate
+                end for key in keys(block.mutate)
+            ]
+            block => filter.output(segment,isolates) ? nothing : segment
         end for block in values(G.block)
     )
 
