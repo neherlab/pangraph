@@ -14,6 +14,7 @@ Minimum length | Integer | ll | minimum-length | blocks below this length cutoff
 Maximum length | Integer | lu | maximum-length | blocks above this length cutoff will be ignored for export
 Minimum depth | Integer | dl | minimum-depth | blocks below this depth cutoff will be ignored for export
 Maximum depth | Integer | du | maximum-depth | blocks above this depth cutoff will be ignored for export
+No duplications | Boolean | nd | no-duplications | do not export any block that contains at least one strain repeated more than once
 Output directory | String | o | output-directory | path to directory where output will be stored
 Prefix | String | p | prefix | basename of exported files
 GFA | Boolean | ng | no-export-gfa | toggles whether pangraph is exported as GFA.

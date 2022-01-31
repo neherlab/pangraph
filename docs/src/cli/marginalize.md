@@ -6,8 +6,9 @@ Compute all pairwise marginalizations of a multiple sequence alignment pangraph.
 ## Options
 Name | Type | Short Flag | Long Flag | Description
 :-------------- | :------- | :------ | :------- | :-------------------------
-Output path | String | o | output-path | Path to direcotry where output files will be stored
+Output path | String | o | output-path | Path to direcotry where the output of all pairwise mariginalizations will be stored if supplied
 Reduce paralogs | Boolean | r | reduce-paralog | Collapses coparallel paths through duplicated blocks.
+Projection strains | String | s | Strains | Collapses the graph structure to only blocks and edges contained by the paths of the supplied strain names. comma seperated, no spaces
 
 ## Arguments
 Zero or one pangraph file which must be formatted as a JSON.
