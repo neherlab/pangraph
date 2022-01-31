@@ -304,7 +304,7 @@ Remove all sequences from graph `G` that are passed as variadic parameters `name
 This will marginalize a graph, i.e. return the subgraph that contains only
 isolates contained in `names`
 """
-function keeponly!(G::Graph, names::String...)
+function keeponly!(G::Graph, names::T...) where T <: AbstractString
     nameset = Set(names)
     isolate = collect(keys(G.sequence))
     for name in isolate
