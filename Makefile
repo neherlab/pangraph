@@ -2,7 +2,7 @@
 .SUFFIXES:
 .SECONDARY:
 
-version := 1.7.0
+version := 1.7.1
 
 ifeq ($(jc),)
 jc := ./vendor/julia-$(version)/bin/julia
@@ -15,13 +15,15 @@ srcs   := $(wildcard src/*.jl src/*/*.jl)
 datadir   := data/synthetic
 testdatum := $(datadir)/test.fa
 
-all:
+all: pangraph install
 
-install: pangraph
-	ln -s $$(pwd)/pangraph/bin/pangraph bin/pangraph
+install: pangraph/bin/pangraph
+	ln -s $$(pwd)/$< bin/pangraph
 
 environment:
 	bin/setup-pangraph
+
+pangraph: pangraph/bin/pangraph 
 
 $(datadir):
 	mkdir -p $@
@@ -29,7 +31,12 @@ $(datadir):
 $(testdatum): | $(datadir)
 	julia $(jflags) -e 'using PanGraph; PanGraph.Simulation.test()'
 
-pangraph: compile.jl trace.jl $(testdatum) $(srcs)
+$(jc):
+	cd vendor && \
+	curl -L https://julialang-s3.julialang.org/bin/linux/x64/$(basename $(version))/julia-$(version)-linux-x86_64.tar.gz -o julia-$(version)-linux-x86_64.tar.gz && \
+	tar xzf julia-$(version)-linux-x86_64.tar.gz
+
+pangraph/bin/pangraph: compile.jl trace.jl $(testdatum) $(srcs) $(jc)
 	$(jc) $(jflags) $<
 
 documentation:
