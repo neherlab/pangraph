@@ -104,7 +104,7 @@ Build = Command(
        end
 
        graph(io) = graphs(io; circular=circular, upper=uppercase)
-       isolates  = (G for file in files for G ∈ (endswith(file,".gz") ? GZip.open(graph,file) : open(graph,file)))
+       isolates  = (G for file in files for G ∈ open(graph,file))
 
        compare = @match arg(Build, "-d") begin
            "native" => Graphs.Mash.distance

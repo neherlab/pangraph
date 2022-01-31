@@ -119,25 +119,25 @@ function Base.parse(cmd::Command, args)
             return nothing
         end
 
+        arguments = String[]
         @label ARGLOOP #-------------------------
-        if isempty(itr)
-            @goto ENDLOOP
-        end
+        !isempty(itr) || @goto ENDLOOP
 
-        in = peek(itr)
-        if !startswith(in, "-")
-            @goto ENDLOOP
+        word = peek(itr)
+        if !startswith(word, "-")
+            push!(arguments,popfirst!(itr))
+            @goto ARGLOOP
         end
 
         popfirst!(itr) # advance iterator
         for arg ∈ cmd.arg
-            if arg.flag.long == in || arg.flag.short == in 
+            if arg.flag.long == word || arg.flag.short == word
                 arg.value =
                 if arg.type == Bool
                     true
                 else
                     if isempty(itr)
-                        panic("""flag '$(in)' requires non-missing input data of type '$(arg.type)'
+                        panic("""flag '$(word)' requires non-missing input data of type '$(arg.type)'
                         Run 'pangraph help' for usage.
                         """)
                     end
@@ -147,7 +147,7 @@ function Base.parse(cmd::Command, args)
                         arg.type == String ? val : Base.parse(arg.type, val)
                     catch e
                         if isa(e, ArgumentError)
-                            panic("""flag '$(in)' requires input data of type '$(arg.type)'. recieved '$(val)'
+                            panic("""flag '$(word)' requires input data of type '$(arg.type)'. recieved '$(val)'
                             Run 'pangraph help' for usage.
                             """)
                         else
@@ -160,19 +160,18 @@ function Base.parse(cmd::Command, args)
             end
         end
 
-        if in == "-h"
+        if word == "-h"
             usage(cmd)
             exit(2)
         end
 
-        panic("""provided flag '$(in)' not expected
+        panic("""provided flag '$(word)' not expected
         Run 'pangraph help' for usage.
         """)
 
         @label ENDLOOP #-------------------------
 
-        len = length(itr)
-        return args[end-len+1:end]
+        return arguments
     end
 end
 
