@@ -44,6 +44,8 @@ ifeq ($(uname -s), Darwin)
 	curl -L https://julialang-s3.julialang.org/bin/mac/x64/$(basename $(version))/julia-$(version)-mac64.tar.gz -o julia-$(version)-mac64.tar.gz && \
 	tar xzf julia-$(version)-mac64.tar.gz
 else
+	$(error unsupported host system)
+endif
 endif
 
 pangraph/bin/pangraph: compile.jl trace.jl $(srcs) $(testdatum) $(jc)
