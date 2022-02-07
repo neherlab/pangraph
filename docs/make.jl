@@ -3,10 +3,15 @@ using Documenter, PanGraph
 
 makedocs(
     sitename = "PanGraph.jl",
-    authors  = "Nicholas Noll, Marco Molari, Richard Neher",
-    modules  = [PanGraph],
-    pages    = [
-        "Home"    => "index.md",
+    authors = "Nicholas Noll, Marco Molari, Richard Neher",
+    modules = [PanGraph],
+    pages = [
+        "Home" => "index.md",
+        "Tutorial" => [
+            "tutorials/tutorial_1.md",
+            "tutorials/tutorial_2.md",
+            "tutorials/tutorial_3.md",
+        ],
         "Library" => [
             "lib/align.md",
             "lib/block.md",
@@ -26,6 +31,6 @@ makedocs(
             "cli/generate.md",
             "cli/marginalize.md",
             "cli/polish.md",
-        ]
-    ]
+        ],
+    ],
 )
