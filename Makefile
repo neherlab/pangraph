@@ -34,12 +34,12 @@ $(testdatum): | $(datadir)
 
 # TODO: look for ARM vs x86
 $(jc):
-ifeq ($(uname -s), Linux)
+ifeq ($(shell uname -s),Linux)
 	cd vendor && \
 	curl -L https://julialang-s3.julialang.org/bin/linux/x64/$(basename $(version))/julia-$(version)-linux-x86_64.tar.gz -o julia-$(version)-linux-x86_64.tar.gz && \
 	tar xzf julia-$(version)-linux-x86_64.tar.gz
 else
-ifeq ($(uname -s), Darwin)
+ifeq ($(shell uname -s),Darwin)
 	cd vendor && \
 	curl -L https://julialang-s3.julialang.org/bin/mac/x64/$(basename $(version))/julia-$(version)-mac64.tar.gz -o julia-$(version)-mac64.tar.gz && \
 	tar xzf julia-$(version)-mac64.tar.gz
