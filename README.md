@@ -17,6 +17,8 @@ The core algorithm and command line tools are self-contained and require no addi
 
 ### Library
 
+#### Local Environment
+
 Clone the repository
 ```bash
     git clone https://github.com/nnoll/pangraph.git && cd pangraph
@@ -31,6 +33,19 @@ Enter the REPL
 ```bash
     julia --project=.
 ```
+
+#### Global Package
+
+**Important** please do not mix this method with that described above.
+Instead of creating a _local_ PanGraph specific environment, this method will install into the Julia base environment.
+We recommend, unless for a specific reason, to default to installing within a local environment.
+However, if needed, global installation can be achieved by running
+
+```bash
+    julia -e 'using Pkg; Pkg.add(url="https://github.com:nnoll/minimap2_jll.jl"); Pkg.add(url="https://github.com:nnoll/pangraph.git")'
+```
+
+The PanGraph package is available globally within the Julia REPL.
 
 ### Relocatable binary
 Releases can be obtained from [GitHub](https://github.com/nnoll/pangraph/releases)
