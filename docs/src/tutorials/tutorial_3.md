@@ -1,9 +1,12 @@
-# Projection on a subset of strains.
+## Polishing the pangraph
 
-- aim of the tutorial
+- aim: show the pangraph polish command, to refine alignments.
+- effect on the graph and on the consensus sequences / alignments
+- export PanX (possibly with visualization)
 
-## Marginalize on a subset of strains
 
-- command to project
-- export and visualize
-- compare to a dotplot?
+## Polishing the pangraph alignments
+
+## Exporting the PanX visualization
+
+## Exploring the alignments with PanX
