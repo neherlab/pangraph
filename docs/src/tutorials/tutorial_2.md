@@ -1,12 +1,39 @@
-# The structure of Pangraph output files
+# The structure of Pangraph output file
 
-- aim of the tutorial
+- aim of the tutorial: more details on json output file
+    - path object
+    - block object
+- frequency distribution of blocks? Weighted by length?
+- 
 
 ## The structure of `pangraph.json`
 
-- more in-depth explanation of the `pangraph.json` file content.
 
-## The `gfa` export format
+### block entries
 
+```json
+{
+    "id": "KZJIDOXBAV",
+    "sequence": "AAGGTGGGTAATCATTTTGATAAGTGAT...",
+    "gaps": {...},
+    "mutate": [...],
+    "insert": [...],
+    "delete": [...],
+    "positions": [...]
+}
+```
 
-## (Export for PanX visualization?)
+### path entries
+
+```json
+{
+    "name": "NZ_CP010242",
+    "blocks": [
+        { "id": "NFTNKNMFIC", ... },
+        { "id": "YTLSRRNNGL", ... },
+        { "id": "HDOKGYMDQR", ... }
+    ]
+    ...
+}
+```
+
