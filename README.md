@@ -37,7 +37,7 @@ Releases can be obtained from [GitHub](https://github.com/nnoll/pangraph/release
 
 Alternatively, **pangraph** can be built locally on your machine by running (inside the cloned repo)
 ```bash
-    jc="path/to/julia/executable" make pangraph && make install
+    export jc="path/to/julia/executable" make pangraph && make install
 ```
 This will build the executable and place a symlink into `bin/`.
 Note, it is recommended by the PackageCompiler.jl documentation to utilize the officially distributed binaries, not those distributed by your Linux distribution.
