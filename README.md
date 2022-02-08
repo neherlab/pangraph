@@ -14,6 +14,8 @@ Each genome is then an ordered walk along _pancontigs_; the collection of all ge
 ## Installation
 
 The core algorithm and command line tools are self-contained and require no additional dependencies.
+The library is written in and thus requires Julia to be installed on your machine.
+Julia binaries for all operating systems can be found [here](https://julialang.org/downloads/).
 
 ### Library
 
