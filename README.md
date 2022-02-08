@@ -55,7 +55,9 @@ Alternatively, **pangraph** can be built locally on your machine by running (ins
     export jc="path/to/julia/executable" make pangraph && make install
 ```
 This will build the executable and place a symlink into `bin/`.
-Note, it is recommended by the PackageCompiler.jl documentation to utilize the officially distributed binaries, not those distributed by your Linux distribution.
+**Importantly,** if `jc ` is not explicitly set, it will default to vendor/julia-$VERSION/bin/julia.
+If this file does not exist, we will download automatically for the user, provided the host system is Linux or MacOSX.
+**Note,** it is recommended by the PackageCompiler.jl documentation to utilize the officially distributed binaries, not those distributed by your Linux distribution.
 As such, it may not work if you attempt to do so.
 
 ### Optional dependencies
