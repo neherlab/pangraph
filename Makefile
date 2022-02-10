@@ -52,7 +52,7 @@ pangraph/bin/pangraph: compile.jl trace.jl $(srcs) $(testdatum) $(jc)
 	$(jc) $(jflags) $<
 
 documentation:
-	cd docs && julia make.jl
+	cd docs && julia --project=./.. make.jl
 
 release:
 	tar czf pangraph.tar.gz pangraph
