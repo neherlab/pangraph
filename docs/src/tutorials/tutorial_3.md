@@ -1,4 +1,4 @@
-## Polishing the pangraph
+# Polishing the pangraph and exploring alignments
 
 - aim: show the pangraph polish command, to refine alignments.
 - effect on the graph and on the consensus sequences / alignments

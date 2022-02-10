@@ -29,7 +29,7 @@ pangraph build --circular ecoli.fa.gz > ecoli_pangraph.json
 
 On a consumer laptop the command should complete in around 10 minutes. The option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
 
-The result is a `ecoli_pangraph.json` file that contains two main entries: `paths` and `blocks`. As represented in the image above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks. Importantly, each block is assigned an unique id composed of 10 letters. Below is a simplified view of the structure of the `ecoli_pangraph.json` file.
+The result is a `ecoli_pangraph.json` file that contains two main entries: `paths` and `blocks`. As represented in the image above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks. Importantly, each block is assigned an unique random id composed of 10 capital letters. Below is a simplified view of the structure of the `ecoli_pangraph.json` file.
 
 ```json
 {
@@ -77,6 +77,6 @@ This will create a folder named `ecoli_export` that contains two files.
 - `pangraph.fa`: a fasta file containing the consensus sequence for each block.
 - `pangraph.gfa`: a [Graphical Fragment Assembly](https://github.com/GFA-spec/GFA-spec) file that contains a representation of the pangenome graph structure.
 
-The latter can be visualized using [Bandage](https://rrwick.github.io/Bandage/). The option `--no-duplications` causes the export function to avoid including duplicated blocks in the graph representation (they are instead exported as isolated blocks). In our experience this results in a less "tangled" visual representation. Below is how the Bandage visualization of this example pangraph looks like. Blocks are colored by depth, with blocks that occur more time colored in red, and blocks that are less common colored in black. 
+The latter can be visualized using [Bandage](https://rrwick.github.io/Bandage/). The option `--no-duplications` causes the export function to avoid including duplicated blocks in the graph representation (they are instead exported as isolated blocks). In our experience this results in a less "tangled" visual representation. Below is how the Bandage visualization of this example pangraph looks like. Blocks are colored by frequency, with common blocks (appearing in many different chromosomes) in red and rare blocks (appearing in only a few chromosomes) in black. 
 
 ![img](./../assets/bandage_ecoli_full.png)

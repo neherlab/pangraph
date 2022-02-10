@@ -1,4 +1,4 @@
-# Project the graph on a subset of strains.
+# Projecting the graph on a subset of strains.
 
 - aim of the tutorial: show the marginalize command
 - test on a different dataset: klebsiella. Download data (chromosomes) and generate the pangraph.
