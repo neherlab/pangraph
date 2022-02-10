@@ -1,8 +1,8 @@
 # The structure of Pangraph output file
 
-In this second part of the tutorial we will explore more in details the content of the `json` output file produced by the `build` command, which contains all the information about the pangenome graph. This part of the tutorial is meant to provide instruments to access this information directly from this file.
+In this second part of the tutorial we will explore more in details the content of the `json` output file produced by the `build` command. This file contains all the information about the pangenome graph. This part of the tutorial is meant to provide instruments to access this information directly.
 
-As an example, we will use extracts from the `ecoli_pangraph.json` file that was produced in the previous section of the tutorial.
+As an example, we will use snippets from the `ecoli_pangraph.json` file that was produced in the previous section of the tutorial.
 
 ## The structure of `pangraph.json`
 
@@ -43,7 +43,7 @@ Here is an example of an entry of the `blocks` list, from the `ecoli_pangraph.js
 },
 ```
 
-The two main properties of a block are its unique `id` (10-letters alphabetic sequence randomly assigned when creating the pangraph), and the consensus `sequence`.
+The two main properties of a block are its unique `id` (10-letters alphabetic sequence randomly assigned when generating the pangraph), and the consensus `sequence`.
 
 In addition to this, a block object also stores information on the full alignment of all the different occurrences of the block, and their position on the original input sequences. As explained in the [Introduction](@ref), we refer to a particular occurrence of a block in a sequence as a __Node__. Intuitively, they can be thought of as a single entry in the sequence alignment of a block.
 
@@ -57,9 +57,9 @@ Each node of a block can be uniquely identified by its "node-id", which is an ob
 
 
 
-The "node-id" is used for example in the `position` field of a block. This field contains information on the location of nodes on the input sequences. It consists of a list of pairs. The first entry of the pair is the node-id, indicating of which occurrence of the block the position is referred to. The seccond entry is a pair of numbers indicating the position of the beginning and end of the node on the input sequence.
+The "node-id" is used for example in the `position` field of a block. This field contains information on the location of nodes on the input sequences. It consists of a list of pairs. The first entry of the pair is the node-id, indicating of which occurrence of the block the position refers to. The second entry is a pair of numbers indicating the position of the beginning and end of the node on the input sequence.
 
-In the example above, the first entry of `positions` indicates that block `"TMEPNAOFAP"` is found on the forward strand of the chromosome labeled `NZ_CP019944`, in positions `356656` to `359732`. Positions are always in 1-based numbering and referred to the forward strand (with beginning < end). The only exception is when a block wraps around the end of a circular sequence. In this case the beginning position (end of the genome) is higher than the end position.
+In the example above, the first entry of `positions` indicates that block `"TMEPNAOFAP"` is found on the forward strand of the chromosome labeled `NZ_CP019944`, in positions `356656` to `359732`. Positions are always in 1-based numbering and based on the forward strand (with beginning < end). The only exception is when a block wraps around the end of a circular sequence. In this case the node start position (close to the end of the genome) is higher than the node end position (close to the beginning of the genome).
 
 The fields `gaps`, `mutate`, `insert` and `delete` contain information to reconstruct the block alignment. They were left out from the above example for simplicity, and are discussed in the next subsection.
 
@@ -80,11 +80,11 @@ the `gaps` entry contains a json object that indicates where gaps should be adde
 "gaps" : {"0": 27, "53": 1 }
 ```
 
-In this example the consensus sequence contains two gaps: one at the beginning with length 27, and one after sequence position 53, with length 1.
+In this example the consensus sequence contains two gaps: one is inserted at the beginning of the consensus sequence, with length 27, and one after sequence position 53, with length 1.
 
 ### Single-nucleotide mutations
 
-The `mutate` entry encodes single-nucleotide mutations. It contains a list of pairs. Each pair is relative to a particular node (i.e. one line in the alignment) and the first item of the pair is the node-id described above. The second entry is a list of mutations (potentially empty). Each mutation is specified by its position on the original sequence, and the nucleotide that should be substituted.
+The `mutate` entry encodes single-nucleotide mutations. It contains a list of pairs. Each pair is relative to a particular node (i.e. one line in the alignment) and the first item of the pair is the node-id described above. The second entry is a list of mutations (potentially empty). Each mutation is specified by its position on the original sequence, and the nucleotide that should be substituted to the consensus.
 
 ```json
 "mutate" : [
@@ -126,7 +126,7 @@ Entries of `insert` and `delete` are organized similarly to mutations. They appe
 ],
 ```
 
-Insertions are always operated inside of gaps. They appear in the form `[ [gap-beg, gap-offset], "seq"]`. The `gap-beg` indicates the beginning position of the gap, and `gap-offset` indicate how far from the beginning of this gap the insertion should be added. Finally `seq` is the nucleotide sequence to be inserted.
+Insertions are always operated inside of gaps. They appear in the form `[ [gap-beg, gap-offset], "seq"]`. `gap-beg` indicates the beginning position of the gap, and `gap-offset` indicates how far from the beginning of this gap the insertion starts. Finally `seq` is the nucleotide sequence to be inserted.
 
 ```json
 "delete" : [
@@ -174,7 +174,7 @@ A path object has the following structure:
 },
 ```
 
-The two main properties of a path are `name` and `blocks`. The `name` of the path indicates to which of the input sequences the path represents. `blocks` contains the ordered list of nodes that make up the path. Each node is identified by the unique block `id`, and by the entries of the node-id (`name`, `number`, `strand`).
+The two main properties of a path are `name` and `blocks`. The `name` of the path indicates which of the input sequences the path represents. `blocks` contains the ordered list of nodes that make up the path. Each node is identified by the unique block `id`, and by the entries of the node-id (`name`, `number`, `strand`).
 
 Here is a complete list containing a description of every entry in the path object:
 
@@ -183,7 +183,7 @@ Here is a complete list containing a description of every entry in the path obje
 - `blocks` : the ordered list of blocks that make up the path.
     - `id` : the unique random id of the block, assigned when building the graph.
     - `name`, `number` `strand` : entries of the node-id, used to identify which particular instance of the block is part of the path. As a reminder, `name` is the id of the input sequence, `number` indicates which occurrence of the same block is considered (useful for duplicated blocks) and `strand` indicates whether the sequence is found on the forward or reverse strand. 
-- `position` : an ordered list of positions, corresponding to the beginning positions of each block in the path.
+- `position` : an ordered list of positions, corresponding to the beginning positions of each node in the path.
 - `offset` : indicates the distance between the beginning of the input sequence, and the beginning of the path (i.e. the beginning of the first node of the path, block `IUZTZPLBVS` in the example above).  
 
 
