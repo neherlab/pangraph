@@ -304,11 +304,13 @@ function emit(G::Graphs.Graph, root::String)
     metadata = Array{Dict}(undef,length(blocks))
     for (i,b) in enumerate(blocks)
         prefix = "RC$(fmt(i))"
+        node_ids = [idents(node) for node in keys(b)]
+        not_dupl = all([endswith(id, "#1") for id in node_ids])
         metadata[i] = Dict(
             "geneId"     => i,
             "geneLen"    => length(b),
             "count"      => Graphs.depth(b),
-            "dupli"      => "no",
+            "dupli"      => not_dupl ? "no" : "yes",
             "dup_detail" => "",
             "ann"        => b.uuid,
             "msa"        => prefix,
@@ -316,7 +318,7 @@ function emit(G::Graphs.Graph, root::String)
             "allAnn"     => b.uuid,
             "GName"      => "none",
             "allGName"   => "none",
-            "locus"      => [ idents(node) for node in keys(b) ],
+            "locus"      => node_ids,
         )
         emitblock(b, "$(root)/geneCluster", "$(prefix)", idents; reduced=length(b) ≥ 5e4)
         next!(meter)
