@@ -29,7 +29,7 @@ $(datadir):
 	mkdir -p $@
 
 $(testdatum): | $(datadir)
-	julia $(jflags) -e 'import Pkg; Pkg.instantiate()'
+	julia $(jflags) -e 'import Pkg; Pkg.build()'
 	julia $(jflags) -e 'using PanGraph; PanGraph.Simulation.test()'
 
 # TODO: look for ARM vs x86

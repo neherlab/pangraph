@@ -14,8 +14,12 @@ Each genome is then an ordered walk along _pancontigs_; the collection of all ge
 ## Installation
 
 The core algorithm and command line tools are self-contained and require no additional dependencies.
+The library is written in and thus requires Julia to be installed on your machine.
+Julia binaries for all operating systems can be found [here](https://julialang.org/downloads/).
 
 ### Library
+
+#### Local Environment
 
 Clone the repository
 ```bash
@@ -32,15 +36,30 @@ Enter the REPL
     julia --project=.
 ```
 
+#### Global Package
+
+**Important** please do not mix this method with that described above.
+Instead of creating a _local_ PanGraph specific environment, this method will install into the Julia base environment.
+We recommend, unless for a specific reason, to default to installing within a local environment.
+However, if needed, global installation can be achieved by running
+
+```bash
+    julia -e 'using Pkg; Pkg.add(url="https://github.com:nnoll/minimap2_jll.jl"); Pkg.add(url="https://github.com:nnoll/pangraph.git")'
+```
+
+The PanGraph package is available globally within the Julia REPL.
+
 ### Relocatable binary
 Releases can be obtained from [GitHub](https://github.com/nnoll/pangraph/releases)
 
 Alternatively, **pangraph** can be built locally on your machine by running (inside the cloned repo)
 ```bash
-    jc="path/to/julia/executable" make pangraph && make install
+    export jc="path/to/julia/executable" make pangraph && make install
 ```
 This will build the executable and place a symlink into `bin/`.
-Note, it is recommended by the PackageCompiler.jl documentation to utilize the officially distributed binaries, not those distributed by your Linux distribution.
+**Importantly,** if `jc ` is not explicitly set, it will default to vendor/julia-$VERSION/bin/julia.
+If this file does not exist, we will download automatically for the user, provided the host system is Linux or MacOSX.
+**Note,** it is recommended by the PackageCompiler.jl documentation to utilize the officially distributed binaries, not those distributed by your Linux distribution.
 As such, it may not work if you attempt to do so.
 
 ### Optional dependencies
