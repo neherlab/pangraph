@@ -124,5 +124,4 @@ Here is a summary of the information displayed in different panels:
 - D: visualization of the block alignment for the block selected in panel C. Entries are labeled according to the strain and the number of block occurrence.
 - E: comparison of the core-block tree (left, phylogenetic tree constructed from the concatenated alignment of all core blocks) and the tree reconstructed from the alignment selected in panel C (right).
 
-
-
+This visualization makes it easy to quickly explore the data. For example if we order the blocks by number of counts we find that the most duplicated block has 86 counts and consensus length of 768 bp, From panel D we can easily download the alignment and if we run BLAST on the sequence we discover that it contains the genetic sequence of a transposase.
