@@ -32,6 +32,6 @@ makedocs(
             "cli/generate.md",
             "cli/marginalize.md",
             "cli/polish.md",
-        ],
-    ],
+        ]
+    ]
 )

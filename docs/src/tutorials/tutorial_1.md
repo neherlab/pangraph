@@ -11,7 +11,7 @@ Simply put, a **pangenome graph** (or _pangraph_ for short) is a compressed repr
 
 The tutorial requires you to have the `pangraph` command available in your path. Instructions on how to install pangraph can be found in [Installation](@ref).
 
-For this tutorial we will use a small dataset containing full chromosomes of 10 _Escherichia Coli_ strains (source: GenBank). For convenience this dataset is available in the pangraph repository (`example_dataset/ecoli.fa.gz`), and can be downloaded with the command:
+For this tutorial we will use a small dataset containing full chromosomes of 10 _Escherichia Coli_ strains (source: RefSeq). For convenience this dataset is available in the pangraph repository (`example_dataset/ecoli.fa.gz`), and can be downloaded with the command:
 
 ```bash
 wget https://github.com/nnoll/pangraph/raw/feat/example-dataset/example_datasets/ecoli.fa.gz
@@ -21,7 +21,7 @@ This is a single fasta file containing 10 entries. We chose to include no plasmi
 
 ## Building the pangraph
 
-As a first step, we will build a pangraph object from the DNA of the 10 chromosomes. This can be done using the command `build`:
+As a first step, we will build a pangraph object from the DNA of the 10 chromosomes. This can be done using the command `build` (see [Build](@ref)):
 
 ```bash
 pangraph build --circular ecoli.fa.gz > ecoli_pangraph.json
@@ -63,7 +63,7 @@ More details on the structure of this `json` file will be covered in the next tu
 
 ## Exporting the pangraph
 
-The pangraph object can also be exported in other more common formats using the command `export`.
+The pangraph object can also be exported in other more common formats using the command `export` (see [Export](@ref)).
 
 ```bash
 pangraph export \
