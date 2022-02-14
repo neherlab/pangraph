@@ -1,6 +1,6 @@
 # The structure of Pangraph output file
 
-In this second part of the tutorial we will explore more in details the content of the `json` output file produced by the `build` command. This file contains all the information about the pangenome graph. This part of the tutorial is meant to provide instruments to access this information directly.
+In this second part of the tutorial we will explore more in details the content of the `json` output file produced by the `build` command. This file contains all the information about the pangenome graph.
 
 As an example, we will use snippets from the `ecoli_pangraph.json` file that was produced in the previous section of the tutorial.
 
@@ -52,16 +52,14 @@ Each node of a block can be uniquely identified by its "node-id", which is an ob
 { "name": "NZ_CP019944", "number": 1, "strand": true }
 ```
 - a `name`, indicating on which of the input sequences the node is found.
-- a `number`, indicating whether this is the first, second, third... occurrence of a given block sequence. This is important to distinguish different nodes of a duplicated blocks, when they occurr in the same input sequence.
+- a `number`, indicating whether this is the first, second, third... occurrence of the block on a given input sequence. This is important to distinguish different nodes of a duplicated blocks, when they occurr in the same input sequence.
 - a `strand` boolean value, indicating wheter the node is found on the forward (`true`) or reverse (`false`) strand.
-
-
 
 The "node-id" is used for example in the `position` field of a block. This field contains information on the location of nodes on the input sequences. It consists of a list of pairs. The first entry of the pair is the node-id, indicating of which occurrence of the block the position refers to. The second entry is a pair of numbers indicating the position of the beginning and end of the node on the input sequence.
 
 In the example above, the first entry of `positions` indicates that block `"TMEPNAOFAP"` is found on the forward strand of the chromosome labeled `NZ_CP019944`, in positions `356656` to `359732`. Positions are always in 1-based numbering and based on the forward strand (with beginning < end). The only exception is when a block wraps around the end of a circular sequence. In this case the node start position (close to the end of the genome) is higher than the node end position (close to the beginning of the genome).
 
-The fields `gaps`, `mutate`, `insert` and `delete` contain information to reconstruct the block alignment. They were left out from the above example for simplicity, and are discussed in the next subsection.
+The fields `gaps`, `mutate`, `insert` and `delete` contain information to reconstruct the block alignment. They were left out from this example for simplicity, and are discussed in the next subsection.
 
 ## How alignments are encoded
 
@@ -179,7 +177,7 @@ The two main properties of a path are `name` and `blocks`. The `name` of the pat
 Here is a complete list containing a description of every entry in the path object:
 
 - `name` : the name of the particular nucleotide sequence to whom the path refers. This name is extracted from the sequence id in the input fasta file.
-- `circular` : indicates whether the considered sequence is circular (e.g. plasmid) or not. This is controlled by the `--circular` option of the build command.
+- `circular` : indicates whether the considered sequence is circular (e.g. plasmid) or not. This is controlled by the `--circular` option of the `build` command.
 - `blocks` : the ordered list of blocks that make up the path.
     - `id` : the unique random id of the block, assigned when building the graph.
     - `name`, `number` `strand` : entries of the node-id, used to identify which particular instance of the block is part of the path. As a reminder, `name` is the id of the input sequence, `number` indicates which occurrence of the same block is considered (useful for duplicated blocks) and `strand` indicates whether the sequence is found on the forward or reverse strand. 
