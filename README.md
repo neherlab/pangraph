@@ -1,6 +1,6 @@
 # pangraph
 
-[![Documentation](https://img.shields.io/badge/Documentation-Link-blue.svg)](https://nnoll.github.io/pangraph/)
+[![Documentation](https://img.shields.io/badge/Documentation-Link-blue.svg)](https://neherlab.github.io/pangraph/)
 
 > a bioinformatic toolkit to align large sets of closely related genomes into a graph data structure
 
@@ -23,7 +23,7 @@ Julia binaries for all operating systems can be found [here](https://julialang.o
 
 Clone the repository
 ```bash
-    git clone https://github.com/nnoll/pangraph.git && cd pangraph
+    git clone https://github.com/neherlab/pangraph.git && cd pangraph
 ```
 
 Build the package. This will create a separate Julia environment for **pangraph**
@@ -44,13 +44,13 @@ We recommend, unless for a specific reason, to default to installing within a lo
 However, if needed, global installation can be achieved by running
 
 ```bash
-    julia -e 'using Pkg; Pkg.add(url="https://github.com:nnoll/minimap2_jll.jl"); Pkg.add(url="https://github.com:nnoll/pangraph.git")'
+    julia -e 'using Pkg; Pkg.add(url="https://github.com:nnoll/minimap2_jll.jl"); Pkg.add(url="https://github.com:neherlab/pangraph.git")'
 ```
 
 The PanGraph package is available globally within the Julia REPL.
 
 ### Relocatable binary
-Releases can be obtained from [GitHub](https://github.com/nnoll/pangraph/releases)
+Releases can be obtained from [GitHub](https://github.com/neherlab/pangraph/releases)
 
 Alternatively, **pangraph** can be built locally on your machine by running (inside the cloned repo)
 ```bash
@@ -70,7 +70,7 @@ Alternatively, a script `bin/setup-pangraph` is provided to install both tools i
 
 ## Examples
 
-Please refer to the tutorials within the [documentation](https://nnoll.github.io/pangraph/) for an in-depth usage guide.
+Please refer to the tutorials within the [documentation](https://neherlab.github.io/pangraph/) for an in-depth usage guide.
 For a quick reference, see below.
 
 Align a multi-fasta `sequence.fa` and realign each _pancontig_ with MAFFT
