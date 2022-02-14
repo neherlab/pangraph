@@ -11,13 +11,13 @@ Simply put, a **pangenome graph** (or _pangraph_ for short) is a compressed repr
 
 The tutorial requires you to have the `pangraph` command available in your path. Instructions on how to install pangraph can be found in [Installation](@ref).
 
-For this tutorial we will use a small dataset containing full chromosomes of 10 _Escherichia Coli_ strains (source: RefSeq). For convenience this dataset is available in the pangraph repository (`example_dataset/ecoli.fa.gz`), and can be downloaded with the command:
+For this tutorial we will use a small dataset containing full chromosomes of 10 _Escherichia Coli_ strains (source: GenBank). For convenience this dataset is available in the pangraph repository (`example_dataset/ecoli.fa.gz`), and can be downloaded with the command:
 
 ```bash
 wget https://github.com/nnoll/pangraph/raw/feat/example-dataset/example_datasets/ecoli.fa.gz
 ```
 
-This is a single fasta file containing 10 entries. We chose to include no plasmids in the example dataset. Notice that it is not necessary for all of the data to be packed in a single fasta file, as multiple files can be passed as input to the command to build a pangraph.
+This is a single fasta file containing 10 entries. We chose to include no plasmids in the example dataset. Notice that it is not necessary for all of the data to be packed in a single fasta file. One can also pass multiple fasta files (optionally gzipped) as input to the command to build a pangraph.
 
 ## Building the pangraph
 

@@ -20,9 +20,9 @@ To polish the `ecoli_pangraph.json` file that was produced in the first tutorial
 pangraph polish ecoli_pangraph.json > polished_pangraph.json
 ```
 
-This should complete in 10/15 minutes on a consumer laptop. Optionally, a threshold length can be specified with the flag `--length`. In this case only blocks shorter than this threshold are refined.
+This should complete in 10/15 minutes on a consumer laptop. Optionally, a threshold length can be specified with the flag `--length`. In this case only alignments of blocks whose consensus sequence is shorter than this threshold are refined.
 
-Notice that the only effect of this command is refining the alignments, but the "topological" structure of the pangraph is left otherwise unchanged. As such, this command 
+Notice that the only effect of this command is refining the alignments, but the "topological" structure of the pangraph is left otherwise unchanged. As such, polishing a pangraph is only useful when one is directly interested in block alignments.
 
 ## Export block alignments and trees
 
@@ -65,7 +65,7 @@ The file `geneCluster.json` contains the index of all block alignments. It consi
     "msa": "RC00001129",  // Id assigned to the alignment.
     "divers": 0.03508771929824561,
     "ann": "SXSJVKIOIY",  // block id
-    "dupli": "no",        // whether the block is duplicated in some strains
+    "dupli": "no",        // whether the block is duplicated
     "allAnn": "SXSJVKIOIY"
 },
 ```
@@ -85,7 +85,7 @@ In particular, the `msa` property provides the prefix of the file containing the
 
 ## Explore block alignments with the panX visualization
 
-This export format was designed to be compatible with the [panX visualization](https://github.com/neherlab/pan-genome-visualization). This visualization was originally created for gene clusters, but it is equally informative if one uses block alignments instead of gene alignments. The repository contains instructions on how to set up the visualization.
+This export format was designed to be compatible with the [panX visualization](https://github.com/neherlab/pan-genome-visualization). This visualization was originally created for exploring gene clusters, but it is equally informative if one uses block alignments instead of gene alignments. The panX repository linked above contains instructions on how to set up the visualization.
 
 For our example we need to:
 - clone the repository and perform the setup
@@ -105,7 +105,7 @@ npm install
 # add a new page for our dataset named Ecoli, with wide format
 bash add-new-pages-repo.sh Ecoli wide
 
-# copy the content of the vis folder in to
+# copy pangraph exported files into the appropriate panx directory
 cp -r ../ecoli_export/vis/* public/dataset/Ecoli/
 
 # start the server
