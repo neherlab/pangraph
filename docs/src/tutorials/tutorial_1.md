@@ -21,13 +21,20 @@ This is a single fasta file containing 10 entries. We chose to include no plasmi
 
 ## Building the pangraph
 
-As a first step, we will build a pangraph object from the DNA of the 10 chromosomes. This can be done using the command `build` (see [Build](@ref)):
+As a first step, we will build a pangraph object from the DNA of the 10 chromosomes.
+This can be done using the command `build` (see [Build](@ref)):
 
 ```bash
 pangraph build --circular ecoli.fa.gz > ecoli_pangraph.json
 ```
 
-On a consumer laptop the command should complete in around 10 minutes. The option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
+On a consumer laptop the command should complete in around 10 minutes on a single core.
+**Note** all pangraph commands are immediately parallelizable by setting the environment variable `JULIA_NUM_THREADS` _before_ running the build command.
+For example, to use 4 cores during the build command
+```bash
+    export JULIA_NUM_THREADS=4
+```
+The option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
 
 The result is a `ecoli_pangraph.json` file that contains two main entries: `paths` and `blocks`. As represented in the image above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks. Importantly, each block is assigned an unique random id composed of 10 capital letters. Below is a simplified view of the structure of the `ecoli_pangraph.json` file.
 

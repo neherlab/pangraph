@@ -70,6 +70,9 @@ Alternatively, a script `bin/setup-pangraph` is provided to install both tools i
 
 ## Examples
 
+Please refer to the tutorials within the [documentation](https://nnoll.github.io/pangraph/) for an in-depth usage guide.
+For a quick reference, see below.
+
 Align a multi-fasta `sequence.fa` and realign each _pancontig_ with MAFFT
 ```bash
 	pangraph build sequence.fa | pangraph polish > graph.json
@@ -86,7 +89,7 @@ Output all computed data to directory `pairs`
 	pangraph marginalize -d pairs graph.json
 ```
 
-See [Makefile](Makefile) for more examples.
+See [Makefile](Makefile) for more real-world examples.
 
 ## Citing
 TBA
