@@ -35,19 +35,19 @@ There are multiple ways to install PanGraph (either the library or just command 
 
 ### From Julia REPL
 ```julia
-    (@v1.x) pkg> add https://github.com/nnoll/pangraph.git
+    (@v1.x) pkg> add https://github.com/neherlab/pangraph.git
 ```
 
 ### From Command Line
 ```bash
-    julia -e 'using Pkg; Pkg.add("https://github.com/nnoll/pangraph.git"); Pkg.build()'
+    julia -e 'using Pkg; Pkg.add("https://github.com/neherlab/pangraph.git"); Pkg.build()'
 ```
 
 ### Local Environment
 
 Clone the repository.
 ```bash
-    git clone https://github.com/nnoll/pangraph.git && cd pangraph
+    git clone https://github.com/neherlab/pangraph.git && cd pangraph
 ```
 
 Build the package. This will create a seperate Julia environment for PanGraph
@@ -62,7 +62,7 @@ Enter the REPL
 
 ### Binary
 Additionally, `pangraph` is available as a standalone, relocatable binary that should work on any Linux or MacOSX machine.
-Releases can be obtained from [Github](https://github.com/nnoll/pangraph/releases)
+Releases can be obtained from [Github](https://github.com/neherlab/pangraph/releases)
 
 ### Optional dependencies
 

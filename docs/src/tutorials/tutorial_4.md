@@ -8,7 +8,7 @@ In this final part of the tutorial we show how to use the `marginalize` command.
 We will run this tutorial on a different dataset, containing 10 complete chromosomes of _Klebsiella Pneumoniae_ (source: GenBank). These sequences are available in the pangraph repository (`example_dataset/klebs.fa.gz`) and can be downloaded by running:
 
 ```bash
-wget https://github.com/nnoll/pangraph/raw/feat/example-dataset/example_datasets/klebs.fa.gz
+wget https://github.com/neherlab/pangraph/raw/feat/example-dataset/example_datasets/klebs.fa.gz
 ```
 
 As for the previous dataset, we can create the pangraph with the command:
