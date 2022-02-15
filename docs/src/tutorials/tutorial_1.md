@@ -2,7 +2,7 @@
 
 This short tutorial will walk you through the process of generating a pangraph from a set of bacterial genomes. We will also cover how to export the generated pangraph file into other formats.
 
-Simply put, a **pangenome graph** (or _pangraph_ for short) is a compressed representation of a set of genomes, in which alignable regions are saved as _blocks_ (or _pancontigs_) and genomes are represented as _paths_, i.e. list of blocks. 
+Simply put, a **pangenome graph** (or _pangraph_ for short) is a compressed representation of a set of genomes, in which alignable regions are saved as _blocks_ (or _pancontigs_) and genomes are represented as _paths_, i.e. list of blocks.
 
 ![img](./../assets/pangraph_scheme.png)
 
@@ -16,7 +16,8 @@ For this tutorial we will use a small dataset containing full chromosomes of 10 
 wget https://github.com/neherlab/pangraph/raw/master/example_datasets/ecoli.fa.gz
 ```
 
-This is a single fasta file containing 10 entries. We chose to include no plasmids in the example dataset. Notice that it is not necessary for all of the data to be packed in a single fasta file. One can also pass multiple fasta files (optionally gzipped) as input to the command to build a pangraph.
+This is a single fasta file containing 10 fully assembled bacterial chromosomes, but no plasmids.
+Note that it is not necessary for all of the data to be packed in a single fasta file. One can also pass multiple fasta files (optionally gzipped) as input to the command to build a pangraph.
 
 ## Building the pangraph
 
@@ -26,17 +27,19 @@ This can be done using the command `build` (see [Build](@ref)):
 ```bash
 pangraph build --circular ecoli.fa.gz > ecoli_pangraph.json
 ```
+On a consumer laptop the command should complete in around 10-20 minutes on a single core.
+The option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
 
-On a consumer laptop the command should complete in around 10 minutes on a single core.
 **Note** all pangraph commands are immediately parallelizable by setting the environment variable `JULIA_NUM_THREADS` _before_ running the build command.
 For example, to use 4 cores during the build command
 ```bash
-    export JULIA_NUM_THREADS=4
+export JULIA_NUM_THREADS=4
 ```
-The option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
 
-The result is a `ecoli_pangraph.json` file that contains two main entries: `paths` and `blocks`. As represented in the image above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks. Importantly, each block is assigned an unique random id composed of 10 capital letters. Below is a simplified view of the structure of the `ecoli_pangraph.json` file.
+The result is a `ecoli_pangraph.json` file that contains two main entries: `paths` and `blocks`. As represented in the image above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks.
+The `pangraph.json` contains all information in the input genomes, which can be reconstructed from the graph without loss.
 
+Below is a simplified view of the structure of the `ecoli_pangraph.json` file.
 ```json
 {
     "paths": [
@@ -62,7 +65,7 @@ The result is a `ecoli_pangraph.json` file that contains two main entries: `path
 
 Each entry in `path` has two main properties: the `name`, corresponding to the sequence identifier in the input fasta file, and the `blocks` list. The latter is a representation of the genome as a list of blocks, each one identified by its unique `id`.
 
-Each entry in the `blocks` lists corresponds instead to a different block. The two main properties of each entry are the block `id` and the consensus `sequence` of the block.
+Each entry in the `blocks` lists corresponds to a different block. Each block is assigned an unique random id composed of 10 capital letters and the consensus `sequence` of the block.
 
 More details on the structure of this `json` file will be covered in the next tutorial section.
 
@@ -83,6 +86,6 @@ This will create a folder named `ecoli_export` that contains two files.
 - `pangraph.fa`: a fasta file containing the consensus sequence for each block.
 - `pangraph.gfa`: a [Graphical Fragment Assembly](https://github.com/GFA-spec/GFA-spec) file that contains a representation of the pangenome graph structure.
 
-The latter can be visualized using [Bandage](https://rrwick.github.io/Bandage/). The option `--no-duplications` causes the export function to avoid including duplicated blocks in the graph representation (they are instead exported as isolated blocks). In our experience this results in a less "tangled" visual representation. Below is how the Bandage visualization of this example pangraph looks like. Blocks are colored by frequency, with common blocks (appearing in many different chromosomes) in red and rare blocks (appearing in only a few chromosomes) in black. 
+The latter can be visualized using [Bandage](https://rrwick.github.io/Bandage/). The option `--no-duplications` causes the export function to avoid including duplicated blocks in the graph representation (they are instead exported as isolated blocks). In our experience this results in a less "tangled" visual representation. Below is how the Bandage visualization of this example pangraph looks like. Blocks are colored by frequency, with common blocks (appearing in many different chromosomes) in red and rare blocks (appearing in only a few chromosomes) in black.
 
 ![img](./../assets/bandage_ecoli_full.png)

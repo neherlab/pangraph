@@ -31,7 +31,7 @@ This will create the file `klebs_export/klebs_pangraph.gfa` which can be visuali
 
 ![img](../assets/klebs_full_pangraph.png)
 
-Colors indicate the number of times a block occurs. Block that appear in red are core blocks, that are found in every chromosome, while black blocks are only present in a few strains. We used the `--no-duplication` flag in the export command, which makes so that duplicated blocks are not exported. This simplifies the visualization, which would otherwise be highly "tangled-up" by these duplications.
+Colors indicate the number of times a block occurs. Blocks that appear in red are core blocks that are found in every chromosome, while black blocks are only present in a few strains. We used the `--no-duplication` flag in the export command, which excludes duplicated blocks from the exported graph. This simplifies the visualization, which would otherwise be highly "tangled-up" by these duplications.
 
 ## Marginalize the graph on a subset of strains
 

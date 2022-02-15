@@ -8,11 +8,11 @@ This third tutorial is focused on block alignments and is divided in three main 
 [^1]: Ding, Wei, Franz Baumdicker, and Richard A. Neher. "panX: pan-genome analysis and exploration." Nucleic acids research 46.1 (2018): e5-e5.
 
 !!! note "Requirements"
-    Exporting files for the panX visualization requires [fasttree](http://www.microbesonline.org/fasttree). Running the panX visualization requires instead [node.js](https://nodejs.org/en/).
+    Exporting files for the panX visualization requires [fasttree](http://www.microbesonline.org/fasttree). Running the panX visualization requires [node.js](https://nodejs.org/en/).
 
 ## Polishing the alignments
 
-The pangenome graph is built by iterative pairwise merges of smaller graphs along a guide tree. At each stage blocks are compared and aligned using only their _consensus_. This shortens considerably the time needed to build a pangraph, but might introduce minor inconsistencies and artifacts in the alignments. These can be removed using the `polish` command (see [Polish](@ref)).
+The pangenome graph is built by iterative pairwise merges of smaller graphs along a guide tree. At each stage blocks are compared and aligned using only their _consensus_. This shortens considerably the time needed to build a pangraph, but might introduce minor inconsistencies and artifacts in the alignments. These can be removed using the `polish` command which reconstructs the sequences in the block and performs a multiple sequence alignment (e.g. using mafft) (see [Polish](@ref)).
 
 To polish the `ecoli_pangraph.json` file that was produced in the first tutorial we can run the command:
 
@@ -22,7 +22,7 @@ pangraph polish ecoli_pangraph.json > polished_pangraph.json
 
 This should complete in 10/15 minutes on a consumer laptop. Optionally, a threshold length can be specified with the flag `--length`. In this case only alignments of blocks whose consensus sequence is shorter than this threshold are refined.
 
-Notice that the only effect of this command is refining the alignments, but the "topological" structure of the pangraph is left otherwise unchanged. As such, polishing a pangraph is only useful when one is directly interested in block alignments.
+Note that the only effect of this command is refining the alignments, but the "topological" structure of the pangraph is left unchanged. As such, polishing a pangraph is only useful when one is directly interested in block alignments.
 
 ## Export block alignments and trees
 
@@ -97,7 +97,7 @@ this can be done with the command:
 
 ```bash
 # clone the repository, access it and install packages
-git clone https://github.com/neherlab/pan-genome-visualization 
+git clone https://github.com/neherlab/pan-genome-visualization
 cd pan-genome-visualization
 git submodule update --init
 npm install
