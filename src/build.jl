@@ -17,7 +17,7 @@ Build = Command(
     Arg(
         Float64,
         "block junction cost",
-        (short="-m", long="--mu"),
+        (short="-a", long="--alpha"),
         "energy cost for introducing junction due to alignment merger",
         100,
     ),
@@ -77,7 +77,7 @@ Build = Command(
        circular  = arg(Build, "-c")
        uppercase = arg(Build, "-u")
 
-       μ = arg(Build, "-m")
+       α = arg(Build, "-a")
        β = arg(Build, "-b")
 
        energy = (aln) -> let
@@ -89,7 +89,7 @@ Build = Command(
            ncuts = cuts(aln.qry)+cuts(aln.ref)
            nmuts = aln.divergence*aln.length
 
-           return -len + μ*ncuts + β*nmuts
+           return -len + α*ncuts + β*nmuts
        end
 
        maxiter = arg(Build, "-x")
