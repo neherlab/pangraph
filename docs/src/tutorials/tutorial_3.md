@@ -20,7 +20,7 @@ To polish the `ecoli_pangraph.json` file that was produced in the first tutorial
 pangraph polish ecoli_pangraph.json > polished_pangraph.json
 ```
 
-This should complete in 10/15 minutes on a consumer laptop. Optionally, a threshold length can be specified with the flag `--length`. In this case only alignments of blocks whose consensus sequence is shorter than this threshold are refined.
+This should complete in 10/15 minutes on 4 cores. Optionally, a threshold length can be specified with the flag `--length`. In this case only alignments of blocks whose consensus sequence is shorter than this threshold are refined.
 
 Note that the only effect of this command is refining the alignments, but the "topological" structure of the pangraph is left unchanged. As such, polishing a pangraph is only useful when one is directly interested in block alignments.
 

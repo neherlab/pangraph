@@ -17,7 +17,7 @@ As for the previous dataset, we can create the pangraph with the command:
 pangraph build --circular klebs.fa.gz > klebs_pangraph.json
 ```
 
-After creating the pangraph, we can export it in `gfa` format for visualization.
+On 4 cores the command should complete in around 6 mins. After creating the pangraph, we can export it in `gfa` format for visualization.
 
 ```bash
 pangraph export \

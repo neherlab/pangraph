@@ -27,14 +27,17 @@ This can be done using the command `build` (see [Build](@ref)):
 ```bash
 pangraph build --circular ecoli.fa.gz > ecoli_pangraph.json
 ```
-On a consumer laptop the command should complete in around 10-20 minutes on a single core.
-The option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
 
-**Note** all pangraph commands are immediately parallelizable by setting the environment variable `JULIA_NUM_THREADS` _before_ running the build command.
-For example, to use 4 cores during the build command
-```bash
-export JULIA_NUM_THREADS=4
-```
+!!! note "multi-threaded execution"
+    all pangraph commands are immediately parallelizable by setting the environment variable `JULIA_NUM_THREADS` _before_ running the build command.
+    For example, to use 4 cores during the build command:
+    ```bash
+        export JULIA_NUM_THREADS=4
+    ```
+
+On a consumer laptop the command should complete in around 10 minutes on 4 cores.
+
+The option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
 
 The result is a `ecoli_pangraph.json` file that contains two main entries: `paths` and `blocks`. As represented in the image above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks.
 The `pangraph.json` contains all information in the input genomes, which can be reconstructed from the graph without loss.
