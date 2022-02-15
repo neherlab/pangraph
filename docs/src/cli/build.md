@@ -7,7 +7,8 @@ Build a multiple sequence alignment pangraph.
 Name | Type | Short Flag | Long Flag | Description
 :-------------- | :------- | :------ | :------- | :-------------------------
 minimum length | Integer | l | len | minimum block size for alignment graph (in nucleotides)
-block junction cost | Float | a | alpha| energy cost for interblock diversity due to alignment merger,
+block cut cost | Float | a | alpha | energy cost for introducing block partitions due to alignment merger
+block junction cost | Float | b | beta | energy cost for interblock diversity due to alignment merger
 circular genomes | Boolean | c | circular | toggle if input genomes are circular
 pairwise sensitivity | String | s | sensitivity | controls the pairwise genome alignment sensitivity. currently only accepts "5", "10" or "20"
 maximum self-maps | Integer | x | max-self-map | maximum number of iterations to perform block self maps per pairwise graph merger
