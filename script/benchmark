@@ -20,7 +20,7 @@ do
 
             julia --project=script "$seq" -N "$N" -L "$L" \
             | pangraph generate -m "$snp" -r "$hgt" -i "$ins" -t "$T" \
-            | { time pangraph build --circular -m 0 -b 0 1>$null 2>&1; } \
+            | { time pangraph build --circular -a 0 -b 0 1>$null 2>&1; } \
             |& awk '(/real/){print $2}'
         done
     done
