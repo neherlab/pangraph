@@ -92,7 +92,9 @@ Output all computed data to directory `pairs`
 See [Makefile](Makefile) for more real-world examples.
 
 ## Citing
-TBA
+PanGraph: scalable bacterial pan-genome graph construction
+Nicholas Noll, Marco Molari, Richard Neher
+bioRxiv 2022.02.24.481757; doi: https://doi.org/10.1101/2022.02.24.481757
 
 ## License
 
