@@ -2,7 +2,7 @@
 .SUFFIXES:
 .SECONDARY:
 
-version := 1.7.1
+version := 1.7.2
 
 ifeq ($(jc),)
 jc := ./vendor/julia-$(version)/bin/julia
@@ -28,9 +28,9 @@ pangraph: pangraph/bin/pangraph
 $(datadir):
 	mkdir -p $@
 
-$(testdatum): | $(datadir)
-	julia $(jflags) -e 'import Pkg; Pkg.instantiate(); Pkg.build()'
-	julia $(jflags) -e 'using PanGraph; PanGraph.Simulation.test()'
+$(testdatum): | $(jc) $(datadir)
+	$(jc) $(jflags) -e 'import Pkg; Pkg.instantiate(); Pkg.build()'
+	$(jc) $(jflags) -e 'using PanGraph; PanGraph.Simulation.test()'
 
 # TODO: look for ARM vs x86
 $(jc):
