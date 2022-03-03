@@ -146,20 +146,19 @@ function partition(alignment; minblock=500)
 
     # ----------------------------
     # internal operators
-    
     function finalize_block!()
         length(segment) == 0 && @goto advance
 
         push!(block, (
             range   = (
-                qry = Pos(qry.start,qry.stop-1), 
-                ref = Pos(ref.start,ref.stop-1)
+                qry = (qry.stop-1 ≥ qry.start) ? Pos(qry.start,qry.stop-1) : nothing,
+                ref = (ref.stop-1 ≥ ref.start) ? Pos(ref.start,ref.stop-1) : nothing,
             ),
             segment = segment
         ))
 
         segment = PosPair[]
-        
+
         @label advance
         advance!(qry)
         advance!(ref)
