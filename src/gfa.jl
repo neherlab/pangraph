@@ -143,6 +143,10 @@ function marshal_gfa(io::IO, G::Graph; opt=nothing)
         ]
         filter!(n->n!==nothing, nodes)
 
+        if length(nodes) == 0
+            continue
+        end
+
         for (j,node) in enumerate(nodes[2:end])
             addlink!(nodes[j], node)
         end
@@ -170,8 +174,10 @@ function marshal_gfa(io::IO, G::Graph; opt=nothing)
     end
 
     write(io, "# sequences\n")
-    for path in values(paths)
-        write(io,"$(path)\n")
+    for i = 1:length(paths)
+        if isassigned(paths, i)
+            write(io, "$(paths[i])\n")
+        end
     end
 end
 
