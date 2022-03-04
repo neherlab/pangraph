@@ -529,10 +529,18 @@ struct Record
     meta :: String
 end
 
-name(r::Record) = isempty(r.meta) ? r.name : r.name * " " * r.meta 
+name(r::Record) = isempty(r.meta) ? r.name : r.name * " " * r.meta
 
 NL = '\n'
 Base.show(io::IO, rec::Record) = print(io, ">$(rec.name) $(rec.meta)$(NL)$(String(rec.seq[1:40]))...$(String(rec.seq[end-40:end]))")
+
+function validate(dna::Array{UInt8})
+    if sum(wcpair[nuc+1] == 0 for nuc in dna) > 0
+        error("invalid sequence inside fasta")
+    end
+
+    return dna
+end
 
 """
 	read_fasta(io::IO)
@@ -555,7 +563,7 @@ function read_fasta(io::IO)
                 write(buf,rstrip(line))
                 line=readline(io)
             end
-            put!(chan, Record(take!(buf), name, meta))
+            put!(chan, Record(buf |> take! |> validate, name, meta))
         end
 
         close(buf)
