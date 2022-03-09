@@ -13,8 +13,6 @@ using ..Nodes
 using ..Graphs
 using ..Mash
 
-import ..Minimap
-
 export align
 
 # ------------------------------------------------------------------------
@@ -348,8 +346,8 @@ function preprocess(hits, skip, energy, blocks!)
     return hits
 end
 
-function do_align(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, sensitivity::String)
-    hits = Minimap.align(pancontigs(G₁), pancontigs(G₂), minblock, sensitivity)
+function do_align(G₁::Graph, G₂::Graph, energy::Function, aligner::Function)
+    hits = aligner(pancontigs(G₁), pancontigs(G₂))
     sort!(hits; by=energy)
 
     return hits
@@ -390,13 +388,14 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 `minblock` is the minimum size block that will be produced from the algorithm.
 `maxiter` is maximum number of duplications that will be considered during this alignment.
 """
-function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; maxiter=100, sensitivity="asm10")
+function align_self(G₁::Graph, energy::Function, minblock::Int, aligner::Function, verify::Function, verbose::Bool; maxiter=100, sensitivity="asm10")
     G₀ = G₁
 
     for niter in 1:maxiter
         # calculate pairwise hits
-        hits = do_align(G₀, G₀, energy, minblock, sensitivity)
+        hits = do_align(G₀, G₀, energy, aligner)
 
+        # closures
         skip = (hit) -> (
                (hit.qry.name == hit.ref.name)
             || (hit.length < minblock)
@@ -523,9 +522,10 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 `minblock` is the minimum size block that will be produced from the algorithm.
 `maxiter` is maximum number of duplications that will be considered during this alignment.
 """
-function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; sensitivity="asm10")
-    hits = do_align(G₁, G₂, energy, minblock, sensitivity)
+function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, aligner::Function, verify::Function, verbose::Bool)
+    hits = do_align(G₁, G₂, energy, aligner)
 
+    # closures
     skip = (hit) -> (
             !(hit.qry.name in keys(G₁.block))
          || !(hit.ref.name in keys(G₂.block))
@@ -584,7 +584,7 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 
 `compare` is the function to be used to generate pairwise distances that generate the internal guide tree.
 """
-function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, sensitivity="asm10", maxiter=100)
+function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100)
     function verify(graph, msg="")
         if reference !== nothing
             for (name,path) ∈ graph.sequence
@@ -650,7 +650,7 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
     end
 
     for clade ∈ postorder(tree)
-        @spawn try
+        try
             if isleaf(clade)
                 close(clade.graph)
                 put!(clade.parent.graph, tips[clade.name])
@@ -660,8 +660,8 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
                 Gᵣ = take!(clade.graph)
                 close(clade.graph)
 
-                G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, verify, false; sensitivity=sensitivity)
-                G₀ = align_self(G₀, energy, minblock, verify, false; sensitivity=sensitivity, maxiter=maxiter)
+                G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, false)
+                G₀ = align_self(G₀, energy, minblock, aligner, verify, false)
 
                 put!(events, true)
                 if clade.parent !== nothing

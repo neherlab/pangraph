@@ -3,6 +3,8 @@ module Minimap
 using minimap2_jll
 
 import Base: show
+
+import ..PanGraph: PanContigs
 import ..Utility: Alignment, Hit
 
 export align
@@ -266,19 +268,6 @@ mutable struct MapOptions
 
         return opt
     end
-end
-
-"""
-	struct PanContigs
-		name     :: T
-		sequence :: T
-	end
-
-A synonym for a consensus sequence of `Block`.
-"""
-struct PanContigs{T <: AbstractArray{S} where S <: AbstractString}
-    name     :: T
-    sequence :: T
 end
 
 # ------------------------------------------------------------------------

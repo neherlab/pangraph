@@ -6,10 +6,33 @@ using GZip
 using Rematch
 using Random: seed!
 
+# ------------------------------------------------------------------------
+# types
+
+"""
+	struct PanContigs
+		name     :: T
+		sequence :: T
+	end
+
+A synonym for a consensus sequence of `Block`.
+"""
+struct PanContigs{T <: AbstractArray{S} where S <: AbstractString}
+    name     :: T
+    sequence :: T
+end
+
+# ------------------------------------------------------------------------
+# local imports
+
 include("graph.jl")
 using .Graphs
 
 import .Graphs.Utility: read_fasta, write_fasta
+
+# alignment kernels
+include("minimap.jl")
+include("wfmash.jl")
 
 include("simulate.jl")
 using .Simulation

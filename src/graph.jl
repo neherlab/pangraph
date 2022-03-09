@@ -85,7 +85,6 @@ include("edge.jl")
 # include("pool.jl")
 include("junction.jl")
 include("cmd.jl")
-include("minimap.jl")
 include("mash.jl")
 
 using .Utility:
@@ -100,7 +99,7 @@ using .Intervals
 # using .Pool
 
 import .Shell: mash, mafft, havecommand
-import .Minimap: PanContigs
+import ..PanGraph: PanContigs
 
 export Graph
 export Shell, Blocks, Nodes, Utility

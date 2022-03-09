@@ -123,12 +123,13 @@ Build = Command(
            end
        end
 
-       graph = Graphs.align(isolates...;
+       aligner(contigs₁, contigs₂) = Minimap.align(contigs₁, contigs₂, minblock, sensitivity)
+
+       graph = Graphs.align(aligner, isolates...;
             compare     = compare,
             energy      = energy,
             minblock    = minblock,
             maxiter     = maxiter,
-            sensitivity = sensitivity,
        )
        finalize!(graph)
 
