@@ -598,9 +598,9 @@ function read_paf(io::IO)
                 if startswith(x, "cg:")
                     cg = last(x)
                 elseif startswith(x, "de:f")
-                    dv = float(last(x))
+                    dv = last(x) |> float
                 elseif startswith(x, "AS:i")
-                    as = int(last(x))
+                    as = last(x) |> int
                 end
             end
 
