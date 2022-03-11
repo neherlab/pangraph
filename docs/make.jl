@@ -14,6 +14,7 @@ makedocs(
             "tutorials/tutorial_4.md",
         ],
         "Library" => [
+            "lib/pangraph.md",
             "lib/align.md",
             "lib/block.md",
             "lib/edge.md",
@@ -21,6 +22,7 @@ makedocs(
             "lib/gfa.md",
             "lib/mash.md",
             "lib/minimap.md",
+            "lib/wfmash.md",
             "lib/node.md",
             "lib/path.md",
             "lib/simulate.md",

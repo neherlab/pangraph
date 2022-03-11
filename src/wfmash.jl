@@ -6,6 +6,13 @@ import ..PanGraph.Graphs.Shell: execute
 
 export align
 
+"""
+    recigar!(hit::Alignment)
+
+Transform the detailed cigar string returned from wfmash into the more conventional form returned by minimap2.
+Wfmash returns detailed match/mismatch information that we do not need.
+Merges them into one match category.
+"""
 function recigar!(hit::Alignment)
     buffer = IOBuffer()
     n = 0
@@ -38,6 +45,12 @@ function recigar!(hit::Alignment)
     return hit
 end
 
+"""
+    align(ref::PanContigs, qry::PanContigs)
+
+Align homologous regions of `qry` and `ref`.
+Returns the list of intervals between pancontigs.
+"""
 function align(ref::PanContigs, qry::PanContigs)
     hits = mktempdir() do dir
         open("$dir/qry.fa","w") do qryio; open("$dir/ref.fa","w") do refio

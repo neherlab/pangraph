@@ -1,13 +1,13 @@
-# Minimap2 Wrapper
+# PanGraph globals
 
 ## Types
 ```@autodocs
-Modules = [PanGraph.Minimap]
+Modules = [PanGraph]
 Order = [:type, :constant]
 ```
 
-## Functions
+# Functions
 ```@autodocs
-Modules = [PanGraph.Minimap]
+Modules = [PanGraph]
 Order = [:function]
 ```

@@ -1,13 +1,13 @@
-# Minimap2 Wrapper
+# WFMash Wrapper
 
 ## Types
 ```@autodocs
-Modules = [PanGraph.Minimap]
+Modules = [PanGraph.WFMash]
 Order = [:type, :constant]
 ```
 
 ## Functions
 ```@autodocs
-Modules = [PanGraph.Minimap]
+Modules = [PanGraph.WFMash]
 Order = [:function]
 ```
