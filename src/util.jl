@@ -10,9 +10,10 @@ import ..Graphs:
     reverse_complement, reverse_complement!,
     SNPMap, InsMap, DelMap
 
+import ...PanGraph: Alignment, Hit
+
 # exports
 export random_id, log
-export Alignment
 export cigar, uncigar
 export hamming_align
 
@@ -21,8 +22,6 @@ export make_consensus, alignment_alleles
 
 export write_fasta, read_fasta, name
 export read_paf
-
-Maybe{T} = Union{Nothing,T}
 
 # ------------------------------------------------------------------------
 # random functions
@@ -231,53 +230,6 @@ end
 
 # ------------------------------------------------------------------------
 # alignment functions
-
-# paf alignment pair
-"""
-	mutable struct Hit
-		name::String
-		length::Int
-		start::Int
-		stop::Int
-		seq::Maybe{Array{UInt8,1}}
-	end
-
-Hit is one side of a pairwise alignment between homologous sequences.
-"""
-mutable struct Hit
-    name::String
-    length::Int
-    start::Int
-    stop::Int
-    seq::Maybe{Array{UInt8,1}}
-end
-
-"""
-	mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Int,Char}}}}
-		qry::Hit
-		ref::Hit
-		matches::Int
-		length::Int
-		quality::Int
-		orientation::Bool
-		cigar::T
-		divergence::Union{Float64,Nothing}
-		align::Union{Float64,Nothing}
-	end
-
-Alignment is a pairwise homologous alignment between two sequences.
-"""
-mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Int,Char}}}}
-    qry::Hit
-    ref::Hit
-    matches::Int
-    length::Int
-    quality::Int
-    orientation::Bool
-    cigar::T
-    divergence::Union{Float64,Nothing}
-    align::Union{Float64,Nothing}
-end
 
 # dynamic programming
 """
@@ -582,57 +534,52 @@ Parse a PAF file from IO stream `io`.
 Return an iterator over all pairwise alignments.
 """
 function read_paf(io::IO)
-    chan = Channel{Alignment}(0)
-
     int(x)   = parse(Int,x)
     float(x) = parse(Float64,x)
     last(x)  = split(x,':')[end]
 
-    @async begin
-        for row in eachline(io)
-            elt = split(strip(row))
-            cg = nothing
-            dv = nothing
-            as = nothing
-            for x in elt[13:end]
-                if startswith(x, "cg:")
-                    cg = last(x)
-                elseif startswith(x, "de:f")
-                    dv = last(x) |> float
-                elseif startswith(x, "AS:i")
-                    as = last(x) |> int
-                end
+    return [ let
+        elt = split(strip(row))
+        cg = nothing
+        dv = nothing
+        as = nothing
+        for x in elt[13:end]
+            if startswith(x, "cg:")
+                cg = last(x)
+            elseif startswith(x, "de:f")
+                dv = last(x) |> float
+            elseif startswith(x, "gi:f")
+                dv = last(x) |> float
+            elseif startswith(x, "AS:i")
+                as = last(x) |> int
             end
-
-            # XXX: important: shift PAF entry to be 1 indexed and right-inclusive to match julia
-            put!(chan, Alignment(
-                        Hit(
-                            elt[1],
-                            int(elt[2]),   # length
-                            int(elt[3])+1, # start
-                            int(elt[4]),   # stop
-                            nothing,
-                        ),
-                        Hit(
-                            elt[6],
-                            int(elt[7]),   # length
-                            int(elt[8])+1, # start
-                            int(elt[9]),   # stop
-                            nothing,
-                        ),
-                        int(elt[10]), 
-                        int(elt[11]), 
-                        int(elt[12]),
-                        elt[5] == "+",
-                        cg,
-                        dv,
-                        as)
-            )
         end
-        close(chan)
-    end
 
-    return chan
+        # XXX: important: shift PAF entry to be 1 indexed and right-inclusive to match julia
+        Alignment(
+            Hit(
+                elt[1],
+                int(elt[2]),   # length
+                int(elt[3])+1, # start
+                int(elt[4]),   # stop
+                nothing,
+            ),
+            Hit(
+                elt[6],
+                int(elt[7]),   # length
+                int(elt[8])+1, # start
+                int(elt[9]),   # stop
+                nothing,
+            ),
+            int(elt[10]),
+            int(elt[11]),
+            int(elt[12]),
+            elt[5] == "+",
+            String(cg),
+            dv,
+            as
+        )
+        end for row in eachline(io) ]
 end
 
 # ------------------------------------------------------------------------

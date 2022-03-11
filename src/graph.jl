@@ -7,6 +7,8 @@ using ProgressMeter
 
 import JSON
 
+import ..PanGraph: Maybe
+
 # ---------------------------
 # functions to extend in submodules
 
@@ -44,8 +46,6 @@ function serialize(io::IO, x) end
 
 # ------------------------------------------------------------------------
 # aux types
-
-Maybe{T} = Union{T,Nothing}
 
 # aliases
 """

@@ -9,6 +9,8 @@ using Random: seed!
 # ------------------------------------------------------------------------
 # types
 
+Maybe{T} = Union{Nothing,T}
+
 """
 	struct PanContigs
 		name     :: T
@@ -21,6 +23,54 @@ struct PanContigs{T <: AbstractArray{S} where S <: AbstractString}
     name     :: T
     sequence :: T
 end
+
+# paf alignment pair
+"""
+	mutable struct Hit
+		name::String
+		length::Int
+		start::Int
+		stop::Int
+		seq::Maybe{Array{UInt8,1}}
+	end
+
+Hit is one side of a pairwise alignment between homologous sequences.
+"""
+mutable struct Hit
+    name::String
+    length::Int
+    start::Int
+    stop::Int
+    seq::Maybe{Array{UInt8,1}}
+end
+
+"""
+	mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Int,Char}}}}
+		qry::Hit
+		ref::Hit
+		matches::Int
+		length::Int
+		quality::Int
+		orientation::Bool
+		cigar::T
+		divergence::Union{Float64,Nothing}
+		align::Union{Float64,Nothing}
+	end
+
+Alignment is a pairwise homologous alignment between two sequences.
+"""
+mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Int,Char}}}}
+    qry::Hit
+    ref::Hit
+    matches::Int
+    length::Int
+    quality::Int
+    orientation::Bool
+    cigar::T
+    divergence::Union{Float64,Nothing}
+    align::Union{Float64,Nothing}
+end
+
 
 # ------------------------------------------------------------------------
 # local imports

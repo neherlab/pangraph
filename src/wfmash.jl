@@ -1,8 +1,8 @@
 module WFMash
 
-import ..PanGraph: PanContig
-import ..PanGraph.Graph.Utility: read_paf, write_fasta
-import ..PanGraph.Graph.Shell: execute
+import ..PanGraph: PanContigs, Alignment
+import ..PanGraph.Graphs.Utility: read_paf, write_fasta
+import ..PanGraph.Graphs.Shell: execute
 
 export align
 
@@ -22,14 +22,20 @@ function recigar!(hit::Alignment)
                 print(buffer, "$(n)M")
                 n = 0
             end
-            print(buffer, hit.cigar[i₁:i₂-1])
+            print(buffer, hit.cigar[i₁:i₂])
         end
 
         i₁ = i₂ + 1
         i₂ = i₁
     end
 
-    hit.cigar = take!(buffer)
+    if n > 0
+        print(buffer, "$(n)M")
+        n = 0
+    end
+
+    hit.cigar = String(take!(buffer))
+    return hit
 end
 
 function align(ref::PanContigs, qry::PanContigs)
@@ -44,9 +50,9 @@ function align(ref::PanContigs, qry::PanContigs)
             end
 
             run(`samtools faidx $dir/ref.fa`)
-            result = execute(`wfmash $dir/ref.fa $dir/$qry.fa`)
+            result = execute(`wfmash $dir/ref.fa $dir/qry.fa`)
 
-            result.out |> read_paf |> collect
+            result.out |> IOBuffer |> read_paf
         end; end
     end
 

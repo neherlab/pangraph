@@ -339,7 +339,7 @@ function preprocess(hits, skip, energy, blocks!)
                 qry₀=qry₀,
                 ref₀=ref₀,
                 strand=strand,
-           )
+            )
         end for hit in hits if (energy(hit) < 0 && !skip(hit))
     ]
 
@@ -650,7 +650,7 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
     end
 
     for clade ∈ postorder(tree)
-        try
+        @spawn try
             if isleaf(clade)
                 close(clade.graph)
                 put!(clade.parent.graph, tips[clade.name])

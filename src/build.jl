@@ -63,6 +63,14 @@ Build = Command(
         "backend to use to estimate pairwise distance for guide tree\n\trecognized options: [native, mash]",
         "native",
     ),
+    Arg(
+        String,
+        "alignment kernel",
+        (short="-k", long="--alignment-kernel"),
+        "backend to use for pairwise genome alignment\n\trecognized options: [minimap2, wfmash]",
+
+        "minimap2",
+    )
    ],
 
    (args) -> let
@@ -80,7 +88,7 @@ Build = Command(
        α = arg(Build, "-a")
        β = arg(Build, "-b")
 
-       energy = (aln) -> let
+       energy = function(aln)
            len = aln.length
            len < minblock && return Inf
 
@@ -123,7 +131,11 @@ Build = Command(
            end
        end
 
-       aligner(contigs₁, contigs₂) = Minimap.align(contigs₁, contigs₂, minblock, sensitivity)
+       aligner(contigs₁, contigs₂) = @match arg(Build, "-k") begin
+           "minimap2" => Minimap.align(contigs₁, contigs₂, minblock, sensitivity)
+           "wfmash"   => WFMash.align(contigs₁, contigs₂)
+                    _ => error("unrecognized alignment kernel")
+       end
 
        graph = Graphs.align(aligner, isolates...;
             compare     = compare,
