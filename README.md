@@ -44,7 +44,7 @@ We recommend, unless for a specific reason, to default to installing within a lo
 However, if needed, global installation can be achieved by running
 
 ```bash
-    julia -e 'using Pkg; Pkg.add(url="https://github.com:nnoll/minimap2_jll.jl"); Pkg.add(url="https://github.com:neherlab/pangraph.git")'
+    julia -e 'using Pkg; Pkg.add(url="https://github.com/nnoll/minimap2_jll.jl"); Pkg.add(url="https://github.com/neherlab/pangraph.git")'
 ```
 
 The PanGraph package is available globally within the Julia REPL.
