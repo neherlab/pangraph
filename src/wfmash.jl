@@ -53,23 +53,29 @@ Returns the list of intervals between pancontigs.
 """
 function align(ref::PanContigs, qry::PanContigs)
     hits = mktempdir() do dir
-        open("$dir/qry.fa","w") do qryio; open("$dir/ref.fa","w") do refio
+        open("$dir/qry.fa","w") do io
             for (name, seq) in zip(qry.name, qry.sequence)
-                write_fasta(qryio, name, seq)
+                write_fasta(io, name, seq)
             end
+        end
 
+        open("$dir/ref.fa","w") do io
             for (name, seq) in zip(ref.name, ref.sequence)
-                write_fasta(refio, name, seq)
+                write_fasta(io, name, seq)
             end
+        end
 
-            run(`samtools faidx $dir/ref.fa`)
-            result = execute(`wfmash $dir/ref.fa $dir/qry.fa`)
+        run(`samtools faidx $dir/ref.fa`)
+        run(pipeline(`wfmash $dir/ref.fa $dir/qry.fa`,
+            stdout="$dir/aln.paf",
+            stderr="$dir/err.log"
+           )
+        )
 
-            result.out |> IOBuffer |> read_paf
-        end; end
+        open(read_paf, "$dir/aln.paf")
     end
 
-    map(recigar!, hits)
+    return map(recigar!, hits)
 end
 
 end
