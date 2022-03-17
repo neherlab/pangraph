@@ -1,6 +1,8 @@
 # pangraph
 
 [![Documentation](https://img.shields.io/badge/Documentation-Link-blue.svg)](https://neherlab.github.io/pangraph/)
+![Docker Image Version (latest semver)](https://img.shields.io/docker/v/neherlab/pangraph?label=docker)
+![Docker Pulls](https://img.shields.io/docker/pulls/neherlab/pangraph)
 
 > a bioinformatic toolkit to align large sets of closely related genomes into a graph data structure
 
