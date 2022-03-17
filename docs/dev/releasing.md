@@ -22,8 +22,11 @@ https://github.com/neherlab/pangraph/actions
 
 ### Verifying CI build
 
-After CI build successfully finishes, pull and run the new version to make sure it works as expected
+After CI build successfully finishes, check Docker Hub to ensure that the new tag is present and that the "latest" tag is updated and points to the same hash:
 
+https://hub.docker.com/r/neherlab/pangraph
+
+Pull and run the new version to make sure it works as expected
 
 ```bash
 docker pull neherlab/pangraph:$RELEASE_VERSION
