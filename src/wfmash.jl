@@ -51,7 +51,7 @@ end
 Align homologous regions of `qry` and `ref`.
 Returns the list of intervals between pancontigs.
 """
-function align(ref::PanContigs, qry::PanContigs)
+function align(qry::PanContigs, ref::PanContigs)
     hits = mktempdir() do dir
         open("$dir/qry.fa","w") do io
             for (name, seq) in zip(qry.name, qry.sequence)
