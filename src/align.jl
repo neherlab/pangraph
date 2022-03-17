@@ -527,21 +527,20 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, a
 
     # closures
     skip = (hit) -> (
-            !(hit.qry.name in keys(G₁.block))
-         || !(hit.ref.name in keys(G₂.block))
+            !(hit.ref.name in keys(G₁.block))
+         || !(hit.qry.name in keys(G₂.block))
          || (hit.length < minblock)
     )
     block = (hit) -> (
-        qry = pop!(G₁.block, hit.qry.name),
-        ref = pop!(G₂.block, hit.ref.name),
+        qry = pop!(G₂.block, hit.qry.name),
+        ref = pop!(G₁.block, hit.ref.name),
     )
-
     replace = (old, new, orientation) -> let
-        for path in values(G₁.sequence)
+        for path in values(G₂.sequence)
             replace!(path, old.qry, new.qry, orientation)
         end
 
-        for path in values(G₂.sequence)
+        for path in values(G₁.sequence)
             replace!(path, old.ref, new.ref, true)
         end
     end

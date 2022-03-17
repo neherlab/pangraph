@@ -51,31 +51,58 @@ end
 Align homologous regions of `qry` and `ref`.
 Returns the list of intervals between pancontigs.
 """
-function align(qry::PanContigs, ref::PanContigs)
-    hits = mktempdir() do dir
-        open("$dir/qry.fa","w") do io
+function align(ref::PanContigs, qry::PanContigs)
+    dir  = mktempdir(;cleanup=false)
+    if ref != qry
+        hits = let
+            open("$dir/qry.fa","w") do io
+                for (name, seq) in zip(qry.name, qry.sequence)
+                    if length(seq) ≥ 95
+                        write_fasta(io, name, seq)
+                    end
+                end
+            end
+
+            open("$dir/ref.fa","w") do io
+                for (name, seq) in zip(ref.name, ref.sequence)
+                    if length(seq) ≥ 95
+                        write_fasta(io, name, seq)
+                    end
+                end
+            end
+
+            run(`samtools faidx $dir/ref.fa`)
+            run(`samtools faidx $dir/qry.fa`)
+            run(pipeline(`wfmash $dir/ref.fa $dir/qry.fa`,
+                stdout="$dir/aln.paf",
+                stderr="$dir/err.log"
+               )
+            )
+
+            open(read_paf, "$dir/aln.paf")
+        end
+
+        return map(recigar!, hits)
+    else
+        open("$dir/seq.fa","w") do io
             for (name, seq) in zip(qry.name, qry.sequence)
-                write_fasta(io, name, seq)
+                if length(seq) ≥ 95
+                    write_fasta(io, name, seq)
+                end
             end
         end
 
-        open("$dir/ref.fa","w") do io
-            for (name, seq) in zip(ref.name, ref.sequence)
-                write_fasta(io, name, seq)
-            end
-        end
-
-        run(`samtools faidx $dir/ref.fa`)
-        run(pipeline(`wfmash $dir/ref.fa $dir/qry.fa`,
+        run(`samtools faidx $dir/seq.fa`)
+        run(pipeline(`wfmash -X $dir/seq.fa $dir/seq.fa`,
             stdout="$dir/aln.paf",
             stderr="$dir/err.log"
            )
         )
 
         open(read_paf, "$dir/aln.paf")
-    end
 
-    return map(recigar!, hits)
+        return map(recigar!, hits)
+    end
 end
 
 end
