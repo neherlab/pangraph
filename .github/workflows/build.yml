@@ -35,5 +35,7 @@ jobs:
           echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
 
       - name: Push Docker image
+        env:
+          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
         run: |
           make docker-push
