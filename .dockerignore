@@ -1,0 +1,14 @@
+*
+!/.env
+!/Makefile
+!/Manifest.toml
+!/Project.toml
+!/bin/
+!/compile.jl
+!/data/
+!/deps/
+!/example_datasets/
+!/script/
+!/src/
+!/trace.jl
+!/vendor/minimap2/
