@@ -8,7 +8,7 @@ ifeq ($(jc),)
 jc := ./vendor/julia-$(version)/bin/julia
 endif
 
-jflags := -q --project=.
+jflags := --project=.
 julia  := julia $(jflags)
 srcs   := $(wildcard src/*.jl src/*/*.jl)
 
@@ -33,20 +33,22 @@ $(testdatum): | $(jc) $(datadir)
 	$(jc) $(jflags) -e 'using PanGraph; PanGraph.Simulation.test()'
 
 # TODO: look for ARM vs x86
+# TODO: julia gets installed into a directory containing version number. This makes it impossible to refer to the
+#  installation outside of this file.
 $(jc):
-#ifeq ($(shell uname -s),Linux)
-#	cd vendor && \
-#	curl -L https://julialang-s3.julialang.org/bin/linux/x64/$(basename $(version))/julia-$(version)-linux-x86_64.tar.gz -o julia-$(version)-linux-x86_64.tar.gz && \
-#	tar xzf julia-$(version)-linux-x86_64.tar.gz
-#else
-#ifeq ($(shell uname -s),Darwin)
-#	cd vendor && \
-#	curl -L https://julialang-s3.julialang.org/bin/mac/x64/$(basename $(version))/julia-$(version)-mac64.tar.gz -o julia-$(version)-mac64.tar.gz && \
-#	tar xzf julia-$(version)-mac64.tar.gz
-#else
-#	$(error unsupported host system)
-#endif
-#endif
+ifeq ($(shell uname -s),Linux)
+	cd vendor && \
+	curl -L https://julialang-s3.julialang.org/bin/linux/x64/$(basename $(version))/julia-$(version)-linux-x86_64.tar.gz -o julia-$(version)-linux-x86_64.tar.gz && \
+	tar xzf julia-$(version)-linux-x86_64.tar.gz
+else
+ifeq ($(shell uname -s),Darwin)
+	cd vendor && \
+	curl -L https://julialang-s3.julialang.org/bin/mac/x64/$(basename $(version))/julia-$(version)-mac64.tar.gz -o julia-$(version)-mac64.tar.gz && \
+	tar xzf julia-$(version)-mac64.tar.gz
+else
+	$(error unsupported host system)
+endif
+endif
 
 pangraph/bin/pangraph: compile.jl trace.jl $(srcs) $(testdatum) $(jc)
 	$(jc) $(jflags) $<
@@ -67,7 +69,7 @@ SHELL=bash
 docker:
 	set -euxo pipefail
 
-	export CONTAINER_NAME=neherlab/pangraph
+	export CONTAINER_NAME=pangraph
 
 	docker build \
 	--target prod \
