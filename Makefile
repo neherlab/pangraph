@@ -77,11 +77,3 @@ docker:
 	--build-arg UID=$(shell id -u) \
 	--build-arg GID=$(shell id -g) \
 	.
-
-	docker run -it --rm \
-	--name=$${CONTAINER_NAME}-$(shell date +%s) \
-	--init \
-	--user=$(shell id -u):$(shell id -g) \
-	--volume="$(shell pwd):/workdir" \
-	--workdir="/workdir" \
-	$${CONTAINER_NAME}
