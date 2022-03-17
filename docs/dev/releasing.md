@@ -19,6 +19,18 @@ git push origin --tags
 
 where `$RELEASE_VERSION` is a valid [semantic version](https://semver.org/), without a `v` prefix (i.e. `1.2.3` is correct, `v1.2.3` is not).
 
+The CI workflow will build the container image and will push it to Docker Hub. The image will be tagged with:
+ 
+ - `latest` (and will overwrite existing `latest` tag there)
+ - `$RELEASE_VERSION`
+
+so that this image can be reffered to as:
+
+ - `neherlab/pangraph:latest` (and will overwrite existing `latest` tag there)
+ - `neherlab/pangraph:$RELEASE_VERSION`
+
+Both tags should point to the same image, i.e. their sha hashes should be exactly the same.
+
 
 ### Monitoring and debugging CI build
 
@@ -32,7 +44,7 @@ After CI build successfully finishes, check Docker Hub to ensure that the new ta
 
 https://hub.docker.com/r/neherlab/pangraph
 
-Pull and run the new version to make sure it works as expected
+Pull and run the new version to make sure it works as expected:
 
 ```bash
 docker pull neherlab/pangraph:$RELEASE_VERSION
@@ -40,7 +52,7 @@ docker pull neherlab/pangraph:$RELEASE_VERSION
 docker run --rm -it \
   --name "pangraph-$(date +%s)" \
   --volume="$(pwd)/path-to-fasta:/workdir" \
-  --workdir=/workdir pangraph:$RELEASE_VERSION \
+  --workdir=/workdir neherlab/pangraph:$RELEASE_VERSION \
   bash -c "pangraph build --circular --alpha 0 --beta 0 /workdir/test.fa"
 ```
 
