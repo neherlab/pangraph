@@ -1,4 +1,4 @@
-name: build
+name: Build
 
 on:
   push:
@@ -6,7 +6,9 @@ on:
       - '*'
 
 jobs:
-  docker:
+  Docker-Build-and-Push:
+    name: 'Docker: build and push'
+
     runs-on: ubuntu-20.04
 
     defaults:
@@ -18,23 +20,23 @@ jobs:
         with:
           fetch-depth: '1'
 
-      - name: Get git tag
+      - name: 'Get git tag'
         id: get_tag
         run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
 
-      - name: Build Docker image
+      - name: 'Build Docker image'
         env:
           RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
         run: |
           make docker
 
-      - name: Login to DockerHub
+      - name: 'Login to DockerHub'
         env:
           RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
         run: |
           echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
 
-      - name: Push Docker image
+      - name: 'Push Docker image'
         env:
           RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
         run: |
