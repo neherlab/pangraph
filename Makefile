@@ -64,16 +64,30 @@ clean:
 
 include script/rules.mk
 
+
+export CONTAINER_NAME=neherlab/pangraph
+
 SHELL=bash
 .ONESHELL:
 docker:
 	set -euxo pipefail
 
-	export CONTAINER_NAME=pangraph
+	# If $RELEASE_VERSION is set, use it as an additional docker tag
+	export DOCKER_TAGS="--tag $${CONTAINER_NAME}:latest"
+	if [ ! -z "$${RELEASE_VERSION:-}" ]; then
+		export DOCKER_TAGS="$${DOCKER_TAGS} --tag $${CONTAINER_NAME}:$${RELEASE_VERSION}"
+	fi
 
 	docker build \
 	--target prod \
-	--tag $${CONTAINER_NAME} \
 	--build-arg UID=$(shell id -u) \
 	--build-arg GID=$(shell id -g) \
+	$${DOCKER_TAGS} \
 	.
+
+docker-push:
+	set -euxo pipefail
+	: "$${RELEASE_VERSION:?The RELEASE_VERSION environment variable is required.}"
+	docker push ${CONTAINER_NAME}:${RELEASE_VERSION}
+	docker push ${CONTAINER_NAME}:latest
+
