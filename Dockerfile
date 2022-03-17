@@ -64,8 +64,24 @@ RUN set -euxo pipefail \
 # We start over, from clean debian image, and copy the binaries from the builder stage.
 FROM debian:11 as prod
 
-# Copy dependencies
+# Copy pangraph from the builder stage
 COPY --from=builder /build_dir/pangraph/ /usr/
-COPY --from=builder /root/.julia/conda/3 /root/.julia/conda/3
+
+# Copy julia dependencies from the builder stage
+COPY --from=builder /root/.julia /root/.julia
+
+SHELL ["bash", "-c"]
+
+RUN set -euxo pipefail \
+&& export DEBIAN_FRONTEND=noninteractive \
+&& apt-get update -qq --yes \
+&& apt-get install -qq --no-install-recommends --yes \
+  mafft \
+  mash \
+>/dev/null \
+&& apt-get autoremove --yes >/dev/null \
+&& apt-get clean autoclean >/dev/null \
+&& rm -rf /var/lib/apt/lists/*
+
 
 CMD ["/usr/bin/pangraph"]
