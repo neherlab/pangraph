@@ -650,7 +650,7 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
     end
 
     for clade ∈ postorder(tree)
-        @spawn try
+        try
             if isleaf(clade)
                 close(clade.graph)
                 put!(clade.parent.graph, tips[clade.name])
