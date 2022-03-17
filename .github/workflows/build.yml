@@ -1,0 +1,39 @@
+name: build
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  docker:
+    runs-on: ubuntu-20.04
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: '1'
+
+      - name: Get git tag
+        id: get_tag
+        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
+
+      - name: Build Docker image
+        env:
+          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+        run: |
+          make docker
+
+      - name: Login to DockerHub
+        env:
+          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+        run: |
+          echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+
+      - name: Push Docker image
+        run: |
+          make docker-push
