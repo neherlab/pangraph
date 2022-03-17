@@ -24,12 +24,15 @@ The CI workflow will build the container image and will push it to Docker Hub. T
  - `latest` (and will overwrite existing `latest` tag there)
  - `$RELEASE_VERSION`
 
-so that this image can be reffered to as:
-
- - `neherlab/pangraph:latest` (and will overwrite existing `latest` tag there)
- - `neherlab/pangraph:$RELEASE_VERSION`
-
 Both tags should point to the same image, i.e. their sha hashes should be exactly the same.
+
+This image version can then be referred to as:
+
+ - `neherlab/pangraph:$RELEASE_VERSION`
+ - `neherlab/pangraph:latest`
+ - `neherlab/pangraph` (which is the same as `neherlab/pangraph:latest`)
+
+for example in `docker pull` and `docker run` commands.
 
 
 ### Monitoring and debugging CI build
