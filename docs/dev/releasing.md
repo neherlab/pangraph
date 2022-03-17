@@ -4,7 +4,13 @@
 
 Continuous integration (CI) will build a new version of the Docker container (see `Dockerfile`) on every pushed git tag.
 
-In order to creat and push a git tag, run:
+Make sure you are on a correct branch and commit. Most of the time you want to release code from `master`:
+
+```bash
+git checkout master
+```
+
+In order to create and push a git tag, run:
 
 ```
 git tag $RELEASE_VERSION
