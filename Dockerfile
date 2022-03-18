@@ -55,5 +55,9 @@ RUN set -euxo pipefail \
 && apt-get clean autoclean >/dev/null \
 && rm -rf /var/lib/apt/lists/*
 
+# Allows non-root users to read dependencies
+RUN set -euxo pipefail \
+&& chmod -R +r /root/ \
+&& chmod +x /root/
 
 CMD ["/usr/bin/pangraph"]

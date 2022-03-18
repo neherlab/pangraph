@@ -65,6 +65,7 @@ Docker container image for PanGraph is available on Docker Hub: https://hub.dock
     docker run --rm -it \
       --name "pangraph-$(date +%s)" \
       --volume="$(pwd):/workdir" \
+      --user="$(id -u):$(id -g)" \
       --workdir=/workdir neherlab/pangraph:latest \
       bash -c "pangraph build --circular --alpha 0 --beta 0 /workdir/data/synthetic/test.fa"
     ```
