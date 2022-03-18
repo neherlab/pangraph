@@ -6,6 +6,7 @@
 /.idea
 /.local
 /.vscode*
+/Dockerfile
 /data
 /deps/minimap2/build
 /deps/minimap2/products
