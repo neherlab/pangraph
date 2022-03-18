@@ -649,6 +649,7 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
         end
     end
 
+    G = nothing
     @sync for clade ∈ postorder(tree)
         @spawn begin
             if isleaf(clade)
@@ -667,14 +668,13 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
                 if clade.parent !== nothing
                     put!(clade.parent.graph, G₀)
                 else
-                    put!(result, G₀); close(result)
+                    G = G₀
                 end
             end
         end
     end
-
-    G = take!(result)
     close(events)
+
     return G
 end
 
