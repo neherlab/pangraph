@@ -13,27 +13,21 @@ RUN set -euxo pipefail \
   build-essential \
   ca-certificates \
   curl \
-  make \
   mafft \
+  make \
+  mash \
 >/dev/null \
 && apt-get autoremove --yes >/dev/null \
 && apt-get clean autoclean >/dev/null \
 && rm -rf /var/lib/apt/lists/*
 
-# TODO: We need to set the PATH to Julia bin dir. However the version is hardwired into the path.
-# We need to install Julia to a version-neutral dir.
 ENV PATH="/build_dir/bin:/build_dir/vendor/julia/bin:$PATH"
-
-COPY bin /build_dir/bin
-
-RUN set -euxo pipefail \
-&& mkdir -p /build_dir/vendor
 
 COPY . /build_dir/
 
 RUN set -euxo pipefail \
 && cd /build_dir \
-&& jc=$(which julia) make
+&& make
 
 
 # Stage: production image
