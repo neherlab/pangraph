@@ -20,3 +20,14 @@ make docker
 This will build the Docker image tagged `neherlab/pangraph` (more precisely `neherlab/pangraph:latest`). If already exists, it will replace the existing image with that tag. The build will take some time.
 
 If completed successfully, then the image can be used right away. Refer to user documentation. Skip the "Pull Docker image" step.
+
+
+### Explore contents, layers and optimize image size
+
+You could use [dive tool](https://github.com/wagoodman/dive) to see what's inside an image:
+
+```bash
+dive neherlab/pangraph:<tag>
+```
+
+Each [layer](https://stackoverflow.com/questions/31222377/what-are-docker-image-layers) reflects `FROM`, `COPY` and `RUN` commands and the files that have been added to the overlay file system of the image. This can be used to find redundant files. You could then further optimize `Dockerfile` and make the image smaller.
