@@ -14,6 +14,7 @@ RUN set -euxo pipefail \
   ca-certificates \
   curl \
   make \
+  mafft \
 >/dev/null \
 && apt-get autoremove --yes >/dev/null \
 && apt-get clean autoclean >/dev/null \
@@ -21,39 +22,14 @@ RUN set -euxo pipefail \
 
 # TODO: We need to set the PATH to Julia bin dir. However the version is hardwired into the path.
 # We need to install Julia to a version-neutral dir.
-ENV PATH="/build_dir/bin:/build_dir/vendor/julia-1.7.2/bin:$PATH"
+ENV PATH="/build_dir/bin:/build_dir/vendor/julia/bin:$PATH"
 
 COPY bin /build_dir/bin
 
 RUN set -euxo pipefail \
-&& cd /build_dir \
-&& ./bin/setup-pangraph
-
-# HACK: Cannot call `make` at this point, because it will not call `Pkg.build()` and `Pkg.instantiate()`.
-# So downloading Julia here temporarily to be able to call them.
-RUN set -euxo pipefail \
-&& mkdir -p /build_dir/vendor \
-&& cd /build_dir/vendor \
-&& curl -L https://julialang-s3.julialang.org/bin/linux/x64/1.7/julia-1.7.2-linux-x86_64.tar.gz -o julia-1.7.2-linux-x86_64.tar.gz \
-&& tar xzf julia-1.7.2-linux-x86_64.tar.gz
+&& mkdir -p /build_dir/vendor
 
 COPY . /build_dir/
-
-# TODO: This should be in the Makefile
-RUN set -euxo pipefail \
-&& cd /build_dir \
-&& julia --project=. -e 'import Pkg; Pkg.instantiate()'
-
-# TODO: This should be in the Makefile
-RUN set -euxo pipefail \
-&& cd /build_dir \
-&& julia --project=. -e 'import Pkg; Pkg.add(name="Conda")' \
-&& julia --project=. -e 'import Conda; Conda.add("ete3", channel="etetoolkit")'
-
-# TODO: This should be in the Makefile
-RUN set -euxo pipefail \
-&& cd /build_dir \
-&& julia --project=. -e 'import Pkg; Pkg.build()'
 
 RUN set -euxo pipefail \
 && cd /build_dir \
