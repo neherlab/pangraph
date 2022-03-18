@@ -91,8 +91,8 @@ function marshal_gfa(io::IO, G::Graph; opt=nothing)
     filter = (
         opt === nothing
         ? (
-            connect = (node)    -> false,
-            output  = (segment) -> false,
+            connect = (node) -> false,
+            output  = (segment, isolates) -> false,
           )
         : (
             connect = opt.connect,
