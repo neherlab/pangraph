@@ -640,7 +640,6 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
     log("--> aligning pairs")
 
     events = Channel{Bool}(10);
-    result = Channel{Graph}(1);
 
     @spawn let
         while isopen(events)
