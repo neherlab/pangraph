@@ -38,12 +38,14 @@ $(testdatum): | environment $(jc) $(datadir)
 #  installation outside of this file.
 $(jc):
 ifeq ($(shell uname -s),Linux)
+	mkdir -p vendor && \
 	cd vendor && \
 	curl -L https://julialang-s3.julialang.org/bin/linux/x64/$(basename $(version))/julia-$(version)-linux-x86_64.tar.gz -o julia-$(version)-linux-x86_64.tar.gz && \
 	tar xzf julia-$(version)-linux-x86_64.tar.gz && \
 	mv julia-$(version) julia
 else
 ifeq ($(shell uname -s),Darwin)
+	mkdir -p vendor && \
 	cd vendor && \
 	curl -L https://julialang-s3.julialang.org/bin/mac/x64/$(basename $(version))/julia-$(version)-mac64.tar.gz -o julia-$(version)-mac64.tar.gz && \
 	tar xzf julia-$(version)-mac64.tar.gz && \
