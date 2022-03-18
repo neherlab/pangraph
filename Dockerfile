@@ -68,7 +68,9 @@ FROM debian:11 as prod
 COPY --from=builder /build_dir/pangraph/ /usr/
 
 # Copy julia dependencies from the builder stage
-COPY --from=builder /root/.julia /root/.julia
+COPY --from=builder /root/.julia/artifacts /root/.julia/artifacts
+COPY --from=builder /root/.julia/conda/3/bin /root/.julia/conda/3/bin
+COPY --from=builder /root/.julia/conda/3/lib /root/.julia/conda/3/lib
 
 SHELL ["bash", "-c"]
 
