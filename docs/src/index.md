@@ -33,6 +33,55 @@ The documentation, and source code, uses the following terminology:
 
 There are multiple ways to install PanGraph (either the library or just command line interface)
 
+### Using Docker
+
+Docker container image for PanGraph is available on Docker Hub: https://hub.docker.com/r/neherlab/pangraph
+
+ - Install Docker
+
+    Install Docker as described on the official website: https://docs.docker.com/get-docker/
+
+    Optionally setup Docker so that it runs without `sudo` on Linux: https://docs.docker.com/engine/install/linux-postinstall/
+
+ - Pull a version of the image
+
+    To obtain the latest version, run:
+
+    ```bash
+    docker pull neherlab/pangraph:latest
+    ```
+
+    To obtain a specific version, for example `1.2.3`, run:
+   
+    ```bash
+    docker pull neherlab/pangraph:1.2.3
+    ```
+
+ - Run PanGraph container
+
+    Issue `docker run` command:
+
+    ```bash
+    docker run --rm -it \
+      --name "pangraph-$(date +%s)" \
+      --volume="$(pwd):/workdir" \
+      --workdir=/workdir neherlab/pangraph:latest \
+      bash -c "pangraph build --circular --alpha 0 --beta 0 /workdir/data/synthetic/test.fa"
+    ```
+
+    Here we mount current directory `.` (expressed as absolute path, using `pwd` shell command) as `/workdir` into the container so that pangraph can read the local
+    file `./data/synthetic/test.fa` as `/workdir/data/synthetic/test.fa"`:
+    
+    ```
+                           . -> /workdir
+    ./data/synthetic/test.fa -> /workdir/data/synthetic/test.fa
+    ```
+
+    The `--name` flag sets the name of the container and the `date` command there ensures that a unique name is created on every run. This is optional. The `--rm` flag deletes the container (but not the image) after run.
+
+    Replace `:latest` with a specific version if desired. The `:latest` tag can also be omitted, as it is the default. 
+
+
 ### From Julia REPL
 ```julia
     (@v1.x) pkg> add https://github.com/neherlab/pangraph.git
