@@ -1,7 +1,7 @@
 # Stage: builder image
 # This istage builds use a lot of dependencies and produce the binaries. The results will be copied
 # to another image and the builder image will be discarded.
-FROM ubuntu:20.04 as builder
+FROM debian:11 as builder
 
 SHELL ["bash", "-c"]
 
