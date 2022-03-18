@@ -347,7 +347,12 @@ function preprocess(hits, skip, energy, blocks!)
 end
 
 function do_align(G₁::Graph, G₂::Graph, energy::Function, aligner::Function)
-    hits = aligner(pancontigs(G₁), pancontigs(G₂))
+    hits = if G₁ == G₂
+        self = pancontigs(G₁)
+        aligner(self, self)
+    else
+        aligner(pancontigs(G₁), pancontigs(G₂))
+    end
     sort!(hits; by=energy)
 
     return hits
