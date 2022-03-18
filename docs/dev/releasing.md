@@ -55,6 +55,7 @@ docker pull neherlab/pangraph:$RELEASE_VERSION
 docker run --rm -it \
   --name "pangraph-$(date +%s)" \
   --volume="$(pwd)/path-to-fasta:/workdir" \
+  --user="$(id -u):$(id -g)" \
   --workdir=/workdir neherlab/pangraph:$RELEASE_VERSION \
   bash -c "pangraph build --circular --alpha 0 --beta 0 /workdir/test.fa"
 ```
