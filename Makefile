@@ -83,12 +83,7 @@ docker:
 		export DOCKER_TAGS="$${DOCKER_TAGS} --tag $${CONTAINER_NAME}:$${RELEASE_VERSION}"
 	fi
 
-	docker build \
-	--target prod \
-	--build-arg UID=$(shell id -u) \
-	--build-arg GID=$(shell id -g) \
-	$${DOCKER_TAGS} \
-	.
+	docker build --target prod $${DOCKER_TAGS} .
 
 docker-push:
 	set -euxo pipefail
