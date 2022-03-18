@@ -26,18 +26,18 @@ jobs:
 
       - name: 'Build Docker image'
         env:
-          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.get_tag.outputs.tag }}
         run: |
           make docker
 
       - name: 'Login to DockerHub'
         env:
-          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.get_tag.outputs.tag }}
         run: |
           echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
 
       - name: 'Push Docker image'
         env:
-          RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.get_tag.outputs.tag }}
         run: |
           make docker-push
