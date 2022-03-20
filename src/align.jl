@@ -648,9 +648,11 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
         end
     end
 
+    error_channel = Channel(1)
+
     G = nothing
-    @sync for clade ∈ postorder(tree)
-        @spawn begin
+    for clade ∈ postorder(tree)
+        @spawn try
             if isleaf(clade)
                 close(clade.graph)
                 put!(clade.parent.graph, tips[clade.name])
@@ -668,10 +670,20 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
                     put!(clade.parent.graph, G₀)
                 else
                     G = G₀
+                    close(error_channel)
                 end
             end
+        catch err
+            put!(error_channel, [err, catch_backtrace()])
+            close(error_channel)
         end
     end
+
+    for (err, backtrace) in error_channel
+        @error "In-thread error during graph building:" exception=(err, backtrace)
+        error("graph construction failed, see above for stacktrace")
+    end
+
     close(events)
 
     return G
