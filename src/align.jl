@@ -644,7 +644,6 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
     log("--> aligning pairs")
 
     events = Channel{Bool}(10);
-    result = Channel{Graph}(1);
 
     @spawn let
         while isopen(events)
@@ -653,6 +652,9 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
         end
     end
 
+    error_channel = Channel(1)
+
+    G = nothing
     for clade ∈ postorder(tree)
         @spawn try
             if isleaf(clade)
@@ -671,16 +673,23 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                 if clade.parent !== nothing
                     put!(clade.parent.graph, G₀)
                 else
-                    put!(result, G₀); close(result)
+                    G = G₀
+                    close(error_channel)
                 end
             end
-        catch e
-            error(e)
+        catch err
+            put!(error_channel, [err, catch_backtrace()])
+            close(error_channel)
         end
     end
 
-    G = take!(result)
+    for (err, backtrace) in error_channel
+        @error "In-thread error during graph building:" exception=(err, backtrace)
+        error("graph construction failed, see above for stacktrace")
+    end
+
     close(events)
+
     return G
 end
 

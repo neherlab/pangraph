@@ -23,10 +23,20 @@ function print(io::IO, s::Segment)
     print(io, "S\t$(s.name)\t*\tLN:i:$(length(s.sequence))\tRC:i:$((s.depth*length(s.sequence)))")
 end
 
-Node = NamedTuple{
-    (:segment, :orientation),
+const Node = NamedTuple{
+    (:segment,:orientation),
     Tuple{Segment,Bool}
 }
+
+struct Key
+    prev :: Node
+    curr :: Node
+end
+
+Base.hash(k::Key) = Base.hash(Set(
+    [(prev=k.prev,curr=k.curr),(prev=(segment=k.curr.segment,orientation=!k.curr.orientation),curr=(segment=k.prev.segment,orientation=!k.prev.orientation))]
+))
+# Base.hash(k::Key, h::UInt) = Base.hash(Base.hash(k), h)
 
 polarity(x::Bool) = x ? "+" : "-"
 function print(io::IO, n::Node)
@@ -81,8 +91,8 @@ function marshal_gfa(io::IO, G::Graph; opt=nothing)
     filter = (
         opt === nothing
         ? (
-            connect = (node)    -> false,
-            output  = (segment) -> false,
+            connect = (node) -> false,
+            output  = (segment, isolates) -> false,
           )
         : (
             connect = opt.connect,
@@ -114,11 +124,11 @@ function marshal_gfa(io::IO, G::Graph; opt=nothing)
         end for block in values(G.block)
     )
 
-    links = Dict{Set{Node}, Link}()
+    links = Dict{Key, Link}()
     paths = Array{Path,1}(undef, length(G.sequence))
 
     addlink! = (prev, curr) -> let
-        key = Set([prev, curr])
+        key = Key(prev, curr)
         if key ∉ keys(links)
             links[key] = Link(prev, curr, 1)
         else

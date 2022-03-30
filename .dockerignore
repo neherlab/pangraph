@@ -1,0 +1,17 @@
+/.cache
+/.dep
+/.env
+/.git
+/.github
+/.idea
+/.local
+/.vscode*
+/Dockerfile
+/data
+/deps/minimap2/build
+/deps/minimap2/products
+/docs
+/example_datasets
+/pangraph
+/pangraph.tar.gz
+/vendor
