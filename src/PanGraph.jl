@@ -59,14 +59,14 @@ end
 
 Alignment is a pairwise homologous alignment between two sequences.
 """
-mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Int,Char}}}}
+mutable struct Alignment
     qry::Hit
     ref::Hit
     matches::Int
     length::Int
     quality::Int
     orientation::Bool
-    cigar::T
+    cigar::Union{String,Nothing,Array{Tuple{Int,Char}}}
     divergence::Union{Float64,Nothing}
     align::Union{Float64,Nothing}
 end

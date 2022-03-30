@@ -13,6 +13,8 @@ pangraph
 pangraph.tar.gz
 bin
 tutorial
+playground
+.vscode
 
 deps/minimap2/build
 deps/minimap2/products

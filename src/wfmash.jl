@@ -1,7 +1,7 @@
 module WFMash
 
 import ..PanGraph: PanContigs, Alignment
-import ..PanGraph.Graphs.Utility: read_paf, write_fasta
+import ..PanGraph.Graphs.Utility: read_paf, write_fasta, uncigar
 import ..PanGraph.Graphs.Shell: execute
 
 export align
@@ -42,6 +42,7 @@ function recigar!(hit::Alignment)
     end
 
     hit.cigar = String(take!(buffer))
+    hit.cigar = collect(uncigar(hit.cigar))
     return hit
 end
 
