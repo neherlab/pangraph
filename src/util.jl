@@ -550,6 +550,7 @@ function read_paf(io::IO)
                 dv = last(x) |> float
             elseif startswith(x, "gi:f")
                 dv = last(x) |> float
+                dv = 1. - (dv/100.) 
             elseif startswith(x, "AS:i")
                 as = last(x) |> int
             end
