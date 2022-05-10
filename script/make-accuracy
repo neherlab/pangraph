@@ -71,10 +71,17 @@ do
                 known=$(mktemp /tmp/known.json.XXXXXX)
                 guess=$(mktemp /tmp/guess.json.XXXXXX)
 
-                julia --project=script "$seq" -N "$N" -L "$L" \
-              | pangraph generate -m "$snp" -r "$hgt" -t "$T" -i "1e-2" -o "$known" \
-              | pangraph build --circular -a 0 -b 0 -s "$asm" 1>"$guess" 2>/dev/null
-
+                if [[ "$asm" == "wfmash" ]]; then
+                    julia --project=script "$seq" -N "$N" -L "$L" \
+                  | pangraph generate -m "$snp" -r "$hgt" -t "$T" -i "1e-2" -o "$known" \
+                  | pangraph build --circular -a 0 -b 0 --alignment-kernel wfmash \
+                    1>"$guess" 2>/dev/null
+                else
+                    julia --project=script "$seq" -N "$N" -L "$L" \
+                  | pangraph generate -m "$snp" -r "$hgt" -t "$T" -i "1e-2" -o "$known" \
+                  | pangraph build --circular -a 0 -b 0 -s "$asm" \
+                    1>"$guess" 2>/dev/null
+                fi
                 # NOTE: concurrent writes to a pipe are guaranteed to be atomic,
                 # provided they are smaller than the buffer. This, in turn, is
                 # at minimum 512 bytes. We are fine without explicit locking...
