@@ -144,7 +144,7 @@ function align(ref::PanContigs, qry::PanContigs)
 
             run(`samtools faidx $dir/ref.fa`)
             run(`samtools faidx $dir/qry.fa`)
-            run(pipeline(`wfmash -g3,15,1 $dir/ref.fa $dir/qry.fa`,
+            run(pipeline(`wfmash -g3,15,1 -p 85 -s 1k $dir/ref.fa $dir/qry.fa`,
                 stdout="$dir/aln.paf",
                 stderr="$dir/err.log"
                )
@@ -163,7 +163,7 @@ function align(ref::PanContigs, qry::PanContigs)
             end
 
             run(`samtools faidx $dir/seq.fa`)
-            run(pipeline(`wfmash -X -g3,15,1 $dir/seq.fa $dir/seq.fa`,
+            run(pipeline(`wfmash -X -g3,15,1 -p 85 -s 1k $dir/seq.fa $dir/seq.fa`,
                 stdout="$dir/aln.paf",
                 stderr="$dir/err.log"
                )
