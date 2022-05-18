@@ -297,17 +297,17 @@ function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
             while j > k && ((score.M[i,j-k] + cost.gap(k)) != score.M[i,j])
                 k += 1
             end
-            write(a₁,'-'^k) 
-            write(a₂,seq₂[j-1:-1:j-k]) 
+            write(a₁,'-'^k)
+            write(a₂,seq₂[j-1:-1:j-k])
             j -= k
         elseif score.M[i,j] == score.I[i,j]
             k = 1
             while i > k && ((score.M[i-k,j] + cost.gap(k)) != score.M[i,j])
                 k += 1
             end
-            write(a₁,seq₁[i-1:-1:i-k]) 
-            write(a₂,'-'^k) 
-            i -= k 
+            write(a₁,seq₁[i-1:-1:i-k])
+            write(a₂,'-'^k)
+            i -= k
         else
             write(a₁,seq₁[i-1])
             write(a₂,seq₂[j-1])
@@ -338,11 +338,11 @@ Perform a simple alignment of `qry` to `ref` by minimizing hamming distance.
 Useful for fast, approximate alignments of small sequences.
 """
 function hamming_align(qry::Array{UInt8,1}, ref::Array{UInt8,1})
-    matches = [ 
+    matches = [
         let
             len = min(length(ref)-x+1, length(qry))
             sum(qry[1:len] .== ref[x:x+len-1])
-        end 
+        end
     for x ∈ 1:length(ref) ]
 
     return argmax(matches)
@@ -374,7 +374,7 @@ function reverse_complement!(hit::Hit)
     hit.stop  = hit.length - (start - 1)
 end
 
-function reverse_complement!(aln::Alignment) 
+function reverse_complement!(aln::Alignment)
     reverse_complement!(aln.qry)
     aln.orientation = ~aln.orientation
 end
@@ -481,7 +481,7 @@ struct Record
     meta :: String
 end
 
-name(r::Record) = isempty(r.meta) ? r.name : r.name * " " * r.meta 
+name(r::Record) = isempty(r.meta) ? r.name : r.name * " " * r.meta
 
 NL = '\n'
 Base.show(io::IO, rec::Record) = print(io, ">$(rec.name) $(rec.meta)$(NL)$(String(rec.seq[1:40]))...$(String(rec.seq[end-40:end]))")
@@ -550,7 +550,7 @@ function read_paf(io::IO)
                 dv = last(x) |> float
             elseif startswith(x, "gi:f")
                 dv = last(x) |> float
-                dv = 1. - (dv/100.) 
+                dv = 1. - (dv/100.)
             elseif startswith(x, "AS:i")
                 as = last(x) |> int
             end
@@ -583,6 +583,53 @@ function read_paf(io::IO)
         end for row in eachline(io) ]
 end
 
+"""
+	read_paf(io::IO)
+
+Parse a PAF file from IO stream `io`.
+Return an iterator over all pairwise alignments.
+"""
+function read_mmseqs2(io::IO)
+    int(x)   = parse(Int,x)
+    float(x) = parse(Float64,x)
+    last(x)  = split(x,':')[end]
+
+    return [ let
+        elt = split(strip(row))
+
+        # XXX: important: shift PAF entry to be 1 indexed and right-inclusive to match julia
+        q1 = int(elt[3])
+        q2 = int(elt[4])
+        qstart = q1 < q2 ? q1 : q2
+        qend = q1 < q2 ? q2 : q1
+        strand = q1 < q2 ? '+' : '-'
+
+        Alignment(
+            Hit(
+                elt[1],
+                int(elt[2]),   # length
+                qstart, # start
+                qend,   # stop
+                nothing,
+            ),
+            Hit(
+                elt[6],
+                int(elt[7]),   # length
+                int(elt[8]), # start
+                int(elt[9]),   # stop
+                nothing,
+            ),
+            int(elt[10]),
+            int(elt[11]),
+            int(elt[12]),
+            strand,
+            String(elt[13]),
+            1 - float(elt[14]),
+            int(elt[15])
+        )
+        end for row in eachline(io) ]
+end
+
 # ------------------------------------------------------------------------
 # string processing functions
 
@@ -593,7 +640,7 @@ Partition string `s` into an array of strings such that no string is longer than
 """
 function columns(s; nc=80)
     nr   = ceil(Int64, length(s)/nc)
-    l(i) = 1+(nc*(i-1)) 
+    l(i) = 1+(nc*(i-1))
     r(i) = min(nc*i, length(s))
     rows = [String(s[l(i):r(i)]) for i in 1:nr]
     return join(rows,'\n')
@@ -669,7 +716,7 @@ function contiguous_trues(x)
     if inside
         push!(intervals, Interval(l, length(x)+1))
     end
-    
+
     return IntervalSet(intervals)
 end
 
@@ -712,7 +759,7 @@ function alignment_alleles(ref, aln, nodes)
     Δ(I) = (R = containing(refgaps, I)) == nothing ? 0 : I.lo - R.lo
     insert = Dict{Node,InsMap}(
             node => InsMap(
-                      (coord[ins.lo],Δ(ins)) => aln[ins,i] 
+                      (coord[ins.lo],Δ(ins)) => aln[ins,i]
                 for ins in contiguous_trues(δ.ins[:,i])
              )
         for (i,node) in enumerate(nodes)

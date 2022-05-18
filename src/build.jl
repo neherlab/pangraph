@@ -131,6 +131,8 @@ Build = Command(
            end
        end
 
+       println(stderr, "choose aligner")
+       flush(stderr)
        aligner(contigs₁, contigs₂) = @match arg(Build, "-k") begin
            "minimap2" => Minimap.align(contigs₁, contigs₂, minblock, sensitivity)
            "wfmash"   => let
@@ -142,6 +144,8 @@ Build = Command(
                    panic("external command samtools not found. please install before running build step with wfmash backend\n")
                end
 
+               println(stderr, "choosing wfmash")
+               flush(stderr)
                WFMash.align(contigs₁, contigs₂)
            end
                     _ => error("unrecognized alignment kernel")

@@ -1,7 +1,7 @@
 module WFMash
 
 import ..PanGraph: PanContigs, Alignment
-import ..PanGraph.Graphs.Utility: read_paf, write_fasta, uncigar
+import ..PanGraph.Graphs.Utility: read_paf, write_fasta, uncigar, read_mmseqs2
 import ..PanGraph.Graphs.Shell: execute
 
 export align
@@ -86,7 +86,7 @@ function trim_flanking_mismatches!(hit::Alignment)
             return hit
         end
     end
-    
+
     # trim trailing deletions/insertions
     while (hit.cigar[end][2] != 'M') || (hit.cigar[end][1] <= trim_threshold_length)
         # println(stderr, "cleaning cigar end", hit.cigar)
@@ -124,8 +124,12 @@ Returns the list of intervals between pancontigs.
 """
 function align(ref::PanContigs, qry::PanContigs)
     hits = nothing
+    println(stderr, "starting to align")
+    flush(stderr)
     if ref != qry
         hits = mktempdir() do dir
+            println(stderr, "writing to $dir/qry.fa")
+            flush(stderr)
             open("$dir/qry.fa","w") do io
                 for (name, seq) in zip(qry.name, qry.sequence)
                     if length(seq) ≥ 95
@@ -134,6 +138,7 @@ function align(ref::PanContigs, qry::PanContigs)
                 end
             end
 
+            println(stderr, "writing to $dir/ref.fa")
             open("$dir/ref.fa","w") do io
                 for (name, seq) in zip(ref.name, ref.sequence)
                     if length(seq) ≥ 95
@@ -141,16 +146,26 @@ function align(ref::PanContigs, qry::PanContigs)
                     end
                 end
             end
-
-            run(`samtools faidx $dir/ref.fa`)
-            run(`samtools faidx $dir/qry.fa`)
-            run(pipeline(`wfmash -g3,15,1 -p 85 -s 1k $dir/ref.fa $dir/qry.fa`,
-                stdout="$dir/aln.paf",
+            println(stderr, "mmseqs createdb")
+            flush(stderr)
+            run(`mmseqs createdb $dir/ref.fa $dir/ref`)
+            run(`mmseqs createdb $dir/qry.fa $dir/qry`)
+            println(stderr, "mmseqs search")
+            flush(stderr)
+            run(pipeline(`mmseqs search -a --max-seq-len 10000 --search-type 3 $dir/ref $dir/qry $dir/res $dir/tmp`,
+                stdout="$dir/out.log",
+                stderr="$dir/err.log"
+               )
+            )
+            println(stderr, "mmseqs convertalis")
+            flush(stderr)
+            run(pipeline(`mmseqs convertalis --search-type 3 $dir/ref $dir/qry $dir/res $dir/res.paf --format-output query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw`,
+                stdout="$dir/out.log",
                 stderr="$dir/err.log"
                )
             )
 
-            open(read_paf, "$dir/aln.paf")
+            open(read_mmseqs2, "$dir/res.paf")
         end
     else
         hits = mktempdir() do dir
@@ -162,18 +177,23 @@ function align(ref::PanContigs, qry::PanContigs)
                 end
             end
 
-            run(`samtools faidx $dir/seq.fa`)
-            run(pipeline(`wfmash -X -g3,15,1 -p 85 -s 1k $dir/seq.fa $dir/seq.fa`,
-                stdout="$dir/aln.paf",
+            run(`mmseqs createdb $dir/seq.fa $dir/seq`)
+            run(pipeline(`mmseqs search -a --max-seq-len 10000 --search-type 3 $dir/seq $dir/seq $dir/res $dir/tmp`,
+                stdout="$dir/out.log",
+                stderr="$dir/err.log"
+               )
+            )
+            run(pipeline(`mmseqs convertalis --search-type 3 $dir/seq $dir/seq $dir/res $dir/res.paf --format-output query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw`,
+                stdout="$dir/out.log",
                 stderr="$dir/err.log"
                )
             )
 
-            open(read_paf, "$dir/aln.paf")
+            open(read_mmseqs2, "$dir/res.paf")
         end
     end
 
-    hits = map(recigar!, hits)
+    # hits = map(recigar!, hits)
     # remove hits of length zero that might have been produced after trimming the cigar string
     hits = filter(h -> h.length > 0, hits)
     return hits
