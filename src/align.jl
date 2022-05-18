@@ -674,7 +674,7 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                     put!(clade.parent.graph, G₀)
                 else
                     G = G₀
-                    close(error_channel)
+                    # close(error_channel)
                 end
             end
         # catch err
