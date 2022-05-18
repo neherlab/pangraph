@@ -6,6 +6,11 @@ import ..PanGraph.Graphs.Shell: execute
 
 export align
 
+function log(msg...)
+    println(stderr, msg...)
+    flush(stderr)
+end
+
 """
     recigar!(hit::Alignment)
 Transform the detailed cigar string returned from wfmash into the more conventional form returned by minimap2.
@@ -124,12 +129,11 @@ Returns the list of intervals between pancontigs.
 """
 function align(ref::PanContigs, qry::PanContigs)
     hits = nothing
-    println(stderr, "starting to align")
-    flush(stderr)
     if ref != qry
         hits = mktempdir() do dir
-            println(stderr, "writing to $dir/qry.fa")
-            flush(stderr)
+        # hits = let dir = mktempdir(;cleanup=false)
+            log("starting to aling ref != qry in $dir")
+            
             open("$dir/qry.fa","w") do io
                 for (name, seq) in zip(qry.name, qry.sequence)
                     if length(seq) ≥ 95
@@ -138,7 +142,6 @@ function align(ref::PanContigs, qry::PanContigs)
                 end
             end
 
-            println(stderr, "writing to $dir/ref.fa")
             open("$dir/ref.fa","w") do io
                 for (name, seq) in zip(ref.name, ref.sequence)
                     if length(seq) ≥ 95
@@ -146,29 +149,41 @@ function align(ref::PanContigs, qry::PanContigs)
                     end
                 end
             end
-            println(stderr, "mmseqs createdb")
-            flush(stderr)
-            run(`mmseqs createdb $dir/ref.fa $dir/ref`)
-            run(`mmseqs createdb $dir/qry.fa $dir/qry`)
-            println(stderr, "mmseqs search")
-            flush(stderr)
-            run(pipeline(`mmseqs search -a --max-seq-len 10000 --search-type 3 $dir/ref $dir/qry $dir/res $dir/tmp`,
-                stdout="$dir/out.log",
-                stderr="$dir/err.log"
-               )
+            
+            log("mmseqs createdb")
+            run(pipeline(`mmseqs createdb $dir/ref.fa $dir/ref`,
+                stdout="$dir/out_createdb_ref.log",
+                stderr="$dir/err_createdb_ref.log"
+                )
             )
-            println(stderr, "mmseqs convertalis")
-            flush(stderr)
-            run(pipeline(`mmseqs convertalis --search-type 3 $dir/ref $dir/qry $dir/res $dir/res.paf --format-output query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw`,
-                stdout="$dir/out.log",
-                stderr="$dir/err.log"
+            run(pipeline(`mmseqs createdb $dir/qry.fa $dir/qry`,
+                stdout="$dir/out_createdb_qry.log",
+                stderr="$dir/err_createdb_qry.log"
+                )
+            )
+            
+            log("mmseqs search")
+            run(pipeline(`mmseqs search -a --max-seq-len 10000 --search-type 3 $dir/ref $dir/qry $dir/res $dir/tmp`,
+                stdout="$dir/out_search.log",
+                stderr="$dir/err_search.log"
                )
             )
 
+            log("mmseqs convertalis")
+            run(pipeline(`mmseqs convertalis --search-type 3 $dir/ref $dir/qry $dir/res $dir/res.paf --format-output query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw`,
+                stdout="$dir/out_convert.log",
+                stderr="$dir/err_convert.log"
+               )
+            )
+            
+            log("parse paf file")
             open(read_mmseqs2, "$dir/res.paf")
         end
     else
         hits = mktempdir() do dir
+        # hits = let dir = mktempdir(;cleanup=false)
+
+            log("starting to aling ref == qry in $dir")
             open("$dir/seq.fa","w") do io
                 for (name, seq) in zip(qry.name, qry.sequence)
                     if length(seq) ≥ 95
@@ -177,25 +192,38 @@ function align(ref::PanContigs, qry::PanContigs)
                 end
             end
 
-            run(`mmseqs createdb $dir/seq.fa $dir/seq`)
+            
+            log("mmseqs createdb")
+            run(pipeline(`mmseqs createdb $dir/seq.fa $dir/seq`,
+                stdout="$dir/out_createdb_seq.log",
+                stderr="$dir/err_createdb_seq.log"
+                )
+            )
+            
+            log("mmseqs search")
             run(pipeline(`mmseqs search -a --max-seq-len 10000 --search-type 3 $dir/seq $dir/seq $dir/res $dir/tmp`,
                 stdout="$dir/out.log",
                 stderr="$dir/err.log"
                )
             )
+
+            log("mmseqs convertalis")
             run(pipeline(`mmseqs convertalis --search-type 3 $dir/seq $dir/seq $dir/res $dir/res.paf --format-output query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw`,
                 stdout="$dir/out.log",
                 stderr="$dir/err.log"
                )
             )
 
+            log("parse paf file")
             open(read_mmseqs2, "$dir/res.paf")
         end
     end
 
-    # hits = map(recigar!, hits)
-    # remove hits of length zero that might have been produced after trimming the cigar string
-    hits = filter(h -> h.length > 0, hits)
+    for hit in hits
+        # transform the cigar string in tuples of (len, char)
+        hit.cigar = collect(uncigar(hit.cigar))
+    end
+
     return hits
 end
 

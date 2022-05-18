@@ -584,9 +584,9 @@ function read_paf(io::IO)
 end
 
 """
-	read_paf(io::IO)
+    read_mmseqs2(io::IO)
 
-Parse a PAF file from IO stream `io`.
+Parse a simil-PAF file produced by mmseq2 from IO stream `io`.
 Return an iterator over all pairwise alignments.
 """
 function read_mmseqs2(io::IO)
@@ -600,9 +600,7 @@ function read_mmseqs2(io::IO)
         # XXX: important: shift PAF entry to be 1 indexed and right-inclusive to match julia
         q1 = int(elt[3])
         q2 = int(elt[4])
-        qstart = q1 < q2 ? q1 : q2
-        qend = q1 < q2 ? q2 : q1
-        strand = q1 < q2 ? '+' : '-'
+        qstart, qend, strand = q1 < q2 ? (q1, q2, true) : (q2, q1, false)
 
         Alignment(
             Hit(
@@ -624,7 +622,7 @@ function read_mmseqs2(io::IO)
             int(elt[12]),
             strand,
             String(elt[13]),
-            1 - float(elt[14]),
+            1. - float(elt[14]),
             int(elt[15])
         )
         end for row in eachline(io) ]

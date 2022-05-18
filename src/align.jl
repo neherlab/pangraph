@@ -638,29 +638,29 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
     tree = ordering(compare, Gs...) |> balance
     log("--> tree: ", tree)
 
-    meter = Progress(length(tree); desc="alignment progress", output=stderr)
+    # meter = Progress(length(tree); desc="alignment progress", output=stderr)
     tips  = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
     log("--> aligning pairs")
 
-    events = Channel{Bool}(10);
+    # events = Channel{Bool}(10);
 
-    @spawn let
-        while isopen(events)
-            take!(events)
-            next!(meter)
-        end
-    end
+    # @spawn let
+    #     while isopen(events)
+    #         take!(events)
+    #         next!(meter)
+    #     end
+    # end
 
-    error_channel = Channel(1)
+    # error_channel = Channel(1)
 
     G = nothing
     for clade ∈ postorder(tree)
-        @spawn try
+        # @spawn try
             if isleaf(clade)
                 close(clade.graph)
                 put!(clade.parent.graph, tips[clade.name])
-                put!(events, true)
+                # put!(events, true)
             else
                 Gₗ = take!(clade.graph)
                 Gᵣ = take!(clade.graph)
@@ -669,7 +669,7 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                 G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, false)
                 G₀ = align_self(G₀, energy, minblock, aligner, verify, false)
 
-                put!(events, true)
+                # put!(events, true)
                 if clade.parent !== nothing
                     put!(clade.parent.graph, G₀)
                 else
@@ -677,18 +677,18 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                     close(error_channel)
                 end
             end
-        catch err
-            put!(error_channel, [err, catch_backtrace()])
-            close(error_channel)
-        end
+        # catch err
+        #     put!(error_channel, [err, catch_backtrace()])
+        #     close(error_channel)
+        # end
     end
 
-    for (err, backtrace) in error_channel
-        @error "In-thread error during graph building:" exception=(err, backtrace)
-        error("graph construction failed, see above for stacktrace")
-    end
+    # for (err, backtrace) in error_channel
+    #     @error "In-thread error during graph building:" exception=(err, backtrace)
+    #     error("graph construction failed, see above for stacktrace")
+    # end
 
-    close(events)
+    # close(events)
 
     return G
 end
