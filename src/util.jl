@@ -592,9 +592,10 @@ end
 Partition string `s` into an array of strings such that no string is longer than `nc` characters.
 """
 function columns(s; nc=80)
-    nr   = ceil(Int64, length(s)/nc)
+    L = length(s)
+    nr   = ceil(Int64, L/nc)
     l(i) = 1+(nc*(i-1)) 
-    r(i) = min(nc*i, length(s))
+    r(i) = min(nc*i, L)
     rows = [String(s[l(i):r(i)]) for i in 1:nr]
     return join(rows,'\n')
 end
