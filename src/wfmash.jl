@@ -132,7 +132,7 @@ function align(ref::PanContigs, qry::PanContigs)
     if ref != qry
         hits = mktempdir() do dir
         # hits = let dir = mktempdir(;cleanup=false)
-            log("starting to aling ref != qry in $dir")
+            # log("starting to aling ref != qry in $dir")
             
             open("$dir/qry.fa","w") do io
                 for (name, seq) in zip(qry.name, qry.sequence)
@@ -150,7 +150,7 @@ function align(ref::PanContigs, qry::PanContigs)
                 end
             end
             
-            log("mmseqs createdb")
+            # log("mmseqs createdb")
             run(pipeline(`mmseqs createdb $dir/ref.fa $dir/ref`,
                 stdout="$dir/out_createdb_ref.log",
                 stderr="$dir/err_createdb_ref.log"
@@ -162,28 +162,28 @@ function align(ref::PanContigs, qry::PanContigs)
                 )
             )
             
-            log("mmseqs search")
+            # log("mmseqs search")
             run(pipeline(`mmseqs search -a --max-seq-len 10000 --search-type 3 $dir/ref $dir/qry $dir/res $dir/tmp`,
                 stdout="$dir/out_search.log",
                 stderr="$dir/err_search.log"
                )
             )
 
-            log("mmseqs convertalis")
+            # log("mmseqs convertalis")
             run(pipeline(`mmseqs convertalis --search-type 3 $dir/ref $dir/qry $dir/res $dir/res.paf --format-output query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw`,
                 stdout="$dir/out_convert.log",
                 stderr="$dir/err_convert.log"
                )
             )
             
-            log("parse paf file")
+            # log("parse paf file")
             open(read_mmseqs2, "$dir/res.paf")
         end
     else
         hits = mktempdir() do dir
         # hits = let dir = mktempdir(;cleanup=false)
 
-            log("starting to aling ref == qry in $dir")
+            # log("starting to aling ref == qry in $dir")
             open("$dir/seq.fa","w") do io
                 for (name, seq) in zip(qry.name, qry.sequence)
                     if length(seq) ≥ 95
@@ -193,28 +193,28 @@ function align(ref::PanContigs, qry::PanContigs)
             end
 
             
-            log("mmseqs createdb")
+            # log("mmseqs createdb")
             run(pipeline(`mmseqs createdb $dir/seq.fa $dir/seq`,
                 stdout="$dir/out_createdb_seq.log",
                 stderr="$dir/err_createdb_seq.log"
                 )
             )
             
-            log("mmseqs search")
+            # log("mmseqs search")
             run(pipeline(`mmseqs search -a --max-seq-len 10000 --search-type 3 $dir/seq $dir/seq $dir/res $dir/tmp`,
                 stdout="$dir/out.log",
                 stderr="$dir/err.log"
                )
             )
 
-            log("mmseqs convertalis")
+            # log("mmseqs convertalis")
             run(pipeline(`mmseqs convertalis --search-type 3 $dir/seq $dir/seq $dir/res $dir/res.paf --format-output query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw`,
                 stdout="$dir/out.log",
                 stderr="$dir/err.log"
                )
             )
 
-            log("parse paf file")
+            # log("parse paf file")
             open(read_mmseqs2, "$dir/res.paf")
         end
     end
