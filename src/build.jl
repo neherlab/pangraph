@@ -68,7 +68,6 @@ Build = Command(
         "alignment kernel",
         (short="-k", long="--alignment-kernel"),
         "backend to use for pairwise genome alignment\n\trecognized options: [minimap2, wfmash]",
-
         "minimap2",
     )
    ],
@@ -144,8 +143,6 @@ Build = Command(
                    panic("external command samtools not found. please install before running build step with wfmash backend\n")
                end
 
-               println(stderr, "choosing wfmash")
-               flush(stderr)
                WFMash.align(contigs₁, contigs₂)
            end
                     _ => error("unrecognized alignment kernel")
