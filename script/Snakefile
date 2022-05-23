@@ -1,0 +1,92 @@
+KERNELS = ["mmseqs", "minimap10", "minimap20"]
+HGT = [1e-2, 5e-2, 1e-1, 5e-1, 1]
+SNPS = [5e-4, 6e-4, 7e-4, 8e-4, 9e-4, 1e-3, 2e-3, 3e-3, 4e-3, 5e-3]
+Ntrials = 25
+TRIALS = list(range(1, Ntrials+1))
+
+# pangraph project folder
+pgf = "./.."
+
+ker_opt = {
+    "mmseqs" : "-k mmseqs",
+    "minimap10" : "-k minimap2 -s 10",
+    "minimap20" : "-k minimap2 -s 20",
+}
+
+rule generate_known_pangraph:
+    message:
+        "generating pangraph with hgt = {wildcards.hgt}, snps = {wildcards.snps}, n = {wildcards.n}"
+    output:
+        graph = "synthetic_data/generated/{hgt}_{snps}/known_{n}.json",
+        seqs  = "synthetic_data/generated/{hgt}_{snps}/seqs_{n}.fa",
+    params:
+        N=100,
+        T=50,
+        L=50000,
+    shell:
+        """
+        julia -t 1 --project=. make-sequence.jl -N {params.N} -L {params.L} \
+        | julia -t 1 --project={pgf} {pgf}/src/PanGraph.jl generate \
+            -m {wildcards.snps} -r {wildcards.hgt} -t {params.T} -i "1e-2" \
+            -o {output.graph} > {output.seqs}
+        """
+
+
+rule infer_guess_pangraph:
+    message:
+        """
+        recosntructing pangraph with kernel {wildcards.kernel}
+        hgt = {wildcards.hgt}, snps = {wildcards.snps}, n = {wildcards.n}
+        """
+    input:
+        "synthetic_data/generated/{hgt}_{snps}/seqs_{n}.fa"
+    output:
+        "synthetic_data/{kernel}/{hgt}_{snps}/guess_{n}.json"
+    params:
+        ker = lambda w : ker_opt[w.kernel]
+    shell:
+        """
+        julia -t 1 --project={pgf} {pgf}/src/PanGraph.jl build \
+            --circular -a 0 -b 0 {params.ker} {input} > {output}
+        """
+
+rule single_accuracy:
+    message:
+        """
+        generating partial accuracy database for:
+        kernel = {wildcards.kernel} hgt = {wildcards.hgt}, snps = {wildcards.snps}
+        """
+    input:
+        known=expand("synthetic_data/generated/{{hgt}}_{{snps}}/known_{n}.json", n=TRIALS),
+        guess=expand("synthetic_data/{{kernel}}/{{hgt}}_{{snps}}/guess_{n}.json", n=TRIALS),
+    output:
+        temp("synthetic_data/{kernel}/{hgt}_{snps}/accuracy.jld2")
+    params:
+        Nf = Ntrials - 1 
+    shell:
+        """
+        KN=($(echo "{input.known}"))
+        GS=($(echo "{input.guess}"))
+        LIST=$(mktemp --suffix=.txt)
+        for n in {{0..{params.Nf}}}; do
+            echo "{wildcards.hgt};{wildcards.snps};$n;${{KN[$n]}};${{GS[$n]}}" >> $LIST 
+        done
+
+        julia -t 1 --project=. make-accuracy.jl $LIST {output}
+        rm $LIST
+        """
+
+
+rule accuracy_database:
+    message:
+        "generating accuracy database for kernel {wildcards.kernel}"
+    input:
+        expand("synthetic_data/{{kernel}}/{hgt}_{snps}/accuracy.jld2",
+            hgt=HGT,
+            snps=SNPS)
+    output:
+        "synthetic_data/{kernel,[^/]+}/accuracy.jld2"
+    shell:
+        """
+        julia -t 1 --project=. concatenate-database.jl {output} {input}
+        """
