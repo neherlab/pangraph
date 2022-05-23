@@ -672,9 +672,9 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
 
                 # the lock ensures that at most N=Threads.nthreads() processes are
                 # spawning run(`cmd`) instances at the same time
-                lock_semaphore(s) do
+                G₀ = lock_semaphore(s) do
                     G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, false)
-                    G₀ = align_self(G₀, energy, minblock, aligner, verify, false)
+                    align_self(G₀, energy, minblock, aligner, verify, false)
                 end
 
                 put!(events, true)
