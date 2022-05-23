@@ -22,9 +22,23 @@ export make_consensus, alignment_alleles
 
 export write_fasta, read_fasta, name
 export read_paf
+export lock_semaphore
+
+# ------------------------------------------------------------------------
+# multithreading resource allocation
+
+function lock_semaphore(f::Function, s::Base.Semaphore)
+    Base.acquire(s)
+    try
+        return f()
+    finally
+        Base.release(s)
+    end
+end
 
 # ------------------------------------------------------------------------
 # random functions
+
 
 # random string of fixed length
 """

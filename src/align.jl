@@ -6,7 +6,7 @@ using ProgressMeter
 
 using Base.Threads: @spawn, @threads
 
-using ..Utility: read_paf, enforce_cutoff!
+using ..Utility: read_paf, enforce_cutoff!, lock_semaphore
 using ..Blocks
 using ..Paths: replace!
 using ..Nodes
@@ -654,6 +654,10 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
 
     error_channel = Channel(1)
 
+    # semaphore to ensure that only N=Threads.nthreads() are
+    # executing subcommands run(`cmd`) at the same time
+    s = Base.Semaphore(Threads.nthreads())
+
     G = nothing
     for clade ∈ postorder(tree)
         @spawn try
@@ -666,8 +670,12 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                 Gᵣ = take!(clade.graph)
                 close(clade.graph)
 
-                G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, false)
-                G₀ = align_self(G₀, energy, minblock, aligner, verify, false)
+                # the lock ensures that at most N=Threads.nthreads() processes are
+                # spawning run(`cmd`) instances at the same time
+                lock_semaphore(s) do
+                    G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, false)
+                    G₀ = align_self(G₀, energy, minblock, aligner, verify, false)
+                end
 
                 put!(events, true)
                 if clade.parent !== nothing
