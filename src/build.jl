@@ -130,8 +130,6 @@ Build = Command(
            end
        end
 
-       println(stderr, "choose aligner")
-       flush(stderr)
        aligner(contigs₁, contigs₂) = @match arg(Build, "-k") begin
            "minimap2" => Minimap.align(contigs₁, contigs₂, minblock, sensitivity)
            "wfmash"   => let
