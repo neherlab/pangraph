@@ -638,12 +638,13 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
     tree = ordering(compare, Gs...) |> balance
     log("--> tree: ", tree)
 
-    meter = Progress(length(tree); desc="alignment progress", output=stderr)
+    meter_size = (length(tree) - 1) ÷ 2
+    meter = Progress(meter_size; desc="alignment progress", output=stderr)
     tips  = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
     log("--> aligning pairs")
 
-    events = Channel{Bool}(10);
+    events = Channel{Bool}(0);
 
     @spawn let
         while isopen(events)
@@ -664,7 +665,6 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
             if isleaf(clade)
                 close(clade.graph)
                 put!(clade.parent.graph, tips[clade.name])
-                put!(events, true)
             else
                 Gₗ = take!(clade.graph)
                 Gᵣ = take!(clade.graph)
