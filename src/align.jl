@@ -296,6 +296,11 @@ function Base.length(node::Clade)
     return 1 + Base.length(node.left) + Base.length(node.right)
 end
 
+function n_inner_nodes(node::Clade)
+    isleaf(node) && return 0
+    return 1 + n_inner_nodes(node.left) + n_inner_nodes(node.right)
+end
+
 # ------------------------------------------------------------------------
 # ordering functions
 
@@ -638,26 +643,17 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
     tree = ordering(compare, Gs...) |> balance
     log("--> tree: ", tree)
 
-    meter_size = (length(tree) + 1) ÷ 2
-    meter = Progress(meter_size; desc="alignment progress", output=stderr)
+    meter = Progress(n_inner_nodes(tree); desc="alignment progress", output=stderr)
     tips  = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
     log("--> aligning pairs")
-
-    events = Channel{Bool}(0);
-
-    @spawn let
-        while isopen(events)
-            take!(events)
-            next!(meter)
-        end
-    end
 
     error_channel = Channel(1)
 
     # semaphore to ensure that only N=Threads.nthreads() are
     # executing subcommands run(`cmd`) at the same time
     s = Base.Semaphore(Threads.nthreads())
+    meter_lock = ReentrantLock()
 
     G = nothing
     for clade ∈ postorder(tree)
@@ -677,7 +673,11 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                     align_self(G₀, energy, minblock, aligner, verify, false)
                 end
 
-                put!(events, true)
+                # advance progress bar in a thread-safe way
+                lock(meter_lock) do
+                    next!(meter)
+                end
+
                 if clade.parent !== nothing
                     put!(clade.parent.graph, G₀)
                 else
@@ -696,7 +696,7 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
         error("graph construction failed, see above for stacktrace")
     end
 
-    close(events)
+    # close(events)
 
     return G
 end
