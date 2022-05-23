@@ -638,7 +638,7 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
     tree = ordering(compare, Gs...) |> balance
     log("--> tree: ", tree)
 
-    meter_size = (length(tree) - 1) ÷ 2
+    meter_size = (length(tree) + 1) ÷ 2
     meter = Progress(meter_size; desc="alignment progress", output=stderr)
     tips  = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
