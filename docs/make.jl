@@ -22,7 +22,7 @@ makedocs(
             "lib/gfa.md",
             "lib/mash.md",
             "lib/minimap.md",
-            "lib/wfmash.md",
+            "lib/mmseqs.md",
             "lib/node.md",
             "lib/path.md",
             "lib/simulate.md",
