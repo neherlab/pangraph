@@ -14,7 +14,7 @@ pairwise sensitivity | String | s | sensitivity | controls the pairwise genome a
 maximum self-maps | Integer | x | max-self-map | maximum number of iterations to perform block self maps per pairwise graph merger
 enforce uppercase | Boolean | u | upper-case | toggle if input genomes are set to uppercase characters
 distance calculator | String | d | distance-backend | only accepts "native" or "mash"
-alignment kernel | String | k | alignment-kernel | only accepts "minimap2" or "wfmash"
+alignment kernel | String | k | alignment-kernel | only accepts "minimap2" or "mmseqs"
 
 ## Arguments
 Expects one or more fasta files.

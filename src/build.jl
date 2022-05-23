@@ -67,7 +67,7 @@ Build = Command(
         String,
         "alignment kernel",
         (short="-k", long="--alignment-kernel"),
-        "backend to use for pairwise genome alignment\n\trecognized options: [minimap2, wfmash]",
+        "backend to use for pairwise genome alignment\n\trecognized options: [minimap2, mmseqs]",
         "minimap2",
     )
    ],
@@ -132,16 +132,12 @@ Build = Command(
 
        aligner(contigs₁, contigs₂) = @match arg(Build, "-k") begin
            "minimap2" => Minimap.align(contigs₁, contigs₂, minblock, sensitivity)
-           "wfmash"   => let
-               if !Shell.havecommand("wfmash")
-                   panic("external command wfmash not found. please install before running build step with wfmash backend\n")
+           "mmseqs"   => let
+               if !Shell.havecommand("mmseqs")
+                   panic("external command mmseqs not found. please install before running build step with mmseqs backend\n")
                end
 
-               if !Shell.havecommand("samtools")
-                   panic("external command samtools not found. please install before running build step with wfmash backend\n")
-               end
-
-               WFMash.align(contigs₁, contigs₂)
+               MMseqs.align(contigs₁, contigs₂)
            end
                     _ => error("unrecognized alignment kernel")
        end

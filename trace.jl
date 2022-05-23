@@ -15,7 +15,7 @@ PanGraph.main(["help", "help"])		   # help usage
 
 # build
 PanGraph.main(["build", "-c", "-u", "-b", "0", "-a", "0", "$root/test.fa"])
-PanGraph.main(["build", "-c", "-u", "-b", "0", "-a", "0", "-k", "wfmash", "$root/test.fa"])
+PanGraph.main(["build", "-c", "-u", "-b", "0", "-a", "0", "-k", "mmseqs", "$root/test.fa"])
 
 # export
 PanGraph.main(["export", "-o", "$root/export", "$root/test.json"])

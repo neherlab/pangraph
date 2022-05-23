@@ -71,10 +71,10 @@ do
                 known=$(mktemp /tmp/known.json.XXXXXX)
                 guess=$(mktemp /tmp/guess.json.XXXXXX)
 
-                if [[ "$asm" == "wfmash" ]]; then
+                if [[ "$asm" == "mmseqs" ]]; then
                     julia --project=script "$seq" -N "$N" -L "$L" \
                   | pangraph generate -m "$snp" -r "$hgt" -t "$T" -i "1e-2" -o "$known" \
-                  | pangraph build --circular -a 0 -b 0 --alignment-kernel wfmash \
+                  | pangraph build --circular -a 0 -b 0 --alignment-kernel mmseqs \
                     1>"$guess" 2>/dev/null
                 else
                     julia --project=script "$seq" -N "$N" -L "$L" \

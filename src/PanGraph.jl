@@ -82,7 +82,7 @@ import .Graphs.Utility: read_fasta, write_fasta
 
 # alignment kernels
 include("minimap.jl")
-include("wfmash.jl")
+include("mmseqs.jl")
 
 include("simulate.jl")
 using .Simulation

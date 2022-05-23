@@ -1,13 +1,13 @@
-# WFMash Wrapper
+# MMseqs Wrapper
 
 ## Types
 ```@autodocs
-Modules = [PanGraph.WFMash]
+Modules = [PanGraph.MMseqs]
 Order = [:type, :constant]
 ```
 
 ## Functions
 ```@autodocs
-Modules = [PanGraph.WFMash]
+Modules = [PanGraph.MMseqs]
 Order = [:function]
 ```

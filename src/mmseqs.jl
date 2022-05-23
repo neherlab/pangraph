@@ -1,4 +1,4 @@
-module WFMash
+module MMseqs
 
 import ..PanGraph: PanContigs, Alignment
 import ..PanGraph.Graphs.Utility: read_paf, write_fasta, uncigar, read_mmseqs2

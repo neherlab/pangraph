@@ -127,7 +127,7 @@ function publication(data, x, y)
     return fig
 end
 
-const re = r"-([0-9]+|wfmash)\.jld2"
+const re = r"-([0-9]+|mmseqs)\.jld2"
 function group(path)
     return match(re, path)[1]
 end
