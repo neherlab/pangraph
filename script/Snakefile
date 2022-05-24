@@ -13,6 +13,10 @@ ker_opt = {
     "minimap20" : "-k minimap2 -s 20",
 }
 
+rule all:
+    input:
+        expand("figs/paper-accuracy-{kernel}.png", kernel=list(ker_opt.keys()))
+
 rule generate_known_pangraph:
     message:
         "generating pangraph with hgt = {wildcards.hgt}, snps = {wildcards.snps}, n = {wildcards.n}"
