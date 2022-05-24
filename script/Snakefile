@@ -60,7 +60,7 @@ rule single_accuracy:
         known=expand("synthetic_data/generated/{{hgt}}_{{snps}}/known_{n}.json", n=TRIALS),
         guess=expand("synthetic_data/{{kernel}}/{{hgt}}_{{snps}}/guess_{n}.json", n=TRIALS),
     output:
-        temp("synthetic_data/{kernel}/{hgt}_{snps}/accuracy.jld2")
+        temp("synthetic_data/{kernel}/{hgt}_{snps}/partial_accuracy.jld2")
     params:
         Nf = Ntrials - 1 
     shell:
@@ -81,12 +81,26 @@ rule accuracy_database:
     message:
         "generating accuracy database for kernel {wildcards.kernel}"
     input:
-        expand("synthetic_data/{{kernel}}/{hgt}_{snps}/accuracy.jld2",
+        expand("synthetic_data/{{kernel}}/{hgt}_{snps}/partial_accuracy.jld2",
             hgt=HGT,
             snps=SNPS)
     output:
-        "synthetic_data/{kernel,[^/]+}/accuracy.jld2"
+        "synthetic_data/results/accuracy-{kernel}.jld2"
     shell:
         """
         julia -t 1 --project=. concatenate-database.jl {output} {input}
+        """
+
+rule accuracy_plots:
+    message:
+        "generating accuracy plot for kernel {wildcards.kernel}"
+    input:
+        "synthetic_data/results/accuracy-{kernel}.jld2"
+    output:
+        "figs/cdf-accuracy-{kernel}.png",
+        "figs/heatmap-accuracy-{kernel}.png",
+        "figs/paper-accuracy-{kernel}.png",
+    shell:
+        """
+        julia -t 1 --project=. plot-accuracy.jl {input} figs
         """

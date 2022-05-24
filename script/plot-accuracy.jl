@@ -73,7 +73,7 @@ function plotgrid(data, x, y; group="", labels=true)
 end
 
 function plotcdfs(data, x, y; group="", fontsize=12, kwargs...)
-    i = size(data,1)÷2
+    i = max(1,size(data,1)÷2)
     c = cgrad(:matter, size(data,2), categorical=true)
     p = plot(;
         legend = :bottomright,
@@ -127,7 +127,7 @@ function publication(data, x, y)
     return fig
 end
 
-const re = r"-([0-9]+|mmseqs)\.jld2"
+const re = r"/accuracy-([^/]+)\.jld2"
 function group(path)
     return match(re, path)[1]
 end
