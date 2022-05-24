@@ -46,6 +46,8 @@ rule infer_guess_pangraph:
         "synthetic_data/generated/{hgt}_{snps}/seqs_{n}.fa"
     output:
         "synthetic_data/{kernel}/{hgt}_{snps}/guess_{n}.json"
+    conda:
+        "cluster/pangraph_build_env.yml"
     params:
         ker = lambda w : ker_opt[w.kernel]
     shell:
