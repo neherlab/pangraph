@@ -5,6 +5,9 @@ using JLD2, FileIO
 
 import CairoMakie
 
+# plot in headless mode -> allow for plotting on the server where no display is available
+ENV["GKSwstype"] = "100"
+
 include("plot-util.jl")
 
 Base.zero(x::Type{Array{Float64,1}}) = Float64[]
