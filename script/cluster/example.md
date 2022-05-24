@@ -7,4 +7,5 @@ snakemake all --jobs=20 \
     --cluster-config cluster/cluster_config.json \
     --jobname "{rulename}_{jobid}" \
     --latency-wait 60
+    --use-conda
 ```

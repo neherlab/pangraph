@@ -52,7 +52,7 @@ rule infer_guess_pangraph:
         ker = lambda w : ker_opt[w.kernel]
     shell:
         """
-        julia -t 1 --project={pgf} {pgf}/src/PanGraph.jl build \
+        julia -t 8 --project={pgf} {pgf}/src/PanGraph.jl build \
             --circular -a 0 -b 0 {params.ker} {input} > {output}
         """
 
