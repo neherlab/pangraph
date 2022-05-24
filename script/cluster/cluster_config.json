@@ -6,9 +6,9 @@
         "mem": "5G"
     },
     "infer_guess_pangraph": {
-        "time": "00:29:00",
-        "qos": "30min",
-        "n": 12,
-        "mem": "120G"
+        "time": "05:59:00",
+        "qos": "6hours",
+        "n": 8,
+        "mem": "100G"
     }
 }
