@@ -1,3 +1,14 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:10bb377895cb758a21ba44a1111d83536fed41058fdac403b4b75b86eb475f48
-size 245
+{
+    "__default__": {
+        "time": "00:29:00",
+        "qos": "30min",
+        "n": 1,
+        "mem": "5G"
+    },
+    "infer_guess_pangraph": {
+        "time": "05:58:00",
+        "qos": "6hours",
+        "n": 1,
+        "mem": "15G"
+    }
+}
