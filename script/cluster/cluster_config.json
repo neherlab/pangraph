@@ -5,7 +5,7 @@
         "n": 1,
         "mem": "5G"
     },
-    "infer_guess_pangraph": {
+    "guess_pangraph_mmseqs": {
         "time": "05:59:00",
         "qos": "6hours",
         "n": 8,

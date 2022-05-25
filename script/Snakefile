@@ -17,7 +17,7 @@ rule all:
     input:
         expand("figs/paper-accuracy-{kernel}.png", kernel=list(ker_opt.keys()))
 
-rule generate_known_pangraph:
+rule generate_data:
     message:
         "generating pangraph with hgt = {wildcards.hgt}, snps = {wildcards.snps}, n = {wildcards.n}"
     output:
@@ -35,21 +35,40 @@ rule generate_known_pangraph:
             -o {output.graph} > {output.seqs}
         """
 
+ruleorder: guess_pangraph_mmseqs > guess_pangraph
 
-rule infer_guess_pangraph:
+rule guess_pangraph:
     message:
         """
         recosntructing pangraph with kernel {wildcards.kernel}
         hgt = {wildcards.hgt}, snps = {wildcards.snps}, n = {wildcards.n}
         """
     input:
-        "synthetic_data/generated/{hgt}_{snps}/seqs_{n}.fa"
+        rules.generate_data.output.seqs
     output:
         "synthetic_data/{kernel}/{hgt}_{snps}/guess_{n}.json"
-    conda:
-        "cluster/pangraph_build_env.yml"
     params:
         ker = lambda w : ker_opt[w.kernel]
+    shell:
+        """
+        julia -t 1 --project={pgf} {pgf}/src/PanGraph.jl build \
+            --circular -a 0 -b 0 {params.ker} {input} > {output}
+        """
+
+rule guess_pangraph_mmseqs:
+    message:
+        """
+        recosntructing pangraph with kernel mmseqs
+        hgt = {wildcards.hgt}, snps = {wildcards.snps}, n = {wildcards.n}
+        """
+    input:
+        rules.generate_data.output.seqs
+    output:
+        "synthetic_data/mmseqs/{hgt}_{snps}/guess_{n}.json"
+    params:
+        ker = ker_opt["mmseqs"]
+    conda:
+        "cluster/pangraph_build_env.yml"
     shell:
         """
         julia -t 8 --project={pgf} {pgf}/src/PanGraph.jl build \
@@ -101,7 +120,7 @@ rule accuracy_plots:
     message:
         "generating accuracy plot for kernel {wildcards.kernel}"
     input:
-        "synthetic_data/results/accuracy-{kernel}.jld2"
+        rules.accuracy_database.output
     output:
         "figs/cdf-accuracy-{kernel}.png",
         "figs/heatmap-accuracy-{kernel}.png",
