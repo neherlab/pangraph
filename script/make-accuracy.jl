@@ -159,8 +159,7 @@ function compare(path)
         mutualentropy(graph),
         sum(μ.*l) ./ sum(l),
         sum(μr.*lr) ./ sum(lr),
-        n,
-        graph
+        n
     )
 end
 
@@ -195,15 +194,13 @@ if abspath(PROGRAM_FILE) == @__FILE__
             param = unpack(msg)
             group = JLD2.Group(database, "$(param.hgt)/$(param.snp)/$(param.nit)")
             try
-                costs, tiles, dists, dists_known, nblks, input = compare((known=param.known, guess=param.guess))
-                group["input"] = nothing #input # NOTE: increases the stored data massively
+                costs, tiles, dists, dists_known, nblks = compare((known=param.known, guess=param.guess))
                 group["costs"] = costs
                 group["tiles"] = tiles
                 group["nblks"] = nblks
                 group["dists"] = dists
                 group["dists_known"] = dists_known
 
-                rm(param.known); rm(param.guess)
             catch
                 println("PROBLEM: ", param.known, " ", param.guess)
                 continue # skip the message
