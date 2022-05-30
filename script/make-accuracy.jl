@@ -10,30 +10,30 @@ using Statistics
 # ------------------------------------------------------------------------
 # cost computation
 
-δ(q, r; L=100) = mod(q-r, L)
-distance(qry, ref; L=100) = min.(δ.(qry, ref'; L=L), δ.(ref', qry; L=L))
+δ(q, r; L = 100) = mod(q - r, L)
+distance(qry, ref; L = 100) = min.(δ.(qry, ref'; L = L), δ.(ref', qry; L = L))
 
-function cutoff(position, len, low; match=nothing)
+function cutoff(position, len, low; match = nothing)
     measurable = copy(position)
 
     @label loop
-    D = mod.(measurable.- measurable', len)
+    D = mod.(measurable .- measurable', len)
     i = findfirst(0 .< D .< low)
     i !== nothing || @goto endloop
 
-        if match === nothing
+    if match === nothing
+        deleteat!(measurable, i.I[2])
+    else
+        m1 = minimum(distance(measurable[i.I[1]], match; L = len))
+        m2 = minimum(distance(measurable[i.I[2]], match; L = len))
+        if m1 < m2
             deleteat!(measurable, i.I[2])
         else
-            m1 = minimum(distance(measurable[i.I[1]], match; L=len))
-            m2 = minimum(distance(measurable[i.I[2]], match; L=len))
-            if m1 < m2
-                deleteat!(measurable, i.I[2])
-            else
-                deleteat!(measurable, i.I[1])
-            end
+            deleteat!(measurable, i.I[1])
         end
+    end
 
-    @goto  loop
+    @goto loop
     @label endloop
 
     return measurable
@@ -45,20 +45,20 @@ function nearestbreaks(graph)
             L = length(sequence(known))
             guess = graph.guess.sequence[name]
 
-            x = cutoff(guess.position,L,100)
-            y = cutoff(known.position,L,100; match=x)
-            d = distance(x,y; L=L)
+            x = cutoff(guess.position, L, 100)
+            y = cutoff(known.position, L, 100; match = x)
+            d = distance(x, y; L = L)
 
             _, cost = hungarian(d)
-            cost / min(length(x),length(y))
-        end for (name,known) in graph.known.sequence
+            cost / min(length(x), length(y))
+        end for (name, known) in graph.known.sequence
     ]
 end
 
 struct Partition
-    dx :: Int64
-    b1 :: Graphs.Block
-    b2 :: Graphs.Block
+    dx::Int64
+    b1::Graphs.Block
+    b2::Graphs.Block
 end
 
 function breakpoints(known, guess, name)
@@ -66,17 +66,17 @@ function breakpoints(known, guess, name)
     #  x1->     x2->     x3->
     #  | node 1 | node 2 |
     bps = [
-        (x,j,p.node[i].block) for (j,p) in enumerate([known,guess]) 
-        for (i,x) in enumerate(p.position[1:end-1])
+        (x, j, p.node[i].block) for (j, p) in enumerate([known, guess]) for
+        (i, x) in enumerate(p.position[1:end-1])
     ]
-    sort!(bps, by=first)
+    sort!(bps, by = first)
 
     # get the start block
     blocks = Array{Graphs.Block,1}(undef, 2)
     i, j = (bps[1][2] == 1) ? (1, 2) : (2, 1)
 
     blocks[i] = bps[1][3]
-    for k in length(bps):-1:1
+    for k = length(bps):-1:1
         if bps[k][2] == j
             blocks[j] = bps[k][3]
             break
@@ -89,7 +89,8 @@ function breakpoints(known, guess, name)
     end
 
     # edge case, if i = 1 and i = 2 correspond to equal break points
-    part = Partition[]; i = 2
+    part = Partition[]
+    i = 2
     if bps[i][1] == bps[i-1][1]
         blocks[bps[i][2]] = bps[i][3]
         i += 1
@@ -98,7 +99,7 @@ function breakpoints(known, guess, name)
     while i <= length(bps)
         dx = bps[i][1] - bps[i-1][1]
         push!(part, Partition(dx, blocks[1], blocks[2]))
-        if (i <= length(bps)-1) && (bps[i][1] == bps[i+1][1])
+        if (i <= length(bps) - 1) && (bps[i][1] == bps[i+1][1])
             blocks[bps[i+0][2]] = bps[i+0][3]
             blocks[bps[i+1][2]] = bps[i+1][3]
             i += 2
@@ -108,14 +109,14 @@ function breakpoints(known, guess, name)
         end
     end
     # edge case: have to close the circular genome manually
-    dx = δ(bps[1][1], bps[end][1]; L=L)
+    dx = δ(bps[1][1], bps[end][1]; L = L)
     push!(part, Partition(dx, blocks[1], blocks[2]))
 
     return part
 end
 
 function tiling(breaks)
-    map = Dict{Tuple{Graphs.Block,Graphs.Block}, Int64}()
+    map = Dict{Tuple{Graphs.Block,Graphs.Block},Int64}()
     for bp in breaks
         for p in bp
             key = (p.b1, p.b2)
@@ -130,22 +131,22 @@ function tiling(breaks)
 end
 
 function mutualentropy(graph)
-    self  = (breakpoints(known, known, name) for (name, known) in graph.known.sequence)
-    cross = (breakpoints(known, graph.guess.sequence[name], name) for (name, known) in graph.known.sequence)
+    self = (breakpoints(known, known, name) for (name, known) in graph.known.sequence)
+    cross = (
+        breakpoints(known, graph.guess.sequence[name], name) for
+        (name, known) in graph.known.sequence
+    )
 
     function entropy(tile)
         len = sum(values(tile))
-        return -sum(v/len * log(v/len) for v in values(tile))
+        return -sum(v / len * log(v / len) for v in values(tile))
     end
 
     return entropy(tiling(cross)) - entropy(tiling(self))
 end
 
 function compare(path)
-	graph = (
-		known = open(unmarshal,path.known),
-		guess = open(unmarshal,path.guess),
-	)
+    graph = (known = open(unmarshal, path.known), guess = open(unmarshal, path.guess))
 
     μ = [Graphs.Blocks.diversity(b) for b in values(graph.guess.block)]
     l = [Graphs.Blocks.length(b) for b in values(graph.guess.block)]
@@ -153,48 +154,64 @@ function compare(path)
     μr = [Graphs.Blocks.diversity(b) for b in values(graph.known.block)]
     lr = [Graphs.Blocks.length(b) for b in values(graph.known.block)]
 
-    n = mean( length(p.node) for p in values(graph.known.sequence) )
+    n = mean(length(p.node) for p in values(graph.known.sequence))
     return (
-        filter((l)->l≤1000, nearestbreaks(graph)),
+        filter((l) -> l ≤ 1000, nearestbreaks(graph)),
         mutualentropy(graph),
-        sum(μ.*l) ./ sum(l),
-        sum(μr.*lr) ./ sum(lr),
-        n
+        sum(μ .* l) ./ sum(l),
+        sum(μr .* lr) ./ sum(lr),
+        n,
     )
 end
 
 # ------------------------------------------------------------------------
 # main point of entry
 
-function unpack(message)
-    entry = split(message,';')
+function unpack_files(files)
+    rx = r"/([^/]+)_([^/]+)/(known|guess)_(\d+)\.json"
 
-    return(
-        hgt = parse(Float64, entry[1]),
-        snp = parse(Float64, entry[2]),
-        nit = parse(Int64,   entry[3]),
-        known = entry[4],
-        guess = entry[5]
-    )
+    par_dict = Dict{String,Dict}()
+
+
+    for f in files
+        m = match(rx, f)
+        m !== nothing || error(
+            "filename $f does not respect the pattern .../{hgt}_{snp}/(known|guess)_{nit}.json",
+        )
+        hgt, snp, type, nit = m.captures
+        hgt, snp, nit = parse(Float64, hgt), parse(Float64, snp), parse(Int64, nit)
+        group = "$hgt/$snp/$nit"
+        if !haskey(par_dict, group)
+            par_dict[group] =
+                Dict{String,Union{String,Nothing}}("known" => nothing, "guess" => nothing)
+        end
+        par_dict[group][type] = f
+    end
+
+    par_list =
+        [(group = group, known = p["known"], guess = p["guess"]) for (group, p) in par_dict]
+    return par_list
+
 end
 
-function usage()
-	println("usage: julia script/assay-alignment.jl <input-fifo> <output.jld2>")
-	exit(2)
-end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-	length(ARGS) == 2 || usage()
-    pipe = ARGS[1]
-    data = ARGS[2]
+    data = ARGS[1]
+    files = ARGS[2:end]
 
-    jldopen(data, "w") do database; open(pipe) do io
-        for msg in eachline(io)
-            println("Recieved: ", msg)
-            param = unpack(msg)
-            group = JLD2.Group(database, "$(param.hgt)/$(param.snp)/$(param.nit)")
+    @assert length(files) % 2 == 0
+
+    param_list = unpack_files(files)
+
+    jldopen(data, "w") do database
+        for param in param_list
+            println("Processing: ", param)
+            group = JLD2.Group(database, param.group)
             try
-                costs, tiles, dists, dists_known, nblks = compare((known=param.known, guess=param.guess))
+                (param.known !== nothing && param.guess !== nothing) ||
+                    error("error or guess not present for $(param.group)")
+                costs, tiles, dists, dists_known, nblks =
+                    compare((known = param.known, guess = param.guess))
                 group["costs"] = costs
                 group["tiles"] = tiles
                 group["nblks"] = nblks
@@ -207,7 +224,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
             finally
             end
         end
-    end; end
+    end
 end
 
 end

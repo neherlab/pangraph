@@ -40,7 +40,7 @@ ruleorder: guess_pangraph_mmseqs > guess_pangraph
 rule guess_pangraph:
     message:
         """
-        recosntructing pangraph with kernel {wildcards.kernel}
+        reconstructing pangraph with kernel {wildcards.kernel}
         hgt = {wildcards.hgt}, snps = {wildcards.snps}, n = {wildcards.n}
         """
     input:
@@ -58,7 +58,7 @@ rule guess_pangraph:
 rule guess_pangraph_mmseqs:
     message:
         """
-        recosntructing pangraph with kernel mmseqs
+        reconstructing pangraph with kernel mmseqs
         hgt = {wildcards.hgt}, snps = {wildcards.snps}, n = {wildcards.n}
         """
     input:
@@ -90,15 +90,7 @@ rule single_accuracy:
         Nf = Ntrials - 1 
     shell:
         """
-        KN=($(echo "{input.known}"))
-        GS=($(echo "{input.guess}"))
-        LIST=$(mktemp --suffix=.txt)
-        for n in {{0..{params.Nf}}}; do
-            echo "{wildcards.hgt};{wildcards.snps};$n;${{KN[$n]}};${{GS[$n]}}" >> $LIST 
-        done
-
-        julia -t 1 --project=. make-accuracy.jl $LIST {output}
-        rm $LIST
+        julia -t 1 --project=. make-accuracy.jl {output} {input}
         """
 
 
