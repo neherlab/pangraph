@@ -85,7 +85,7 @@ rule single_accuracy:
         known=expand("synthetic_data/generated/{{hgt}}_{{snps}}/known_{n}.json", n=TRIALS),
         guess=expand("synthetic_data/{{kernel}}/{{hgt}}_{{snps}}/guess_{n}.json", n=TRIALS),
     output:
-        "synthetic_data/{kernel}/{hgt}_{snps}/partial_accuracy.jld2"
+        temp("synthetic_data/{kernel}/{hgt}_{snps}/partial_accuracy.jld2")
     params:
         Nf = Ntrials - 1 
     shell:
