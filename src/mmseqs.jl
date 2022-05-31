@@ -72,7 +72,7 @@ function align(ref::PanContigs, qry::PanContigs)
                 -a 
                 --max-seq-len 10000
                 --search-type 3
-                $refdb $qrydb $dir/res $dir/tmp`,
+                $qrydb $refdb $dir/res $dir/tmp`,
                 stdout = "$dir/out_search.log",
                 stderr = "$dir/err_search.log",
             ),
@@ -84,7 +84,7 @@ function align(ref::PanContigs, qry::PanContigs)
                 `mmseqs convertalis
                 --threads 1 
                 --search-type 3
-                $refdb $qrydb $dir/res $dir/res.paf
+                $qrydb $refdb $dir/res $dir/res.paf
                 --format-output query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw`,
                 stdout = "$dir/out_convert.log",
                 stderr = "$dir/err_convert.log",
