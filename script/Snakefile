@@ -86,8 +86,6 @@ rule single_accuracy:
         guess=expand("synthetic_data/{{kernel}}/{{hgt}}_{{snps}}/guess_{n}.json", n=TRIALS),
     output:
         temp("synthetic_data/{kernel}/{hgt}_{snps}/partial_accuracy.jld2")
-    params:
-        Nf = Ntrials - 1 
     shell:
         """
         julia -t 1 --project=. make-accuracy.jl {output} {input}
