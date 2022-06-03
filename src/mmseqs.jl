@@ -40,13 +40,17 @@ function align(ref::PanContigs, qry::PanContigs)
         end
 
         run(
-            `mmseqs easy-search
-            $qryfa $reffa $dir/res.paf $dir/tmp
-            --threads 1
-            --max-seq-len 10000
-            -a
-            --search-type 3
-            --format-output query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw`,
+            pipeline(
+                `mmseqs easy-search
+                $qryfa $reffa $dir/res.paf $dir/tmp
+                --threads 1
+                --max-seq-len 10000
+                -a
+                --search-type 3
+                --format-output query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw`,
+                stdout = devnull,
+                stderr = devnull,
+            ),
             wait = true,
         )
 
