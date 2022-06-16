@@ -69,6 +69,14 @@ diversity(data) = collectentry(
     (arr, num) -> arr ./ num,
 )
 
+mut_dens(data) = collectentry(
+    data,
+    Float64,
+    "mut_dens",
+    (arr, i, j, x) -> arr[i, j] += x,
+    (arr, num) -> arr ./ num,
+)
+
 const rex = r"/accuracy-([^/]+)\.jld2"
 function group(path)
     return match(rex, path)[1]
@@ -81,12 +89,11 @@ function linreg(fit_arr::Vector{Tuple{Float64,Float64}})::Float64
 end
 
 ##
-function main(figname, paths)
-    sort!(paths)
 
-    ms = Dict(1 => :xcross, 2 => :cross, 3 => :circle)
+function comparison_plot(paths)
+    ms = Dict("minimap10" => :xcross, "minimap20" => :cross, "mmseqs" => :circle)
 
-    plot(
+    p = plot(
         xlabel = "mutation rate",
         ylabel = "avg. block divergence (inferred graph)",
         legend = :topleft,
@@ -94,6 +101,13 @@ function main(figname, paths)
     fit_arr = Tuple{Float64,Float64}[]
     for (n, path) in enumerate(paths)
         data = load(path)
+        path_id = group(path)
+
+        path_label = Dict(
+            "mmseqs" => "mmseqs2",
+            "minimap10" => "minimap2 (asm10)",
+            "minimap20" => "minimap (asm20)",
+        )
 
         D, h, s = diversity(data)
         I, J = size(D)
@@ -101,12 +115,12 @@ function main(figname, paths)
         colors = cgrad(:thermal, I, categorical = true)
 
         for i = 1:I
-            label = i == 1 ? group(path) : false
+            label = i == 1 ? path_id : false
             scatter!(
                 s,
                 D[i, :],
-                label = label,
-                marker = ms[n],
+                label = path_label[path_id],
+                marker = ms[path_id],
                 markercolor = colors[i],
             )
 
@@ -128,7 +142,16 @@ function main(figname, paths)
         label = "lin. reg. (α = $(round(α, digits=1)))",
     )
 
+    return p
+end
+
+
+function main(figname, paths)
+    sort!(paths)
+
+    p = comparison_plot(paths)
     savefig(figname)
+
 end
 
 ##

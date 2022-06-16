@@ -68,7 +68,7 @@ diversity(data)  = collectentry(data,Float64,"dists",(arr,i,j,x)->arr[i,j]+=x, (
 complexity(data) = collectentry(data,Float64,"nblks",(arr,i,j,x)->arr[i,j]+=x, (arr,num)->arr./num)
 
 function plotgrid(data, x, y; group="", labels=true)
-    heatmap(string.(x), [@sprintf("%.1E",5*Y) for Y in y], data';
+    heatmap(string.(x), [@sprintf("%.1E",α_mutrate_to_divergence*Y) for Y in y], data';
         xlabel = labels ? "HGT rate / genome / generation" : "",
         ylabel = labels ? "pairwise diversity" : "",
         title  = length(group) > 0 ? "entropy $(group)" : "",
@@ -153,6 +153,7 @@ function main(path, destdir)
     # publication plot
     fig = publication(accuracy(data)...)
     CairoMakie.save("$(destdir)/paper-$(base(path)).png", fig, px_per_unit=2)
+    CairoMakie.save("$(destdir)/paper-$(base(path)).pdf", fig)
 #=
     TODO: return one figure with correct layout
     l = @layout[Plots.grid(1,2) a{0.05w}]
