@@ -15,8 +15,8 @@ ker_opt = {
 
 rule all:
     input:
-        expand("figs/paper-accuracy-{kernel}.png", kernel=list(ker_opt.keys()))
-        "figs/paper-accuracy-comparison.pdf"
+        expand("figs/paper-accuracy-{kernel}.png", kernel=list(ker_opt.keys())),
+        "figs/paper-accuracy-comparison.pdf",
 
 rule generate_data:
     message:
