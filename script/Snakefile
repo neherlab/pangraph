@@ -119,3 +119,15 @@ rule accuracy_plots:
         """
         julia -t 1 --project=. plot-accuracy.jl {input} figs
         """
+
+rule accuracy_comparison_plots:
+    message:
+        "generating accuracy comparison plots"
+    input:
+        expand("synthetic_data/results/accuracy-{kernel}.jld2", kernel=KERNELS)
+    output:
+        "figs/paper-accuracy-comparison.pdf"
+    shell:
+        """
+        julia -t 1 --project=. plot-accuracy-comparison.jl {output} {input}
+        """

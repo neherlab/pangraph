@@ -10,6 +10,8 @@ ENV["GKSwstype"] = "100"
 
 include("plot-util.jl")
 
+α_mutrate_to_divergence = 12.8
+
 Base.zero(x::Type{Array{Float64,1}}) = Float64[]
 
 function unpack(key)
@@ -96,7 +98,7 @@ function plotcdfs(data, x, y; group="", fontsize=12, kwargs...)
         cdfplot!(data[i,j].+1;
             linewidth = 1,
             color     = c[j],
-            label     = @sprintf("%.1E", 5*y[j]),
+            label     = @sprintf("%.1E", α_mutrate_to_divergence*y[j]),
          )
     end
 
@@ -121,7 +123,7 @@ function publication(data, x, y)
         points = sort(reduce(vcat, data[i,j] for i in 1:size(data,1))).+1
         CairoMakie.lines!(axis, points , range(0,1,length(points)),
             color = c[j],
-            label = @sprintf("%.1e", 5*y[j])
+            label = @sprintf("%.1e", α_mutrate_to_divergence*y[j])
         )
     end
 

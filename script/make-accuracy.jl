@@ -151,15 +151,11 @@ function compare(path)
     μ = [Graphs.Blocks.diversity(b) for b in values(graph.guess.block)]
     l = [Graphs.Blocks.length(b) for b in values(graph.guess.block)]
 
-    μr = [Graphs.Blocks.diversity(b) for b in values(graph.known.block)]
-    lr = [Graphs.Blocks.length(b) for b in values(graph.known.block)]
-
     n = mean(length(p.node) for p in values(graph.known.sequence))
     return (
         filter((l) -> l ≤ 1000, nearestbreaks(graph)),
         mutualentropy(graph),
         sum(μ .* l) ./ sum(l),
-        sum(μr .* lr) ./ sum(lr),
         n,
     )
 end
@@ -210,13 +206,11 @@ if abspath(PROGRAM_FILE) == @__FILE__
             try
                 (param.known !== nothing && param.guess !== nothing) ||
                     error("error or guess not present for $(param.group)")
-                costs, tiles, dists, dists_known, nblks =
-                    compare((known = param.known, guess = param.guess))
+                costs, tiles, dists, nblks = compare((known = param.known, guess = param.guess))
                 group["costs"] = costs
                 group["tiles"] = tiles
                 group["nblks"] = nblks
                 group["dists"] = dists
-                group["dists_known"] = dists_known
 
             catch
                 println("PROBLEM: ", param.known, " ", param.guess)
