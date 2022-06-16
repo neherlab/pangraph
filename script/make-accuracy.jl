@@ -145,17 +145,52 @@ function mutualentropy(graph)
     return entropy(tiling(cross)) - entropy(tiling(self))
 end
 
+nucl_to_num = Dict(l => UInt8(l) for l in ['A', 'C', 'G', 'T', 'N', '-'])
+num_to_nucl = Dict(v => k for (k, v) in aln_dict)
+
+function ungap_aln(aln::Array{UInt8})::Array{UInt8}
+    L, N = size(aln)
+    cols = collect(aln[l, :] for l = 1:L if all(aln[l, :] .!= nucl_to_num['-']))
+    return transpose(hcat(cols...))
+end
+
+function hamming_dist(s1::Vector{UInt8}, s2::Vector{UInt8})::Float64
+    return sum(s1 .!= s2)
+end
+
+function avg_pairwise_diversity(aln::Array{UInt8})::Float64
+    ualn = ungap_aln(aln)
+    L, N = size(ualn)
+    pairs = [(i, j) for i = 1:N, j = 1:N if i > j]
+    δb = [sum(aln[:, i] .!= aln[:, j]) / L for (i, j) in pairs]
+    return mean(δb)
+end
+
+function avg_pairwise_diversity(b::Graphs.Block)::Float64
+    aln, nodes, ref = Graphs.Blocks.alignment(b)
+    L, N = size(aln)
+    N == 1 && return 0.0
+    return avg_pairwise_diversity(aln)
+end
+
+
 function compare(path)
     graph = (known = open(unmarshal, path.known), guess = open(unmarshal, path.guess))
 
     μ = [Graphs.Blocks.diversity(b) for b in values(graph.guess.block)]
     l = [Graphs.Blocks.length(b) for b in values(graph.guess.block)]
+    δb = [avg_pairwise_diversity(b) for b in values(graph.guess.block)]
+    # depths = [Graphs.Blocks.depth(b) for b in values(graph.guess.block)]
+    # # block weight
+    # w = μ .* depths
+
 
     n = mean(length(p.node) for p in values(graph.known.sequence))
     return (
         filter((l) -> l ≤ 1000, nearestbreaks(graph)),
         mutualentropy(graph),
         sum(μ .* l) ./ sum(l),
+        sum(δb .* l) ./ sum(l),
         n,
     )
 end
@@ -206,11 +241,13 @@ if abspath(PROGRAM_FILE) == @__FILE__
             try
                 (param.known !== nothing && param.guess !== nothing) ||
                     error("error or guess not present for $(param.group)")
-                costs, tiles, dists, nblks = compare((known = param.known, guess = param.guess))
+                costs, tiles, muts, dists, nblks =
+                    compare((known = param.known, guess = param.guess))
                 group["costs"] = costs
                 group["tiles"] = tiles
                 group["nblks"] = nblks
                 group["dists"] = dists
+                group["mut_dens"] = muts
 
             catch
                 println("PROBLEM: ", param.known, " ", param.guess)
