@@ -106,7 +106,7 @@ function comparison_plot(paths)
         path_label = Dict(
             "mmseqs" => "mmseqs2",
             "minimap10" => "minimap2 (asm10)",
-            "minimap20" => "minimap (asm20)",
+            "minimap20" => "minimap2 (asm20)",
         )
 
         D, h, s = diversity(data)
@@ -115,11 +115,11 @@ function comparison_plot(paths)
         colors = cgrad(:thermal, I, categorical = true)
 
         for i = 1:I
-            label = i == 1 ? path_id : false
+            label = i == 1 ? path_label[path_id] : false
             scatter!(
                 s,
                 D[i, :],
-                label = path_label[path_id],
+                label = label,
                 marker = ms[path_id],
                 markercolor = colors[i],
             )
