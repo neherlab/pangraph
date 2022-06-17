@@ -158,6 +158,7 @@ end
 function avg_pairwise_diversity(aln::Array{UInt8})::Float64
     ualn = ungap_aln(aln)
     L, N = size(ualn)
+    L == 0 && return NaN
     pairs = [(i, j) for i = 1:N, j = 1:N if i > j]
     δb = [sum(ualn[:, i] .!= ualn[:, j]) / L for (i, j) in pairs]
     return mean(δb)
