@@ -171,7 +171,7 @@ function avg_pairwise_diversity(b::Graphs.Block)::Float64
     return avg_pairwise_diversity(aln)
 end
 
-function weighted_mean(x::Vector{Float64}, w::Vector{Float64})::Float64
+function weighted_mean(x::Vector{Float64}, w::Vector{T})::Float64 where {T<:Number}
     mask = .!isnan.(x)
     xm, wm = x[mask], w[mask]
     length(xm) == 0 && return NaN
@@ -243,22 +243,22 @@ if abspath(PROGRAM_FILE) == @__FILE__
         for param in param_list
             println("Processing: ", param)
             group = JLD2.Group(database, param.group)
-            try
-                (param.known !== nothing && param.guess !== nothing) ||
-                    error("error or guess not present for $(param.group)")
-                costs, tiles, muts, dists, nblks =
-                    compare((known = param.known, guess = param.guess))
-                group["costs"] = costs
-                group["tiles"] = tiles
-                group["nblks"] = nblks
-                group["dists"] = dists
-                group["mut_dens"] = muts
+            # try
+            (param.known !== nothing && param.guess !== nothing) ||
+                error("error or guess not present for $(param.group)")
+            costs, tiles, muts, dists, nblks =
+                compare((known = param.known, guess = param.guess))
+            group["costs"] = costs
+            group["tiles"] = tiles
+            group["nblks"] = nblks
+            group["dists"] = dists
+            group["mut_dens"] = muts
 
-            catch
-                println("PROBLEM: ", param.known, " ", param.guess)
-                continue # skip the message
-            finally
-            end
+            # catch
+            #     println("PROBLEM: ", param.known, " ", param.guess)
+            #     continue # skip the message
+            # finally
+            # end
         end
     end
 end
