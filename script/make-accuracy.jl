@@ -145,32 +145,36 @@ function mutualentropy(graph)
     return entropy(tiling(cross)) - entropy(tiling(self))
 end
 
-nucl_to_num = Dict(l => UInt8(l) for l in ['A', 'C', 'G', 'T', 'N', '-'])
-num_to_nucl = Dict(v => k for (k, v) in aln_dict)
+nucl_to_num = Dict(l => UInt8(l) for l in ['A', 'C', 'G', 'T', '-'])
+num_to_nucl = Dict(v => k for (k, v) in nucl_to_num)
+const gap_num = nucl_to_num['-']
 
 function ungap_aln(aln::Array{UInt8})::Array{UInt8}
     L, N = size(aln)
-    cols = collect(aln[l, :] for l = 1:L if all(aln[l, :] .!= nucl_to_num['-']))
-    return transpose(hcat(cols...))
-end
-
-function hamming_dist(s1::Vector{UInt8}, s2::Vector{UInt8})::Float64
-    return sum(s1 .!= s2)
+    mask = [all(aln[l, :] .!= gap_num) for l = 1:L]
+    return aln[mask, :]
 end
 
 function avg_pairwise_diversity(aln::Array{UInt8})::Float64
     ualn = ungap_aln(aln)
     L, N = size(ualn)
     pairs = [(i, j) for i = 1:N, j = 1:N if i > j]
-    δb = [sum(aln[:, i] .!= aln[:, j]) / L for (i, j) in pairs]
+    δb = [sum(ualn[:, i] .!= ualn[:, j]) / L for (i, j) in pairs]
     return mean(δb)
 end
 
 function avg_pairwise_diversity(b::Graphs.Block)::Float64
     aln, nodes, ref = Graphs.Blocks.alignment(b)
     L, N = size(aln)
-    N == 1 && return 0.0
+    N == 1 && return NaN
     return avg_pairwise_diversity(aln)
+end
+
+function weighted_mean(x::Vector{Float64}, w::Vector{Float64})::Float64
+    mask = .!isnan.(x)
+    xm, wm = x[mask], w[mask]
+    length(xm) == 0 && return NaN
+    return sum(xm .* wm) / sum(wm)
 end
 
 
@@ -190,7 +194,7 @@ function compare(path)
         filter((l) -> l ≤ 1000, nearestbreaks(graph)),
         mutualentropy(graph),
         sum(μ .* l) ./ sum(l),
-        sum(δb .* l) ./ sum(l),
+        weighted_mean(δb, l),
         n,
     )
 end
