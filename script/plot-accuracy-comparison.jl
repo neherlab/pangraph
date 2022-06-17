@@ -7,9 +7,7 @@ using Plots
 import CairoMakie
 ##
 
-cdfplot(x; kwargs...) = plot(sort(x), range(0, 1, length = length(x)); kwargs...)
-cdfplot!(x; kwargs...) = plot!(sort(x), range(0, 1, length = length(x)); kwargs...)
-
+ENV["GKSwstype"] = "100"
 
 Base.zero(x::Type{Array{Float64,1}}) = Float64[]
 
