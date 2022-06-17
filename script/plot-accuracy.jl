@@ -10,7 +10,7 @@ ENV["GKSwstype"] = "100"
 
 include("plot-util.jl")
 
-α_mutrate_to_divergence = 12.8
+α_mutrate_to_divergence = 21.3
 
 Base.zero(x::Type{Array{Float64,1}}) = Float64[]
 
@@ -137,8 +137,18 @@ function group(path)
     return match(re, path)[1]
 end
 
-function main(path, destdir)
+function remove_extra_snps!(data, snps_keep)
+    for k in keys(data)
+        par = unpack(k)
+        par.snp ∈ snps_keep || delete!(data, k)
+    end
+end
+
+function main(path, destdir, snps_keep)
+
     data = load(path)
+    snps_keep = [parse(Float64,s) for s in snps_keep]
+    remove_extra_snps!(data, snps_keep)
     grid = plotgrid(entropy(data)...;  group=group(path))
     cdfs = plotcdfs(accuracy(data)...; group=group(path))
 
@@ -172,5 +182,5 @@ function main(path, destdir)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main(ARGS[1], ARGS[2])
+    main(ARGS[1], ARGS[2], ARGS[3:end])
 end

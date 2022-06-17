@@ -88,14 +88,10 @@ end
 
 ##
 
-function comparison_plot(paths)
+function comparison_plot(paths, loader, ylabel)
     ms = Dict("minimap10" => :xcross, "minimap20" => :cross, "mmseqs" => :circle)
 
-    p = plot(
-        xlabel = "mutation rate",
-        ylabel = "avg. block divergence (inferred graph)",
-        legend = :topleft,
-    )
+    p = plot(xlabel = "mutation rate", ylabel = ylabel, legend = :topleft)
     fit_arr = Tuple{Float64,Float64}[]
     for (n, path) in enumerate(paths)
         data = load(path)
@@ -107,7 +103,7 @@ function comparison_plot(paths)
             "minimap20" => "minimap2 (asm20)",
         )
 
-        D, h, s = diversity(data)
+        D, h, s = loader(data)
         I, J = size(D)
 
         colors = cgrad(:thermal, I, categorical = true)
@@ -143,12 +139,68 @@ function comparison_plot(paths)
     return p
 end
 
+function scatter_plot(paths)
 
-function main(figname, paths)
+    ms = Dict("minimap10" => :xcross, "minimap20" => :cross, "mmseqs" => :circle)
+
+    p = plot(xlabel = "avg. mut. density", ylabel = "avg.", legend = :topleft)
+    fit_arr = Tuple{Float64,Float64}[]
+    for path in paths
+        data = load(path)
+        path_id = group(path)
+
+        path_label = Dict(
+            "mmseqs" => "mmseqs2",
+            "minimap10" => "minimap2 (asm10)",
+            "minimap20" => "minimap2 (asm20)",
+        )
+
+        Dx, hx, sx = mut_dens(data)
+        Dy, hy, sy = diversity(data)
+        I, J = size(Dx)
+
+        colors = cgrad(:thermal, I, categorical = true)
+
+        for i = 1:I
+            label = i == 1 ? path_label[path_id] : false
+            scatter!(
+                Dx[i, :],
+                Dy[i, :],
+                label = label,
+                marker = ms[path_id],
+                markercolor = colors[i],
+            )
+            for j = 1:J
+                push!(fit_arr, (Dx[i, j], Dy[i, j]))
+            end
+        end
+    end
+
+    α = linreg(fit_arr)
+    Xs = [f[1] for f in fit_arr]
+    x = [min(Xs...), max(Xs...)]
+    plot!(
+        x,
+        x .* α,
+        color = :gray,
+        linestyle = :dash,
+        label = "lin. reg. (α = $(round(α, digits=1)))",
+    )
+    return p
+end
+
+
+function main(destdir, paths)
     sort!(paths)
 
-    p = comparison_plot(paths)
-    savefig(figname)
+    p = comparison_plot(paths, diversity, "avg. block divergence (inferred graph)")
+    savefig("$destdir/paper-accuracycomp.pdf")
+
+    p = comparison_plot(paths, mut_dens, "avg. block mut. density")
+    savefig("$destdir/paper-accuracycomp-mutdens.pdf")
+
+    p = scatter_plot(paths)
+    savefig("$destdir/paper-accuracycomp-scatter.pdf")
 
 end
 
