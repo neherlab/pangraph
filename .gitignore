@@ -16,6 +16,7 @@ tutorial
 playground*
 .vscode
 script/synthetic_data
+script/panx_data
 script/.snakemake
 
 deps/minimap2/build
