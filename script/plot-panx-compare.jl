@@ -53,11 +53,11 @@ function group(args)
     i = 1
     sorted = sort(args)
     species = Dict(
-        "kleb"  => "Klebsiella Pneumoniae",
-        "myco"  => "Mycobacterium Tuberculosis",
-        "proc"  => "Prochlorococcus Mariunus",
-        "ecoli" => "Escherichia Coli",
-        "helio" => "Helicobacter Pylori",
+        "klebsiella_pneumoniae"  => "Klebsiella Pneumoniae",
+        "mycobacterium_tuberculosis"  => "Mycobacterium Tuberculosis",
+        "prochlorococcus_marinus" => "Prochlorococcus Mariunus",
+        "escherichia_coli" => "Escherichia Coli",
+        "helicobacter_pylori" => "Helicobacter Pylori",
     )
 
     pairs = NamedTuple{(:pang,:panx,:name),Tuple{String,String,String}}[]

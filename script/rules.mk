@@ -42,7 +42,7 @@ script/panx_data/$(1)/panx.json: $(input-fa) $(input-gb)
 
 script/panx_data/$(1)/pangraph.json: $(input-fa)
 	@echo "MAKE	$$@";\
-	JULIA_NUM_THREADS=8 pangraph build --circular --upper-case --max-self-map 50 $$^ 1>$$@
+	JULIA_NUM_THREADS=8 julia --project=. -t 8 src/PanGraph.jl build --circular --upper-case --max-self-map 50 -k mmseqs $$^ 1>$$@
 
 $(eval panx-targets += script/panx_data/$(1)/pangraph.json script/panx_data/$(1)/panx.json)
 endef

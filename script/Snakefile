@@ -1,7 +1,7 @@
 KERNELS = ["mmseqs", "minimap10", "minimap20"]
 HGT = [1e-2, 5e-2, 1e-1, 5e-1, 1]
-SNPS = [0, 1e-4, 2e-4, 3e-4, 4e-5, 5e-4, 6e-4, 7e-4, 8e-4, 9e-4, 1e-3, 2e-3, 3e-3, 4e-3, 5e-3, 6e-7, 7e-3, 8e-3, 9e-3, 1e-2]
-SNPS_accplot = [0, 2e-4, 4e-5, 8e-4, 1e-3, 2e-3, 4e-3, 6e-3, 8e-3, 1e-2]
+SNPS = [0, 1e-4, 2e-4, 3e-4, 4e-4, 5e-4, 6e-4, 7e-4, 8e-4, 9e-4, 1e-3, 2e-3, 3e-3, 4e-3, 5e-3, 6e-3, 7e-3, 8e-3, 9e-3, 1e-2]
+SNPS_accplot = [0, 2e-4, 4e-4, 8e-4, 1e-3, 2e-3, 4e-3, 6e-3, 8e-3, 1e-2]
 Ntrials = 25
 TRIALS = list(range(1, Ntrials+1))
 

@@ -143,7 +143,7 @@ function scatter_plot(paths)
 
     ms = Dict("minimap10" => :xcross, "minimap20" => :cross, "mmseqs" => :circle)
 
-    p = plot(xlabel = "avg. mut. density", ylabel = "avg.", legend = :topleft)
+    p = plot(xlabel = "avg. mut. density", ylabel = "avg. pairwise divergence", legend = :topleft)
     fit_arr = Tuple{Float64,Float64}[]
     for path in paths
         data = load(path)
