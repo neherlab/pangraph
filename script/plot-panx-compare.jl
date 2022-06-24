@@ -3,6 +3,9 @@ using Statistics, StatsBase
 using PanGraph
 using CairoMakie, ColorSchemes
 
+# plot in headless mode -> allow for plotting on the server where no display is available
+ENV["GKSwstype"] = "100"
+
 delta(X,x,len) = minimum(mod.(abs.(X .- x), len))
 
 function compare(qry, ref; cutoff=150)
@@ -88,7 +91,7 @@ function main(paths)
         xticklabelrotation=π/6,
         yticks=(0:4, [L"10^0", L"10^1", L"10^2", L"10^3", L"10^4"]),
     )
-    colors = cgrad(:Spectral_5, length(paths), categorical=true)
+    colors = cgrad(:Set1_5, length(paths), categorical=true)
 
     for (i,path) in enumerate(paths)
         plots!(axis, path, i, colors[i])
@@ -127,7 +130,8 @@ function plots!(axis, path, i, color)
 end
 
 function save(plt)
-    CairoMakie.save("figs/panx-compare.png", plt, px_per_unit=2)
+    CairoMakie.save("script/figs/panx-compare.png", plt, px_per_unit=2)
+    CairoMakie.save("script/figs/panx-compare.pdf", plt)
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__

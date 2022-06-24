@@ -50,9 +50,9 @@ endef
 panx-targets =
 $(eval $(call PANX,klebsiella_pneumoniae))
 $(eval $(call PANX,helicobacter_pylori))
-$(eval $(call PANX,escherichia_coli))
-$(eval $(call PANX,mycobacterium_tuberculosis))
 $(eval $(call PANX,prochlorococcus_marinus))
+$(eval $(call PANX,mycobacterium_tuberculosis))
+$(eval $(call PANX,escherichia_coli))
 
 figs/panx-compare.png: $(panx-targets)
 	julia --project=script script/plot-panx-compare.jl $^
