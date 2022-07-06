@@ -54,5 +54,27 @@ $(eval $(call PANX,prochlorococcus_marinus))
 $(eval $(call PANX,mycobacterium_tuberculosis))
 $(eval $(call PANX,escherichia_coli))
 
-figs/panx-compare.png: $(panx-targets)
-	julia --project=script script/plot-panx-compare.jl $^
+# accuracy relative to panX gene boundaries
+define PANXMINIMAP
+$(eval input-gb := $(wildcard script/panx_data/$(1)/input_GenBank/*.gbk))
+$(eval input-fa := $(patsubst script/panx_data/$(1)/input_GenBank/%.gbk, script/panx_data/$(1)/fa/%.fa, $(input-gb)))
+
+script/panx_data/$(1)/pangraph-minimap.json: $(input-fa)
+	@echo "MAKE	$$@";\
+	JULIA_NUM_THREADS=8 julia --project=. -t 8 src/PanGraph.jl build --circular --upper-case --max-self-map 50 $$^ 1>$$@
+
+$(eval panx-minimap-targets += script/panx_data/$(1)/pangraph-minimap.json script/panx_data/$(1)/panx.json)
+endef
+
+panx-minimap-targets =
+$(eval $(call PANXMINIMAP,klebsiella_pneumoniae))
+$(eval $(call PANXMINIMAP,helicobacter_pylori))
+$(eval $(call PANXMINIMAP,prochlorococcus_marinus))
+$(eval $(call PANXMINIMAP,mycobacterium_tuberculosis))
+$(eval $(call PANXMINIMAP,escherichia_coli))
+
+figs/panx-compare-mmseqs.png: $(panx-targets)
+	julia --project=script script/plot-panx-compare.jl panx-compare-mmseqs $^
+
+figs/panx-compare-minimap.png: $(panx-minimap-targets)
+	julia --project=script script/plot-panx-compare.jl panx-compare-minimap $^

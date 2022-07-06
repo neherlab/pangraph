@@ -36,12 +36,12 @@ end
 function compare(graph)
     data = Int[]
     null = Int[]
-
+    
     for (name, qry) in graph.pang.sequence
         d, n = compare(qry, graph.panx.sequence[name])
         append!(data,d); append!(null,n)
     end
-
+    
     return data, null
 end
 
@@ -87,7 +87,7 @@ function main(paths)
     axis = Axis(fig[1,1],
         xlabel="Species",
         ylabel="distance to nearest gene (bp)",
-        xticks=(1:5, map((p)->shorten(p.name), paths)),
+        xticks=(1:length(paths), map((p)->shorten(p.name), paths)),
         xticklabelrotation=π/6,
         yticks=(0:4, [L"10^0", L"10^1", L"10^2", L"10^3", L"10^4"]),
     )
@@ -102,13 +102,7 @@ end
 
 function plots!(axis, path, i, color)
     exported = "$(dirname(path.pang))/export.jld2"
-    data, null = if !isfile(exported)
-        data, null = path |> unmarshal |> compare
-        FileIO.save(exported, Dict("data"=>data, "null"=>null))
-        data, null
-    else
-        load(exported, "data", "null")
-    end
+    data, null = path |> unmarshal |> compare
 
     x = vcat(fill(i,length(data)+length(null)))
     y = log10.(vcat(data, null) .+ 1)
@@ -116,24 +110,11 @@ function plots!(axis, path, i, color)
     c = vcat(fill((color,1.0),size(data)), fill((color,0.5),size(null)))
 
     violin!(axis, x, y, side=s, color=c)
-    # cdfplot!(data.+1;
-    #     color=color,
-    #     linewidth=2,
-    #     label="$(path.name) data"
-    # )
-    # cdfplot!(null.+1;
-    #     color=color,
-    #     linewidth=2,
-    #     linestyle=:dashdot,
-    #     label="$(path.name) null",
-    # )
 end
 
-function save(plt)
-    CairoMakie.save("script/figs/panx-compare.png", plt, px_per_unit=2)
-    CairoMakie.save("script/figs/panx-compare.pdf", plt)
-end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    ARGS |> group |> main |> save
+    plt = ARGS[2:end] |> group |> main
+    CairoMakie.save("script/figs/$(ARGS[1]).png", plt, px_per_unit=2)
+    CairoMakie.save("script/figs/$(ARGS[1]).pdf", plt)
 end
