@@ -6,6 +6,8 @@ snakemake all --jobs=20 \
     --jobscript cluster/slurm_submit.sh \
     --cluster-config cluster/cluster_config.json \
     --jobname "{rulename}_{jobid}" \
-    --latency-wait 60
+    --latency-wait 90 \
     --use-conda
 ```
+
+Nb: the log folder must exist!

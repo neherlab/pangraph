@@ -1,0 +1,53 @@
+
+# for correct benchmarking needs to have pangraph binary present in the path
+import glob
+
+def acc_nums(fld):
+    files = glob.glob(fld + "/*.gbk")
+    p = re.compile("/?([^/]+)\.gbk$")
+    return [ re.search(p, f).groups()[0] for f in files]
+
+SPECIES = ["klebsiella_pneumoniae", "helicobacter_pylori", "prochlorococcus_marinus", "mycobacterium_tuberculosis", "escherichia_coli"]
+ACCNUMS = {s : acc_nums(f"panx_data/{s}/input_GenBank") for s in SPECIES}
+
+wildcard_constraints:
+    species=f"({'|'.join(SPECIES)})"
+
+rule all:
+    input:
+        expand("panx_data/{species}/pangraphs/pangraph-{kind}.json", species=SPECIES, kind=["minimap-full"])
+
+rule gbk_to_fa:
+    message:
+        "converting genbank to fasta for {wildcards.species} - {wildcards.acc} "
+    input:
+        "panx_data/{species}/input_GenBank/{acc}.gbk",
+    output:
+        "panx_data/{species}/fa/{acc}.fa",
+    conda:
+        "cluster/bioinfo_env.yml",
+    shell:
+        """
+        python3 workflow_scripts/gbk_to_fa.py --gbk {input} --fa {output}
+        """
+
+ker_opt = {
+    "mmseqs-full" : "-k mmseqs -b 10",
+    "minimap-full" : "-k minimap2 -s 20",
+}
+
+rule build_full_pangraph:
+    message:
+        "building full pangraph ({wildcards.kind}) for {wildcards.species}"
+    input:
+        lambda w : expand("panx_data/{{species}}/fa/{acc}.fa", acc=ACCNUMS[w.species])
+    output:
+        pg="panx_data/{species}/pangraphs/pangraph-{kind}.json",
+        bm="panx_data/{species}/pangraphs/benchmark/pangraph-{kind}.txt",
+    params:
+        opt=lambda w : ker_opt[w.kind]
+    shell:
+        """
+        export JULIA_NUM_THREADS=8
+        /usr/bin/time --verbose -o {output.bm} pangraph build --circular {params.opt} {input} > {output.pg}
+        """
