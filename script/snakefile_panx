@@ -1,5 +1,6 @@
+# This snakemake workflow contains recipes to analyze the panx dataset with pangraph,
+# and benchmark pangraph performances on real data.
 
-# for correct benchmarking needs to have pangraph binary present in the path
 import glob
 
 def acc_nums(fld):
@@ -15,7 +16,7 @@ wildcard_constraints:
 
 rule all:
     input:
-        expand("panx_data/{species}/pangraphs/pangraph-{kind}.json", species=SPECIES, kind=["minimap-full"])
+        expand("panx_data/{species}/pangraphs/pangraph-{kind}.json", species=SPECIES, kind=["minimap10-full", "minimap20-full", "mmseqs-full"])
 
 rule gbk_to_fa:
     message:
@@ -33,9 +34,11 @@ rule gbk_to_fa:
 
 ker_opt = {
     "mmseqs-full" : "-k mmseqs -b 10",
-    "minimap-full" : "-k minimap2 -s 20",
+    "minimap20-full" : "-k minimap2 -s 20",
+    "minimap10-full" : "-k minimap2 -s 10",
 }
 
+# for correct benchmarking needs to have pangraph binary present in the path.
 rule build_full_pangraph:
     message:
         "building full pangraph ({wildcards.kind}) for {wildcards.species}"
@@ -46,6 +49,8 @@ rule build_full_pangraph:
         bm="panx_data/{species}/pangraphs/benchmark/pangraph-{kind}.txt",
     params:
         opt=lambda w : ker_opt[w.kind]
+    conda:
+        "cluster/pangraph_build_env.yml",
     shell:
         """
         export JULIA_NUM_THREADS=8
