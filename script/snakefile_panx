@@ -11,12 +11,20 @@ def acc_nums(fld):
 SPECIES = ["klebsiella_pneumoniae", "helicobacter_pylori", "prochlorococcus_marinus", "mycobacterium_tuberculosis", "escherichia_coli"]
 ACCNUMS = {s : acc_nums(f"panx_data/{s}/input_GenBank") for s in SPECIES}
 
+ker_opt = {
+    "mmseqs-full" : "-k mmseqs -b 10",
+    "minimap20-full" : "-k minimap2 -s 20",
+    "minimap10-full" : "-k minimap2 -s 10",
+}
+
+KER_KINDS = list(ker_opt.keys())
+
 wildcard_constraints:
     species=f"({'|'.join(SPECIES)})"
 
 rule all:
     input:
-        expand("panx_data/{species}/pangraphs/pangraph-{kind}.json", species=SPECIES, kind=["minimap10-full", "minimap20-full", "mmseqs-full"])
+        expand("panx_data/{species}/pangraphs/pangraph-{kind}.json", species=SPECIES, kind=KER_KINDS)
 
 rule gbk_to_fa:
     message:
@@ -31,12 +39,6 @@ rule gbk_to_fa:
         """
         python3 workflow_scripts/gbk_to_fa.py --gbk {input} --fa {output}
         """
-
-ker_opt = {
-    "mmseqs-full" : "-k mmseqs -b 10",
-    "minimap20-full" : "-k minimap2 -s 20",
-    "minimap10-full" : "-k minimap2 -s 10",
-}
 
 # for correct benchmarking needs to have pangraph binary present in the path.
 rule build_full_pangraph:
@@ -53,6 +55,23 @@ rule build_full_pangraph:
         "cluster/pangraph_build_env.yml",
     shell:
         """
+        echo "species = {wildcards.species}" > {output.bm}
+        echo "kind = {wildcards.kind}" >> {output.bm}
         export JULIA_NUM_THREADS=8
-        /usr/bin/time --verbose -o {output.bm} pangraph build --circular {params.opt} {input} > {output.pg}
+        /usr/bin/time --verbose -o {output.bm} -a pangraph build --circular {params.opt} {input} > {output.pg}
+        """
+
+rule summary_benchmark:
+    message:
+        "Summary of pangraph performances"
+    input:
+        expand("panx_data/{species}/pangraphs/benchmark/pangraph-{kind}.txt", species=SPECIES, kind=KER_KINDS)
+    output:
+        csv = "panx_data/benchmark/benchmark_summary.txt",
+        pdf = "panx_data/benchmark/benchmark_summary.pdf",
+    conda:
+        "cluster/bioinfo_env.yml",
+    shell:
+        """
+        python3 workflow_scripts/summary_benchmark.py {output.csv} {output.pdf} {input}
         """

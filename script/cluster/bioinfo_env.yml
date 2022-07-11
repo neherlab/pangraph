@@ -5,34 +5,119 @@ channels:
 dependencies:
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
+  - alsa-lib=1.2.3.2=h166bdaf_0
   - biopython=1.79=py39hb9d737c_2
+  - brotli=1.0.9=h166bdaf_7
+  - brotli-bin=1.0.9=h166bdaf_7
   - bzip2=1.0.8=h7f98852_4
   - ca-certificates=2022.6.15=ha878542_0
+  - certifi=2022.6.15=py39hf3d152e_0
+  - cycler=0.11.0=pyhd8ed1ab_0
+  - dbus=1.13.6=h5008d03_3
+  - expat=2.4.8=h27087fc_0
+  - font-ttf-dejavu-sans-mono=2.37=hab24e00_0
+  - font-ttf-inconsolata=3.000=h77eed37_0
+  - font-ttf-source-code-pro=2.038=h77eed37_0
+  - font-ttf-ubuntu=0.83=hab24e00_0
+  - fontconfig=2.14.0=h8e229c2_0
+  - fonts-conda-ecosystem=1=0
+  - fonts-conda-forge=1=0
+  - fonttools=4.34.4=py39hb9d737c_0
+  - freetype=2.10.4=h0708190_1
+  - gettext=0.19.8.1=h73d1719_1008
+  - giflib=5.2.1=h36c2ea0_2
+  - glib=2.70.2=h780b84a_4
+  - glib-tools=2.70.2=h780b84a_4
+  - gst-plugins-base=1.20.2=hcf0ee16_0
+  - gstreamer=1.20.3=hd4edc92_0
+  - icu=69.1=h9c3ff4c_0
+  - jpeg=9e=h166bdaf_2
+  - keyutils=1.6.1=h166bdaf_0
+  - kiwisolver=1.4.3=py39hf939315_0
+  - krb5=1.19.3=h08a2579_0
+  - lcms2=2.12=hddcbb42_0
   - ld_impl_linux-64=2.36.1=hea4e1c9_2
+  - lerc=3.0=h9c3ff4c_0
   - libblas=3.9.0=15_linux64_openblas
+  - libbrotlicommon=1.0.9=h166bdaf_7
+  - libbrotlidec=1.0.9=h166bdaf_7
+  - libbrotlienc=1.0.9=h166bdaf_7
   - libcblas=3.9.0=15_linux64_openblas
+  - libclang=13.0.1=default_hc23dcda_0
+  - libdeflate=1.12=h166bdaf_0
+  - libedit=3.1.20191231=he28a2e2_2
+  - libevent=2.1.10=h28343ad_4
   - libffi=3.4.2=h7f98852_5
   - libgcc-ng=12.1.0=h8d9b700_16
   - libgfortran-ng=12.1.0=h69a702a_16
   - libgfortran5=12.1.0=hdcd56e2_16
+  - libglib=2.70.2=h174f98d_4
   - libgomp=12.1.0=h8d9b700_16
+  - libiconv=1.16=h516909a_0
   - liblapack=3.9.0=15_linux64_openblas
+  - libllvm13=13.0.1=hf817b99_2
   - libnsl=2.0.0=h7f98852_0
+  - libogg=1.3.4=h7f98852_1
   - libopenblas=0.3.20=pthreads_h78a6416_0
+  - libopus=1.3.1=h7f98852_1
+  - libpng=1.6.37=h753d276_3
+  - libpq=14.4=he2d8382_0
   - libstdcxx-ng=12.1.0=ha89aaad_16
+  - libtiff=4.4.0=hc85c160_1
   - libuuid=2.32.1=h7f98852_1000
+  - libvorbis=1.3.7=h9c3ff4c_0
+  - libwebp=1.2.2=h3452ae3_0
+  - libwebp-base=1.2.2=h7f98852_1
+  - libxcb=1.13=h7f98852_1004
+  - libxkbcommon=1.0.3=he3ba5ed_0
+  - libxml2=2.9.12=h885dcf4_1
   - libzlib=1.2.12=h166bdaf_1
+  - lz4-c=1.9.3=h9c3ff4c_1
+  - matplotlib=3.5.2=py39hf3d152e_0
+  - matplotlib-base=3.5.2=py39h700656a_0
+  - munkres=1.1.4=pyh9f0ad1d_0
+  - mysql-common=8.0.29=h26416b9_1
+  - mysql-libs=8.0.29=hbc51c84_1
   - ncurses=6.3=h27087fc_1
+  - nspr=4.32=h9c3ff4c_1
+  - nss=3.78=h2350873_0
   - numpy=1.23.0=py39hba7629e_0
+  - openjpeg=2.4.0=hb52868f_1
   - openssl=3.0.5=h166bdaf_0
+  - packaging=21.3=pyhd8ed1ab_0
+  - pandas=1.4.3=py39h1832856_0
+  - patsy=0.5.2=pyhd8ed1ab_0
+  - pcre=8.45=h9c3ff4c_0
+  - pillow=9.2.0=py39hae2aec6_0
   - pip=22.1.2=pyhd8ed1ab_0
+  - pthread-stubs=0.4=h36c2ea0_1001
+  - pyparsing=3.0.9=pyhd8ed1ab_0
+  - pyqt=5.12.3=py39hf3d152e_8
+  - pyqt-impl=5.12.3=py39hde8b62d_8
+  - pyqt5-sip=4.19.18=py39he80948d_8
+  - pyqtchart=5.12=py39h0fcd23e_8
+  - pyqtwebengine=5.12.1=py39h0fcd23e_8
   - python=3.9.13=h2660328_0_cpython
+  - python-dateutil=2.8.2=pyhd8ed1ab_0
   - python_abi=3.9=2_cp39
+  - pytz=2022.1=pyhd8ed1ab_0
+  - qt=5.12.9=h1304e3e_6
   - readline=8.1.2=h0f457ee_0
+  - scipy=1.8.1=py39he49c0e8_0
+  - seaborn=0.11.2=hd8ed1ab_0
+  - seaborn-base=0.11.2=pyhd8ed1ab_0
   - setuptools=63.1.0=py39hf3d152e_0
+  - six=1.16.0=pyh6c4a22f_0
   - sqlite=3.39.0=h4ff8645_0
+  - statsmodels=0.13.2=py39hd257fcd_0
   - tk=8.6.12=h27826a3_0
+  - tornado=6.2=py39hb9d737c_0
   - tzdata=2022a=h191b570_0
+  - unicodedata2=14.0.0=py39hb9d737c_1
   - wheel=0.37.1=pyhd8ed1ab_0
+  - xorg-libxau=1.0.9=h7f98852_0
+  - xorg-libxdmcp=1.1.3=h7f98852_0
   - xz=5.2.5=h516909a_1
   - zlib=1.2.12=h166bdaf_1
+  - zstd=1.5.2=h8a70e8d_2
+prefix: /scicore/home/neher/molari0000/miniconda3/envs/bioinfo

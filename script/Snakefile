@@ -12,3 +12,9 @@ module panx_benchmark_mod:
 use rule * from accuracy_mod as acm_*
 
 use rule * from panx_benchmark_mod as pxm_*
+
+rule clean:
+    shell:
+        """
+        rm log/*
+        """
