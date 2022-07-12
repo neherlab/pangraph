@@ -8,4 +8,12 @@ setup(
     author_email="mmolari91@gmail.com",
     url="https://github.com/mmolari/pypangraph",
     packages=find_packages(),
+    install_requires = [
+        "matplotlib",
+        "numpy",
+        "pandas",
+        "biopython",
+        "scipy",
+        "networkx",
+    ]
 )

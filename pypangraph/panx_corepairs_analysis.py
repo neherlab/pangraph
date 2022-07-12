@@ -3,7 +3,6 @@
 # in accessory genome between a specified pair of core genes that
 # are always adjacent in all genomes.
 
-import numpy as np
 from collections import Counter
 
 

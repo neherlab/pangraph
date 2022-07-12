@@ -1,6 +1,5 @@
 # The file collects different functions to visualize properties of the pangraph
 
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
