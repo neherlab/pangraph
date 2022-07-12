@@ -1,8 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from collections import defaultdict
-
 
 class blockpairs_analysis:
     """Class that hanalizes the pangraph in terms of

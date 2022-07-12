@@ -7,8 +7,11 @@ from .blockpairs_analysis import blockpairs_analysis
 # pangraph branching
 from .block_branching import Branching
 
-# panx core-gene gap analysis
-from .panx_corepairs_analysis import coregaps_analysis, pairwise_private_gapgenes
-
 # pangraph locator
 from .pangraph_locator import Locator
+
+# wrapper to execute pangraph
+from .pangraph_wrapper import pangraph_command
+
+# log utility
+from .logger import logger
