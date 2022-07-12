@@ -2,9 +2,13 @@
 
 This repository contains a collection of utilities to interact with pangrenome graphs produced by [PanGraph](https://github.com/neherlab/pangraph).
 
-The package can be installed using pip with the command `pip install git+https://github.com/mmolari/pypangraph`.
+The package can be installed using pip with the command:
 
-Below are some examples showcasing some of the main functions in the package. 
+```bash
+pip install git+https://github.com/mmolari/pypangraph
+```
+
+Below are some examples showcasing some of the main functions in the package.
 
 ## Loading and interacting with pangraph objects:
 
