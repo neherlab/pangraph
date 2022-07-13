@@ -21,6 +21,7 @@ ACCNUMS = {s: acc_nums(f"panx_data/{s}/input_GenBank") for s in SPECIES}
 
 ker_opt = {
     "mmseqs-full": "-k mmseqs -b 10",
+    "mmseqs-noenergy": "-k mmseqs -a 0 -b 0",
     "minimap20-full": "-k minimap2 -s 20",
     "minimap10-full": "-k minimap2 -s 10",
 }
