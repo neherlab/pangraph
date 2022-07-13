@@ -120,4 +120,7 @@ dependencies:
   - xz=5.2.5=h516909a_1
   - zlib=1.2.12=h166bdaf_1
   - zstd=1.5.2=h8a70e8d_2
+  - pip:
+    - networkx==2.8.4
+    - git+https://github.com/mmolari/pypangraph
 prefix: /scicore/home/neher/molari0000/miniconda3/envs/bioinfo
