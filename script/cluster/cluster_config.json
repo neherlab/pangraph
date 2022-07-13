@@ -3,7 +3,7 @@
         "time": "00:29:00",
         "qos": "30min",
         "n": 1,
-        "mem": "5G"
+        "mem": "16G"
     },
     "acc_guess_pangraph_mmseqs": {
         "time": "05:59:00",

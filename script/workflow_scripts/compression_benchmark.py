@@ -35,13 +35,17 @@ def single_fasta_stats(fa):
     seq = SeqIO.read(fa, "fasta")
     return {"avg. fasta file size (Mb)": fsize, "avg. genome length (bp)": len(seq)}
 
+def extract_species(fname):
+    """Extract species from the fasta filename input"""
+    return re.match("panx_data/([^/]+)/", fname).group(1)
 
 def summary_fasta_stats(fas):
-    """Given a list of fasta files, evaluates average filesize, genome length
-    and number of genomes."""
+    """Given a list of fasta files, evaluates average filesize, genome length,
+    number of genomes and species."""
     stats = [single_fasta_stats(fa) for fa in fas]
     stats = pd.DataFrame(stats).mean().to_dict()
     stats["n. genomes"] = len(fas)
+    stats["species"] = extract_species(fas[0])
     return stats
 
 
@@ -52,7 +56,7 @@ def summary_pangraph_stats(pan_files):
     stats = {}
     for pf in pan_files:
         # extract pangraph tag from filename
-        kind = re.match(".*/pangraph-(.*).json$", pf).group(1)
+        kind = re.match(".*/pangraph-(.*)\.json$", pf).group(1)
         # load pangraph and evaluate stats
         pan = pp.Pangraph.load_json(pf)
         stats[kind] = pangraph_stats(pan)
