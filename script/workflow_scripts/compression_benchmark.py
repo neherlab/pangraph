@@ -72,21 +72,21 @@ def pangraph_stats(pan: pp.Pangraph):
     N = len(df)
     L = df["len"].sum()
     stats["n. blocks"] = N
-    stats["pangenome length (bp)"] = L
+    stats["pangenome length (bp)"] = int(L)
     stats["avg. block length (bp)"] = df["len"].mean()
 
     # L50 (n. of contigs that make up 50% pangenome)
     # N50 (len of contig at 50% pangenome length)
     CS = df["len"].cumsum().to_numpy()
     id50 = np.argwhere(CS > L / 2).min()
-    stats["N50 (bp)"] = df.iloc[id50]["len"]
-    stats["L50"] = id50
+    stats["N50 (bp)"] = int(df.iloc[id50]["len"])
+    stats["L50"] = int(id50)
 
     # n. of core blocks
     # fraction of core pangenome
-    stats["n. core blocks"] = df["core"].sum()
+    stats["n. core blocks"] = int(df["core"].sum())
     stats["fract. core pangenome"] = np.average(df["core"], weights=df["len"])
-    stats["len. core pangenome"] = df[df["core"]]["len"].sum()
+    stats["len. core pangenome"] = int(df[df["core"]]["len"].sum())
 
     return stats
 
