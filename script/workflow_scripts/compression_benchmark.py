@@ -107,5 +107,5 @@ if __name__ == "__main__":
 
     # save to json
     with open(args.out_json, "w") as f:
-        json.dump(stats, f, indent=4)
+        json.dump(stats, f, indent=4, default=str)
 

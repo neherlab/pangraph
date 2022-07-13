@@ -78,7 +78,7 @@ rule build_full_pangraph:
         """
 
 
-rule summary_benchmark:
+rule summary_performance_benchmark:
     message:
         "Summary of pangraph performances"
     input:
@@ -88,7 +88,7 @@ rule summary_benchmark:
             kind=KER_KINDS,
         ),
     output:
-        csv="panx_data/benchmark/benchmark_summary.txt",
+        csv="panx_data/benchmark/benchmark_summary.csv",
         pdf="panx_data/benchmark/benchmark_summary.pdf",
     conda:
         "cluster/bioinfo_env.yml"
@@ -100,7 +100,7 @@ rule summary_benchmark:
 
 rule compression_benchmark:
     message:
-        "Summary of compression performances for species {wildcards.species}"
+        "Compression performances for species {wildcards.species}"
     input:
         pang=expand(
             "panx_data/{{species}}/pangraphs/pangraph-{kind}.json", kind=KER_KINDS
@@ -116,3 +116,19 @@ rule compression_benchmark:
         """
         python3 workflow_scripts/compression_benchmark.py --fasta {input.fa} --pangraphs {input.pang} --out_json {output.json}
         """
+
+
+# rule summary_compression_benchmark:
+#     message:
+#         "Summary of compression performances"
+#     input:
+#         expand("panx_data/benchmark/{species}/compression.json", species=SPECIES),
+#     output:
+#         csv="panx_data/benchmark/benchmark_compression.csv",
+#         pdf="panx_data/benchmark/benchmark_compression.pdf",
+#     conda:
+#         "cluster/bioinfo_env.yml"
+#     shell:
+#         """
+#         python3 workflow_scripts/compression_summary.py --jsons {input} --csv {output.csv} --pdf {output.pdf}
+#         """
