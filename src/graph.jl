@@ -222,9 +222,9 @@ function detransitive!(G::Graph)
 
         elseif j.left.block ∈ keys(chain)
             c₀ = chain[j.left.block]
-            if left(j) == c₀[end]
+            if left(j) == last(c₀)
                 push!(c₀, right(j))
-            elseif rev(j.left.block) == c₀[1]
+            elseif rev(left(j)) == first(c₀)
                 pushfirst!(c₀, rev(right(j)))
             else
                 error("chains should be linear")
@@ -233,9 +233,9 @@ function detransitive!(G::Graph)
 
         elseif j.right.block ∈ keys(chain)
             c₀ = chain[j.right.block]
-            if right(j) == c₀[end]
+            if rev(right(j)) == last(c₀)
                 push!(c₀, rev(left(j)))
-            elseif right(j) == c₀[1]
+            elseif right(j) == first(c₀)
                 pushfirst!(c₀, left(j))
             else
                 error("chains should be linear")
