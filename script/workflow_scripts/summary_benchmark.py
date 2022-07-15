@@ -100,6 +100,9 @@ def plot_benchmark(df):
     ax = axs[3]
     sns.barplot(x="kind", hue="species", y="cpu-percent", data=df, ax=ax)
 
+    # draw grid
+    for ax in axs:
+        ax.grid(alpha=0.3, zorder=-1)
 
     return fig, axs
 

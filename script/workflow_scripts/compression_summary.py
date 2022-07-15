@@ -63,6 +63,9 @@ def evaluate_additional_stats(df):
     df["fract. core genome"] = df["len. core pangenome"] / GL
     df["fract. core pangenome"] = df["len. core pangenome"] / PGL
 
+    # fraction of blocks
+    df["F50"] = df["L50"] / df["n. blocks"]
+
 
 def short_name(x):
     """Abrreviation for the species name"""
@@ -74,7 +77,7 @@ def short_name(x):
 
 def barplot(df, ax, y, x="kind", hue="species", logy=True):
     """Utility function for the single barplot"""
-    ax.grid(alpha=0.3)
+    ax.grid(alpha=0.3, zorder=-1)
     sns.barplot(x=x, y=y, hue=hue, data=df, ax=ax)
     if logy:
         ax.set_yscale("log")
@@ -98,6 +101,7 @@ def plot(df):
         {"y": "n. blocks"},
         {"y": "N50 (bp)"},
         {"y": "L50"},
+        {"y": "F50"},
         {"y": "fract. core blocks"},
         {"y": "fract. core genome"},
         {"y": "fract. core pangenome"},

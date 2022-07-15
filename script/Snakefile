@@ -2,11 +2,11 @@ from snakemake.utils import min_version
 min_version("6.0")
 
 module accuracy_mod:
-    snakefile: "snakefile_accuracy"
+    snakefile: "rules/accuracy.smk"
     config: config
 
 module panx_benchmark_mod:
-    snakefile: "snakefile_panx"
+    snakefile: "rules/panx.smk"
     config: config
 
 use rule * from accuracy_mod as acm_*
