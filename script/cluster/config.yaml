@@ -1,0 +1,9 @@
+cluster: "sbatch --time={cluster.time} --mem={cluster.mem} --cpus-per-task={cluster.n} --qos={cluster.qos}"
+jobs: 20
+jobscript: "cluster/slurm_submit.sh"
+cluster-config: "cluster/cluster_config.json"
+jobname: "{rulename}_{jobid}"
+latency-wait: 90
+
+use-conda: True
+rerun-incomplete: True

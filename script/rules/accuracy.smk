@@ -1,48 +1,31 @@
-KERNELS = ["mmseqs", "minimap10", "minimap20"]
-HGT = [1e-2, 5e-2, 1e-1, 5e-1, 1]
-SNPS = [
-    0,
-    1e-4,
-    2e-4,
-    3e-4,
-    4e-4,
-    5e-4,
-    6e-4,
-    7e-4,
-    8e-4,
-    9e-4,
-    1e-3,
-    2e-3,
-    3e-3,
-    4e-3,
-    5e-3,
-    6e-3,
-    7e-3,
-    8e-3,
-    9e-3,
-    1e-2,
-]
-SNPS_accplot = [0, 2e-4, 4e-4, 8e-4, 1e-3, 2e-3, 4e-3, 6e-3, 8e-3, 1e-2]
-Ntrials = 25
-TRIALS = list(range(1, Ntrials + 1))
+import json
+
+# extract config for accuracy rules
+AC_config = config["accuracy"]
+
+# simulation parameters
+with open(AC_config["sim-params"], "r") as f:
+    sim_params = json.load(f)
+HGT = sim_params["hgt"]
+SNPS = sim_params["snps"]
+SNPS_accplot = sim_params["snps-accplot"]
+
+# kernels and number of trials
+AC_ker_opt = AC_config["kernel-options"]
+AC_ker_names = list(AC_ker_opt.keys())
+AC_trials = list(range(1, AC_config["sim-ntrials"] + 1))
 
 # pangraph project folder
 pgf = "./.."
 
-ker_opt = {
-    "mmseqs": "-k mmseqs",
-    "minimap10": "-k minimap2 -s 10",
-    "minimap20": "-k minimap2 -s 20",
-}
 
-
-rule all:
+rule AC_all:
     input:
-        expand("figs/paper-accuracy-{kernel}.png", kernel=list(ker_opt.keys())),
+        expand("figs/paper-accuracy-{kernel}.png", kernel=AC_ker_names),
         "figs/paper-accuracycomp.pdf",
 
 
-rule generate_data:
+rule AC_generate_data:
     message:
         "generating pangraph with hgt = {wildcards.hgt}, snps = {wildcards.snps}, n = {wildcards.n}"
     output:
@@ -62,21 +45,21 @@ rule generate_data:
         """
 
 
-ruleorder: guess_pangraph_mmseqs > guess_pangraph
+ruleorder: AC_guess_pangraph_mmseqs > AC_guess_pangraph
 
 
-rule guess_pangraph:
+rule AC_guess_pangraph:
     message:
         """
         reconstructing pangraph with kernel {wildcards.kernel}
         hgt = {wildcards.hgt}, snps = {wildcards.snps}, n = {wildcards.n}
         """
     input:
-        rules.generate_data.output.seqs,
+        rules.AC_generate_data.output.seqs,
     output:
         "synthetic_data/{kernel}/{hgt}_{snps}/guess_{n}.json",
     params:
-        ker=lambda w: ker_opt[w.kernel],
+        ker=lambda w: AC_ker_opt[w.kernel],
         pgf=pgf,
     shell:
         """
@@ -85,21 +68,21 @@ rule guess_pangraph:
         """
 
 
-rule guess_pangraph_mmseqs:
+rule AC_guess_pangraph_mmseqs:
     message:
         """
         reconstructing pangraph with kernel mmseqs
         hgt = {wildcards.hgt}, snps = {wildcards.snps}, n = {wildcards.n}
         """
     input:
-        rules.generate_data.output.seqs,
+        rules.AC_generate_data.output.seqs,
     output:
         "synthetic_data/mmseqs/{hgt}_{snps}/guess_{n}.json",
     params:
-        ker=ker_opt["mmseqs"],
+        ker=AC_ker_opt["mmseqs"],
         pgf=pgf,
     conda:
-        "../cluster/pangraph_build_env.yml"
+        "../conda_envs/pangraph_build_env.yml"
     shell:
         """
         julia -t 8 --project={params.pgf} {params.pgf}/src/PanGraph.jl build \
@@ -107,7 +90,7 @@ rule guess_pangraph_mmseqs:
         """
 
 
-rule single_accuracy:
+rule AC_single_accuracy:
     message:
         """
         generating partial accuracy database for:
@@ -115,10 +98,10 @@ rule single_accuracy:
         """
     input:
         known=expand(
-            "synthetic_data/generated/{{hgt}}_{{snps}}/known_{n}.json", n=TRIALS
+            "synthetic_data/generated/{{hgt}}_{{snps}}/known_{n}.json", n=AC_trials
         ),
         guess=expand(
-            "synthetic_data/{{kernel}}/{{hgt}}_{{snps}}/guess_{n}.json", n=TRIALS
+            "synthetic_data/{{kernel}}/{{hgt}}_{{snps}}/guess_{n}.json", n=AC_trials
         ),
     output:
         temp("synthetic_data/{kernel}/{hgt}_{snps}/partial_accuracy.jld2"),
@@ -128,7 +111,7 @@ rule single_accuracy:
         """
 
 
-rule accuracy_database:
+rule AC_accuracy_database:
     message:
         "generating accuracy database for kernel {wildcards.kernel}"
     input:
@@ -145,11 +128,11 @@ rule accuracy_database:
         """
 
 
-rule accuracy_plots:
+rule AC_accuracy_plots:
     message:
         "generating accuracy plot for kernel {wildcards.kernel}"
     input:
-        rules.accuracy_database.output,
+        rules.AC_accuracy_database.output,
     output:
         "figs/cdf-accuracy-{kernel}.png",
         "figs/heatmap-accuracy-{kernel}.png",
@@ -163,11 +146,11 @@ rule accuracy_plots:
         """
 
 
-rule accuracy_comparison_plots:
+rule AC_accuracy_comparison_plots:
     message:
         "generating accuracy comparison plots"
     input:
-        expand("synthetic_data/results/accuracy-{kernel}.jld2", kernel=KERNELS),
+        expand("synthetic_data/results/accuracy-{kernel}.jld2", kernel=AC_ker_names),
     output:
         "figs/paper-accuracycomp.pdf",
         "figs/paper-accuracycomp-mutdens.pdf",

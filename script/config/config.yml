@@ -1,0 +1,23 @@
+
+panx:
+  species:
+    - "klebsiella_pneumoniae"
+    - "helicobacter_pylori"
+    - "prochlorococcus_marinus"
+    - "mycobacterium_tuberculosis"
+    - "escherichia_coli"
+  projection-data: "config/projection_strains.json"
+  kernel-options:
+    minimap10-full: "-k minimap2 -s 10"
+    minimap20-full: "-k minimap2 -s 20"
+    # minimap-noenergy: "-k minimap2 -s 20 -a 0 -b 0"
+    mmseqs-full: "-k mmseqs -b 10"
+    # mmseqs-noenergy: "-k mmseqs -a 0 -b 0"
+
+accuracy:
+  kernel-options:
+    mmseqs: "-k mmseqs"
+    minimap10: "-k minimap2 -s 10"
+    minimap20: "-k minimap2 -s 20"
+  sim-params: "config/accuracy_sim_params.json"
+  sim-ntrials: 25

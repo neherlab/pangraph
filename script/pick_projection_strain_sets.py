@@ -41,7 +41,7 @@ if __name__ == "__main__":
     N_pairs = 50
 
     # savename of the output json file
-    out_fname = "projections/projection_strains.json"
+    out_fname = "config/projection_strains.json"
 
     # collect all accession numbers
     acc_nums = {s: acc_nums(f"panx_data/{s}/input_GenBank") for s in species}

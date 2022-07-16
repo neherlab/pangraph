@@ -3,6 +3,14 @@
 
 import glob
 
+PX_config = config["panx"]
+# list of different species
+PX_species = PX_config["species"]
+# kernel options
+PX_ker_opt = PX_config["kernel-options"]
+# different kernel names
+PX_ker_names = list(PX_ker_opt.keys())
+
 
 def acc_nums(fld):
     files = glob.glob(fld + "/*.gbk")
@@ -10,43 +18,27 @@ def acc_nums(fld):
     return [re.search(p, f).groups()[0] for f in files]
 
 
-SPECIES = [
-    "klebsiella_pneumoniae",
-    "helicobacter_pylori",
-    "prochlorococcus_marinus",
-    "mycobacterium_tuberculosis",
-    "escherichia_coli",
-]
-ACCNUMS = {s: acc_nums(f"panx_data/{s}/input_GenBank") for s in SPECIES}
-
-ker_opt = {
-    "minimap10-full": "-k minimap2 -s 10",
-    "minimap20-full": "-k minimap2 -s 20",
-    "minimap-noenergy": "-k minimap2 -s 20 -a 0 -b 0",
-    "mmseqs-full": "-k mmseqs -b 10",
-    "mmseqs-noenergy": "-k mmseqs -a 0 -b 0",
-}
-
-KER_KINDS = list(ker_opt.keys())
+# create dictionary of accession numbers for each species
+PX_accnums = {s: acc_nums(f"panx_data/{s}/input_GenBank") for s in PX_species}
 
 
 wildcard_constraints:
-    species=f"({'|'.join(SPECIES)})",
-    kind=f"({'|'.join(KER_KINDS)})",
+    species=f"({'|'.join(PX_species)})",
+    kind=f"({'|'.join(PX_ker_names)})",
 
 
-rule all:
+rule PX_all:
     input:
         expand(
             "panx_data/{species}/pangraphs/pangraph-{kind}.json",
-            species=SPECIES,
-            kind=KER_KINDS,
+            species=PX_species,
+            kind=PX_ker_names,
         ),
         "panx_data/benchmark/benchmark_compression.csv",
         "panx_data/benchmark/benchmark_summary.csv",
 
 
-rule gbk_to_fa:
+rule PX_gbk_to_fa:
     message:
         "converting genbank to fasta for {wildcards.species} - {wildcards.acc} "
     input:
@@ -54,7 +46,7 @@ rule gbk_to_fa:
     output:
         "panx_data/{species}/fa/{acc}.fa",
     conda:
-        "../cluster/bioinfo_env.yml"
+        "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/gbk_to_fa.py --gbk {input} --fa {output}
@@ -65,18 +57,18 @@ rule gbk_to_fa:
 
 
 # for correct benchmarking needs to have pangraph binary present in the path.
-rule build_full_pangraph:
+rule PX_build_full_pangraph:
     message:
         "building full pangraph ({wildcards.kind}) for {wildcards.species}"
     input:
-        lambda w: expand("panx_data/{{species}}/fa/{acc}.fa", acc=ACCNUMS[w.species]),
+        lambda w: expand("panx_data/{{species}}/fa/{acc}.fa", acc=PX_accnums[w.species]),
     output:
         pg="panx_data/{species}/pangraphs/pangraph-{kind}.json",
         bm="panx_data/{species}/pangraphs/benchmark/pangraph-{kind}.txt",
     params:
-        opt=lambda w: ker_opt[w.kind],
+        opt=lambda w: PX_ker_opt[w.kind],
     conda:
-        "../cluster/pangraph_build_env.yml"
+        "../conda_envs/pangraph_build_env.yml"
     shell:
         """
         echo "species = {wildcards.species}" > {output.bm}
@@ -86,56 +78,56 @@ rule build_full_pangraph:
         """
 
 
-rule summary_performance_benchmark:
+rule PX_summary_performance_benchmark:
     message:
         "Summary of pangraph performances"
     input:
         expand(
             "panx_data/{species}/pangraphs/benchmark/pangraph-{kind}.txt",
-            species=SPECIES,
-            kind=KER_KINDS,
+            species=PX_species,
+            kind=PX_ker_names,
         ),
     output:
         csv="panx_data/benchmark/benchmark_summary.csv",
         pdf="panx_data/benchmark/benchmark_summary.pdf",
     conda:
-        "../cluster/bioinfo_env.yml"
+        "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/summary_benchmark.py {output.csv} {output.pdf} {input}
         """
 
 
-rule compression_benchmark:
+rule PX_compression_benchmark:
     message:
         "Compression performances for species {wildcards.species}"
     input:
         pang=expand(
-            "panx_data/{{species}}/pangraphs/pangraph-{kind}.json", kind=KER_KINDS
+            "panx_data/{{species}}/pangraphs/pangraph-{kind}.json", kind=PX_ker_names
         ),
         fa=lambda w: expand(
-            "panx_data/{{species}}/fa/{acc}.fa", acc=ACCNUMS[w.species]
+            "panx_data/{{species}}/fa/{acc}.fa", acc=PX_accnums[w.species]
         ),
     output:
         json="panx_data/benchmark/{species}/compression.json",
     conda:
-        "../cluster/bioinfo_env.yml"
+        "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/compression_benchmark.py --fasta {input.fa} --pangraphs {input.pang} --out_json {output.json}
         """
 
 
-rule summary_compression_benchmark:
+rule PX_summary_compression_benchmark:
     message:
         "Summary of compression performances"
     input:
-        expand("panx_data/benchmark/{species}/compression.json", species=SPECIES),
+        expand("panx_data/benchmark/{species}/compression.json", species=PX_species),
     output:
         csv="panx_data/benchmark/benchmark_compression.csv",
         pdf="panx_data/benchmark/benchmark_compression.pdf",
     conda:
-        "../cluster/bioinfo_env.yml"
+        "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/compression_summary.py --jsons {input} --csv {output.csv} --pdf {output.pdf}
@@ -145,7 +137,7 @@ rule summary_compression_benchmark:
 # ------------- Test pairwise graphs vs graph merging -----------
 
 
-# rule projection_full_graph:
+# rule PX_projection_full_graph:
 #     message:
 #         "Creating projection graph for species {wildcards.species}"
 #     input:
@@ -153,16 +145,16 @@ rule summary_compression_benchmark:
 #     output:
 #         "projections/{species}/full/pangraph_{kind}.json",
 #     params:
-#         opt=lambda w: ker_opt[w.kind],
+#         opt=lambda w: PX_ker_opt[w.kind],
 #     conda:
-#         "../cluster/pangraph_build_env.yml"
+#         "../conda_envs/pangraph_build_env.yml"
 #     shell:
 #         """
 #         export JULIA_NUM_THREADS=8
 #         pangraph build --circular {params.opt} {input} > {output}
 #         """
 
-# rule pairwise_graphs:
+# rule PX_pairwise_graphs:
 #     message:
 #         "Building pairwise graph for strains {wildcards.s1} - {wildcards.s2} ({wildcards.species})"
 #     input:
@@ -170,15 +162,15 @@ rule summary_compression_benchmark:
 #     output:
 #         "projections/{species}/pairwise/pangraph_{kind}_{s1}|{s2}.json",
 #     params:
-#         opt=lambda w: ker_opt[w.kind],
+#         opt=lambda w: PX_ker_opt[w.kind],
 #     conda:
-#         "../cluster/pangraph_build_env.yml"
+#         "../conda_envs/pangraph_build_env.yml"
 #     shell:
 #         """
 #         pangraph build --circular {params.opt} {input} > {output}
 #         """
 
-# rule pairwise_projection:
+# rule PX_pairwise_projection:
 #     message:
 #         "project graph on strains {wildcards.s1} - {wildcards.s2} ({wildcards.species})"
 #     input:
@@ -186,13 +178,13 @@ rule summary_compression_benchmark:
 #     output:
 #         "projections/{species}/projected/pangraph_{kind}_{s1}|{s2}.json"
 #     conda:
-#         "../cluster/pangraph_build_env.yml"
+#         "../conda_envs/pangraph_build_env.yml"
 #     shell:
 #         """
 #         pangraph marginalize -s {wildcards.s1},{wildcards.s2} > {output}
 #         """
 
-# rule compare_projection_pairwise:
+# rule PX_compare_projection_pairwise:
 #     message:
 #         "comparing projected graph to pairwise graph ({wildcards.s1} - {wildcards.s2} ; {wildcards.species})"
 #     input:
