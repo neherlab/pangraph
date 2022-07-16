@@ -54,7 +54,7 @@ rule gbk_to_fa:
     output:
         "panx_data/{species}/fa/{acc}.fa",
     conda:
-        "cluster/bioinfo_env.yml"
+        "../cluster/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/gbk_to_fa.py --gbk {input} --fa {output}
@@ -76,7 +76,7 @@ rule build_full_pangraph:
     params:
         opt=lambda w: ker_opt[w.kind],
     conda:
-        "cluster/pangraph_build_env.yml"
+        "../cluster/pangraph_build_env.yml"
     shell:
         """
         echo "species = {wildcards.species}" > {output.bm}
@@ -99,7 +99,7 @@ rule summary_performance_benchmark:
         csv="panx_data/benchmark/benchmark_summary.csv",
         pdf="panx_data/benchmark/benchmark_summary.pdf",
     conda:
-        "cluster/bioinfo_env.yml"
+        "../cluster/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/summary_benchmark.py {output.csv} {output.pdf} {input}
@@ -119,7 +119,7 @@ rule compression_benchmark:
     output:
         json="panx_data/benchmark/{species}/compression.json",
     conda:
-        "cluster/bioinfo_env.yml"
+        "../cluster/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/compression_benchmark.py --fasta {input.fa} --pangraphs {input.pang} --out_json {output.json}
@@ -135,7 +135,7 @@ rule summary_compression_benchmark:
         csv="panx_data/benchmark/benchmark_compression.csv",
         pdf="panx_data/benchmark/benchmark_compression.pdf",
     conda:
-        "cluster/bioinfo_env.yml"
+        "../cluster/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/compression_summary.py --jsons {input} --csv {output.csv} --pdf {output.pdf}
@@ -155,7 +155,7 @@ rule summary_compression_benchmark:
 #     params:
 #         opt=lambda w: ker_opt[w.kind],
 #     conda:
-#         "cluster/pangraph_build_env.yml"
+#         "../cluster/pangraph_build_env.yml"
 #     shell:
 #         """
 #         export JULIA_NUM_THREADS=8
@@ -172,7 +172,7 @@ rule summary_compression_benchmark:
 #     params:
 #         opt=lambda w: ker_opt[w.kind],
 #     conda:
-#         "cluster/pangraph_build_env.yml"
+#         "../cluster/pangraph_build_env.yml"
 #     shell:
 #         """
 #         pangraph build --circular {params.opt} {input} > {output}
@@ -186,7 +186,7 @@ rule summary_compression_benchmark:
 #     output:
 #         "projections/{species}/projected/pangraph_{kind}_{s1}|{s2}.json"
 #     conda:
-#         "cluster/pangraph_build_env.yml"
+#         "../cluster/pangraph_build_env.yml"
 #     shell:
 #         """
 #         pangraph marginalize -s {wildcards.s1},{wildcards.s2} > {output}

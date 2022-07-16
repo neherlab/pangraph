@@ -99,7 +99,7 @@ rule guess_pangraph_mmseqs:
         ker=ker_opt["mmseqs"],
         pgf=pgf,
     conda:
-        "cluster/pangraph_build_env.yml"
+        "../cluster/pangraph_build_env.yml"
     shell:
         """
         julia -t 8 --project={params.pgf} {params.pgf}/src/PanGraph.jl build \
