@@ -69,7 +69,7 @@ if __name__ == "__main__":
         # using shuffle so that if N_pairs is increased the same strains and pairs
         # are retained. Useful later to avoid re-computing many projections
         rng.shuffle(acc)
-        acc_nums[s] = acc[:Nsel]
+        acc_nums[s] = list(sorted(acc[:Nsel]))
 
     # pick random pairs
     pairs = {}
