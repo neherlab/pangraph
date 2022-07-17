@@ -192,7 +192,7 @@ rule PX_pairwise_projection:
         "../conda_envs/pangraph_build_env.yml"
     shell:
         """
-        pangraph marginalize -s {wildcards.s1},{wildcards.s2} > {output}
+        pangraph marginalize -s {wildcards.s1},{wildcards.s2} {input} > {output}
         """
 
 
