@@ -18,6 +18,7 @@ playground*
 script/synthetic_data
 script/panx_data
 script/.snakemake
+script/projections
 
 deps/minimap2/build
 deps/minimap2/products

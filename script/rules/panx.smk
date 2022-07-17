@@ -2,6 +2,7 @@
 # and benchmark pangraph performances on real data.
 
 import glob
+import json
 
 PX_config = config["panx"]
 # list of different species
@@ -25,6 +26,8 @@ PX_accnums = {s: acc_nums(f"panx_data/{s}/input_GenBank") for s in PX_species}
 wildcard_constraints:
     species=f"({'|'.join(PX_species)})",
     kind=f"({'|'.join(PX_ker_names)})",
+    s1="[^_-][^-]+[^_-]",
+    s2="[^_-][^-]+[^_-]",
 
 
 rule PX_all:
@@ -136,61 +139,98 @@ rule PX_summary_compression_benchmark:
 
 # ------------- Test pairwise graphs vs graph merging -----------
 
+with open(PX_config["projection-data"], "r") as f:
+    PX_proj = json.load(f)
 
-# rule PX_projection_full_graph:
-#     message:
-#         "Creating projection graph for species {wildcards.species}"
-#     input:
-#         lambda w: expand("panx_data/{{species}}/fa/{acc}.fa", acc=ACC50[w.species]),
-#     output:
-#         "projections/{species}/full/pangraph_{kind}.json",
-#     params:
-#         opt=lambda w: PX_ker_opt[w.kind],
-#     conda:
-#         "../conda_envs/pangraph_build_env.yml"
-#     shell:
-#         """
-#         export JULIA_NUM_THREADS=8
-#         pangraph build --circular {params.opt} {input} > {output}
-#         """
 
-# rule PX_pairwise_graphs:
-#     message:
-#         "Building pairwise graph for strains {wildcards.s1} - {wildcards.s2} ({wildcards.species})"
-#     input:
-#         lambda w: expand("panx_data/{{species}}/fa/{acc}.fa", acc=ACC50[w.species]),
-#     output:
-#         "projections/{species}/pairwise/pangraph_{kind}_{s1}|{s2}.json",
-#     params:
-#         opt=lambda w: PX_ker_opt[w.kind],
-#     conda:
-#         "../conda_envs/pangraph_build_env.yml"
-#     shell:
-#         """
-#         pangraph build --circular {params.opt} {input} > {output}
-#         """
+rule PX_projection_full_graph:
+    message:
+        "Creating projection graph for species {wildcards.species}"
+    input:
+        lambda w: expand(
+            "panx_data/{{species}}/fa/{acc}.fa", acc=PX_proj[w.species]["strains"]
+        ),
+    output:
+        "projections/{species}/full/pangraph_{kind}.json",
+    params:
+        opt=lambda w: PX_ker_opt[w.kind],
+    conda:
+        "../conda_envs/pangraph_build_env.yml"
+    shell:
+        """
+        export JULIA_NUM_THREADS=8
+        pangraph build --circular {params.opt} {input} > {output}
+        """
 
-# rule PX_pairwise_projection:
-#     message:
-#         "project graph on strains {wildcards.s1} - {wildcards.s2} ({wildcards.species})"
-#     input:
-#         "projections/{species}/full/pangraph_{kind}.json"
-#     output:
-#         "projections/{species}/projected/pangraph_{kind}_{s1}|{s2}.json"
-#     conda:
-#         "../conda_envs/pangraph_build_env.yml"
-#     shell:
-#         """
-#         pangraph marginalize -s {wildcards.s1},{wildcards.s2} > {output}
-#         """
+
+rule PX_pairwise_graphs:
+    message:
+        "Building pairwise graph for strains {wildcards.s1} - {wildcards.s2} ({wildcards.species})"
+    input:
+        "panx_data/{species}/fa/{s1}.fa",
+        "panx_data/{species}/fa/{s2}.fa",
+    output:
+        "projections/{species}/pairwise/pangraph_{kind}__{s1}-{s2}.json",
+    params:
+        opt=lambda w: PX_ker_opt[w.kind],
+    conda:
+        "../conda_envs/pangraph_build_env.yml"
+    shell:
+        """
+        pangraph build --circular {params.opt} {input} > {output}
+        """
+
+
+rule PX_pairwise_projection:
+    message:
+        "project graph on strains {wildcards.s1} - {wildcards.s2} ({wildcards.species})"
+    input:
+        rules.PX_projection_full_graph.output,
+    output:
+        "projections/{species}/projected/pangraph_{kind}__{s1}-{s2}.json",
+    conda:
+        "../conda_envs/pangraph_build_env.yml"
+    shell:
+        """
+        pangraph marginalize -s {wildcards.s1},{wildcards.s2} > {output}
+        """
+
 
 # rule PX_compare_projection_pairwise:
 #     message:
 #         "comparing projected graph to pairwise graph ({wildcards.s1} - {wildcards.s2} ; {wildcards.species})"
 #     input:
-#         pw=""
-#         pj=""
+#         pw=rules.PX_pairwise_graphs.output,
+#         pj=rules.PX_pairwise_projection.output,
 #     output:
-#         "projections/{species}/comparison/{s1}|{s2}.json"
+#         "projections/{species}/comparison/{s1}-{s2}.json",
 #     shell:
-#         ""
+#         """
+#         """
+
+
+# rule PX_species_projection_comparison:
+#     input:
+#         expand(
+#             "projections/{species}/projected/pangraph_{kind}__{s1s2}.json",
+#             species=["escherichia_coli"],
+#             kind=["minimap20-full"],
+#             s1s2=
+#         ),
+
+
+def all_pair_comparisons(species, kind):
+    pairs = PX_proj[species]["pairs"]
+    in_files = []
+    for s1, s2 in pairs:
+        for k in ["projected", "pairwise"]:
+            in_files.append(
+                f"projections/{species}/{k}/pangraph_{kind}__{s1}-{s2}.json"
+            )
+    return in_files
+
+
+rule PX_proj_all:
+    input:
+        all_pair_comparisons("escherichia_coli", "minimap20-full"),
+        all_pair_comparisons("klebsiella_pneumoniae", "minimap20-full"),
