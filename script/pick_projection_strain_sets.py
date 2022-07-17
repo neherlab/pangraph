@@ -16,7 +16,19 @@ species = [
 # list of accession numbers to exclude for each species
 exclude = {
     "klebsiella_pneumoniae": ["NZ_CP012300", "NC_011283", "NZ_AP014950", "NZ_CP016811"],
-    "helicobacter_pylori": ["NC_022130", "NC_017357", "NC_017371", "NC_000921", "NC_017361", "NZ_CP011330", "NC_017742", "NC_017374", "NZ_CP011486", "NZ_CP011484", "NC_017381"],
+    "helicobacter_pylori": [
+        "NC_022130",
+        "NC_017357",
+        "NC_017371",
+        "NC_000921",
+        "NC_017361",
+        "NZ_CP011330",
+        "NC_017742",
+        "NC_017374",
+        "NZ_CP011486",
+        "NZ_CP011484",
+        "NC_017381",
+    ],
     "prochlorococcus_marinus": [],
     "mycobacterium_tuberculosis": [],
     "escherichia_coli": [],
@@ -54,7 +66,10 @@ if __name__ == "__main__":
     for s in species:
         acc = acc_nums[s]
         Nsel = min(N_tot, len(acc))
-        acc_nums[s] = list(rng.choice(acc, size=Nsel, replace=False))
+        # using shuffle so that if N_pairs is increased the same strains and pairs
+        # are retained. Useful later to avoid re-computing many projections
+        rng.shuffle(acc)
+        acc_nums[s] = acc[:Nsel]
 
     # pick random pairs
     pairs = {}
