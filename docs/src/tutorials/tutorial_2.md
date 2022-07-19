@@ -181,7 +181,7 @@ Here is a complete list containing a description of every entry in the path obje
 - `blocks` : the ordered list of blocks that make up the path.
     - `id` : the unique random id of the block, assigned when building the graph.
     - `name`, `number` `strand` : entries of the node-id, used to identify which particular instance of the block is part of the path. As a reminder, `name` is the id of the input sequence, `number` indicates which occurrence of the same block is considered (useful for duplicated blocks) and `strand` indicates whether the sequence is found on the forward or reverse strand.
-- `position` : an ordered list of positions, corresponding to the beginning positions of each node in the path.
+- `position` : an ordered list of positions, corresponding to the beginning positions of each node in the path. If N is the number of nodes this list has N+1 entries. The last entry is the position of the right edge of the last block in the path.
 - `offset` : indicates the distance between the beginning of the input sequence, and the beginning of the path (i.e. the beginning of the first node of the path, block `IUZTZPLBVS` in the example above).
 
 
