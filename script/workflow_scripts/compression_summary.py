@@ -75,7 +75,7 @@ def short_name(x):
     return ". ".join(y)
 
 
-def barplot(df, ax, y, x="kind", hue="species", logy=True):
+def barplot(df, ax, y, x="species", hue="kind", logy=True):
     """Utility function for the single barplot"""
     ax.grid(alpha=0.3, zorder=-1)
     sns.barplot(x=x, y=y, hue=hue, data=df, ax=ax)

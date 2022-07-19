@@ -139,6 +139,7 @@ rule PX_summary_compression_benchmark:
 
 # ------------- Test pairwise graphs vs graph merging -----------
 
+# load dictionary of selected strains & selected pairs for analysis
 with open(PX_config["projection-data"], "r") as f:
     PX_proj = json.load(f)
 
