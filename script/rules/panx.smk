@@ -197,17 +197,19 @@ rule PX_pairwise_projection:
         """
 
 
-# rule PX_compare_projection_pairwise:
-#     message:
-#         "comparing projected graph to pairwise graph ({wildcards.s1} - {wildcards.s2} ; {wildcards.species})"
-#     input:
-#         pw=rules.PX_pairwise_graphs.output,
-#         pj=rules.PX_pairwise_projection.output,
-#     output:
-#         "projections/{species}/comparison/{s1}-{s2}.json",
-#     shell:
-#         """
-#         """
+rule PX_compare_projection_pairwise:
+    message:
+        "comparing projected graph to pairwise graph ({wildcards.s1} - {wildcards.s2} ; {wildcards.species})"
+    input:
+        pw=rules.PX_pairwise_graphs.output,
+        pj=rules.PX_pairwise_projection.output,
+    output:
+        "projections/{species}/comparison/{s1}-{s2}.json",
+    shell:
+        """
+        julia -t 1 --project=. workflow_scripts/pairwise_vs_marginalize.jl\
+            {input.pw} {input.pj} {output}
+        """
 
 
 # rule PX_species_projection_comparison:
