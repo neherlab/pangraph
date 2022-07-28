@@ -211,26 +211,37 @@ rule PX_compare_projection_pairwise:
             {input.pw} {input.pj} {output}
         """
 
-
-# rule PX_species_projection_comparison:
-#     input:
-#         expand(
-#             "projections/{species}/projected/pangraph_{kind}__{s1s2}.json",
-#             species=["escherichia_coli"],
-#             kind=["minimap20-full"],
-#             s1s2=
-#         ),
-
-
-def all_pair_comparisons(species, kind):
-    pairs = PX_proj[species]["pairs"]
+def all_pair_comparisons(w):
+    """given species and kind wildcards produces a list containing all pairs
+    of json files containing pairwise statistics comparisons."""
+    pairs = PX_proj[w.species]["pairs"]
     in_files = []
     for s1, s2 in pairs:
-        in_files.append(f"projections/{species}/comparison/{kind}__{s1}-{s2}.json")
+        in_files.append(f"projections/{w.species}/comparison/{w.kind}__{s1}-{s2}.json")
     return in_files
+    
 
+rule PX_pairwise_projection_benchmark:
+    message:
+        "preparing plots for pairwise comparison - {wildcards.species}"
+    input:
+        jsons=all_pair_comparisons,
+    output:
+        pdf="projections/benchmark/{kind}_{species}.pdf",
+        csv="projections/benchmark/{kind}_{species}.csv",
+    conda:
+        "../conda_envs/bioinfo_env.yml"
+    shell:
+        """
+        python3 workflow_scripts/pairwise_vs_marginalize_summary.py \
+            --jsons {input.jsons} \
+            --csv {output.csv} --pdf {output.pdf} \
+            --species {wildcards.species}
+        """
 
 rule PX_proj_all:
     input:
-        all_pair_comparisons("escherichia_coli", "minimap20-full"),
-        all_pair_comparisons("klebsiella_pneumoniae", "minimap20-full"),
+        expand("projections/benchmark/{kind}_{species}.pdf",
+                kind=["minimap20-full"],
+                species=["escherichia_coli", "klebsiella_pneumoniae"]
+            )
