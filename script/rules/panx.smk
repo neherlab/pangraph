@@ -204,7 +204,7 @@ rule PX_compare_projection_pairwise:
         pw=rules.PX_pairwise_graphs.output,
         pj=rules.PX_pairwise_projection.output,
     output:
-        "projections/{species}/comparison/{s1}-{s2}.json",
+        "projections/{species}/comparison/{kind}__{s1}-{s2}.json",
     shell:
         """
         julia -t 1 --project=. workflow_scripts/pairwise_vs_marginalize.jl\
@@ -226,10 +226,7 @@ def all_pair_comparisons(species, kind):
     pairs = PX_proj[species]["pairs"]
     in_files = []
     for s1, s2 in pairs:
-        for k in ["projected", "pairwise"]:
-            in_files.append(
-                f"projections/{species}/{k}/pangraph_{kind}__{s1}-{s2}.json"
-            )
+        in_files.append(f"projections/{species}/comparison/{kind}__{s1}-{s2}.json")
     return in_files
 
 
