@@ -211,6 +211,7 @@ rule PX_compare_projection_pairwise:
             {input.pw} {input.pj} {output}
         """
 
+
 def all_pair_comparisons(w):
     """given species and kind wildcards produces a list containing all pairs
     of json files containing pairwise statistics comparisons."""
@@ -219,7 +220,7 @@ def all_pair_comparisons(w):
     for s1, s2 in pairs:
         in_files.append(f"projections/{w.species}/comparison/{w.kind}__{s1}-{s2}.json")
     return in_files
-    
+
 
 rule PX_pairwise_projection_benchmark:
     message:
@@ -239,9 +240,11 @@ rule PX_pairwise_projection_benchmark:
             --species {wildcards.species}
         """
 
+
 rule PX_proj_all:
     input:
-        expand("projections/benchmark/{kind}_{species}.pdf",
-                kind=["minimap20-full"],
-                species=["escherichia_coli", "klebsiella_pneumoniae"]
-            )
+        expand(
+            "projections/benchmark/{kind}_{species}.pdf",
+            kind=["minimap20-full"],
+            species=PX_species,
+        ),
