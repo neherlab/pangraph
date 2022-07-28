@@ -8,13 +8,13 @@ panx:
     - "escherichia_coli"
   projection-data: "config/projection_strains.json"
   kernel-options:
-    # minimap10-full: "-k minimap2 -s 10"
-    # minimap20-full: "-k minimap2 -s 20"
+    minimap10-full: "-k minimap2 -s 10"
+    minimap20-full: "-k minimap2 -s 20"
     minimap10-b10: "-k minimap2 -s 10 -b 10"
     minimap20-b10: "-k minimap2 -s 20 -b 10"
-    # minimap-noenergy: "-k minimap2 -s 20 -a 0 -b 0"
+    minimap-noenergy: "-k minimap2 -s 20 -a 0 -b 0"
     mmseqs-full: "-k mmseqs -b 10"
-    # mmseqs-noenergy: "-k mmseqs -a 0 -b 0"
+    mmseqs-noenergy: "-k mmseqs -a 0 -b 0"
 
 accuracy:
   kernel-options:

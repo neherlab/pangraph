@@ -88,17 +88,17 @@ def plot_benchmark(df):
     # plot wall-time
     ax=axs[1]
     df["wall-time (h)"] = df["wall-time"] / 3600
-    sns.barplot(x="kind", hue="species", y="wall-time (h)", data=df, ax=ax)
+    sns.barplot(x="species", hue="kind", y="wall-time (h)", data=df, ax=ax)
     ax.set_yscale("log")
 
     # plot max resident size
     ax = axs[2]
-    sns.barplot(x="kind", hue="species", y="mem", data=df, ax=ax)
+    sns.barplot(x="species", hue="kind", y="mem", data=df, ax=ax)
     ax.set_ylabel("max resident size (Gb)")
 
     # plot cpu percent
     ax = axs[3]
-    sns.barplot(x="kind", hue="species", y="cpu-percent", data=df, ax=ax)
+    sns.barplot(x="species", hue="kind", y="cpu-percent", data=df, ax=ax)
 
     # draw grid
     for ax in axs:
