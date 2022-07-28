@@ -1,4 +1,3 @@
-##
 using PanGraph
 using PanGraph.Graphs
 using JSON
@@ -15,7 +14,7 @@ end
 Base.length(I::Interval)::Int = I.l ≤ I.r ? I.r - I.l + 1 : (I.r + I.L) - I.l + 1
 
 # given a set of left segment edges, and the total genome length,
-#  finds the set of corresponding right edges
+# finds the set of corresponding right edges
 Redge_from_Ledge(begs::Vector{Int}, L::Int)::Vector{Int} =
     circshift(mod.(begs .- 2, L) .+ 1, -1)
 
@@ -122,6 +121,7 @@ if abspath(PROGRAM_FILE) == @__FILE__
     # capture arguments
     path_pairwise, path_project, outfile = ARGS
 
+    # load graphs and create block-maps
     Gpw = open(unmarshal, path_pairwise)
     Gpj = open(unmarshal, path_project)
 
@@ -168,29 +168,29 @@ if abspath(PROGRAM_FILE) == @__FILE__
 
         # --- shared or private ---
 
-        # fraction of private on pairwise
-        query!((wi, ji, wn, jn) -> (wn == 0), "private")
+        # fraction of private of pairwise
+        query!((wi, ji, wn, jn) -> (wn == 0), "private on pairwise")
 
-        # fraction of private on projection
-        query!((wi, ji, wn, jn) -> (jn == 0), "private")
+        # fraction of private of projection
+        query!((wi, ji, wn, jn) -> (jn == 0), "private on projection")
 
         # fraction of agreed
-        query!((wi, ji, wn, jn) -> ~((wn > 0) ⊻ (jn > 0)), "agree")
+        query!((wi, ji, wn, jn) -> ~((wn > 0) ⊻ (jn > 0)), "agree on sharing")
 
         # disagree
-        query!((wi, ji, wn, jn) -> (wn > 0) ⊻ (jn > 0), "disagree")
+        query!((wi, ji, wn, jn) -> (wn > 0) ⊻ (jn > 0), "disagree on sharing")
 
         # private agreed
-        query!((wi, ji, wn, jn) -> (wn == 0) & (jn == 0), "private agree")
+        query!((wi, ji, wn, jn) -> (wn == 0) & (jn == 0), "private on both")
 
         # shared agreed
-        query!((wi, ji, wn, jn) -> (wn > 0) & (jn > 0), "shared agree")
+        query!((wi, ji, wn, jn) -> (wn > 0) & (jn > 0), "shared on both")
 
         # shared only pairwise
-        query!((wi, ji, wn, jn) -> (wn > 0) & (jn == 0), "shared only pairwise")
+        query!((wi, ji, wn, jn) -> (wn > 0) & (jn == 0), "shared only on pairwise")
 
         # shared only projection
-        query!((wi, ji, wn, jn) -> (wn == 0) & (jn > 0), "shared only projection")
+        query!((wi, ji, wn, jn) -> (wn == 0) & (jn > 0), "shared only on projection")
 
         # --- duplicated or not ---
 
@@ -201,16 +201,22 @@ if abspath(PROGRAM_FILE) == @__FILE__
         query!((wi, ji, wn, jn) -> (ji > 1), "duplicated projection")
 
         # agree duplicated
-        query!((wi, ji, wn, jn) -> ~((wi > 1) ⊻ (ji > 1)), "agree duplicated")
+        query!((wi, ji, wn, jn) -> ~((wi > 1) ⊻ (ji > 1)), "agree on duplication")
 
         # disagree duplicated
-        query!((wi, ji, wn, jn) -> (wi > 1) ⊻ (ji > 1), "disagree duplicated")
+        query!((wi, ji, wn, jn) -> (wi > 1) ⊻ (ji > 1), "disagree on duplication")
 
         # both duplicated
-        query!((wi, ji, wn, jn) -> (wi > 1) & (ji > 1), "both duplicated")
+        query!((wi, ji, wn, jn) -> (wi > 1) & (ji > 1), "both are duplicated")
 
         # no duplicated
-        query!((wi, ji, wn, jn) -> ~((wi > 1) & (ji > 1)), "both duplicated")
+        query!((wi, ji, wn, jn) -> (wi ≤ 1) & (ji ≤ 1), "both not duplicated")
+
+        # duplicated only on pairwise
+        query!((wi, ji, wn, jn) -> (wi > 1) & (ji ≤ 1), "duplicated only on pairwise")
+
+        # duplicated only on projection
+        query!((wi, ji, wn, jn) -> (wi ≤ 1) & (ji > 1), "duplicated only on projection")
 
     end
 
