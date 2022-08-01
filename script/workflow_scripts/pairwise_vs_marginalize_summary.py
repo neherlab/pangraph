@@ -1,3 +1,4 @@
+# %%
 import json
 import argparse
 import pandas as pd
@@ -20,7 +21,7 @@ def parse_args():
 
 
 def load_stats(jsons):
-    """Load the json files and returns a list of data objects"""
+    """Load the json files and returns a list of loaded objects"""
     data = []
     for j in jsons:
         with open(j, "r") as f:
@@ -31,7 +32,7 @@ def load_stats(jsons):
 
 
 def data_to_df(data):
-    """Turn the nested dictionary data structure into a multi-array dataframe"""
+    """Turn the nested dictionary data structure into a multi-index dataframe"""
     df = []
     # forget about the strain this was extracted from (remove first key)
     for d in data:
@@ -46,64 +47,63 @@ def data_to_df(data):
     return pd.DataFrame(pd.DataFrame(df).to_dict())
 
 
-def create_summary_df(dfL):
-    """Creates a dataframe with fewer columns. These are the ones that will be saved.
-    Values represent fraction of genome lengths."""
+def create_summary_df(df):
+    """Creates a multi-index dataframe with fewer columns. These are the ones that
+    will be saved. The first layer of the index corresponds to a different plot"""
 
-    tot = dfL["total"]
-    sdf = {
-        "agree on sharing": dfL["agree on sharing"] / tot,
-        "disagree on sharing": dfL["disagree on sharing"] / tot,
-        "shared on both": dfL["shared on both"] / tot,
-        "private on both": dfL["private on both"] / tot,
-        "agree on duplication": dfL["agree on duplication"] / tot,
-        "disagree on duplication": dfL["disagree on duplication"] / tot,
-        "both are duplicated": dfL["both are duplicated"] / tot,
-        "both not duplicated": dfL["both not duplicated"] / tot,
-    }
-    return pd.DataFrame(sdf)
-
-
-def plot_summary_df(sdf, savename=None, title=None):
-    """Creates two boxplots. One for fraction of shared genome and
-    one for fraction of duplicated genome."""
-
-    # prepare sub-df:
-    col1 = [
+    dfL, dfN = df["L"], df["N"]
+    k1, k2 = "fraction of total genome length", "average segment size (kbp)"
+    vals = [
         "agree on sharing",
         "disagree on sharing",
         "shared on both",
         "private on both",
     ]
-    col2 = [
-        "agree on duplication",
-        "disagree on duplication",
-        "both are duplicated",
-        "both not duplicated",
-    ]
-    df1 = sdf[col1].unstack().reset_index().drop(columns=["level_1"])
-    df2 = sdf[col2].unstack().reset_index().drop(columns=["level_1"])
 
+    sdf = {}
+    for v in vals:
+        sdf[(k1, v)] = dfL[v] / dfL["total"]
+    for v in vals:
+        sdf[(k2, v)] = dfL[v] / (dfN[v] * 1000)
+
+    return pd.DataFrame(sdf)
+
+
+def plot_summary_df(sdf, savename=None, title=None):
+    """Creates a boxplot summary of the dataframe. Each main index corresponds to
+    a different plot, and secondary indices are different boxes. For each box the mean
+    and standard deviation is reported."""
+
+    # capture mean and std, and keys for main plots
     mean, std = sdf.mean(), sdf.std()
+    Ks = sdf.columns.get_level_values(0).unique()
 
-    fig, axs = plt.subplots(2, 1, sharex=True, figsize=(8, 6))
+    NK = len(Ks)
+    fig, axs = plt.subplots(2, 1, figsize=(8, NK * 3))
 
-    # box-plots
-    for ax, dfi, col in zip(axs, [df1, df2], [col1, col2]):
-        sns.boxplot(ax=ax, data=dfi, x=0, y="level_0", color="C0", width=0.6)
+    for nk, k in enumerate(Ks):
+
+        # build sub-dataframe
+        dfi = sdf[k].unstack().reset_index().drop(columns=["level_1"])
+        dfi = dfi.rename(columns={"level_0": "type", 0: "value"})
+
+        # box-plots
+        ax = axs[nk]
+        sns.boxplot(ax=ax, data=dfi, x="value", y="type", color="C0", width=0.6)
         ax.set_ylabel("")
-        ax.set_xlabel("")
-        ax.xaxis.grid(True)
-        for nc, c in enumerate(col):
-            ax.text(1.1, nc, f"{mean[c]:.2} $\pm$ {std[c]:.2}")
+        ax.set_xlabel(k)
+        ax.grid(axis="x", alpha=0.4)
 
-    # axes setup
-    axs[1].set_xlabel("fraction of genome length")
+        # report mean and standard deviation
+        M = dfi["value"].max()
+        cols = sdf[k].columns
+        for nc, c in enumerate(cols):
+            ax.text(M * 1.1, nc, f"{mean[(k,c)]:.2} $\pm$ {std[(k,c)]:.2}")
 
+    # decorate plot (title and spines)
     st = title.split("_")
     st = f"{st[0].capitalize()[0]}. {st[1].capitalize()}"
     axs[0].set_title(st)
-
     sns.despine(fig=fig)
 
     # save and close
@@ -122,8 +122,7 @@ if __name__ == "__main__":
     df = data_to_df(data)
 
     # create summary dataframe
-    dfL = df["L"].copy()
-    sdf = create_summary_df(dfL)
+    sdf = create_summary_df(df)
 
     # plot summary of stats
     plot_summary_df(sdf, args.pdf, args.species)
