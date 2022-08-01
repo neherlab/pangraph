@@ -121,9 +121,9 @@ def get_top_bottom_N(sdf, N):
     res = defaultdict(list)
     for n in range(N):
         for k in sdf:
-            srt = sdf[k].argsort()
-            res[f"max_{n}"].append(srt.index[n])
-            res[f"min_{n}"].append(srt.index[-n - 1])
+            srt = sdf[k].sort_values()
+            res[f"min_{n}"].append(srt.index[n])
+            res[f"max_{n}"].append(srt.index[-n - 1])
 
     idxs = [k for k in sdf]
     res = dict(res)

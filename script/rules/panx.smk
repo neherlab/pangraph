@@ -241,6 +241,33 @@ rule PX_pairwise_projection_benchmark:
         """
 
 
+rule PX_explore_proj_examples:
+    message:
+        "plot inspecting example {wildcards.species} - {wildcards.kind} - {wildcards.s1} - {wildcards.s2} for pairwise comparison"
+    input:
+        pw=rules.PX_pairwise_graphs.output,
+        pj=rules.PX_pairwise_projection.output,
+    output:
+        pdf="projections/{species}/examples/{kind}__{s1}-{s2}.pdf",
+    conda:
+        "../conda_envs/bioinfo_env.yml"
+    shell:
+        """
+        python3 workflow_scripts/pairwise_vs_marginalize_example.py \
+            --pair {input.pw} --proj {input.pj} --pdf {output.pdf}
+        """
+
+
+PX_example_list = [
+    ("escherichia_coli", "NZ_CP011124", "NZ_CP011495"),  # max agree
+    ("escherichia_coli", "NZ_CP007442", "NZ_CP018983"),  # min agree
+    ("escherichia_coli", "NZ_CP010167", "NZ_CP015912"),  # maxL disagr
+    ("escherichia_coli", "NZ_CP014316", "NZ_CP018983"),  # max2L disagr
+    ("klebsiella_pneumoniae", "NZ_CP018427", "NZ_CP018428"),  # max agree
+    ("klebsiella_pneumoniae", "NZ_CP013322", "NZ_CP015382"),  # min agree
+]
+
+
 rule PX_proj_all:
     input:
         expand(
@@ -248,3 +275,7 @@ rule PX_proj_all:
             kind=["minimap20-full", "minimap-noenergy"],
             species=PX_species,
         ),
+        [
+            f"projections/{sp}/examples/minimap20-full__{s1}-{s2}.pdf"
+            for sp, s1, s2 in PX_example_list
+        ],

@@ -9,7 +9,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="""Summary plots for disagreement along a specific pair of strains"""
     )
-    parser.add_argument("--pariw", help="input pairwise pangraph", type=str)
+    parser.add_argument("--pair", help="input pairwise pangraph", type=str)
     parser.add_argument("--proj", help="input projection pangraph", type=str)
     parser.add_argument("--pdf", help="output pdf plot", type=str)
     return parser.parse_args()
@@ -155,7 +155,7 @@ if __name__ == "__main__":
     args = parse_args()
 
     # build share/private maps
-    maps = build_share_maps(args.pairw, args.proj)
+    maps = build_share_maps(args.pair, args.proj)
 
     # summary plots
     plot_disagreement(maps, args.pdf)
