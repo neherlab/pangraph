@@ -1,4 +1,4 @@
-# %%
+from collections import defaultdict
 import json
 import argparse
 import pandas as pd
@@ -21,30 +21,34 @@ def parse_args():
 
 
 def load_stats(jsons):
-    """Load the json files and returns a list of loaded objects"""
-    data = []
+    """Load the json files and returns a nested dictionary of loaded objects"""
+    data = {}
     for j in jsons:
         with open(j, "r") as f:
             d = json.load(f)
         # forget strain key
-        data += list(d.values())
+        k1 = j.split("/")[-1]
+        for k2, v in d.items():
+            # key: filename.json|strain
+            data[f"{k1}|{k2}"] = v
     return data
 
 
 def data_to_df(data):
     """Turn the nested dictionary data structure into a multi-index dataframe"""
-    df = []
+    df, idx = [], []
     # forget about the strain this was extracted from (remove first key)
-    for d in data:
+    for i, d in data.items():
         item = {}
         for k1, v1 in d.items():
             for k2, v in v1.items():
                 # key: ( L/N , quantity )
                 item[(k2, k1)] = v
         df.append(item)
+        idx.append(i)
 
     # return pd.DataFrame(df)
-    return pd.DataFrame(pd.DataFrame(df).to_dict())
+    return pd.DataFrame(pd.DataFrame(df, index=idx).to_dict())
 
 
 def create_summary_df(df):
@@ -112,6 +116,22 @@ def plot_summary_df(sdf, savename=None, title=None):
     plt.close(fig)
 
 
+def get_top_bottom_N(sdf, N):
+    """For each category finds the indices of the top and bottom N values."""
+    res = defaultdict(list)
+    for n in range(N):
+        for k in sdf:
+            srt = sdf[k].argsort()
+            res[f"max_{n}"].append(srt.index[n])
+            res[f"min_{n}"].append(srt.index[-n - 1])
+
+    idxs = [k for k in sdf]
+    res = dict(res)
+    for k in res:
+        res[k] = pd.Series(data=res[k], index=idxs)
+    return res
+
+
 if __name__ == "__main__":
 
     # parse arguments
@@ -128,6 +148,6 @@ if __name__ == "__main__":
     plot_summary_df(sdf, args.pdf, args.species)
 
     # save summary
-    res = {"mean": sdf.mean(), "std": sdf.std()}
+    res = {"mean": sdf.mean(), "std": sdf.std()} | get_top_bottom_N(sdf, 2)
     res = pd.DataFrame(res)
     res.to_csv(args.csv)
