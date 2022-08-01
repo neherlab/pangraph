@@ -13,8 +13,8 @@ from . import pangraph_alignments as pga
 class Pangraph:
     """Wrapper class to load and interact with the output of the Pangraph pipeline.
     The class has two main attributes:
-    - `paths` : each strain has
-    - `blocks` :
+    - `paths` : each strain has a path representaiton. A path consists in a series of blocks.
+    - `blocks` : the alignment of each homologous sequence is represented as a block.
     """
 
     def __init__(self, pan_json):
