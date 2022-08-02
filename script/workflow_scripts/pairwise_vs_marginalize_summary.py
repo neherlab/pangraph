@@ -122,6 +122,7 @@ def get_top_bottom_N(sdf, N):
     for n in range(N):
         for k in sdf:
             srt = sdf[k].sort_values()
+            srt = srt.dropna()
             res[f"min_{n}"].append(srt.index[n])
             res[f"max_{n}"].append(srt.index[-n - 1])
 
