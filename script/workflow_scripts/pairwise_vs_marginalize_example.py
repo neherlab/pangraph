@@ -107,7 +107,7 @@ def plot_disagreement(maps, savename):
             ax.plot(~m * f)
         ax.set_xlim(0, len(m))
         ax.set_yticks([-1, 0, 1])
-        ax.set_yticklabels(["private (pairwise)", "shared", "private (projected)"])
+        ax.set_yticklabels(["private (projected)", "shared", "private (pairwise)"])
 
         # 2) avree or disagree vs genome position
         lett = "B" if ni == 0 else "E"

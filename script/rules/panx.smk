@@ -258,17 +258,17 @@ rule PX_explore_proj_examples:
         """
 
 
+# list of example plots with comparison of pairwise and projected graphs
 PX_example_list = [
-    ("escherichia_coli", "NZ_CP011124", "NZ_CP011495", "max_agreeF"),
-    ("escherichia_coli", "NZ_CP007442", "NZ_CP018983", "min_agreeF"),
-    ("escherichia_coli", "NZ_CP010148", "NZ_CP014316", "min2_agreeF"),
-    ("escherichia_coli", "NZ_CP010167", "NZ_CP015912", "max_disagreeL"),
-    ("escherichia_coli", "NZ_CP014316", "NZ_CP018983", "max2_disagreeL"),
-    ("klebsiella_pneumoniae", "NZ_CP018427", "NZ_CP018428", "max_agreeF"),
-    ("klebsiella_pneumoniae", "NZ_CP013322", "NZ_CP015382", "min12_agreeF"),
-    # ("klebsiella_pneumoniae", "NZ_CP013322", "NZ_CP015382", "min2_agreeF"),
-    ("klebsiella_pneumoniae", "NZ_CP009461", "NZ_CP012568", "max_disagreeL"),
-    ("klebsiella_pneumoniae", "NZ_CP009872", "NZ_CP015822", "max2_disagreeL"),
+    ("escherichia_coli", "NZ_CP011124-NZ_CP011495", "max_agreeF"),
+    ("escherichia_coli", "NZ_CP007442-NZ_CP018983", "min_agreeF"),
+    ("escherichia_coli", "NZ_CP010148-NZ_CP014316", "min2_agreeF"),
+    ("escherichia_coli", "NZ_CP010167-NZ_CP015912", "max_disagreeL"),
+    ("escherichia_coli", "NZ_CP014316-NZ_CP018983", "max2_disagreeL"),
+    ("klebsiella_pneumoniae", "NZ_CP018427-NZ_CP018428", "max_agreeF"),
+    ("klebsiella_pneumoniae", "NZ_CP013322-NZ_CP015382", "min12_agreeF"),
+    ("klebsiella_pneumoniae", "NZ_CP009461-NZ_CP012568", "max_disagreeL"),
+    ("klebsiella_pneumoniae", "NZ_CP009872-NZ_CP015822", "max2_disagreeL"),
 ]
 
 
@@ -280,6 +280,6 @@ rule PX_proj_all:
             species=PX_species,
         ),
         [
-            f"projections/{sp}/examples/minimap20-full__{s1}-{s2}-{t}.pdf"
-            for sp, s1, s2, t in PX_example_list
+            f"projections/{sp}/examples/minimap20-full__{st}-{t}.pdf"
+            for sp, st, t in PX_example_list
         ],
