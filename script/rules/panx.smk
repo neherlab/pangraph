@@ -276,7 +276,7 @@ rule PX_proj_all:
     input:
         expand(
             "projections/benchmark/{kind}_{species}.pdf",
-            kind=["minimap20-std", "minimap-noenergy"],
+            kind=["minimap20-std", "minimap20-noenergy"],
             species=PX_species,
         ),
         [
