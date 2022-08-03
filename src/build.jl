@@ -26,7 +26,7 @@ Build = Command(
         "block diversity cost",
         (short="-b", long="--beta"),
         "energy cost for interblock diversity due to alignment merger",
-        20,
+        10,
     ),
     Arg(
         Bool,
