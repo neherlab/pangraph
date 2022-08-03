@@ -276,10 +276,10 @@ rule PX_proj_all:
     input:
         expand(
             "projections/benchmark/{kind}_{species}.pdf",
-            kind=["minimap20-full", "minimap-noenergy"],
+            kind=["minimap20-std", "minimap-noenergy"],
             species=PX_species,
         ),
         [
-            f"projections/{sp}/examples/minimap20-full__{st}-{t}.pdf"
+            f"projections/{sp}/examples/minimap20-std__{st}-{t}.pdf"
             for sp, st, t in PX_example_list
         ],
