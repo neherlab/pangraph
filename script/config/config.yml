@@ -5,7 +5,7 @@ panx:
     - "helicobacter_pylori"
     - "prochlorococcus_marinus"
     - "mycobacterium_tuberculosis"
-    - "escherichia_coli"
+    # - "escherichia_coli"
   projection-data: "config/projection_strains.json"
   kernel-options:
     minimap10-std: "-k minimap2 -s 10 -a 100 -b 10"
@@ -21,3 +21,11 @@ accuracy:
     minimap20: "-k minimap2 -s 20"
   sim-params: "config/accuracy_sim_params.json"
   sim-ntrials: 25
+
+size-benchmark:
+  sim-params: "config/size_benchmark_sim_params.json"
+  hgt: 0.1
+  snp: 0.005
+  ins: 0.01
+  ker-opt: "-k minimap2 -s 20 -a 100 -b 10"
+  trials: 20

@@ -12,8 +12,10 @@
         "mem": "100G"
     },
     "PX_build_full_pangraph": {
-        "time": "6-23:50:00",
-        "qos": "1week",
+        "time": "23:50:00",
+        "qos": "1day",
+        "//time": "6-23:50:00",
+        "//qos": "1week",
         "n": 8,
         "mem": "100G"
     },
@@ -34,5 +36,11 @@
         "qos": "30min",
         "n": 1,
         "mem": "50G"
+    },
+    "SB_time_pangraph": {
+        "time": "05:58:00",
+        "qos": "6hours",
+        "n": 8,
+        "mem": "100G"
     }
 }
