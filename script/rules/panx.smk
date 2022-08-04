@@ -13,6 +13,8 @@ PX_ker_opt = PX_config["kernel-options"]
 PX_ker_names = list(PX_ker_opt.keys())
 
 
+# function that given a folder containing genbank files returns a list of
+# their accession numbers, extracted as the file basename.
 def acc_nums(fld):
     files = glob.glob(fld + "/*.gbk")
     p = re.compile("/?([^/]+)\.gbk$")
@@ -30,17 +32,17 @@ wildcard_constraints:
     s2="[^_-][^-]+[^_-]",
 
 
-rule PX_all:
+# ------------- Test performances on real PanX data -----------
+
+
+# final benchmark plots
+rule PX_benchmark_all:
     input:
-        expand(
-            "panx_data/{species}/pangraphs/pangraph-{kind}.json",
-            species=PX_species,
-            kind=PX_ker_names,
-        ),
         "panx_data/benchmark/benchmark_compression.csv",
         "panx_data/benchmark/benchmark_summary.csv",
 
 
+# convert genbank files to fasta
 rule PX_gbk_to_fa:
     message:
         "converting genbank to fasta for {wildcards.species} - {wildcards.acc} "
@@ -56,10 +58,9 @@ rule PX_gbk_to_fa:
         """
 
 
-# ------------- Test on real PanX data -----------
-
-
-# for correct benchmarking needs to have pangraph binary present in the path.
+# Build full pangraphs for the species of interest and the specified alignment kernel option.
+# Performance are measured and saved in a txt file.
+# NB: for correct benchmarking needs to have pangraph binary present in the path.
 rule PX_build_full_pangraph:
     message:
         "building full pangraph ({wildcards.kind}) for {wildcards.species}"
@@ -81,6 +82,8 @@ rule PX_build_full_pangraph:
         """
 
 
+# summarizes the performance of pangraph (time, memory, cpu..) on real data from the
+# log-file produced by the previous rule.
 rule PX_summary_performance_benchmark:
     message:
         "Summary of pangraph performances"
@@ -101,6 +104,10 @@ rule PX_summary_performance_benchmark:
         """
 
 
+# For any given species this rule summarizes the performance of pangraph concerning
+# the characteristic of the pangenome graph (size and number of blocks, fraction of
+# core genome, sequence compression...) and saves the result in a json file. This
+# includes all tested alignment kernels.
 rule PX_compression_benchmark:
     message:
         "Compression performances for species {wildcards.species}"
@@ -121,6 +128,8 @@ rule PX_compression_benchmark:
         """
 
 
+# Takes the json file produced by the previous rule for all the different species
+# and produces a summary plot.
 rule PX_summary_compression_benchmark:
     message:
         "Summary of compression performances"
@@ -137,13 +146,14 @@ rule PX_summary_compression_benchmark:
         """
 
 
-# ------------- Test pairwise graphs vs graph merging -----------
+# ------------- Compare pairwise graphs vs pairwise projections from a larger graph -----------
 
-# load dictionary of selected strains & selected pairs for analysis
+# load dictionary of selected strains & selected pairs for analysis (produced by pick_projection_strain_set.py)
 with open(PX_config["projection-data"], "r") as f:
     PX_proj = json.load(f)
 
 
+# Creates a graph with all of the selected strains.
 rule PX_projection_full_graph:
     message:
         "Creating projection graph for species {wildcards.species}"
@@ -164,6 +174,7 @@ rule PX_projection_full_graph:
         """
 
 
+# Builds a graph for every selected pair of strains.
 rule PX_pairwise_graphs:
     message:
         "Building pairwise graph for strains {wildcards.s1} - {wildcards.s2} ({wildcards.species})"
@@ -182,6 +193,7 @@ rule PX_pairwise_graphs:
         """
 
 
+# For every selected pair of strains, marginalizes the global graph on the pair.
 rule PX_pairwise_projection:
     message:
         "project graph on strains {wildcards.s1} - {wildcards.s2} ({wildcards.species})"
@@ -197,6 +209,8 @@ rule PX_pairwise_projection:
         """
 
 
+# Compares the pairwise and the marginalized graph, checking on what fraction of the genome
+# the two agree. Results are saved in a json file
 rule PX_compare_projection_pairwise:
     message:
         "comparing projected graph to pairwise graph ({wildcards.s1} - {wildcards.s2} ; {wildcards.species})"
@@ -214,7 +228,7 @@ rule PX_compare_projection_pairwise:
 
 def all_pair_comparisons(w):
     """given species and kind wildcards produces a list containing all pairs
-    of json files containing pairwise statistics comparisons."""
+    of json files with pairwise statistics comparisons."""
     pairs = PX_proj[w.species]["pairs"]
     in_files = []
     for s1, s2 in pairs:
@@ -222,6 +236,8 @@ def all_pair_comparisons(w):
     return in_files
 
 
+# For every species and alignment kernel collects all the statistics on the comparison
+# between pairwise and projeted graphs, and produces summary plots.
 rule PX_pairwise_projection_benchmark:
     message:
         "preparing plots for pairwise comparison - {wildcards.species}"
@@ -241,6 +257,8 @@ rule PX_pairwise_projection_benchmark:
         """
 
 
+# Produces detailed plots for specific examples of comparison between pairwise
+# and projected graphs.
 rule PX_explore_proj_examples:
     message:
         "plot inspecting example {wildcards.species} - {wildcards.kind} - {wildcards.s1} - {wildcards.s2} for pairwise comparison"
@@ -248,7 +266,7 @@ rule PX_explore_proj_examples:
         pw=rules.PX_pairwise_graphs.output,
         pj=rules.PX_pairwise_projection.output,
     output:
-        pdf="projections/{species}/examples/{kind}__{s1}-{s2}-{title}.pdf",
+        pdf="projections/benchmark/examples/{species}__{kind}__{s1}-{s2}-{title}.pdf",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
@@ -260,18 +278,18 @@ rule PX_explore_proj_examples:
 
 # list of example plots with comparison of pairwise and projected graphs
 PX_example_list = [
-    ("escherichia_coli", "NZ_CP011124-NZ_CP011495", "max_agreeF"),
-    ("escherichia_coli", "NZ_CP007442-NZ_CP018983", "min_agreeF"),
-    ("escherichia_coli", "NZ_CP010148-NZ_CP014316", "min2_agreeF"),
-    ("escherichia_coli", "NZ_CP010167-NZ_CP015912", "max_disagreeL"),
-    ("escherichia_coli", "NZ_CP014316-NZ_CP018983", "max2_disagreeL"),
+    ("escherichia_coli", "NZ_CP014316-NZ_CP018983", "max_agreeF_max_disagreeL"),
+    ("escherichia_coli", "NZ_CP012635-NZ_CP017251", "min_agreeF"),
+    ("escherichia_coli", "NZ_CP018252-NZ_CP018983", "min2_agreeF"),
+    ("escherichia_coli", "NZ_CP017249-NZ_CP017440", "max2_disagreeL"),
     ("klebsiella_pneumoniae", "NZ_CP018427-NZ_CP018428", "max_agreeF"),
     ("klebsiella_pneumoniae", "NZ_CP013322-NZ_CP015382", "min12_agreeF"),
-    ("klebsiella_pneumoniae", "NZ_CP009461-NZ_CP012568", "max_disagreeL"),
-    ("klebsiella_pneumoniae", "NZ_CP009872-NZ_CP015822", "max2_disagreeL"),
+    ("klebsiella_pneumoniae", "NZ_CP010361-NZ_CP018428", "max_disagreeL"),
+    ("klebsiella_pneumoniae", "NZ_CP010361-NZ_CP011976", "max2_disagreeL"),
 ]
 
 
+# Rule to obtain all comparison plots
 rule PX_proj_all:
     input:
         expand(
@@ -280,6 +298,6 @@ rule PX_proj_all:
             species=PX_species,
         ),
         [
-            f"projections/{sp}/examples/minimap20-std__{st}-{t}.pdf"
+            f"projections/benchmark/examples/{sp}__minimap20-std__{st}-{t}.pdf"
             for sp, st, t in PX_example_list
         ],
