@@ -25,7 +25,7 @@ accuracy:
 size-benchmark:
   sim-params: "config/size_benchmark_sim_params.json"
   hgt: 0.1
-  snp: 0.005
+  snps: 0.005
   ins: 0.01
-  ker-opt: "-k minimap2 -s 20 -a 100 -b 10"
+  kernel-options: "-k minimap2 -s 20 -a 100 -b 10"
   trials: 20

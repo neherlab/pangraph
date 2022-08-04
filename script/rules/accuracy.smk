@@ -22,13 +22,6 @@ AC_ker_opt = AC_config["kernel-options"]
 AC_ker_names = list(AC_ker_opt.keys())
 
 
-# rule to generate all the summary plots for the accuracy analaysis
-rule AC_all:
-    input:
-        expand("figs/paper-accuracy-{kernel}.png", kernel=AC_ker_names),
-        rules.AC_accuracy_comparison_plots.output,
-
-
 # generate synthetic data for the accuracy analysis. This rule generates a pair of files.
 # The json file contains the simulated pangenome graph and the fasta file the corresponding set of genomes.
 rule AC_generate_data:
@@ -177,3 +170,10 @@ rule AC_accuracy_comparison_plots:
         """
         julia -t 1 --project=. workflow_scripts/plot-accuracy-comparison.jl figs {input}
         """
+
+
+# rule to generate all the summary plots for the accuracy analaysis
+rule AC_all:
+    input:
+        expand("figs/paper-accuracy-{kernel}.png", kernel=AC_ker_names),
+        rules.AC_accuracy_comparison_plots.output,
