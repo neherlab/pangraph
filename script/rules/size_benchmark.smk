@@ -19,18 +19,12 @@ SB_Ns = SB_sim_params["N"]
 SB_Ls = SB_sim_params["L"]
 
 
-# rule to generate all relevant plots for the size benchmark
-rule SB_all:
-    input:
-        rules.SB_summary_plot.output,
-
-
 # generate synthetic data to benchmark pangraph performances as a function of dataset size
 rule SB_generate_data:
     message:
-        "generating size-benchmark sequence with N={wildcard.N}, L={wildcards.L}, trial={wildcards.n}"
+        "generating size-benchmark sequence with N={wildcards.N}, L={wildcards.L}, trial={wildcards.n}"
     output:
-        "size-benchmark/sequences/seqs_{N,[/d]+}_{L,[/d]+}_{n,[\d]+}.fa",
+        "size-benchmark/sequences/seqs_{N,[0-9]+}_{L,[0-9]+}_{n,[0-9]+}.fa",
     params:
         hgt=SB_hgt,
         ins=SB_ins,
@@ -49,11 +43,11 @@ rule SB_generate_data:
 # build pangraphs and time the command. Save the results in a txt file
 rule SB_time_pangraph:
     message:
-        "size-benchmark time pangraph construction N={wildcard.N}, L={wildcards.L}, trial={wildcards.n}"
+        "size-benchmark time pangraph construction N={wildcards.N}, L={wildcards.L}, trial={wildcards.n}"
     input:
         rules.SB_generate_data.output,
     output:
-        "size-benchmark/timings/time_{N,[/d]+}_{L,[/d]+}_{n,[\d]+}.txt",
+        "size-benchmark/timings/time_{N,[0-9]+}_{L,[0-9]+}_{n,[0-9]+}.txt",
     params:
         ker_opt=SB_ker_opt,
     conda:
@@ -102,3 +96,9 @@ rule SB_summary_plot:
         """
         python3 workflow_scripts/size_benchmark_summary_plot.py --csv {input} --pdf {output}
         """
+
+
+# rule to generate all relevant plots for the size benchmark
+rule SB_all:
+    input:
+        rules.SB_summary_plot.output,

@@ -19,6 +19,7 @@ script/synthetic_data
 script/panx_data
 script/.snakemake
 script/projections
+script/size-benchmark
 
 deps/minimap2/build
 deps/minimap2/products
