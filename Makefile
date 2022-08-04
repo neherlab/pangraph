@@ -67,8 +67,6 @@ release:
 clean:
 	rm -rf pangraph pangraph.tar.gz
 
-include script/rules.mk
-
 
 export CONTAINER_NAME=neherlab/pangraph
 

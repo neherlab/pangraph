@@ -8,7 +8,8 @@ import CairoMakie
 # plot in headless mode -> allow for plotting on the server where no display is available
 ENV["GKSwstype"] = "100"
 
-include("plot-util.jl")
+cdfplot(x; kwargs...)  = plot(sort(x),range(0,1,length=length(x)); kwargs...)
+cdfplot!(x; kwargs...) = plot!(sort(x),range(0,1,length=length(x)); kwargs...)
 
 α_mutrate_to_divergence = 21.3
 
