@@ -28,4 +28,4 @@ size-benchmark:
   snps: 0.005
   ins: 0.01
   kernel-options: "-k minimap2 -s 20 -a 100 -b 10"
-  trials: 20
+  trials: 50
