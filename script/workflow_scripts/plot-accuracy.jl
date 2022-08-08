@@ -11,7 +11,7 @@ ENV["GKSwstype"] = "100"
 cdfplot(x; kwargs...)  = plot(sort(x),range(0,1,length=length(x)); kwargs...)
 cdfplot!(x; kwargs...) = plot!(sort(x),range(0,1,length=length(x)); kwargs...)
 
-α_mutrate_to_divergence = 21.3
+α_mutrate_to_divergence = 21.5
 
 Base.zero(x::Type{Array{Float64,1}}) = Float64[]
 

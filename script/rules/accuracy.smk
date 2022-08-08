@@ -144,15 +144,15 @@ rule AC_accuracy_plots:
     input:
         rules.AC_accuracy_database.output,
     output:
-        "figs/cdf-accuracy-{kernel}.png",
-        "figs/heatmap-accuracy-{kernel}.png",
-        "figs/paper-accuracy-{kernel}.png",
-        "figs/paper-accuracy-{kernel}.pdf",
+        "figs/accuracy/cdf-accuracy-{kernel}.png",
+        "figs/accuracy/heatmap-accuracy-{kernel}.png",
+        "figs/accuracy/paper-accuracy-{kernel}.png",
+        "figs/accuracy/paper-accuracy-{kernel}.pdf",
     params:
         snps=AC_snps_accplot,
     shell:
         """
-        julia -t 1 --project=. workflow_scripts/plot-accuracy.jl {input} figs {params.snps}
+        julia -t 1 --project=. workflow_scripts/plot-accuracy.jl {input} figs/accuracy {params.snps}
         """
 
 
@@ -163,17 +163,17 @@ rule AC_accuracy_comparison_plots:
     input:
         expand("synthetic_data/results/accuracy-{kernel}.jld2", kernel=AC_ker_names),
     output:
-        "figs/paper-accuracycomp.pdf",
-        "figs/paper-accuracycomp-mutdens.pdf",
-        "figs/paper-accuracycomp-scatter.pdf",
+        "figs/accuracy/paper-accuracycomp.pdf",
+        "figs/accuracy/paper-accuracycomp-mutdens.pdf",
+        "figs/accuracy/paper-accuracycomp-scatter.pdf",
     shell:
         """
-        julia -t 1 --project=. workflow_scripts/plot-accuracy-comparison.jl figs {input}
+        julia -t 1 --project=. workflow_scripts/plot-accuracy-comparison.jl figs/accuracy {input}
         """
 
 
 # rule to generate all the summary plots for the accuracy analaysis
 rule AC_all:
     input:
-        expand("figs/paper-accuracy-{kernel}.png", kernel=AC_ker_names),
+        expand("figs/accuracy/paper-accuracy-{kernel}.png", kernel=AC_ker_names),
         rules.AC_accuracy_comparison_plots.output,
