@@ -7,6 +7,8 @@ rule PF_benchmark_synthetic:
     output:
         v1="figs/paper/benchmark_synthetic_data_v1.pdf",
         v2="figs/paper/benchmark_synthetic_data_v2.pdf",
+    conda:
+        "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/paper_figs/synthetic_data_benchmark.py \
@@ -35,10 +37,15 @@ rule PF_accuracy_single_kernel_plot:
         "figs/paper/accuracy_{kernel}.pdf",
     params:
         snps=AC_snps_accplot,
+        mut_factor=AC_config["mut-factor"],
+    conda:
+        "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/paper_figs/accuracy_single_kernel.py \
-            --json {input} --ker {wildcards.kernel} --snps {params.snps} --pdf {output}
+            --json {input} \
+            --ker {wildcards.kernel} --snps {params.snps} --mut_factor {params.mut_factor} \
+            --pdf {output}
         """
 
 # rule PF_accuracy_kernel_comparison_plot:
@@ -60,6 +67,5 @@ rule PF_accuracy_single_kernel_plot:
 rule PF_all:
     input:
         rules.PF_benchmark_synthetic.output,
-        "figs/paper/accuracy_minimap20.pdf",
-        # expand("figs/paper/accuracy_{kernel}.pdf", kernel=AC_ker_names),
+        expand("figs/paper/accuracy_{kernel}.pdf", kernel=AC_ker_names),
         # rules.PF_accuracy_kernel_comparison_plot.output,
