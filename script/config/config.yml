@@ -5,7 +5,7 @@ panx:
     - "helicobacter_pylori"
     - "prochlorococcus_marinus"
     - "mycobacterium_tuberculosis"
-    # - "escherichia_coli"
+    - "escherichia_coli"
   projection-data: "config/projection_strains.json"
   kernel-options:
     minimap10-std: "-k minimap2 -s 10 -a 100 -b 10"
