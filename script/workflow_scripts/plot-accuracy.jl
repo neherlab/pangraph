@@ -165,21 +165,7 @@ function main(path, destdir, snps_keep)
     fig = publication(accuracy(data)...)
     CairoMakie.save("$(destdir)/paper-$(base(path)).png", fig, px_per_unit=2)
     CairoMakie.save("$(destdir)/paper-$(base(path)).pdf", fig)
-#=
-    TODO: return one figure with correct layout
-    l = @layout[Plots.grid(1,2) a{0.05w}]
-    return (
-        plot(grid...,
-            heatmap((0:0.01:1).*ones(101,1);
-                    legend=:none,
-                    xticks=:none,
-                    yticks=(1:10:101, [@sprintf("%1.1f",1.5*x) for x in 0:0.1:1]),
-             ); layout=l
-        ),
-        plot(cdfs...),
-        plot(grid[1], cdfs[1])
-    )
-=#
+
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
