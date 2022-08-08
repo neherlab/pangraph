@@ -13,7 +13,7 @@ pangraph
 pangraph.tar.gz
 bin
 tutorial
-playground*
+playgrounds
 .vscode
 script/synthetic_data
 script/panx_data
