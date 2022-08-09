@@ -8,71 +8,99 @@ from collections import defaultdict
 from itertools import product
 from matplotlib.lines import Line2D
 
-# load the accuracy dataframe. Optionally keeps only the snps values specified
-def load_accuracy_data(json_fname, keep_only_snps=None):
+
+def load_accuracy_data(json_fname):
+    """Loads the json file containing accuracy data"""
     with open(json_fname, "r") as f:
         data = json.load(f)
-
-    if keep_only_snps is not None:
-        data = [x for x in data if x["snps"] in keep_only_snps]
-
     return data
 
 
-# creates a dictionary {avg. divergence -> list of costs}
-def cost_dictionary(data, mut_factor, keep_only_snps):
+def cost_dictionary(data, conv_factor, keep_only_snps):
+    """Given one of the data dictionaries, returns a dictionary
+    { pairwise divergence -> list of avg. breakpoint distances }.
+    The pairwise divergence is evaluated by multiplying the snps rate of the
+    simulation by a conversion factor. Only values of snp rate that are
+    present in `keep_only_snps` are retained."""
 
     cost_dict = defaultdict(list)
+    # cycle through all simulations
     for d in data:
+        # retain only values of snps in the list
         snps = d["snps"]
         if not snps in keep_only_snps:
             continue
+        # extract list of costs (avg. breakpoint distance per each isolate in the simulation)
         costs = d["values"]["costs"]
-        divergence = snps * mut_factor
+        # evaluate divergence from the snps rate
+        divergence = snps * conv_factor
+        # add the list of costs to the dictionary
         cost_dict[divergence] += costs
 
     return dict(cost_dict)
 
 
-# plots the cumulative distribution of costs, stratified by divergence
 def cumulative_cost_plot(costs, ax, legend=True):
-    X = sorted(list(costs.keys()))
-    Vmax = max([max(v) for v in costs.values()])
-    bins = list(np.logspace(-2, np.log10(Vmax) + 0.15, 1000))
-    bins = [0] + bins
-    cmap = plt.get_cmap("plasma_r")
-    N = len(X)
+    """Function to plot the cumulative distribution of average breakpoint distance.
+    Input:
+    - costs: dictionary { divergence -> list of avg. breakpoint distances (~ one per isolate)}
+    - ax: ax on which to plot
+    - legend: whether to display the legend
+    """
+    # extract values for the divergence
+    D = sorted(list(costs.keys()))
+    # maximum value of the cost (~1000)
+    cost_max = max([max(v) for v in costs.values()])
 
-    for n, x in enumerate(X):
-        color = cmap(n / (N - 1))
+    # create the binning
+    bins = list(np.logspace(-2, np.log10(cost_max) + 0.15, 1000))
+    bins = [0] + bins
+
+    # create dict of colors
+    cmap = plt.get_cmap("plasma_r")
+    color = {d: cmap(n / (len(D) - 1)) for n, d in enumerate(D)}
+
+    # plot cumulative distributions
+    lines, labels = [], []
+    for d in D:
+        c = color[d]
         ax.hist(
-            costs[x],
+            costs[d],
             bins=bins,
             cumulative=True,
             density=True,
-            label=f"{x:.3f}",
+            label=f"{d:.3f}",
             histtype="step",
-            color=color,
+            color=c,
         )
-    ax.set_xscale("symlog", linthresh=0.1)
-    ax.set_xlim(0, Vmax + 0.1)
-    ax.set_ylim(0, 1)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.grid(alpha=0.2)
+        lines.append(Line2D([0], [0], color=c))
+        labels.append(f"{d:.3f}")
+    # plot custom legend
     if legend:
         ax.legend(
+            lines,
+            labels,
             ncol=2,
             title="avg. divergence",
             fontsize="x-small",
             title_fontsize="small",
             loc="upper left",
         )
+    # setup axes
+    ax.set_xscale("symlog", linthresh=0.1)
+    ax.set_xlim(0, cost_max + 0.1)
+    ax.set_ylim(0, 1)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.grid(alpha=0.2)
     ax.set_xlabel("avg. breakpoint misplacement (bp)")
-    ax.set_ylabel("cumul. fraction of strains")
+    ax.set_ylabel("cumul. fraction of isolates")
 
 
 def block_diversity_df(data):
+    """Given the dictionary {alignment kernel -> [list of simulation outcomes]}
+    returns a dataframe with columns "kernel", "snps", "hgt", "divergence",
+    with one entry per simulation per kernel."""
     df = []
     for kernel, k_data in data.items():
         for d in k_data:
@@ -88,39 +116,58 @@ def block_diversity_df(data):
     return pd.DataFrame(df)
 
 
-def divergence_vs_snps_rate(df, ax, kernel_title):
+def divergence_vs_snps_rate(df, ax, kernel_title, fit_max_snps):
+    """Scatter-plot of the average divergence as a function of the snps rate of the simulation.
 
-    # group dataframe by these values and perform the mean
+    Input:
+    - df: block diversity dataframe produced by `block_diversity_df` function.
+    - ax: ax on which to plot.
+    - kernel_title: dictionary { kernel name -> label in plot }
+    - fit_max_snps (float): maximum value of the snps rate to consider for the linear fit.
+
+    Returns:
+    - mut_factor: conversion factor from simulation snps rate to average block divergence.
+    """
+
+    # group dataframe by kernel, hgt and snps, and evaluate mean divergence
     gdf = df.groupby(["kernel", "hgt", "snps"]).mean()
-    K, H = [df[k].unique() for k in ["kernel", "hgt"]]
 
+    # collect all unique values of kernel and hgt rate
+    K, H = df["kernel"].unique(), df["hgt"].unique()
+
+    # pick marker for each kernel
     marker = {
         "minimap10": "1",
         "minimap20": "2",
         "mmseqs": "3",
     }
 
-    cmap = plt.get_cmap("plasma")
-    color = {h: cmap(nh * 0.95 / (len(H) - 1)) for nh, h in enumerate(H)}
-
+    # plot general style
     kwargs = {
         "linewidth": 0.7,
         "ls": ":",
     }
 
+    # dictionary of colors
+    cmap = plt.get_cmap("plasma")
+    color = {h: cmap(nh * 0.95 / (len(H) - 1)) for nh, h in enumerate(H)}
+
+    # for each pair of kernel and hgt rate, plot the corresponding line
     for k, h in product(K, H):
-        # select kernel / hgt pair
+        # pick dataframe subset
         sdf = gdf.loc[k, h].reset_index()
-        c, m = color[h], marker[k]
+        # plot the line
         x = sdf["snps"]
         y = sdf["divergence"]
-        ax.plot(x, y, color=c, marker=m, **kwargs)
+        ax.plot(x, y, color=color[h], marker=marker[k], **kwargs)
 
-    # fit line
+    # linear fit of value for small snps rate through the origin
     sdf = gdf.reset_index()
-    mask = sdf["snps"] <= 0.002
+    mask = sdf["snps"] <= fit_max_snps
     x, y = sdf[mask]["snps"], sdf[mask]["divergence"]
     mut_factor = np.dot(x, y) / np.sum(x**2)
+
+    # plot the fit line
     xmin, xmax = sdf["snps"].min(), sdf["snps"].max()
     xr = np.linspace(xmin, xmax, 10)
     yr = xr * mut_factor
@@ -145,7 +192,7 @@ def divergence_vs_snps_rate(df, ax, kernel_title):
     for h in H:
         lines.append(Line2D([0], [0], color=color[h], **kwargs))
         labels.append(f"{h:.2f}")
-    legend2 = ax.legend(
+    ax.legend(
         lines,
         labels,
         fontsize="small",

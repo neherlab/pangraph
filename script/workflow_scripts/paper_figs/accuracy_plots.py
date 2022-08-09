@@ -25,6 +25,8 @@ def parse_args():
 
 
 def single_accuracy_plot(costs, title, savename):
+    """cumulative distribution of breakpoint distance vs sequence divergence
+    for a particular alignment kernel."""
     fig, ax = plt.subplots(1, 1, figsize=(4.5, 4))
     cumulative_cost_plot(costs, ax)
     ax.set_title(title)
@@ -34,6 +36,8 @@ def single_accuracy_plot(costs, title, savename):
 
 
 def comparison_accuracy_plot(costs, titles, savename):
+    """comparison of cumulative distributions of breakpoint distance vs sequence divergence
+    for all alignment kernel."""
     Nc = len(costs)
     fig, axs = plt.subplots(1, Nc, figsize=(Nc * 3.5, 3))
     for nc, k in enumerate(costs):
@@ -45,9 +49,11 @@ def comparison_accuracy_plot(costs, titles, savename):
     plt.close(fig)
 
 
-def snps_rate_vs_divergence_plot(df, savename, kernel_title):
+def snps_rate_vs_divergence_plot(df, savename, kernel_title, fit_max_snps):
+    """Plot of simulation snps rate vs sequence divergence. Used to find the
+    conversion factor between simulation snps rate and sequence divergence."""
     fig, ax = plt.subplots(1, 1, figsize=(5, 4))
-    mut_factor = divergence_vs_snps_rate(df, ax, kernel_title)
+    mut_factor = divergence_vs_snps_rate(df, ax, kernel_title, fit_max_snps)
     plt.tight_layout()
     plt.savefig(savename)
     plt.close(fig)
@@ -80,16 +86,20 @@ if __name__ == "__main__":
 
     # compare snps rate and divergence. Extract conversion factor
     conv_factor = snps_rate_vs_divergence_plot(
-        df, svpth / "snps_rate_vs_divergence.pdf", kernel_title=titles
+        df,
+        svpth / "snps_rate_vs_divergence.pdf",
+        kernel_title=titles,
+        fit_max_snps=0.002,
     )
 
-    # keep only cost factors
+    # extract breakpoint misplacement distance, keep only relevant distance, stratify
+    # by sequence divergence
     costs = {
-        k: cost_dictionary(v, keep_only_snps=args.snps, mut_factor=conv_factor)
+        k: cost_dictionary(v, keep_only_snps=args.snps, conv_factor=conv_factor)
         for k, v in data.items()
     }
 
-    # # single accuracy plots
+    # cumulative distribution of breakpoint misplacement vs sequence divergence
     for k, c in costs.items():
         single_accuracy_plot(c, titles[k], svpth / f"accuracy_{k}.pdf")
     comparison_accuracy_plot(costs, titles, svpth / "accuracy_comparison.pdf")
