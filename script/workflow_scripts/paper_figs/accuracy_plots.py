@@ -24,15 +24,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def snps_rate_vs_divergence_plot(df, savename):
-    fig, ax = plt.subplots(1, 1, figsize=(5, 4))
-    mut_factor = divergence_vs_snps_rate(df, ax)
-    plt.tight_layout()
-    plt.savefig(savename)
-    plt.close(fig)
-    return mut_factor
-
-
 def single_accuracy_plot(costs, title, savename):
     fig, ax = plt.subplots(1, 1, figsize=(4.5, 4))
     cumulative_cost_plot(costs, ax)
@@ -54,6 +45,15 @@ def comparison_accuracy_plot(costs, titles, savename):
     plt.close(fig)
 
 
+def snps_rate_vs_divergence_plot(df, savename, kernel_title):
+    fig, ax = plt.subplots(1, 1, figsize=(5, 4))
+    mut_factor = divergence_vs_snps_rate(df, ax, kernel_title)
+    plt.tight_layout()
+    plt.savefig(savename)
+    plt.close(fig)
+    return mut_factor
+
+
 if __name__ == "__main__":
 
     args = parse_args()
@@ -67,8 +67,8 @@ if __name__ == "__main__":
     }
 
     titles = {
-        "minimap10": "minimap2 -asm 10",
-        "minimap20": "minimap2 -asm 20",
+        "minimap10": "minimap2 asm10",
+        "minimap20": "minimap2 asm20",
         "mmseqs": "mmseqs2",
     }
 
@@ -80,7 +80,7 @@ if __name__ == "__main__":
 
     # compare snps rate and divergence. Extract conversion factor
     conv_factor = snps_rate_vs_divergence_plot(
-        df, svpth / "snps_rate_vs_divergence.pdf"
+        df, svpth / "snps_rate_vs_divergence.pdf", kernel_title=titles
     )
 
     # keep only cost factors

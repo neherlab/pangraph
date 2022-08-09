@@ -88,7 +88,7 @@ def block_diversity_df(data):
     return pd.DataFrame(df)
 
 
-def divergence_vs_snps_rate(df, ax):
+def divergence_vs_snps_rate(df, ax, kernel_title):
 
     # group dataframe by these values and perform the mean
     gdf = df.groupby(["kernel", "hgt", "snps"]).mean()
@@ -127,17 +127,33 @@ def divergence_vs_snps_rate(df, ax):
     fit_line = ax.plot(xr, yr, color="gray", ls="--")
 
     # custom legend
-    lines = []
-    labels = []
+    lines, labels = [], []
     for k in K:
         lines.append(Line2D([0], [0], color="k", marker=marker[k], **kwargs))
-        labels.append(k)
-    for h in H:
-        lines.append(Line2D([0], [0], color=color[h], **kwargs))
-        labels.append(f"hgt={h}")
+        labels.append(kernel_title[k])
     lines.append(fit_line[0])
     labels.append(f"fit (m={mut_factor:.1f})")
-    ax.legend(lines, labels, fontsize="small")
+    legend1 = ax.legend(
+        lines,
+        labels,
+        fontsize="small",
+        title="alignment kernel",
+        title_fontsize="small",
+        loc="lower right",
+    )
+    lines, labels = [], []
+    for h in H:
+        lines.append(Line2D([0], [0], color=color[h], **kwargs))
+        labels.append(f"{h:.2f}")
+    legend2 = ax.legend(
+        lines,
+        labels,
+        fontsize="small",
+        title="hgt rate",
+        title_fontsize="small",
+        loc="upper left",
+    )
+    ax.add_artist(legend1)
 
     # axes setup
     ax.set_ylim(top=sdf["divergence"].max() * 1.1)
