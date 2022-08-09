@@ -48,7 +48,7 @@ def cost_dictionary(data, mut_factor):
 def cumulative_cost_plot(costs, ax):
     X = sorted(list(costs.keys()))
     Vmax = max([max(v) for v in costs.values()])
-    bins = list(np.logspace(0, np.log10(Vmax) + 0.15, 1000))
+    bins = list(np.logspace(-2, np.log10(Vmax) + 0.15, 1000))
     bins = [0] + bins
     cmap = plt.get_cmap("plasma_r")
     N = len(X)
@@ -64,8 +64,8 @@ def cumulative_cost_plot(costs, ax):
             histtype="step",
             color=color,
         )
-    ax.set_xscale("symlog", linthresh=1.0)
-    ax.set_xlim(-0.1, Vmax + 0.1)
+    ax.set_xscale("symlog", linthresh=0.1)
+    ax.set_xlim(0, Vmax + 0.1)
     ax.set_ylim(0, 1)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -73,12 +73,12 @@ def cumulative_cost_plot(costs, ax):
     ax.legend(
         ncol=2,
         title="avg. divergence",
-        fontsize="small",
-        title_fontsize="medium",
-        loc="lower right",
+        fontsize="x-small",
+        title_fontsize="small",
+        loc="upper left",
     )
-    ax.set_xlabel("breakpoint misplacement (bp)")
-    ax.set_ylabel("cumul. fraction of breakpoints")
+    ax.set_xlabel("avg. breakpoint misplacement (bp)")
+    ax.set_ylabel("cumul. fraction of strains")
 
 
 def accuracy_plot(costs, ker_name, savename):
