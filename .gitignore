@@ -20,6 +20,7 @@ script/panx_data
 script/.snakemake
 script/projections
 script/size-benchmark
+__pycache__
 
 deps/minimap2/build
 deps/minimap2/products
