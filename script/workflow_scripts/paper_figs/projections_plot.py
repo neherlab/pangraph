@@ -57,17 +57,17 @@ def ax_boxplot(df, ax):
     #     ax.text(M * 1.1, nc, f"{mean:.2} $\pm$ {std:.2}")
 
 
-def add_column_title(ax, title):
-    """Add title to column, given the first ax of the column"""
-    ax.annotate(
-        title,
-        xy=(0.5, 1),
-        xytext=(0, 5),
-        xycoords="axes fraction",
-        textcoords="offset points",
-        ha="center",
-        va="baseline",
-    )
+# def add_column_title(ax, title):
+#     """Add title to column, given the first ax of the column"""
+#     ax.annotate(
+#         title,
+#         xy=(0.5, 1),
+#         xytext=(0, 5),
+#         xycoords="axes fraction",
+#         textcoords="offset points",
+#         ha="center",
+#         va="baseline",
+#     )
 
 
 def projection_plot(data, savename):
@@ -95,8 +95,10 @@ def projection_plot(data, savename):
         ax_boxplot(sdf, ax)
 
     # add titles
-    add_column_title(axs[0, 0], "fraction of total genome length")
-    add_column_title(axs[0, 1], "average segment size (kbp)")
+    # add_column_title(axs[0, 0], "fraction of total genome length")
+    # add_column_title(axs[0, 1], "average segment size (kbp)")
+    axs[-1, 0].set_xlabel("fraction of total genome length")
+    axs[-1, 1].set_xlabel("average segment size (kbp)")
 
     # tweak second column ax
     ax.set_xscale("log")
