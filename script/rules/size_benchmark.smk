@@ -70,7 +70,10 @@ rule SB_summary_dataframe:
         "creating summary dataframe for pangraph performace vs dataset size"
     input:
         expand(
-            "size-benchmark/timings/time_{N}_{L}_{n}.txt", N=SB_Ns, L=SB_Ls, n=SB_trials
+            "size-benchmark/timings/time_{N}_{L}_{n}.txt",
+            N=SB_Ns,
+            L=SB_Ls,
+            n=SB_trials,
         ),
     output:
         "figs/size-benchmark/size_vs_time.csv",

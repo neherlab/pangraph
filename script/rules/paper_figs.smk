@@ -40,10 +40,10 @@ rule PF_accuracy_plots:
     output:
         expand("figs/paper/accuracy/accuracy_{kernel}.pdf", kernel=AC_ker_names),
         "figs/paper/accuracy/accuracy_comparison.pdf",
-        "figs/paper/accuracy/snps_rate_vs_divergence.pdf"
+        "figs/paper/accuracy/snps_rate_vs_divergence.pdf",
     params:
         snps=AC_snps_accplot,
-        pdf_fld="figs/paper/accuracy"
+        pdf_fld="figs/paper/accuracy",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
@@ -54,7 +54,24 @@ rule PF_accuracy_plots:
         """
 
 
+rule PF_projection_plot:
+    message:
+        "Creating projection plot"
+    input:
+        expand("projections/benchmark/minimap20-std_{species}.csv", species=PX_species),
+    output:
+        "figs/paper/projections/proj_fig.pdf",
+    conda:
+        "../conda_envs/bioinfo_env.yml"
+    shell:
+        """
+        python3 workflow_scripts/paper_figs/projections_plot.py \
+            --csv {input} --pdf {output}
+        """
+
+
 rule PF_all:
     input:
         rules.PF_benchmark_synthetic.output,
         rules.PF_accuracy_plots.output,
+        rules.PF_projection_plot.output,
