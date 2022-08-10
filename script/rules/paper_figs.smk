@@ -58,7 +58,7 @@ rule PF_projection_plot:
     message:
         "Creating projection plot"
     input:
-        expand("projections/benchmark/minimap20-std_{species}.csv", species=PX_species),
+        expand("projections/benchmark/minimap20-std_{species}.full.csv", species=PX_species),
     output:
         "figs/paper/projections/proj_fig.pdf",
     conda:

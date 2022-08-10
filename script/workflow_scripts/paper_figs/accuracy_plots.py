@@ -19,8 +19,8 @@ def parse_args():
     parser.add_argument("--mm10", help="input json for minimap10 kernel", type=str)
     parser.add_argument("--mm20", help="input json for minimap20 kernel", type=str)
     parser.add_argument("--mmsq", help="input json for mmseqs2 kernel", type=str)
-    parser.add_argument("--pdf_fld", help="output pdf file", type=str)
-    parser.add_argument("--snps", help="considered snps values", nargs="+", type=float)
+    parser.add_argument("--pdf_fld", help="output pdf folder", type=str)
+    parser.add_argument("--snps", help="snps values to consider", nargs="+", type=float)
     return parser.parse_args()
 
 

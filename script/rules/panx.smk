@@ -245,14 +245,15 @@ rule PX_pairwise_projection_benchmark:
         jsons=all_pair_comparisons,
     output:
         pdf="projections/benchmark/{kind}_{species}.pdf",
-        csv="projections/benchmark/{kind}_{species}.csv",
+        csv_summary="projections/benchmark/{kind}_{species}.summary.csv",
+        csv_full="projections/benchmark/{kind}_{species}.full.csv",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/pairwise_vs_marginalize_summary.py \
             --jsons {input.jsons} \
-            --csv {output.csv} --pdf {output.pdf} \
+            --csv_summary {output.csv_summary} --csv_full {output.csv_full} --pdf {output.pdf} \
             --species {wildcards.species}
         """
 

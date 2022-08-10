@@ -14,7 +14,8 @@ def parse_args():
         statistics."""
     )
     parser.add_argument("--jsons", nargs="+", help="input json files", type=str)
-    parser.add_argument("--csv", help="output csv table", type=str)
+    parser.add_argument("--csv_summary", help="output summary csv table", type=str)
+    parser.add_argument("--csv_full", help="output full csv table", type=str)
     parser.add_argument("--pdf", help="output pdf plot", type=str)
     parser.add_argument("--species", help="species for plot title", type=str)
     return parser.parse_args()
@@ -142,13 +143,14 @@ if __name__ == "__main__":
     data = load_stats(args.jsons)
     df = data_to_df(data)
 
-    # create summary dataframe
+    # evaluate relevant statistics and save them in dataframe
     sdf = create_summary_df(df)
+    sdf.to_csv(args.csv_full)
 
-    # plot summary of stats
+    # plot stats
     plot_summary_df(sdf, args.pdf, args.species)
 
-    # save summary
+    # create summary of results and save in dataframe
     res = {"mean": sdf.mean(), "std": sdf.std()} | get_top_bottom_N(sdf, 2)
     res = pd.DataFrame(res)
-    res.to_csv(args.csv)
+    res.to_csv(args.csv_summary)
