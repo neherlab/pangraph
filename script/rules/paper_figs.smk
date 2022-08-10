@@ -5,14 +5,14 @@ rule PF_benchmark_synthetic:
     input:
         rules.SB_summary_dataframe.output,
     output:
-        v1="figs/paper/benchmark_synthetic_data_v1.pdf",
-        v2="figs/paper/benchmark_synthetic_data_v2.pdf",
+        main="figs/paper/synth_data_benchmark/main.pdf",
+        suppl="figs/paper/synth_data_benchmark/suppl.pdf",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/paper_figs/synthetic_data_benchmark.py \
-            --csv {input} --pdf1 {output.v1} --pdf2 {output.v2}
+            --csv {input} --pdf_main {output.main} --pdf_suppl {output.suppl}
         """
 
 
@@ -73,19 +73,19 @@ rule PF_projection_plot:
         """
 
 
-rule PF_panx_compression_plot:
-    message:
-        "Creating plots for PanX compression performances"
-    input:
-        comp="panx_data/benchmark/benchmark_compression.csv",
-        summ="panx_data/benchmark/benchmark_summary.csv",
-    output:
-        "figs/paper/panx/compression.pdf",
-    shell:
-        """
-        python3 workflow_scripts/paper_figs/panx_compression_plots.py \
-            --comp {input.comp} -summ {input.summ} --pdf {output}
-        """
+# rule PF_panx_compression_plot:
+#     message:
+#         "Creating plots for PanX compression performances"
+#     input:
+#         comp="panx_data/benchmark/benchmark_compression.csv",
+#         summ="panx_data/benchmark/benchmark_summary.csv",
+#     output:
+#         "figs/paper/panx/compression.pdf",
+#     shell:
+#         """
+#         python3 workflow_scripts/paper_figs/panx_compression_plots.py \
+#             --comp {input.comp} -summ {input.summ} --pdf {output}
+#         """
 
 
 rule PF_all:
@@ -93,4 +93,3 @@ rule PF_all:
         rules.PF_benchmark_synthetic.output,
         rules.PF_accuracy_plots.output,
         rules.PF_projection_plot.output,
-        rules.PF_panx_compression_plot.output,

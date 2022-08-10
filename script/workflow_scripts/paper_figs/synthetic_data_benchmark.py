@@ -16,8 +16,10 @@ def parse_args():
             as a function of the input dataset size"""
     )
     parser.add_argument("--csv", help="input csv dataframe", type=str)
-    parser.add_argument("--pdf1", help="output pdf file n.1", type=str)
-    parser.add_argument("--pdf2", help="output pdf file n.2", type=str)
+    parser.add_argument("--pdf_main", help="output filename main figure", type=str)
+    parser.add_argument(
+        "--pdf_suppl", help="output filename supplementary figure", type=str
+    )
     return parser.parse_args()
 
 
@@ -72,12 +74,14 @@ def single_plot(df, ax, variable, lin_trend=False):
 def summary_plot(df, variables, ylabels, yscales, lin_trends, savename):
 
     # initialize figure
-    fig, axs = plt.subplots(1, len(variables), figsize=(4 * len(variables), 3.5))
+    fig, axs = plt.subplots(
+        1, len(variables), figsize=(4 * len(variables), 3.5), squeeze=False
+    )
 
     # summary plot for each variable
     for nv, var in enumerate(variables):
 
-        ax = axs[nv]
+        ax = axs[0, nv]
         single_plot(df, ax, var, lin_trend=lin_trends[nv])
 
         # customize y-scale and y-label
@@ -109,16 +113,16 @@ if __name__ == "__main__":
         "ylabels": ["wall-time (sec)", "max. memory (Gb)", "cpu-percent"],
         "yscales": ["log", "log", None],
         "lin_trends": [True, True, False],
-        "savename": args.pdf1,
+        "savename": args.pdf_suppl,
     }
     summary_plot(df, **kwargs)
 
     # figure version 2
     kwargs = {
-        "variables": ["wall-time", "mem"],
-        "ylabels": ["wall-time (sec)", "max. memory (Gb)"],
-        "yscales": ["log", "log"],
-        "lin_trends": [True, True],
-        "savename": args.pdf2,
+        "variables": ["wall-time"],
+        "ylabels": ["wall-time (sec)"],
+        "yscales": ["log"],
+        "lin_trends": [True],
+        "savename": args.pdf_main,
     }
     summary_plot(df, **kwargs)
