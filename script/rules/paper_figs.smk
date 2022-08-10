@@ -38,19 +38,18 @@ rule PF_accuracy_plots:
         mm20="synthetic_data/results/accuracy-minimap20.json",
         mmsq="synthetic_data/results/accuracy-mmseqs.json",
     output:
-        expand("figs/paper/accuracy/accuracy_{kernel}.pdf", kernel=AC_ker_names),
-        "figs/paper/accuracy/accuracy_comparison.pdf",
-        "figs/paper/accuracy/snps_rate_vs_divergence.pdf",
+        suppl_acc="figs/paper/accuracy/accuracy_comparison.pdf",
+        suppl_snps="figs/paper/accuracy/snps_rate_vs_divergence.pdf",
     params:
         snps=AC_snps_accplot,
-        pdf_fld="figs/paper/accuracy",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/paper_figs/accuracy_plots.py \
             --mm10 {input.mm10} --mm20 {input.mm20} --mmsq {input.mmsq} \
-            --snps {params.snps} --pdf_fld {params.pdf_fld}
+            --snps {params.snps} \
+            --pdf_supplacc {output.suppl_acc} --pdf_supplsnps {output.suppl_snps}
         """
 
 

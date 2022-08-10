@@ -1,5 +1,4 @@
 import argparse
-import pathlib
 import matplotlib.pyplot as plt
 
 from accuracy_plot_utils import (
@@ -19,7 +18,14 @@ def parse_args():
     parser.add_argument("--mm10", help="input json for minimap10 kernel", type=str)
     parser.add_argument("--mm20", help="input json for minimap20 kernel", type=str)
     parser.add_argument("--mmsq", help="input json for mmseqs2 kernel", type=str)
-    parser.add_argument("--pdf_fld", help="output pdf folder", type=str)
+    parser.add_argument(
+        "--pdf_supplacc", help="output supplementary accuracy figure", type=str
+    )
+    parser.add_argument(
+        "--pdf_supplsnps",
+        help="output supplementary snps vs divergence figure",
+        type=str,
+    )
     parser.add_argument("--snps", help="snps values to consider", nargs="+", type=float)
     return parser.parse_args()
 
@@ -63,7 +69,6 @@ def snps_rate_vs_divergence_plot(df, savename, kernel_title, fit_max_snps):
 if __name__ == "__main__":
 
     args = parse_args()
-    svpth = pathlib.Path(args.pdf_fld)
 
     # extract filenames
     fname = {
@@ -87,7 +92,7 @@ if __name__ == "__main__":
     # compare snps rate and divergence. Extract conversion factor
     conv_factor = snps_rate_vs_divergence_plot(
         df,
-        svpth / "snps_rate_vs_divergence.pdf",
+        args.pdf_supplsnps,
         kernel_title=titles,
         fit_max_snps=0.002,
     )
@@ -100,6 +105,4 @@ if __name__ == "__main__":
     }
 
     # cumulative distribution of breakpoint misplacement vs sequence divergence
-    for k, c in costs.items():
-        single_accuracy_plot(c, titles[k], svpth / f"accuracy_{k}.pdf")
-    comparison_accuracy_plot(costs, titles, svpth / "accuracy_comparison.pdf")
+    comparison_accuracy_plot(costs, titles, args.pdf_supplacc)

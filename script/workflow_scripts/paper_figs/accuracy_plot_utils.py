@@ -88,7 +88,7 @@ def cumulative_cost_plot(costs, ax, legend=True):
         )
     # setup axes
     ax.set_xscale("symlog", linthresh=0.1)
-    ax.set_xlim(0, cost_max + 0.1)
+    ax.set_xlim(1, cost_max + 0.1)
     ax.set_ylim(0, 1)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
