@@ -133,7 +133,7 @@ def divergence_vs_snps_rate(df, ax, kernel_title, fit_max_snps):
     gdf = df.groupby(["kernel", "hgt", "snps"]).mean()
 
     # collect all unique values of kernel and hgt rate
-    K, H = df["kernel"].unique(), df["hgt"].unique()
+    K, H = df["kernel"].unique(), np.sort(df["hgt"].unique())
 
     # pick marker for each kernel
     marker = {
