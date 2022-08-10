@@ -117,6 +117,12 @@ def plot(df):
     return fig, axs
 
 
+def order_kinds(kinds):
+    k_inv = [k[::-1] for k in kinds]
+    k_ordered = [k[::-1] for k in sorted(k_inv)]
+    return k_ordered
+
+
 if __name__ == "__main__":
 
     # capture arguments
@@ -133,6 +139,8 @@ if __name__ == "__main__":
     df["species"] = pd.Categorical(
         df["species"], categories=species_order, ordered=True
     )
+    kind_order = order_kinds(list(df["kind"].unique()))
+    df["kind"] = pd.Categorical(df["kind"], categories=kind_order, ordered=True)
     ord_by = ["species", "kind"]
     df = df.sort_values(ord_by)
     col_order = ord_by + [x for x in df.columns if x not in ord_by]

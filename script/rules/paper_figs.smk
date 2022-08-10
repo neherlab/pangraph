@@ -73,8 +73,24 @@ rule PF_projection_plot:
         """
 
 
+rule PF_panx_compression_plot:
+    message:
+        "Creating plots for PanX compression performances"
+    input:
+        comp="panx_data/benchmark/benchmark_compression.csv",
+        summ="panx_data/benchmark/benchmark_summary.csv",
+    output:
+        "figs/paper/panx/compression.pdf",
+    shell:
+        """
+        python3 workflow_scripts/paper_figs/panx_compression_plots.py \
+            --comp {input.comp} -summ {input.summ} --pdf {output}
+        """
+
+
 rule PF_all:
     input:
         rules.PF_benchmark_synthetic.output,
         rules.PF_accuracy_plots.output,
         rules.PF_projection_plot.output,
+        rules.PF_panx_compression_plot.output,

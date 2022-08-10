@@ -10,8 +10,8 @@ panx:
   kernel-options:
     minimap10-std: "-k minimap2 -s 10 -a 100 -b 10"
     minimap20-std: "-k minimap2 -s 20 -a 100 -b 10"
-    minimap20-noenergy: "-k minimap2 -s 20 -a 0 -b 0"
     mmseqs-std: "-k mmseqs -a 100 -b 10"
+    minimap20-noenergy: "-k minimap2 -s 20 -a 0 -b 0"
     mmseqs-noenergy: "-k mmseqs -a 0 -b 0"
 
 accuracy:

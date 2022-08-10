@@ -35,9 +35,11 @@ def single_fasta_stats(fa):
     seq = SeqIO.read(fa, "fasta")
     return {"avg. fasta file size (Mb)": fsize, "avg. genome length (bp)": len(seq)}
 
+
 def extract_species(fname):
     """Extract species from the fasta filename input"""
     return re.match("panx_data/([^/]+)/", fname).group(1)
+
 
 def summary_fasta_stats(fas):
     """Given a list of fasta files, evaluates average filesize, genome length,
@@ -112,4 +114,3 @@ if __name__ == "__main__":
     # save to json
     with open(args.out_json, "w") as f:
         json.dump(stats, f, indent=4, default=str)
-

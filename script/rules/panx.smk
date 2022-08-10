@@ -124,7 +124,8 @@ rule PX_compression_benchmark:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
-        python3 workflow_scripts/compression_benchmark.py --fasta {input.fa} --pangraphs {input.pang} --out_json {output.json}
+        python3 workflow_scripts/compression_benchmark.py \
+            --fasta {input.fa} --pangraphs {input.pang} --out_json {output.json}
         """
 
 
@@ -142,7 +143,8 @@ rule PX_summary_compression_benchmark:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
-        python3 workflow_scripts/compression_summary.py --jsons {input} --csv {output.csv} --pdf {output.pdf}
+        python3 workflow_scripts/compression_summary.py \
+            --jsons {input} --csv {output.csv} --pdf {output.pdf}
         """
 
 
