@@ -240,7 +240,7 @@ def all_pair_comparisons(w):
 # between pairwise and projeted graphs, and produces summary plots.
 rule PX_pairwise_projection_benchmark:
     message:
-        "preparing plots for pairwise comparison - {wildcards.species}"
+        "preparing plots for pairwise comparison - {wildcards.species} - {wildcards.kind}"
     input:
         jsons=all_pair_comparisons,
     output:

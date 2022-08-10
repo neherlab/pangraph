@@ -56,9 +56,12 @@ rule PF_accuracy_plots:
 
 rule PF_projection_plot:
     message:
-        "Creating projection plot"
+        "Creating projection plot for paper"
     input:
-        expand("projections/benchmark/minimap20-std_{species}.full.csv", species=PX_species),
+        expand(
+            "projections/benchmark/minimap20-std_{species}.full.csv",
+            species=PX_species,
+        ),
     output:
         "figs/paper/projections/proj_fig.pdf",
     conda:
