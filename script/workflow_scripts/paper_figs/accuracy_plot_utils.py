@@ -16,7 +16,7 @@ def load_accuracy_data(json_fname):
     return data
 
 
-def cost_dictionary(data, conv_factor, keep_only_snps=None, nested_lists=False):
+def cost_dictionary(data, conv_factor, keep_only_snps=None):
     """Given one of the data dictionaries, returns a dictionary
     { pairwise divergence -> list of avg. breakpoint distances }.
     The pairwise divergence is evaluated by multiplying the snps rate of the
@@ -37,10 +37,7 @@ def cost_dictionary(data, conv_factor, keep_only_snps=None, nested_lists=False):
         divergence = snps * conv_factor
 
         # add the list of costs to the dictionary
-        if nested_lists:
-            cost_dict[divergence].append(costs)
-        else:
-            cost_dict[divergence] += costs
+        cost_dict[divergence] += costs
 
     return dict(cost_dict)
 
@@ -220,7 +217,7 @@ def divergence_vs_snps_rate(df, ax, kernel_title, fit_max_snps):
     return mut_factor
 
 
-def median_misplacement_vs_divergence(costs, ax):
+def misplacement_vs_divergence(costs, ax, stat):
 
     legend = {
         "minimap10": "minimap asm10",
@@ -233,29 +230,21 @@ def median_misplacement_vs_divergence(costs, ax):
         "mmseqs": "#A352B7",
     }
 
-    def stats(cost_lists):
-        medians = [np.median(c) for c in cost_lists if len(c) > 0]
-        return np.mean(medians), np.std(medians)
-
     for k, C in costs.items():
         # list of divergences
         divs = list(sorted(C.keys()))
         # median breakpoint misplacement for each divergence
-        # medians = [np.median(C[d]) for d in divs]
-        # ax.plot(divs, medians, ".:", label=legend[k], color=color[k])
-        M, S = [], []
-        for d in divs:
-            m, s = stats(C[d])
-            M.append(m)
-            S.append(s)
-        M, S = np.array(M), np.array(S)
-        ax.plot(divs, M, ".:", label=legend[k], color=color[k])
-        ax.fill_between(divs, M - S, M + S, alpha=0.2, color=color[k])
+        if stat == "median":
+            medians = [np.median(C[d]) for d in divs]
+            ax.plot(divs, medians, ".:", label=legend[k], color=color[k])
+        else:
+            raise ValueError("stat must be either median or fraction")
 
     ax.legend(title="alignment kernel", loc="upper left")
     ax.set_xscale("log")
-    # ax.set_yscale("log")
+    ax.set_yscale("log")
     ax.set_xlabel("avg. pairwise divergence")
     ax.set_ylabel("median breakpoint misplacement (<1kbp)")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    ax.grid(alpha=0.2)

@@ -7,7 +7,7 @@ from accuracy_plot_utils import (
     cumulative_cost_plot,
     block_diversity_df,
     divergence_vs_snps_rate,
-    median_misplacement_vs_divergence,
+    misplacement_vs_divergence,
 )
 
 
@@ -74,7 +74,7 @@ def snps_rate_vs_divergence_plot(df, savename, kernel_title, fit_max_snps):
 
 def median_misplacement_plot(costs, savename):
     fig, ax = plt.subplots(1, 1, figsize=(5, 4))
-    median_misplacement_vs_divergence(costs, ax)
+    misplacement_vs_divergence(costs, ax, stat="median")
     plt.tight_layout()
     plt.savefig(savename)
     plt.close(fig)
@@ -122,10 +122,7 @@ if __name__ == "__main__":
     comparison_accuracy_plot(costs, titles, args.pdf_acc)
 
     # re-evaluate costs, do no exclude any point
-    costs = {
-        k: cost_dictionary(v, conv_factor=conv_factor, nested_lists=True)
-        for k, v in data.items()
-    }
+    costs = {k: cost_dictionary(v, conv_factor=conv_factor) for k, v in data.items()}
 
     # median misplacement vs divergence
     median_misplacement_plot(costs, args.pdf_med)
