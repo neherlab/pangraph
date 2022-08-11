@@ -45,10 +45,10 @@ def comparison_accuracy_plot(costs, titles, savename):
     """comparison of cumulative distributions of breakpoint distance vs sequence divergence
     for all alignment kernel."""
     Nc = len(costs)
-    fig, axs = plt.subplots(1, Nc, figsize=(Nc * 3.5, 3))
+    fig, axs = plt.subplots(1, Nc, figsize=(Nc * 3.3, 3), sharey=True)
     for nc, k in enumerate(costs):
         ax = axs[nc]
-        cumulative_cost_plot(costs[k], ax, legend=nc == 0)
+        cumulative_cost_plot(costs[k], ax, legend=nc == Nc - 1, ylabel=nc == 0)
         ax.set_title(titles[k])
     plt.tight_layout()
     plt.savefig(savename)
@@ -106,3 +106,5 @@ if __name__ == "__main__":
 
     # cumulative distribution of breakpoint misplacement vs sequence divergence
     comparison_accuracy_plot(costs, titles, args.pdf_supplacc)
+
+    # median

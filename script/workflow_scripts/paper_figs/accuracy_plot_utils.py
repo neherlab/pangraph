@@ -40,7 +40,7 @@ def cost_dictionary(data, conv_factor, keep_only_snps):
     return dict(cost_dict)
 
 
-def cumulative_cost_plot(costs, ax, legend=True):
+def cumulative_cost_plot(costs, ax, legend=True, ylabel=True):
     """Function to plot the cumulative distribution of average breakpoint distance.
     Input:
     - costs: dictionary { divergence -> list of avg. breakpoint distances (~ one per isolate)}
@@ -50,7 +50,7 @@ def cumulative_cost_plot(costs, ax, legend=True):
     # extract values for the divergence
     D = sorted(list(costs.keys()))
     # maximum value of the cost (~1000)
-    cost_max = max([max(v) for v in costs.values()])
+    cost_max = 1000
 
     # create the binning
     bins = list(np.logspace(-2, np.log10(cost_max) + 0.15, 1000))
@@ -80,21 +80,23 @@ def cumulative_cost_plot(costs, ax, legend=True):
         ax.legend(
             lines,
             labels,
-            ncol=2,
+            ncol=1,
             title="avg. divergence",
             fontsize="x-small",
             title_fontsize="small",
+            bbox_to_anchor=(1.04, 1),
             loc="upper left",
         )
     # setup axes
     ax.set_xscale("symlog", linthresh=0.1)
-    ax.set_xlim(1, cost_max + 0.1)
+    ax.set_xlim(1, cost_max * 1.05)
     ax.set_ylim(0, 1)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.grid(alpha=0.2)
     ax.set_xlabel("avg. breakpoint misplacement (bp)")
-    ax.set_ylabel("cumul. fraction of isolates")
+    if ylabel:
+        ax.set_ylabel("cumul. fraction of isolates")
 
 
 def block_diversity_df(data):
@@ -144,7 +146,7 @@ def divergence_vs_snps_rate(df, ax, kernel_title, fit_max_snps):
 
     # plot general style
     kwargs = {
-        "linewidth": 0.7,
+        "linewidth": 1.0,
         "ls": ":",
     }
 
@@ -171,7 +173,7 @@ def divergence_vs_snps_rate(df, ax, kernel_title, fit_max_snps):
     xmin, xmax = sdf["snps"].min(), sdf["snps"].max()
     xr = np.linspace(xmin, xmax, 10)
     yr = xr * mut_factor
-    fit_line = ax.plot(xr, yr, color="gray", ls="--")
+    fit_line = ax.plot(xr, yr, color="gray", ls="--", linewidth=1.0)
 
     # custom legend
     lines, labels = [], []
