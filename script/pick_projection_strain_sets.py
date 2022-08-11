@@ -36,7 +36,7 @@ exclude = {
 }
 
 # function to extract accession number from names of genbank files in the folder
-def acc_nums(fld):
+def get_acc_nums(fld):
     """Given the folder containing the genbank file, extracts the basename"""
     files = glob.glob(fld + "/*.gbk")
     p = re.compile("/?([^/]+)\.gbk$")
@@ -56,25 +56,26 @@ if __name__ == "__main__":
     N_pairs = 50
 
     # collect all accession numbers
-    acc_nums = {s: acc_nums(f"panx_data/{s}/input_GenBank") for s in species}
+    acc_nums = {s: get_acc_nums(f"panx_data/{s}/input_GenBank") for s in species}
 
     # exclude selected accession number
     for s in species:
         acc_nums[s] = [x for x in acc_nums[s] if x not in exclude[s]]
 
     # pick random set
+    selected_acc_nums = {}
     for s in species:
-        acc = acc_nums[s]
+        acc = acc_nums[s].copy()
         Nsel = min(N_tot, len(acc))
         # using shuffle so that if N_pairs is increased the same strains and pairs
         # are retained. Useful later to avoid re-computing many projections
         rng.shuffle(acc)
-        acc_nums[s] = list(sorted(acc[:Nsel]))
+        selected_acc_nums[s] = list(sorted(acc[:Nsel]))
 
     # pick random pairs
     pairs = {}
     for s in species:
-        acc = acc_nums[s]
+        acc = selected_acc_nums[s]
         Na = len(acc)
         N_pick = min(N_pairs, int(Na * (Na - 1) / 2))
         all_pairs = list(itt.combinations(acc, 2))
@@ -83,7 +84,7 @@ if __name__ == "__main__":
 
     # save to json
     out_fname = "config/projection_strains.json"
-    jdict = {s: {"strains": acc_nums[s], "pairs": pairs[s]} for s in species}
+    jdict = {s: {"strains": selected_acc_nums[s], "pairs": pairs[s]} for s in species}
     with open(out_fname, "w") as f:
         json.dump(jdict, f, indent=4)
 
@@ -91,7 +92,6 @@ if __name__ == "__main__":
 
     species = "escherichia_coli"
     strains = acc_nums[species]  # list of strains
-    print(acc_nums)
     sizes = [2, 4, 8, 16, 32, 64, 128]  # incremental list of sizes
     n_trials = 10  # n. trials for each size
 
@@ -101,6 +101,8 @@ if __name__ == "__main__":
         # seed random number generator for reproducibility
         # will always have the same results for pairs of size/trial
         seed = hash((s, t))
+        if seed < 0:
+            seed = -seed
         rng = np.random.default_rng(seed)
         # pick s strains
         jdict[s][t] = list(rng.choice(strains, size=s, replace=False))
