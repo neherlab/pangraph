@@ -7,6 +7,7 @@ from accuracy_plot_utils import (
     cumulative_cost_plot,
     block_diversity_df,
     divergence_vs_snps_rate,
+    median_misplacement_vs_divergence,
 )
 
 
@@ -19,11 +20,16 @@ def parse_args():
     parser.add_argument("--mm20", help="input json for minimap20 kernel", type=str)
     parser.add_argument("--mmsq", help="input json for mmseqs2 kernel", type=str)
     parser.add_argument(
-        "--pdf_supplacc", help="output supplementary accuracy figure", type=str
+        "--pdf_acc", help="output supplementary accuracy figure", type=str
     )
     parser.add_argument(
-        "--pdf_supplsnps",
+        "--pdf_snps",
         help="output supplementary snps vs divergence figure",
+        type=str,
+    )
+    parser.add_argument(
+        "--pdf_med",
+        help="output median misplacement vs divergence figure",
         type=str,
     )
     parser.add_argument("--snps", help="snps values to consider", nargs="+", type=float)
@@ -66,6 +72,14 @@ def snps_rate_vs_divergence_plot(df, savename, kernel_title, fit_max_snps):
     return mut_factor
 
 
+def median_misplacement_plot(costs, savename):
+    fig, ax = plt.subplots(1, 1, figsize=(5, 4))
+    median_misplacement_vs_divergence(costs, ax)
+    plt.tight_layout()
+    plt.savefig(savename)
+    plt.close(fig)
+
+
 if __name__ == "__main__":
 
     args = parse_args()
@@ -92,7 +106,7 @@ if __name__ == "__main__":
     # compare snps rate and divergence. Extract conversion factor
     conv_factor = snps_rate_vs_divergence_plot(
         df,
-        args.pdf_supplsnps,
+        args.pdf_snps,
         kernel_title=titles,
         fit_max_snps=0.002,
     )
@@ -105,6 +119,15 @@ if __name__ == "__main__":
     }
 
     # cumulative distribution of breakpoint misplacement vs sequence divergence
-    comparison_accuracy_plot(costs, titles, args.pdf_supplacc)
+    comparison_accuracy_plot(costs, titles, args.pdf_acc)
 
-    # median
+    # re-evaluate costs, do no exclude any point
+    costs = {
+        k: cost_dictionary(v, conv_factor=conv_factor, nested_lists=True)
+        for k, v in data.items()
+    }
+
+    # median misplacement vs divergence
+    median_misplacement_plot(costs, args.pdf_med)
+
+    # fraction of <100 bp misplacement

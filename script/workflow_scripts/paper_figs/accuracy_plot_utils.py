@@ -16,7 +16,7 @@ def load_accuracy_data(json_fname):
     return data
 
 
-def cost_dictionary(data, conv_factor, keep_only_snps):
+def cost_dictionary(data, conv_factor, keep_only_snps=None, nested_lists=False):
     """Given one of the data dictionaries, returns a dictionary
     { pairwise divergence -> list of avg. breakpoint distances }.
     The pairwise divergence is evaluated by multiplying the snps rate of the
@@ -28,14 +28,19 @@ def cost_dictionary(data, conv_factor, keep_only_snps):
     for d in data:
         # retain only values of snps in the list
         snps = d["snps"]
-        if not snps in keep_only_snps:
-            continue
+        if keep_only_snps is not None:
+            if not snps in keep_only_snps:
+                continue
         # extract list of costs (avg. breakpoint distance per each isolate in the simulation)
         costs = d["values"]["costs"]
         # evaluate divergence from the snps rate
         divergence = snps * conv_factor
+
         # add the list of costs to the dictionary
-        cost_dict[divergence] += costs
+        if nested_lists:
+            cost_dict[divergence].append(costs)
+        else:
+            cost_dict[divergence] += costs
 
     return dict(cost_dict)
 
@@ -213,3 +218,44 @@ def divergence_vs_snps_rate(df, ax, kernel_title, fit_max_snps):
     ax.set_ylabel("avg. pairwise divergence on inferred blocks")
 
     return mut_factor
+
+
+def median_misplacement_vs_divergence(costs, ax):
+
+    legend = {
+        "minimap10": "minimap asm10",
+        "minimap20": "minimap asm20",
+        "mmseqs": "mmseqs",
+    }
+    color = {
+        "minimap10": "#17C3B2",
+        "minimap20": "#227C9D",
+        "mmseqs": "#A352B7",
+    }
+
+    def stats(cost_lists):
+        medians = [np.median(c) for c in cost_lists if len(c) > 0]
+        return np.mean(medians), np.std(medians)
+
+    for k, C in costs.items():
+        # list of divergences
+        divs = list(sorted(C.keys()))
+        # median breakpoint misplacement for each divergence
+        # medians = [np.median(C[d]) for d in divs]
+        # ax.plot(divs, medians, ".:", label=legend[k], color=color[k])
+        M, S = [], []
+        for d in divs:
+            m, s = stats(C[d])
+            M.append(m)
+            S.append(s)
+        M, S = np.array(M), np.array(S)
+        ax.plot(divs, M, ".:", label=legend[k], color=color[k])
+        ax.fill_between(divs, M - S, M + S, alpha=0.2, color=color[k])
+
+    ax.legend(title="alignment kernel", loc="upper left")
+    ax.set_xscale("log")
+    # ax.set_yscale("log")
+    ax.set_xlabel("avg. pairwise divergence")
+    ax.set_ylabel("median breakpoint misplacement (<1kbp)")
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)

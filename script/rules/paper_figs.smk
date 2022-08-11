@@ -40,6 +40,7 @@ rule PF_accuracy_plots:
     output:
         suppl_acc="figs/paper/accuracy/accuracy_comparison.pdf",
         suppl_snps="figs/paper/accuracy/snps_rate_vs_divergence.pdf",
+        med="figs/paper/accuracy/median_misplacement_vs_divergence.pdf",
     params:
         snps=AC_snps_accplot,
     conda:
@@ -49,7 +50,8 @@ rule PF_accuracy_plots:
         python3 workflow_scripts/paper_figs/accuracy_plots.py \
             --mm10 {input.mm10} --mm20 {input.mm20} --mmsq {input.mmsq} \
             --snps {params.snps} \
-            --pdf_supplacc {output.suppl_acc} --pdf_supplsnps {output.suppl_snps}
+            --pdf_acc {output.suppl_acc} --pdf_snps {output.suppl_snps} \
+            --pdf_med {output.med}
         """
 
 
