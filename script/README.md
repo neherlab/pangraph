@@ -6,7 +6,7 @@ The analysis can be reproduced using [Snakemake](https://snakemake.readthedocs.i
 
 Complete:
 - preliminary: setup conda environment
-- preliminary command to pick strain pairs
+- preliminary script to pick strain sets
 - content of the config and json parameter files.
 - snakemake command to generate all the figures
 - specify cluster execution?

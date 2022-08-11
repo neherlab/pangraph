@@ -360,28 +360,26 @@ rule PX_IS_extract_stats:
         """
 
 
-# rule PX_IS_summary_df:
-#     message:
-#         "Building summary dataframe for incremental size analaysis"
-#     input:
-#         expand(
-#             rules.PX_IS_build_graph.output,
-#             size=PX_IS_sizes,
-#             trial=PX_IS_trials,
-#         ),
-#     output:
-#         "incremental_size/summary/escherichia_coli_IS_analysis.csv",
-#     conda:
-#         "../conda_envs/bioinfo_env.yml"
-#     shell:
-#         """
-#         python3 workflow_scripts/incr_size_summary_df.py \
-#             --jsons {input} --csv {output}
-#         """
+rule PX_IS_summary_df:
+    message:
+        "Building summary dataframe for incremental size analaysis"
+    input:
+        expand(
+            rules.PX_IS_build_graph.output,
+            size=PX_IS_sizes,
+            trial=PX_IS_trials,
+        ),
+    output:
+        "incremental_size/summary/escherichia_coli_IS_analysis.csv",
+    conda:
+        "../conda_envs/bioinfo_env.yml"
+    shell:
+        """
+        python3 workflow_scripts/incr_size_summary_df.py \
+            --jsons {input} --csv {output}
+        """
 
 
 rule PX_IS_all:
     input:
-        expand(
-            rules.PX_IS_extract_stats.output, size=PX_IS_sizes, trial=PX_IS_trials,
-        ),
+        rules.PX_IS_summary_df.output,

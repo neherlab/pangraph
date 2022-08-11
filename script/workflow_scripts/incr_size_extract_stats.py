@@ -1,7 +1,3 @@
-# Given a set of fasta files and the corresponding pangenome graph, this script
-# evaluates compression statistics. These includes the average genome size, the
-# average fasta file size, the number of files, the average pangenome size,
-
 import os
 import re
 import json
@@ -101,8 +97,11 @@ if __name__ == "__main__":
 
     # save trial number and n. strains
     size, trial = extract_trial_number(args.pangraph)
-    n_strains = stats["n. strains"]
+    n_strains = stats["n. strains"]  # from pangraph
+    n_genomes = stats["n. genomes"]  # from fasta files
     assert int(size) == n_strains, f"n. strains={n_strains}, size wildcard={size}"
+    assert int(size) == n_genomes, f"n. genomes={n_genomes}, size wildcard={size}"
+    stats.pop("n. strains", None)  # redundant
     stats["trial"] = int(trial)
 
     # save to json
