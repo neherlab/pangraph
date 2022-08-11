@@ -315,6 +315,8 @@ with open(PX_config["incremental-size"], "r") as f:
 # list of considered sizes and n. trials
 PX_IS_sizes = list(sorted(PX_IS_strains.keys()))
 PX_IS_trials = list(sorted(PX_IS_strains[PX_IS_sizes[0]].keys()))
+PX_IS_allstrains = PX_accnums["escherichia_coli"]
+PX_IS_Ntot = len(PX_IS_allstrains)
 
 # input function wildcards -> (size,trial) -> set of input fasta files
 def IS_select_strains(w):
@@ -360,15 +362,36 @@ rule PX_IS_extract_stats:
         """
 
 
+rule PX_IS_extract_stats_full_graph:
+    message:
+        "Extracting stats for full pangenome graph"
+    input:
+        pang="panx_data/escherichia_coli/pangraphs/pangraph-minimap20-std.json",
+        fasta=expand(
+            "panx_data/escherichia_coli/fa/{acc}.fa",
+            acc=PX_IS_allstrains,
+        ),
+    output:
+        f"incremental_size/escherichia_coli/{PX_IS_Ntot}/0/stats.json",
+    conda:
+        "../conda_envs/bioinfo_env.yml"
+    shell:
+        """
+        python3 workflow_scripts/incr_size_extract_stats.py \
+            --pangraph {input.pang} --fasta {input.fasta} --json {output}
+        """
+
+
 rule PX_IS_summary_df:
     message:
         "Building summary dataframe for incremental size analaysis"
     input:
-        expand(
+        jsons=expand(
             rules.PX_IS_build_graph.output,
             size=PX_IS_sizes,
             trial=PX_IS_trials,
         ),
+        json_full=f"incremental_size/escherichia_coli/{PX_IS_Ntot}/0/stats.json",
     output:
         "incremental_size/summary/escherichia_coli_IS_analysis.csv",
     conda:
@@ -376,7 +399,7 @@ rule PX_IS_summary_df:
     shell:
         """
         python3 workflow_scripts/incr_size_summary_df.py \
-            --jsons {input} --csv {output}
+            --jsons {input.jsons} {input.json_full} --csv {output}
         """
 
 
