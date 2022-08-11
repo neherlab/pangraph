@@ -316,8 +316,8 @@ PX_IS_trials = list(sorted(PX_IS_strains[PX_IS_sizes[0]].keys()))
 
 
 def IS_select_strains(w):
-    s = int(w.size)
-    t = int(w.trial)
+    s = w.size
+    t = w.trial
     strains = PX_IS_strains[s][t]
     return [f"panx_data/escherichia_coli/fa/{s}.fa" for s in strains]
 
