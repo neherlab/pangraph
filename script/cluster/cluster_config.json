@@ -29,6 +29,12 @@
         "n": 8,
         "mem": "100G"
     },
+    "PX_IS_build_graph": {
+        "time": "05:58:00",
+        "qos": "6hours",
+        "n": 8,
+        "mem": "40G"
+    },
     "PX_pairwise_graphs": {
         "time": "00:29:00",
         "qos": "30min",

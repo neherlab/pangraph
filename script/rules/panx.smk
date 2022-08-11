@@ -307,3 +307,79 @@ rule PX_proj_all:
 
 
 # ------------- General pangenome graph statistics vs n. isolates -----------
+
+with open(PX_config["incremental-size"], "r") as f:
+    PX_IS_strains = json.load(f)
+# sizes for incremental size analysis
+PX_IS_sizes = list(sorted(PX_IS_strains.keys()))
+PX_IS_trials = list(sorted(PX_IS_strains[PX_IS_sizes[0]].keys()))
+
+
+def IS_select_strains(w):
+    s = int(w.size)
+    t = int(w.trial)
+    strains = PX_IS_strains
+    return [f"panx_data/escherichia_coli/fa/{s}.fa" for s in strains]
+
+
+rule PX_IS_build_graph:
+    message:
+        "Build pangenome graph for incremental size analysis - size={wildcards.size} trial={wildcards.trial}"
+    input:
+        IS_select_strains,
+    output:
+        "incremental_size/escherichia_coli/{size,[0-9]+}/{trial,[0-9]+}/pangraph.json",
+    params:
+        opt=PX_ker_opt["minimap20-std"],
+    conda:
+        "../conda_envs/pangraph_build_env.yml"
+    shell:
+        """
+        export JULIA_NUM_THREADS=8
+        pangraph build --circular {params.opt} {input} > {output}
+        """
+
+
+# rule PX_IS_extract_stats:
+#     message:
+#         "Extracting stats for incremental size analysis - size={wildcards.size} trial={wildcards.trial}"
+#     input:
+#         rules.PX_IS_build_graph.output,
+#     output:
+#         "incremental_size/escherichia_coli/{size,[0-9]+}/{trial,[0-9]+}/stats.json",
+#     conda:
+#         "../conda_envs/bioinfo_env.yml"
+#     shell:
+#         """
+#         python3 workflow_scripts/incr_size_extract_stats.py \
+#             --pang {input} --json {output}
+#         """
+
+
+# rule PX_IS_summary_df:
+#     message:
+#         "Building summary dataframe for incremental size analaysis"
+#     input:
+#         expand(
+#             rules.PX_IS_build_graph.output,
+#             size=PX_IS_sizes,
+#             trial=PX_IS_trials,
+#         ),
+#     output:
+#         "incremental_size/summary/escherichia_coli_IS_analysis.csv",
+#     conda:
+#         "../conda_envs/bioinfo_env.yml"
+#     shell:
+#         """
+#         python3 workflow_scripts/incr_size_summary_df.py \
+#             --jsons {input} --csv {output}
+#         """
+
+
+rule PX_IS_all:
+    input:
+        expand(
+            rules.PX_IS_build_graph.output,
+            size=PX_IS_sizes,
+            trial=PX_IS_trials,
+        ),
