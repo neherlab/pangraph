@@ -16,12 +16,14 @@ def load_accuracy_data(json_fname):
     return data
 
 
-def cost_dictionary(data, conv_factor, keep_only_snps=None):
+def cost_dictionary(data, conv_factor, keep_only_snps=None, keep_nested_lists=False):
     """Given one of the data dictionaries, returns a dictionary
     { pairwise divergence -> list of avg. breakpoint distances }.
     The pairwise divergence is evaluated by multiplying the snps rate of the
     simulation by a conversion factor. Only values of snp rate that are
-    present in `keep_only_snps` are retained."""
+    present in `keep_only_snps` are retained.
+    If `keep_nested_lists` is set to True then a nested list is returned, each inner
+    list corresponding to a different simulation."""
 
     cost_dict = defaultdict(list)
     # cycle through all simulations
@@ -37,7 +39,10 @@ def cost_dictionary(data, conv_factor, keep_only_snps=None):
         divergence = snps * conv_factor
 
         # add the list of costs to the dictionary
-        cost_dict[divergence] += costs
+        if keep_nested_lists:
+            cost_dict[divergence].append(costs)
+        else:
+            cost_dict[divergence] += costs
 
     return dict(cost_dict)
 
@@ -217,7 +222,66 @@ def divergence_vs_snps_rate(df, ax, kernel_title, fit_max_snps):
     return mut_factor
 
 
+def mean_and_stderr(values):
+    """Given a list of values evaluates the mean and standard error of the mean"""
+    mean = np.mean(values)
+    stderr = np.std(values) / np.sqrt(len(values))
+    return mean, stderr
+
+
+def median_plot_util(costs, ax, label, color):
+    """Given the dictionary of {divergence -> [[avg. isolate displacement] per simulation]}
+    plots a line that quantifies the median breakpoint displacement. The median is
+    calculated for each simulation and then the mean and standard error are
+    reported in the plot."""
+    # values of divergence
+    divs = list(sorted(costs.keys()))
+    mean, stderr = [], []
+    # for each value of the divergence
+    for d in divs:
+        # for each simulation evaluate median displacement
+        values = [np.median(c) for c in costs[d] if len(c) > 0]
+        # extract mean and stderr over the simulations
+        m, s = mean_and_stderr(values)
+        mean.append(m)
+        stderr.append(s)
+    M, S = np.array(mean), np.array(stderr)
+    # plot and set y-axis label
+    ax.plot(divs, M, ".:", label=label, color=color)
+    ax.fill_between(divs, M - S, M + S, alpha=0.2, color=color)
+    # medians = [np.median(np.concatenate(costs[d])) for d in divs]
+    ax.set_ylabel("median breakpoint misplacement (<1kbp)")
+
+
+def fraction_plot_util(costs, ax, label, color):
+    """Given the dictionary of {divergence -> [[avg. isolate displacement] per simulation]}
+    plots a line that quantifies the fraction of costs that are >100bp. This fraction is
+    calculated for each simulation and then the mean and standard error are
+    reported in the plot."""
+    # values of divergence
+    divs = list(sorted(costs.keys()))
+    mean, stderr = [], []
+    # for each value of the divergence
+    for d in divs:
+        # for each simulation evaluate fraction of average displacements > 100bp
+        values = [np.mean(np.array(c) > 100) for c in costs[d] if len(c) > 0]
+        # extract mean and stderr over the simulations
+        m, s = mean_and_stderr(values)
+        mean.append(m)
+        stderr.append(s)
+    M, S = np.array(mean), np.array(stderr)
+    # plot and set y-axis label
+    ax.plot(divs, M, ".:", label=label, color=color)
+    ax.fill_between(divs, M - S, M + S, alpha=0.2, color=color)
+    ax.set_ylabel("fraction of misplaced (>100bp) breakpoints")
+
+
 def misplacement_vs_divergence(costs, ax, stat):
+    """Given the nested dictionary
+    {kernel -> divergence -> [[avg. isolate displacement] per simulation]}
+    plots either the median displacement (stat='median') or the fraction
+    of isolates with average displacement >100bp (stat='fraction').
+    """
 
     legend = {
         "minimap10": "minimap asm10",
@@ -230,21 +294,21 @@ def misplacement_vs_divergence(costs, ax, stat):
         "mmseqs": "#A352B7",
     }
 
-    for k, C in costs.items():
-        # list of divergences
-        divs = list(sorted(C.keys()))
-        # median breakpoint misplacement for each divergence
+    # for every kernel
+    for k, kernel_costs in costs.items():
+        # plot the selected statistic
         if stat == "median":
-            medians = [np.median(C[d]) for d in divs]
-            ax.plot(divs, medians, ".:", label=legend[k], color=color[k])
+            median_plot_util(kernel_costs, ax, legend[k], color[k])
+        elif stat == "fraction":
+            fraction_plot_util(kernel_costs, ax, legend[k], color[k])
         else:
             raise ValueError("stat must be either median or fraction")
 
-    ax.legend(title="alignment kernel", loc="upper left")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
+    # setup axes
+    ax.legend(title="alignment kernel", loc="best")
+    # ax.set_xscale("log")
+    # ax.set_yscale("log")
     ax.set_xlabel("avg. pairwise divergence")
-    ax.set_ylabel("median breakpoint misplacement (<1kbp)")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     ax.grid(alpha=0.2)

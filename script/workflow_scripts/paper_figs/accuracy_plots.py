@@ -20,6 +20,18 @@ def parse_args():
     parser.add_argument("--mm20", help="input json for minimap20 kernel", type=str)
     parser.add_argument("--mmsq", help="input json for mmseqs2 kernel", type=str)
     parser.add_argument(
+        "--snps_suppl",
+        help="snps values to consider (supplementary figure)",
+        nargs="+",
+        type=float,
+    )
+    parser.add_argument(
+        "--snps_main",
+        help="snps values to consider (main figure)",
+        nargs="+",
+        type=float,
+    )
+    parser.add_argument(
         "--pdf_acc", help="output supplementary accuracy figure", type=str
     )
     parser.add_argument(
@@ -32,7 +44,11 @@ def parse_args():
         help="output median misplacement vs divergence figure",
         type=str,
     )
-    parser.add_argument("--snps", help="snps values to consider", nargs="+", type=float)
+    parser.add_argument(
+        "--pdf_frac",
+        help="output misplaced fraction vs divergence figure",
+        type=str,
+    )
     return parser.parse_args()
 
 
@@ -72,9 +88,13 @@ def snps_rate_vs_divergence_plot(df, savename, kernel_title, fit_max_snps):
     return mut_factor
 
 
-def median_misplacement_plot(costs, savename):
+def misplacement_plot(costs, savename, stat):
+    """Plot of divergence vs:
+    - (stat='median') -> median breakpoint displacement
+    - (stat='fraction') -> ~ fraction of displaced breakpoints (>100bp)
+    """
     fig, ax = plt.subplots(1, 1, figsize=(5, 4))
-    misplacement_vs_divergence(costs, ax, stat="median")
+    misplacement_vs_divergence(costs, ax, stat=stat)
     plt.tight_layout()
     plt.savefig(savename)
     plt.close(fig)
@@ -111,20 +131,37 @@ if __name__ == "__main__":
         fit_max_snps=0.002,
     )
 
-    # extract breakpoint misplacement distance, keep only relevant distance, stratify
-    # by sequence divergence
+    # extract breakpoint misplacement distance, keep only relevant distance,
+    # stratify by sequence divergence
+    # creates a dictionary {kernel -> divergence -> [avg. displacement over isolates]}
     costs = {
-        k: cost_dictionary(v, keep_only_snps=args.snps, conv_factor=conv_factor)
+        k: cost_dictionary(
+            v,
+            keep_only_snps=args.snps_suppl,
+            conv_factor=conv_factor,
+            keep_nested_lists=False,
+        )
         for k, v in data.items()
     }
 
     # cumulative distribution of breakpoint misplacement vs sequence divergence
     comparison_accuracy_plot(costs, titles, args.pdf_acc)
 
-    # re-evaluate costs, do no exclude any point
-    costs = {k: cost_dictionary(v, conv_factor=conv_factor) for k, v in data.items()}
+    # re-evaluate breakpoint misplacement distance, keep specified snps, leave nested lists
+    # for mean/stderr evaluation
+    # creates a dictionary {kernel -> divergence -> [[average displacements over isolates] per simulation ]}
+    costs = {
+        k: cost_dictionary(
+            v,
+            keep_only_snps=args.snps_main,
+            conv_factor=conv_factor,
+            keep_nested_lists=True,
+        )
+        for k, v in data.items()
+    }
 
     # median misplacement vs divergence
-    median_misplacement_plot(costs, args.pdf_med)
+    misplacement_plot(costs, args.pdf_med, stat="median")
 
-    # fraction of <100 bp misplacement
+    # fraction of <100 bp misplacement vs divergence
+    misplacement_plot(costs, args.pdf_frac, stat="fraction")

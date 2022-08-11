@@ -13,7 +13,7 @@ with open(AC_config["sim-params"], "r") as f:
     AC_sim_params = json.load(f)
 AC_hgt = AC_sim_params["hgt"]
 AC_snps = AC_sim_params["snps"]
-AC_snps_accplot = AC_sim_params["snps-accplot"]
+AC_snps_accplot = AC_sim_params["snps-accplot-suppl"]
 # number of trials
 AC_trials = list(range(1, AC_config["sim-ntrials"] + 1))
 

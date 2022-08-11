@@ -41,17 +41,19 @@ rule PF_accuracy_plots:
         suppl_acc="figs/paper/accuracy/accuracy_comparison.pdf",
         suppl_snps="figs/paper/accuracy/snps_rate_vs_divergence.pdf",
         med="figs/paper/accuracy/median_misplacement_vs_divergence.pdf",
+        frac="figs/paper/accuracy/misplaced_fraction_vs_divergence.pdf",
     params:
-        snps=AC_snps_accplot,
+        snps_suppl=AC_sim_params["snps-accplot-suppl"],
+        snps_main=AC_sim_params["snps-accplot-main"],
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/paper_figs/accuracy_plots.py \
             --mm10 {input.mm10} --mm20 {input.mm20} --mmsq {input.mmsq} \
-            --snps {params.snps} \
+            --snps_suppl {params.snps_suppl} --snps_main {params.snps_main} \
             --pdf_acc {output.suppl_acc} --pdf_snps {output.suppl_snps} \
-            --pdf_med {output.med}
+            --pdf_med {output.med} --pdf_frac {output.frac}
         """
 
 
