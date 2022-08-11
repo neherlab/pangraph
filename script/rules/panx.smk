@@ -347,10 +347,10 @@ rule PX_IS_extract_stats:
     message:
         "Extracting stats for incremental size analysis - size={wildcards.size} trial={wildcards.trial}"
     input:
-        rules.PX_IS_build_graph.output,
-    output:
-        pang="incremental_size/escherichia_coli/{size,[0-9]+}/{trial,[0-9]+}/stats.json",
+        pang=rules.PX_IS_build_graph.output,
         fasta=IS_select_strains,
+    output:
+        "incremental_size/escherichia_coli/{size,[0-9]+}/{trial,[0-9]+}/stats.json",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
@@ -383,7 +383,5 @@ rule PX_IS_extract_stats:
 rule PX_IS_all:
     input:
         expand(
-            rules.PX_IS_extract_stats.output,
-            size=PX_IS_sizes,
-            trial=PX_IS_trials,
+            rules.PX_IS_extract_stats.output, size=PX_IS_sizes, trial=PX_IS_trials,
         ),

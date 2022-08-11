@@ -17,7 +17,7 @@ def parse_args():
         description="Evaluates summary statistics for the pangenome graph"
     )
     parser.add_argument("--pangraph", help="input pangenome graph", type=str)
-    parser.add_argument("--fasta", help="input fasta files", type=str)
+    parser.add_argument("--fasta", help="input fasta files", type=str, nargs="+")
     parser.add_argument("--json", help="output json file", type=str)
     return parser.parse_args()
 
@@ -80,7 +80,8 @@ def pangraph_stats(pan_file):
 
 
 def extract_trial_number(pangraph_file):
-    size, trial = re.search(r"/(\d+)/(\d+)/pangraph\.json$").groups()
+    """Extract size of dataset and trial number from the input filename."""
+    size, trial = re.search(r"/(\d+)/(\d+)/pangraph\.json$", pangraph_file).groups()
     return size, trial
 
 
@@ -101,8 +102,8 @@ if __name__ == "__main__":
     # save trial number and n. strains
     size, trial = extract_trial_number(args.pangraph)
     n_strains = stats["n. strains"]
-    assert size == n_strains, f"n. strains={n_strains}, size wildcard={size}"
-    stats["trial"] = trial
+    assert int(size) == n_strains, f"n. strains={n_strains}, size wildcard={size}"
+    stats["trial"] = int(trial)
 
     # save to json
     with open(args.json, "w") as f:
