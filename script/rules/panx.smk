@@ -304,3 +304,6 @@ rule PX_proj_all:
             f"projections/benchmark/examples/{sp}__minimap20-std__{st}-{t}.pdf"
             for sp, st, t in PX_example_list
         ],
+
+
+# ------------- General pangenome graph statistics vs n. isolates -----------

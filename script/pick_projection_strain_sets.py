@@ -1,3 +1,4 @@
+from collections import defaultdict
 import json
 import glob
 import re
@@ -44,6 +45,8 @@ def acc_nums(fld):
 
 if __name__ == "__main__":
 
+    # ~~~~~ part 1): select strain pairs for pairwise graphs vs projection comparison  ~~~~~
+
     # seed random number generator for reproducibility
     rng = np.random.default_rng(0)
 
@@ -51,9 +54,6 @@ if __name__ == "__main__":
     # and total number of pairs
     N_tot = 50
     N_pairs = 50
-
-    # savename of the output json file
-    out_fname = "config/projection_strains.json"
 
     # collect all accession numbers
     acc_nums = {s: acc_nums(f"panx_data/{s}/input_GenBank") for s in species}
@@ -82,6 +82,31 @@ if __name__ == "__main__":
         pairs[s] = all_pairs[:N_pick]
 
     # save to json
+    out_fname = "config/projection_strains.json"
     jdict = {s: {"strains": acc_nums[s], "pairs": pairs[s]} for s in species}
+    with open(out_fname, "w") as f:
+        json.dump(jdict, f, indent=4)
+
+    # ~~~~~ part 2): select strain sets for incremental size pangraph properties  ~~~~~
+
+    species = "escherichia_coli"
+    strains = acc_nums[species]  # list of strains
+    print(acc_nums)
+    sizes = [2, 4, 8, 16, 32, 64, 128]  # incremental list of sizes
+    n_trials = 10  # n. trials for each size
+
+    # build nested dictionary {size -> n.trial -> [list of strains]}
+    jdict = defaultdict(dict)
+    for s, t in itt.product(sizes, range(n_trials)):
+        # seed random number generator for reproducibility
+        # will always have the same results for pairs of size/trial
+        seed = hash((s, t))
+        rng = np.random.default_rng(seed)
+        # pick s strains
+        jdict[s][t] = list(rng.choice(strains, size=s, replace=False))
+    jdict = dict(jdict)
+
+    # save json file
+    out_fname = "config/incremental_size_strains.json"
     with open(out_fname, "w") as f:
         json.dump(jdict, f, indent=4)
