@@ -308,13 +308,15 @@ rule PX_proj_all:
 
 # ------------- General pangenome graph statistics vs n. isolates -----------
 
+# nested dictionary {size (str) -> n. trial (str) -> [list of strains]}.
 with open(PX_config["incremental-size"], "r") as f:
     PX_IS_strains = json.load(f)
-# sizes for incremental size analysis
+
+# list of considered sizes and n. trials
 PX_IS_sizes = list(sorted(PX_IS_strains.keys()))
 PX_IS_trials = list(sorted(PX_IS_strains[PX_IS_sizes[0]].keys()))
 
-
+# input function wildcards -> (size,trial) -> set of input fasta files
 def IS_select_strains(w):
     s = w.size
     t = w.trial
@@ -322,6 +324,7 @@ def IS_select_strains(w):
     return [f"panx_data/escherichia_coli/fa/{s}.fa" for s in strains]
 
 
+# rule to build a pangenome graph for the selected set of strains, specified by the size + trial dictionary
 rule PX_IS_build_graph:
     message:
         "Build pangenome graph for incremental size analysis - size={wildcards.size} trial={wildcards.trial}"
@@ -340,20 +343,21 @@ rule PX_IS_build_graph:
         """
 
 
-# rule PX_IS_extract_stats:
-#     message:
-#         "Extracting stats for incremental size analysis - size={wildcards.size} trial={wildcards.trial}"
-#     input:
-#         rules.PX_IS_build_graph.output,
-#     output:
-#         "incremental_size/escherichia_coli/{size,[0-9]+}/{trial,[0-9]+}/stats.json",
-#     conda:
-#         "../conda_envs/bioinfo_env.yml"
-#     shell:
-#         """
-#         python3 workflow_scripts/incr_size_extract_stats.py \
-#             --pang {input} --json {output}
-#         """
+rule PX_IS_extract_stats:
+    message:
+        "Extracting stats for incremental size analysis - size={wildcards.size} trial={wildcards.trial}"
+    input:
+        rules.PX_IS_build_graph.output,
+    output:
+        pang="incremental_size/escherichia_coli/{size,[0-9]+}/{trial,[0-9]+}/stats.json",
+        fasta=IS_select_strains,
+    conda:
+        "../conda_envs/bioinfo_env.yml"
+    shell:
+        """
+        python3 workflow_scripts/incr_size_extract_stats.py \
+            --pangraph {input.pang} --fasta {input.fasta} --json {output}
+        """
 
 
 # rule PX_IS_summary_df:
@@ -379,7 +383,7 @@ rule PX_IS_build_graph:
 rule PX_IS_all:
     input:
         expand(
-            rules.PX_IS_build_graph.output,
+            rules.PX_IS_extract_stats.output,
             size=PX_IS_sizes,
             trial=PX_IS_trials,
         ),
