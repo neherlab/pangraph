@@ -59,6 +59,7 @@ function mash(Gs...)
             for (i,G) ∈ enumerate(Gs)
                 serialize(io, G)
             end
+            flush(io)
         end
 
         reader = @async compare(path)
