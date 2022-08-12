@@ -76,6 +76,22 @@ rule PF_projection_plot:
         """
 
 
+rule PF_incremental_size_plot:
+    message:
+        "Creating plots for incremental graph size analysis"
+    input:
+        rules.PX_IS_summary_df.output,
+    output:
+        pdf_all="figs/paper/incr_size/all_stats.pdf",
+        pdf_paper="figs/paper/incr_size/summary.pdf",
+    shell:
+        """
+        python3 workflow_scripts/paper_figs/incremental_size_plot.py \
+            --csv {input} --pdf_all {output.pdf_all} \
+            --pdf_paper {output.pdf_paper}
+        """
+
+
 # rule PF_panx_compression_plot:
 #     message:
 #         "Creating plots for PanX compression performances"
@@ -96,3 +112,4 @@ rule PF_all:
         rules.PF_benchmark_synthetic.output,
         rules.PF_accuracy_plots.output,
         rules.PF_projection_plot.output,
+        rules.PF_incremental_size_plot.output,
