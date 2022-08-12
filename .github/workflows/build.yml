@@ -5,6 +5,12 @@ on:
     tags:
       - '*'
 
+  repository_dispatch:
+    types: build
+
+  workflow_dispatch:
+
+
 jobs:
   Docker-Build-and-Push:
     name: 'Docker: build and push'
