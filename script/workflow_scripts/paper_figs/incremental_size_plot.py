@@ -68,6 +68,8 @@ def plot_all(df, savename):
 
 
 def plot_line(ax, df, xvar, yvar, label, color):
+    """Utility function to plot the mean and standard
+    deviation of a quantity in the dataframe."""
     sdf = df[[xvar, yvar]].copy()
     means = sdf.groupby(xvar).mean()[yvar]
     x = means.index
@@ -76,7 +78,7 @@ def plot_line(ax, df, xvar, yvar, label, color):
     ax.fill_between(x, means - stds, means + stds, alpha=0.2, color=color)
 
 
-def plot_block_stats(df, ax):
+def plot_n_blocks_stats(df, ax):
 
     xvar = "n. genomes"
     yvars = {
@@ -94,36 +96,57 @@ def plot_block_stats(df, ax):
     ax.set_yscale("log")
 
 
-# def plot_pangenome_size(df, ax):
+def plot_block_len_stats(df, ax):
 
-#     xvar = "n. genomes"
-#     yvars = {
-#         "pangenome length (Mbp)": ("C0", "all"),
-#         "n. core blocks": ("C1", "core"),
-#         "L50": ("C2", "L50"),
-#     }
-#     for yvar in yvars:
-#         color, label = yvars[yvar]
-#         plot_line(ax, df, xvar, yvar, label, color)
-#     ax.grid(alpha=0.2)
-#     ax.legend()
-#     ax.set_xlabel("n. genomes")
-#     ax.set_ylabel("pangenome size")
-#     ax.set_yscale("log")
+    xvar = "n. genomes"
+    yvars = {
+        "avg. block length (bp)": ("C0", "avg. block length"),
+        "N50 (bp)": ("C1", "N50"),
+    }
+    for yvar in yvars:
+        color, label = yvars[yvar]
+        plot_line(ax, df, xvar, yvar, label, color)
+    ax.grid(alpha=0.2)
+    ax.legend()
+    ax.set_xlabel("n. genomes")
+    ax.set_ylabel("length (bp)")
+    ax.set_yscale("log")
+
+
+def plot_pangenome_size(df, ax):
+
+    sdf = df.copy()
+    sdf["pang_len"] = sdf["pangenome length (Mbp)"] * 1e6
+    sdf["tot_gen_len"] = sdf["avg. genome length (Mbp)"] * 1e6 * sdf["n. genomes"]
+
+    xvar = "n. genomes"
+    yvars = {
+        "tot_gen_len": ("C0", "all genomes"),
+        "pang_len": ("C1", "pangenome"),
+        "len. core pangenome": ("C2", "core pangenome"),
+    }
+    for yvar in yvars:
+        color, label = yvars[yvar]
+        plot_line(ax, sdf, xvar, yvar, label, color)
+    ax.grid(alpha=0.2)
+    ax.legend()
+    ax.set_xlabel("n. genomes")
+    ax.set_ylabel("genome size (bp)")
+    ax.set_yscale("log")
 
 
 def plot_summary(df, savename):
 
-    xvar = "n. genomes"
-
-    NP = 2
-    fig, axs = plt.subplots(1, NP, figsize=(NP * 3, 3), sharex=True)
+    fig, axs = plt.subplots(1, 3, figsize=(9, 3), sharex=True)
 
     ax = axs[0]
-    plot_block_stats(df, ax)
+    plot_n_blocks_stats(df, ax)
 
     ax = axs[1]
-    # plot_pangenome_size(df, ax)
+    plot_block_len_stats(df, ax)
+
+    ax = axs[2]
+    plot_pangenome_size(df, ax)
 
     # tweak second column ax
     ax.set_xscale("log")
