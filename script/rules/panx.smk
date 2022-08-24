@@ -211,6 +211,24 @@ rule PX_pairwise_projection:
         """
 
 
+# Evaluate pairwise distances between strains using mash
+rule PX_mash_triangle:
+    message:
+        "evaluating mash distance matrix for species {wildcards.species}"
+    input:
+        lambda w: expand(
+            "panx_data/{{species}}/fa/{acc}.fa", acc=PX_proj[w.species]["strains"]
+        ),
+    output:
+        "projections/{species}/mash/mash_distance.txt",
+    conda:
+        "../conda_envs/bioinfo_env.yml"
+    shell:
+        """
+        mash triangle {input} > {output}
+        """
+
+
 # Compares the pairwise and the marginalized graph, checking on what fraction of the genome
 # the two agree. Results are saved in a json file
 rule PX_compare_projection_pairwise:
@@ -367,10 +385,7 @@ rule PX_IS_extract_stats_full_graph:
         "Extracting stats for full pangenome graph"
     input:
         pang="panx_data/escherichia_coli/pangraphs/pangraph-minimap20-std.json",
-        fasta=expand(
-            "panx_data/escherichia_coli/fa/{acc}.fa",
-            acc=PX_IS_allstrains,
-        ),
+        fasta=expand("panx_data/escherichia_coli/fa/{acc}.fa", acc=PX_IS_allstrains,),
     output:
         stats=f"incremental_size/escherichia_coli/{PX_IS_Ntot}/0/stats.json",
         link=f"incremental_size/escherichia_coli/{PX_IS_Ntot}/0/pangraph.json",
@@ -389,9 +404,7 @@ rule PX_IS_summary_df:
         "Building summary dataframe for incremental size analaysis"
     input:
         jsons=expand(
-            rules.PX_IS_extract_stats.output,
-            size=PX_IS_sizes,
-            trial=PX_IS_trials,
+            rules.PX_IS_extract_stats.output, size=PX_IS_sizes, trial=PX_IS_trials,
         ),
         json_full=rules.PX_IS_extract_stats_full_graph.output.stats,
     output:
