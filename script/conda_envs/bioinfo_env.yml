@@ -1,5 +1,6 @@
 name: bioinfo
 channels:
+  - bioconda
   - conda-forge
   - defaults
 dependencies:
@@ -11,6 +12,7 @@ dependencies:
   - brotli-bin=1.0.9=h166bdaf_7
   - bzip2=1.0.8=h7f98852_4
   - ca-certificates=2022.6.15=ha878542_0
+  - capnproto=0.9.1=ha19adfc_4
   - certifi=2022.6.15=py39hf3d152e_0
   - cycler=0.11.0=pyhd8ed1ab_0
   - dbus=1.13.6=h5008d03_3
@@ -28,6 +30,7 @@ dependencies:
   - giflib=5.2.1=h36c2ea0_2
   - glib=2.70.2=h780b84a_4
   - glib-tools=2.70.2=h780b84a_4
+  - gsl=2.7=he838d99_0
   - gst-plugins-base=1.20.2=hcf0ee16_0
   - gstreamer=1.20.3=hd4edc92_0
   - icu=69.1=h9c3ff4c_0
@@ -73,6 +76,7 @@ dependencies:
   - libxml2=2.9.12=h885dcf4_1
   - libzlib=1.2.12=h166bdaf_1
   - lz4-c=1.9.3=h9c3ff4c_1
+  - mash=2.3=ha9a2dd8_3
   - matplotlib=3.5.2=py39hf3d152e_0
   - matplotlib-base=3.5.2=py39h700656a_0
   - munkres=1.1.4=pyh9f0ad1d_0
@@ -83,7 +87,7 @@ dependencies:
   - nss=3.78=h2350873_0
   - numpy=1.23.0=py39hba7629e_0
   - openjpeg=2.4.0=hb52868f_1
-  - openssl=3.0.5=h166bdaf_0
+  - openssl=3.0.5=h166bdaf_1
   - packaging=21.3=pyhd8ed1ab_0
   - pandas=1.4.3=py39h1832856_0
   - patsy=0.5.2=pyhd8ed1ab_0
@@ -122,5 +126,5 @@ dependencies:
   - zstd=1.5.2=h8a70e8d_2
   - pip:
     - networkx==2.8.4
-    - git+https://github.com/mmolari/pypangraph
+    - pypangraph==0.1
 prefix: /scicore/home/neher/molari0000/miniconda3/envs/bioinfo
