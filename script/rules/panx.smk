@@ -220,12 +220,15 @@ rule PX_mash_triangle:
             "panx_data/{{species}}/fa/{acc}.fa", acc=PX_proj[w.species]["strains"]
         ),
     output:
-        "projections/{species}/mash/mash_distance.txt",
+        txt="projections/{species}/mash/mash_distance.txt",
+        csv="projections/{species}/mash/mash_distance.csv",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
-        mash triangle {input} > {output}
+        mash triangle {input} > {output.txt}
+        python3 workflow_scripts/mash_triangle_to_csv.py \
+            --mash_tri {output.txt} --csv {output.csv}
         """
 
 
