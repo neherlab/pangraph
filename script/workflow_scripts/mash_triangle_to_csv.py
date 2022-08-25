@@ -16,6 +16,8 @@ def parse_args():
 
 
 def parse_mash_triangle(fname: str):
+    """Given the output of mash triangle, returns the list of strains
+    and the distance matrix."""
 
     # parse file
     with open(fname, "r") as f:
@@ -41,6 +43,9 @@ def parse_mash_triangle(fname: str):
 
 
 def distance_mat_to_df(S, M):
+    """Given the distance matrix and the list of strains, returns a
+    dataframe whose index are pairs of strains and whose values are
+    mash distances."""
 
     # capture pairs of strains and their distance
     strains = []
@@ -49,7 +54,7 @@ def distance_mat_to_df(S, M):
         for j, s2 in enumerate(S):
             strains.append((s1, s2))
             distances.append(M[i, j])
-    
+
     # save in a dataframe
     idx = pd.MultiIndex.from_tuples(strains, names=["strain_1", "strain_2"])
     df = pd.DataFrame({"mash_dist": distances}, index=idx)
