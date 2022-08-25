@@ -11,7 +11,8 @@ def parse_args():
         description="""plot statistics for strain projections"""
     )
     parser.add_argument("--csv", help="input comparison stats", type=str)
-    parser.add_argument("--mash", help="input mash distances", type=str)
+    parser.add_argument("--mash_csv", help="input mash distance df", type=str)
+    parser.add_argument("--mash_k", help="mash kmer size", type=int)
     parser.add_argument("--pdf", help="output pdf file", type=str)
     return parser.parse_args()
 
@@ -31,7 +32,7 @@ def load_comparison_stats(csv):
     return species, df
 
 
-def add_mash_distance_to_df(comp_df, mash_df):
+def add_mash_distance_to_df(comp_df, mash_df, mash_k):
     """Add to the dataframe the shared fraction, estimated using mash distance."""
     mash_dist = mash_df["mash_dist"].to_dict()
     idx = comp_df.index.to_list()
@@ -42,7 +43,7 @@ def add_mash_distance_to_df(comp_df, mash_df):
         # find corresponding mash distance
         d = mash_dist[(s1, s2)]
         # evaluate jaccardi index
-        j = np.exp(-d * 21) / (2 - np.exp(-d * 21))
+        j = np.exp(-d * mash_k) / (2 - np.exp(-d * mash_k))
         # estimate shared fraction using jaccardi index
         sh_fract.append(2 * j / (1 + j))
 
@@ -110,10 +111,10 @@ if __name__ == "__main__":
             comp_df[("average segment size (bp)", k[1])] = comp_df[k] * 1000
 
     # load mash distance
-    mash_df = pd.read_csv(args.mash, index_col=[0, 1])
+    mash_df = pd.read_csv(args.mash_csv, index_col=[0, 1])
 
     # add shared fraction estimated using mash jaccardi index
-    comp_df = add_mash_distance_to_df(comp_df, mash_df)
+    comp_df = add_mash_distance_to_df(comp_df, mash_df, args.mash_k)
 
     # produce plot
     projection_plot(comp_df, species, args.pdf)

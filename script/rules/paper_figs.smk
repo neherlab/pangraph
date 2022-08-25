@@ -84,12 +84,15 @@ rule PF_projection_plot_single:
         mash=rules.PX_mash_triangle.output.csv,
     output:
         "figs/paper/projections/proj_single_{species}.pdf",
+    params:
+        k=PX_config["mash-kmer-size"],
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/paper_figs/projections_plot_single.py \
-            --csv {input.comp} --mash {input.mash} --pdf {output}
+            --csv {input.comp} --mash_csv {input.mash} --mash_k {params.k} \
+            --pdf {output}
         """
 
 
@@ -101,6 +104,8 @@ rule PF_incremental_size_plot:
     output:
         pdf_all="figs/paper/incr_size/all_stats.pdf",
         pdf_paper="figs/paper/incr_size/summary.pdf",
+    conda:
+        "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/paper_figs/incremental_size_plot.py \
