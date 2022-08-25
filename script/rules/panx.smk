@@ -388,7 +388,10 @@ rule PX_IS_extract_stats_full_graph:
         "Extracting stats for full pangenome graph"
     input:
         pang="panx_data/escherichia_coli/pangraphs/pangraph-minimap20-std.json",
-        fasta=expand("panx_data/escherichia_coli/fa/{acc}.fa", acc=PX_IS_allstrains,),
+        fasta=expand(
+            "panx_data/escherichia_coli/fa/{acc}.fa",
+            acc=PX_IS_allstrains,
+        ),
     output:
         stats=f"incremental_size/escherichia_coli/{PX_IS_Ntot}/0/stats.json",
         link=f"incremental_size/escherichia_coli/{PX_IS_Ntot}/0/pangraph.json",
@@ -407,7 +410,9 @@ rule PX_IS_summary_df:
         "Building summary dataframe for incremental size analaysis"
     input:
         jsons=expand(
-            rules.PX_IS_extract_stats.output, size=PX_IS_sizes, trial=PX_IS_trials,
+            rules.PX_IS_extract_stats.output,
+            size=PX_IS_sizes,
+            trial=PX_IS_trials,
         ),
         json_full=rules.PX_IS_extract_stats_full_graph.output.stats,
     output:

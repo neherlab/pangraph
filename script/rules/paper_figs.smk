@@ -57,7 +57,7 @@ rule PF_accuracy_plots:
         """
 
 
-rule PF_projection_plot:
+rule PF_projection_plot_all:
     message:
         "Creating projection plot for paper"
     input:
@@ -73,6 +73,23 @@ rule PF_projection_plot:
         """
         python3 workflow_scripts/paper_figs/projections_plot.py \
             --csv {input} --pdf {output}
+        """
+
+
+rule PF_projection_plot_single:
+    message:
+        "Creating projection plot for paper"
+    input:
+        comp="projections/benchmark/minimap20-std_{species}.full.csv",
+        mash=rules.PX_mash_triangle.output.csv,
+    output:
+        "figs/paper/projections/proj_single_{species}.pdf",
+    conda:
+        "../conda_envs/bioinfo_env.yml"
+    shell:
+        """
+        python3 workflow_scripts/paper_figs/projections_plot_single.py \
+            --csv {input.comp} --mash {input.mash} --pdf {output}
         """
 
 
@@ -111,5 +128,6 @@ rule PF_all:
     input:
         rules.PF_benchmark_synthetic.output,
         rules.PF_accuracy_plots.output,
-        rules.PF_projection_plot.output,
+        rules.PF_projection_plot_all.output,
         rules.PF_incremental_size_plot.output,
+        expand(rules.PF_projection_plot_single.output, species=PX_species),
