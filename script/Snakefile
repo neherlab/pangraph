@@ -5,8 +5,3 @@ include: "rules/panx.smk"
 include: "rules/size_benchmark.smk"
 include: "rules/paper_figs.smk"
 
-rule clean:
-    shell:
-        """
-        rm log/*
-        """

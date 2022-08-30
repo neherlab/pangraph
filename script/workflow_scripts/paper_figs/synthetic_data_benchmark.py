@@ -2,6 +2,7 @@
 # as a function of the input dataset size
 
 import argparse
+from unittest.mock import NonCallableMagicMock
 import pandas as pd
 import seaborn as sns
 import numpy as np
@@ -40,7 +41,7 @@ def plot_lin_trend(df, xlab, ylab, ax):
 
 
 # plots the behavior of a single variable as a function of input dataset size
-def single_plot(df, ax, variable, lin_trend=False):
+def single_plot(df, ax, variable, lin_trend=False, legend=True):
 
     g = sns.lineplot(
         data=df,
@@ -53,6 +54,7 @@ def single_plot(df, ax, variable, lin_trend=False):
         marker=".",
         markeredgecolor=None,
         ax=ax,
+        legend=legend,
     )
     ax.set_xscale("log")
     ax.set_xlabel("n. isolates")
@@ -62,16 +64,19 @@ def single_plot(df, ax, variable, lin_trend=False):
     if lin_trend:
         plot_lin_trend(df, "n-isolates", variable, ax)
 
-    g.legend(
-        title="avg. isolate length (kbp)",
-        fontsize="small",
-        title_fontsize="medium",
-        ncol=2,
-    )
+    if legend:
+        g.legend(
+            title="avg. isolate length (kbp)",
+            fontsize="small",
+            title_fontsize="medium",
+            ncol=2,
+        )
 
 
 # plots the behavior of different variables as a function of input dataset size
-def summary_plot(df, variables, ylabels, yscales, lin_trends, savename):
+def summary_plot(
+    df, variables, ylabels, yscales, lin_trends, legend, savename, axlabels=None
+):
 
     # initialize figure
     fig, axs = plt.subplots(
@@ -82,7 +87,7 @@ def summary_plot(df, variables, ylabels, yscales, lin_trends, savename):
     for nv, var in enumerate(variables):
 
         ax = axs[0, nv]
-        single_plot(df, ax, var, lin_trend=lin_trends[nv])
+        single_plot(df, ax, var, lin_trend=lin_trends[nv], legend=legend[nv])
 
         # customize y-scale and y-label
         ysl = yscales[nv]
@@ -90,9 +95,21 @@ def summary_plot(df, variables, ylabels, yscales, lin_trends, savename):
             ax.set_yscale(ysl)
         ax.set_ylabel(ylabels[nv])
 
-    # set axis and
     sns.despine(fig)
     plt.tight_layout()
+
+    # add panel label
+    if axlabels is not None:
+        for nv, ax in enumerate(axs[0, :]):
+            ax.text(
+                -0.18,
+                0.95,
+                axlabels[nv],
+                transform=ax.transAxes,
+                size=15,
+                weight="bold",
+            )
+
     plt.savefig(savename)
     plt.close(fig)
 
@@ -107,22 +124,25 @@ if __name__ == "__main__":
     # length in kbp
     df["kbp-length"] = df["length"] // 1000
 
-    # figure version 1
+    # figure for supplementary
     kwargs = {
         "variables": ["wall-time", "mem", "cpu-percent"],
         "ylabels": ["wall-time (sec)", "max. memory (Gb)", "cpu-percent"],
         "yscales": ["log", "log", None],
         "lin_trends": [True, True, False],
+        "legend": [True, False, False],
+        "axlabels": ["A", "B", "C"],
         "savename": args.pdf_suppl,
     }
     summary_plot(df, **kwargs)
 
-    # figure version 2
+    # figure for main
     kwargs = {
         "variables": ["wall-time"],
         "ylabels": ["wall-time (sec)"],
         "yscales": ["log"],
         "lin_trends": [True],
+        "legend": [True],
         "savename": args.pdf_main,
     }
     summary_plot(df, **kwargs)
