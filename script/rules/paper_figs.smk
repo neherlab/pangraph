@@ -114,19 +114,23 @@ rule PF_incremental_size_plot:
         """
 
 
-# rule PF_panx_compression_plot:
-#     message:
-#         "Creating plots for PanX compression performances"
-#     input:
-#         comp="panx_data/benchmark/benchmark_compression.csv",
-#         summ="panx_data/benchmark/benchmark_summary.csv",
-#     output:
-#         "figs/paper/panx/compression.pdf",
-#     shell:
-#         """
-#         python3 workflow_scripts/paper_figs/panx_compression_plots.py \
-#             --comp {input.comp} -summ {input.summ} --pdf {output}
-#         """
+rule PF_panx_compression_plot:
+    message:
+        "Creating plots for PanX compression performances"
+    input:
+        comp="panx_data/benchmark/benchmark_compression.csv",
+        summ="panx_data/benchmark/benchmark_summary.csv",
+    output:
+        main="figs/paper/panx/main.pdf",
+        suppl="figs/paper/panx/suppl.pdf",
+    conda:
+        "../conda_envs/bioinfo_env.yml"
+    shell:
+        """
+        python3 workflow_scripts/paper_figs/panx_benchmark_plot.py \
+            --csv_comp {input.comp} --csv_summ {input.summ} \
+            --pdf_main {output.main} --pdf_suppl {output.suppl}
+        """
 
 
 rule PF_all:
@@ -135,4 +139,5 @@ rule PF_all:
         rules.PF_accuracy_plots.output,
         rules.PF_projection_plot_all.output,
         rules.PF_incremental_size_plot.output,
+        rules.PF_panx_compression_plot.output,
         expand(rules.PF_projection_plot_single.output, species=PX_species),
