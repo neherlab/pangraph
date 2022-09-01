@@ -34,13 +34,15 @@ rule AC_generate_data:
         N=100,
         T=50,
         L=50000,
-        ins=0.01,
+        inv_rate=0.01,
+        del_rate=0.05,
     shell:
         """
         julia -t 1 --project=. workflow_scripts/make-sequence.jl \
             -N {params.N} -L {params.L} \
             | julia -t 1 --project=./.. ./../src/PanGraph.jl generate \
-            -m {wildcards.snps} -r {wildcards.hgt} -t {params.T} -i {params.ins} \
+            -m {wildcards.snps} -r {wildcards.hgt} \
+            -t {params.T} -i {params.inv_rate} -d {params.del_rate} \
             -o {output.graph} > {output.seqs}
         """
 
