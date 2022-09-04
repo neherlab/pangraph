@@ -8,7 +8,8 @@ SB_config = config["size-benchmark"]
 # extract simulation parameters from config files
 SB_hgt = SB_config["hgt"]
 SB_snps = SB_config["snps"]
-SB_ins = SB_config["ins"]
+SB_inv = SB_config["inv"]
+SB_del = SB_config["del"]
 SB_ker_opt = SB_config["kernel-options"]
 SB_trials = list(range(SB_config["trials"]))
 
@@ -27,15 +28,17 @@ rule SB_generate_data:
         "size-benchmark/sequences/seqs_{N,[0-9]+}_{L,[0-9]+}_{n,[0-9]+}.fa",
     params:
         hgt=SB_hgt,
-        ins=SB_ins,
         snps=SB_snps,
+        inv=SB_inv,
+        delet=SB_del,
         T=lambda w: int(w.N) // 2,
     shell:
         """
         julia -t 1 --project=. workflow_scripts/make-sequence.jl \
             -N {wildcards.N} -L {wildcards.L} \
             | julia -t 1 --project=./.. ./../src/PanGraph.jl generate \
-            -m {params.snps} -r {params.hgt} -t {params.T} -i {params.ins} \
+            -m {params.snps} -r {params.hgt} -t {params.T} \
+            -i {params.inv} -d {params.delet} \
             > {output}
         """
 
