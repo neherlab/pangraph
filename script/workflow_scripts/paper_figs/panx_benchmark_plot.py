@@ -93,7 +93,8 @@ def custom_legend(ax, style):
     elements = []
     for ak in al_ks:
         c = style["ker-color"][ak]
-        elements.append(Patch(facecolor=c, edgecolor=None, label=ak))
+        lab = style["ker-label"][ak]
+        elements.append(Patch(facecolor=c, edgecolor=None, label=lab))
     lg1 = ax.legend(
         handles=elements,
         loc="upper left",
@@ -285,6 +286,11 @@ if __name__ == "__main__":
         "mmseqs": "#A352B7",
     }
     style["ker-hatch"] = {"std": None, "noenergy": "///"}
+    style["ker-label"] = {
+        "minimap10": "minimap2 asm10",
+        "minimap20": "minimap2 asm20",
+        "mmseqs": "mmseqs2",
+    }
 
     # plot and save figures
     plot_main(df, style, args.pdf_main)
