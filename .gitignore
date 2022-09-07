@@ -21,6 +21,7 @@ script/.snakemake
 script/projections
 script/size-benchmark
 script/incremental_size
+script/panx_diversity
 __pycache__
 
 deps/minimap2/build
