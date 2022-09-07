@@ -31,6 +31,7 @@ def assert_ntot_correct(GC, Ntot):
     counts = [gc["count"] for gc in GC if gc["dupli"] == "no"]
     assert np.max(counts) == Ntot
 
+
 def parse_geneCluster(gc_file, Ntot):
     """Given the geneCluster.json file and the total number of isolates
     parses the file and returns the list of core gene-cluster tags and
@@ -72,7 +73,7 @@ def parse_geneCluster(gc_file, Ntot):
             core_L["n. core genes"] += 1
 
     # evaluate core fractions
-    core_F = {} 
+    core_F = {}
     core_F["Fcore_pangenome"] = core_L["Lcore"] / core_L["Ltot"]
     core_F["Fcore_genome"] = core_L["Lcore_n"] / core_L["Ltot_n"]
     core_F["Fcore_genes"] = core_L["n. core genes"] / core_L["n. genes"]
