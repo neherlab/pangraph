@@ -171,11 +171,24 @@ rule PX_diversity:
 rule PX_diversity_all:
     input:
         expand(rules.PX_diversity.output, species=PX_species),
+    output:
+        csv="panx_diversity/all.csv",
+    run:
+        import pandas as pd
+        import json
+
+        data = []
+        for i in input:
+            with open(i, "r") as f:
+                data.append(json.load(f))
+        pd.DataFrame(data).to_csv(output.csv, index=False)
 
 
-# ------------- Compare pairwise graphs vs pairwise projections from a larger graph -----------
+        # ------------- Compare pairwise graphs vs pairwise projections from a larger graph -----------
+        # load dictionary of selected strains & selected pairs for analysis (produced by pick_projection_strain_set.py)
 
-# load dictionary of selected strains & selected pairs for analysis (produced by pick_projection_strain_set.py)
+
+
 with open(PX_config["projection-data"], "r") as f:
     PX_proj = json.load(f)
 
