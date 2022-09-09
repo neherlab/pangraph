@@ -81,18 +81,19 @@ rule PF_projection_plot_single:
         "Creating projection plot for paper"
     input:
         comp="projections/benchmark/minimap20-std_{species}.full.csv",
-        mash=rules.PX_mash_triangle.output.csv,
+        kdist=rules.MG_shared_kmers_summary.output,
+        corediv=rules.PX_diversity.output,
     output:
         "figs/paper/projections/proj_single_{species}.pdf",
     params:
-        k=PX_config["mash-kmer-size"],
+        k=PX_config["kmer-size"],
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/paper_figs/projections_plot_single.py \
-            --csv {input.comp} --mash_csv {input.mash} --mash_k {params.k} \
-            --pdf {output}
+            --csv {input.comp} --kmer_dist {input.kdist} --klen {params.k} \
+            --core_div {input.corediv} --pdf {output}
         """
 
 
@@ -137,7 +138,6 @@ rule PF_all:
     input:
         rules.PF_benchmark_synthetic.output,
         rules.PF_accuracy_plots.output,
-        rules.PF_projection_plot_all.output,
         rules.PF_incremental_size_plot.output,
         rules.PF_panx_compression_plot.output,
-        expand(rules.PF_projection_plot_single.output, species=PX_species),
+        rules.PF_projection_plot_all.output, # expand(rules.PF_projection_plot_single.output, species=PX_species),

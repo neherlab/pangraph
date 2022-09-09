@@ -1,5 +1,6 @@
 import argparse
 import re
+import json
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -11,8 +12,13 @@ def parse_args():
         description="""plot statistics for strain projections"""
     )
     parser.add_argument("--csv", help="input comparison stats", type=str)
-    parser.add_argument("--mash_csv", help="input mash distance df", type=str)
-    parser.add_argument("--mash_k", help="mash kmer size", type=int)
+    parser.add_argument("--kmer_dist", help="input kmer distance dataframe", type=str)
+    parser.add_argument(
+        "--core_div",
+        help="json with core genome divergence",
+        type=str,
+    )
+    parser.add_argument("--klen", help="kmer size", type=int)
     parser.add_argument("--pdf", help="output pdf file", type=str)
     return parser.parse_args()
 
@@ -32,22 +38,20 @@ def load_comparison_stats(csv):
     return species, df
 
 
-def add_mash_distance_to_df(comp_df, mash_df, mash_k):
-    """Add to the dataframe the shared fraction, estimated using mash distance."""
-    mash_dist = mash_df["mash_dist"].to_dict()
+def add_kmer_distance_to_df(comp_df, kmer_df):
+    """Add to the dataframe the (corrected) shared kmer fraction."""
+    kmer_dist = kmer_df["corrected_f"].to_dict()
     idx = comp_df.index.to_list()
     sh_fract = []
     for i in idx:
         # extract pair of strains
         s1, s2 = re.search(r"__([^-]+)-([^-]+)\.json\|", i).groups()
-        # find corresponding mash distance
-        d = mash_dist[(s1, s2)]
-        # evaluate jaccardi index
-        j = np.exp(-d * mash_k) / (2 - np.exp(-d * mash_k))
-        # estimate shared fraction using jaccardi index
-        sh_fract.append(2 * j / (1 + j))
-
-    comp_df[("fraction of total genome length", "2j/(1+j) (mash)")] = sh_fract
+        # find corresponding shared kmer fraction
+        d = kmer_dist[(s1, f"{s1}-{s2}")]
+        sh_fract.append(d)
+    comp_df[
+        ("fraction of total genome length", "shared kmer fraction (corrected)")
+    ] = sh_fract
     return comp_df
 
 
@@ -110,11 +114,18 @@ if __name__ == "__main__":
         if k[0] == "average segment size (kbp)":
             comp_df[("average segment size (bp)", k[1])] = comp_df[k] * 1000
 
-    # load mash distance
-    mash_df = pd.read_csv(args.mash_csv, index_col=[0, 1])
+    # load kmer distance
+    kmer_df = pd.read_csv(args.kmer_dist, index_col=[0, 1])
 
-    # add shared fraction estimated using mash jaccardi index
-    comp_df = add_mash_distance_to_df(comp_df, mash_df, args.mash_k)
+    # correct kmer distance for mutations
+    with open(args.core_div, "r") as f:
+        divergence = json.load(f)
+    d = divergence["avg. pairwise divergence"]
+    p_correct = np.power(1.0 - d, args.klen)
+    kmer_df["corrected_f"] = kmer_df["f"] / p_correct
+
+    # add shared fraction estimated using kmers
+    comp_df = add_kmer_distance_to_df(comp_df, kmer_df)
 
     # produce plot
     projection_plot(comp_df, species, args.pdf)
