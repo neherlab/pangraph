@@ -284,9 +284,9 @@ def misplacement_vs_divergence(costs, ax, stat):
     """
 
     legend = {
-        "minimap10": "minimap asm10",
-        "minimap20": "minimap asm20",
-        "mmseqs": "mmseqs",
+        "minimap10": "minimap2 asm10",
+        "minimap20": "minimap2 asm20",
+        "mmseqs": "mmseqs2",
     }
     color = {
         "minimap10": "#17C3B2",
