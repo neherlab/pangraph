@@ -97,7 +97,7 @@ def plot_n_blocks_stats(df, ax):
     ax.grid(alpha=0.2)
     ax.legend()
     ax.set_xlabel("n. genomes")
-    ax.set_ylabel("n. blocks")
+    ax.set_ylabel("n. pancontigs")
     ax.set_yscale("log")
 
 
@@ -115,7 +115,7 @@ def plot_block_len_stats(df, ax):
     ax.grid(alpha=0.2)
     ax.legend()
     ax.set_xlabel("n. genomes")
-    ax.set_ylabel("block size (bp)")
+    ax.set_ylabel("pancontig size (bp)")
     ax.set_yscale("log")
 
 
@@ -141,6 +141,12 @@ def plot_pangenome_size(df, ax):
     ax.set_yscale("log")
 
 
+def add_panel_label(ax, nax):
+    """Add letter to the panel"""
+    l = chr(65 + nax)
+    ax.text(-0.18, 0.95, l, transform=ax.transAxes, size=15, weight="bold")
+
+
 def plot_summary(df, savename):
 
     fig, axs = plt.subplots(1, 3, figsize=(9, 3), sharex=True)
@@ -153,6 +159,9 @@ def plot_summary(df, savename):
 
     ax = axs[2]
     plot_pangenome_size(df, ax)
+
+    for i in range(3):
+        add_panel_label(axs[i], i)
 
     # tweak second column ax
     ax.set_xscale("log")
