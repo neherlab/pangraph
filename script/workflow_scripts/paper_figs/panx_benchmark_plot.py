@@ -29,8 +29,8 @@ def load_dataframes(csv_comp, csv_summ):
 def short_species_name(name):
     """Return shortened version of species name"""
     sname = name.split("_")
-    p1, p2 = sname[0][0].upper(), sname[1][:3].capitalize()
-    return f"{p1}. {p2}."
+    p1, p2 = sname[0][0].upper(), sname[1].capitalize()
+    return f"{p1}. {p2}"
 
 
 def plot_n_isolates(ax, df, style):
@@ -48,7 +48,12 @@ def set_xlabels(ax, style):
     ticks = np.arange(len(sord))
     labels = [short_species_name(name) for name in sord]
     ax.set_xticks(ticks)
-    ax.set_xticklabels(labels)  # rotation=20
+    ax.set_xticklabels(
+        labels,
+        rotation=35,
+        ha="right",
+    )
+    ax.set_xlabel("")
     ax.grid(axis="y", alpha=0.2)
 
 
@@ -77,7 +82,7 @@ def barplot(ax, style, series):
     set_xlabels(ax, style)
 
 
-def custom_legend(ax, style):
+def custom_legend(ax, style, side):
     """Produce double legend: one per alignment kernel and one for options"""
 
     # capture alignment kernels and options in order
@@ -97,7 +102,7 @@ def custom_legend(ax, style):
         elements.append(Patch(facecolor=c, edgecolor=None, label=lab))
     lg1 = ax.legend(
         handles=elements,
-        loc="upper left",
+        loc=f"upper {side}",
         title="alignment kernel",
         fontsize=8,
         title_fontsize=9,
@@ -105,7 +110,10 @@ def custom_legend(ax, style):
 
     # legend for options
     elements = []
-    ko_label = {"std": "standard", "noenergy": r"$\alpha = 0, \beta = 0$"}
+    ko_label = {
+        "std": r"$\alpha = 100, \beta = 10$",
+        "noenergy": r"$\alpha = 0, \beta = 0$",
+    }
     for ko in k_opts:
         h = style["ker-hatch"][ko]
         elements.append(
@@ -113,8 +121,8 @@ def custom_legend(ax, style):
         )
     lg2 = ax.legend(
         handles=elements,
-        loc="center left",
-        title="kernel options",
+        loc=f"center {side}",
+        title="pseudo-energy",
         fontsize=8,
         title_fontsize=9,
     )
@@ -130,13 +138,15 @@ def add_panel_label(ax, nax):
 def plot_main(df, style, savename):
     """Main text plot"""
 
-    NX, NY = 2, 2
-    fig, axs = plt.subplots(NY, NX, figsize=(NX * 4, NY * 3), sharex=True)
+    NX, NY = 3, 1
+    fig, axs = plt.subplots(
+        NY, NX, figsize=(NX * 3.8, NY * 3.3), sharex=True, squeeze=False
+    )
 
-    # plot n. isolates in the first panel
-    ax = axs[0, 0]
-    plot_n_isolates(ax, df, style)
-    custom_legend(ax, style)
+    # plot legend
+    ax = axs[0, -1]
+    custom_legend(ax, style, side="right")
+    # plot_n_isolates(ax, df, style)
 
     # setup for each panel
     yvals = [
@@ -155,7 +165,7 @@ def plot_main(df, style, savename):
     # plot panels
     for i, yv in enumerate(yvals):
         # select axis
-        idx = np.unravel_index(i + 1, (NX, NY))
+        idx = np.unravel_index(i, (NY, NX))
         ax = axs[idx]
         # set y-label
         ylab = ylabs[yv] if yv in ylabs else yv
@@ -167,17 +177,13 @@ def plot_main(df, style, savename):
         if yv in yscale:
             ax.set_yscale(yscale[yv])
 
-    # set x-axis label in lower
-    for ax in axs[-1, :]:
-        ax.set_xlabel("species")
-
     # setup axes
     sns.despine(fig)
     plt.tight_layout()
 
     # add panel labels
     for nax in range(NX * NY):
-        idx = np.unravel_index(nax, (NX, NY))
+        idx = np.unravel_index(nax, (NY, NX))
         ax = axs[idx]
         add_panel_label(ax, nax)
 
@@ -194,7 +200,7 @@ def plot_suppl(df, style, savename):
     # plot n. isolates in the first panel
     ax = axs[0, 0]
     plot_n_isolates(ax, df, style)
-    custom_legend(ax, style)
+    custom_legend(ax, style, side="left")
 
     # setup for each panel
     yvals = [
@@ -222,7 +228,7 @@ def plot_suppl(df, style, savename):
     # plot panels
     for i, yv in enumerate(yvals):
         # select axis
-        idx = np.unravel_index(i + 1, (NX, NY))
+        idx = np.unravel_index(i + 1, (NY, NX))
         ax = axs[idx]
         # set y-label
         ylab = ylabs[yv] if yv in ylabs else yv
@@ -234,17 +240,13 @@ def plot_suppl(df, style, savename):
         if yv in yscale:
             ax.set_yscale(yscale[yv])
 
-    # set x-axis label in lower
-    for ax in axs[-1, :]:
-        ax.set_xlabel("species")
-
     # setup axes
     sns.despine(fig)
     plt.tight_layout()
 
     # add panel labels
     for nax in range(NX * NY):
-        idx = np.unravel_index(nax, (NX, NY))
+        idx = np.unravel_index(nax, (NY, NX))
         ax = axs[idx]
         add_panel_label(ax, nax)
 
