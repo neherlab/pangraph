@@ -54,6 +54,7 @@ def pangraph_stats(pan_file):
     stats["n. blocks"] = N
     stats["pangenome length (bp)"] = int(L)
     stats["avg. block length (bp)"] = df["len"].mean()
+    stats["avg. core block length (bp)"] = df["len"][df["core"]].mean()
     stats["n. strains"] = len(pan.paths)
 
     # block size statistics:

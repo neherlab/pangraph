@@ -4,6 +4,11 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+color_core = "#fb8500"
+color_all = "#8d99ae"
+color_pangraph = "#219EBC"
+color_stats = "#023047"
+
 
 def parse_args():
     parser = argparse.ArgumentParser(
@@ -82,9 +87,9 @@ def plot_n_blocks_stats(df, ax):
 
     xvar = "n. genomes"
     yvars = {
-        "n. blocks": ("C0", "all"),
-        "n. core blocks": ("C1", "core"),
-        "L50": ("C2", "L50"),
+        "n. blocks": (color_pangraph, "tot"),
+        "n. core blocks": (color_core, "core"),
+        "L50": (color_stats, "L50"),
     }
     for yvar in yvars:
         color, label = yvars[yvar]
@@ -100,8 +105,9 @@ def plot_block_len_stats(df, ax):
 
     xvar = "n. genomes"
     yvars = {
-        "avg. block length (bp)": ("C0", "avg. block length"),
-        "N50 (bp)": ("C1", "N50"),
+        "avg. block length (bp)": (color_pangraph, "avg."),
+        "avg. core block length (bp)": (color_core, "avg. core"),
+        "N50 (bp)": (color_stats, "N50"),
     }
     for yvar in yvars:
         color, label = yvars[yvar]
@@ -109,7 +115,7 @@ def plot_block_len_stats(df, ax):
     ax.grid(alpha=0.2)
     ax.legend()
     ax.set_xlabel("n. genomes")
-    ax.set_ylabel("length (bp)")
+    ax.set_ylabel("block size (bp)")
     ax.set_yscale("log")
 
 
@@ -121,9 +127,9 @@ def plot_pangenome_size(df, ax):
 
     xvar = "n. genomes"
     yvars = {
-        "tot_gen_len": ("C0", "all genomes"),
-        "pang_len": ("C1", "pangenome"),
-        "len. core pangenome": ("C2", "core pangenome"),
+        "tot_gen_len": (color_all, "all genomes"),
+        "pang_len": (color_pangraph, "pangenome"),
+        "len. core pangenome": (color_core, "core pangenome"),
     }
     for yvar in yvars:
         color, label = yvars[yvar]
