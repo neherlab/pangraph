@@ -158,12 +158,13 @@ rule PX_diversity:
         "panx_diversity/{species}.json",
     params:
         ntot=lambda w: len(PX_accnums[w.species]),
+        kmer_l=PX_config["kmer-size"],
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/panx_dataset_diversity.py \
-            --gc {input.gc} --species {wildcards.species} \
+            --gc {input.gc} --species {wildcards.species} --kmer_l {params.kmer_l}\
             --ntot {params.ntot} --gcfolder {input.fld} --out {output}
         """
 
@@ -180,7 +181,7 @@ rule PX_diversity_all:
         data = []
         for i in input:
             with open(i, "r") as f:
-                data.append(json.load(f))
+                data.append(json.load(f)["info"])
         pd.DataFrame(data).to_csv(output.csv, index=False)
 
 
@@ -247,7 +248,10 @@ rule PX_IS_extract_stats_full_graph:
         "Extracting stats for full pangenome graph"
     input:
         pang="panx_data/escherichia_coli/pangraphs/pangraph-minimap20-std.json",
-        fasta=expand("panx_data/escherichia_coli/fa/{acc}.fa", acc=PX_IS_allstrains,),
+        fasta=expand(
+            "panx_data/escherichia_coli/fa/{acc}.fa",
+            acc=PX_IS_allstrains,
+        ),
     output:
         stats=f"incremental_size/escherichia_coli/{PX_IS_Ntot}/0/stats.json",
         link=f"incremental_size/escherichia_coli/{PX_IS_Ntot}/0/pangraph.json",
@@ -266,7 +270,9 @@ rule PX_IS_summary_df:
         "Building summary dataframe for incremental size analaysis"
     input:
         jsons=expand(
-            rules.PX_IS_extract_stats.output, size=PX_IS_sizes, trial=PX_IS_trials,
+            rules.PX_IS_extract_stats.output,
+            size=PX_IS_sizes,
+            trial=PX_IS_trials,
         ),
         json_full=rules.PX_IS_extract_stats_full_graph.output.stats,
     output:
