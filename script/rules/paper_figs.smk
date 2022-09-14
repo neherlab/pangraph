@@ -140,4 +140,5 @@ rule PF_all:
         rules.PF_accuracy_plots.output,
         rules.PF_incremental_size_plot.output,
         rules.PF_panx_compression_plot.output,
-        rules.PF_projection_plot_all.output, # expand(rules.PF_projection_plot_single.output, species=PX_species),
+        rules.PF_projection_plot_all.output,
+        expand(rules.PF_projection_plot_single.output, species=PX_species),

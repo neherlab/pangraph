@@ -41,6 +41,7 @@ def load_comparison_stats(csv):
 def add_kmer_distance_to_df(comp_df, kmer_df):
     """Add to the dataframe the (corrected) shared kmer fraction."""
     kmer_dist = kmer_df["corrected_f"].to_dict()
+    # kmer_dist = kmer_df["f"].to_dict()
     idx = comp_df.index.to_list()
     sh_fract = []
     for i in idx:
@@ -51,6 +52,7 @@ def add_kmer_distance_to_df(comp_df, kmer_df):
         sh_fract.append(d)
     comp_df[
         ("fraction of total genome length", "shared kmer fraction (corrected)")
+        # ("fraction of total genome length", "shared kmer fraction")
     ] = sh_fract
     return comp_df
 
@@ -64,7 +66,15 @@ def ax_boxplot(df, ax):
     sdf = sdf.rename(columns={"level_0": "kind", 0: "value"})
 
     # perform box-plot
-    sns.boxplot(ax=ax, data=sdf, x="value", y="kind", color="C0", width=0.6)
+    sns.boxplot(
+        ax=ax,
+        data=sdf,
+        x="value",
+        y="kind",
+        color="C0",
+        width=0.6,
+        flierprops={"marker": "."},
+    )
     ax.set_ylabel("")
     ax.set_xlabel("")
     ax.grid(axis="x", alpha=0.4)
@@ -122,7 +132,7 @@ if __name__ == "__main__":
         divergence = json.load(f)
     d = divergence["avg. pairwise divergence"]
     p_correct = np.power(1.0 - d, args.klen)
-    kmer_df["corrected_f"] = kmer_df["f"] / p_correct
+    kmer_df["corrected_f"] = np.minimum(kmer_df["f"] / p_correct, 1)
 
     # add shared fraction estimated using kmers
     comp_df = add_kmer_distance_to_df(comp_df, kmer_df)

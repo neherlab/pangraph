@@ -73,12 +73,12 @@ def parse_geneCluster(gc_file, Ntot):
             core_L["n. core genes"] += 1
 
     # evaluate core fractions
-    core_F = {}
-    core_F["Fcore_pangenome"] = core_L["Lcore"] / core_L["Ltot"]
-    core_F["Fcore_genome"] = core_L["Lcore_n"] / core_L["Ltot_n"]
-    core_F["Fcore_genes"] = core_L["n. core genes"] / core_L["n. genes"]
+    core_L = dict(core_L)
+    core_L["Fcore_pangenome"] = core_L["Lcore"] / core_L["Ltot"]
+    core_L["Fcore_genome"] = core_L["Lcore_n"] / core_L["Ltot_n"]
+    core_L["Fcore_genes"] = core_L["n. core genes"] / core_L["n. genes"]
 
-    return core_gcs, core_F
+    return core_gcs, core_L
 
 
 def n_non_consensus(col):

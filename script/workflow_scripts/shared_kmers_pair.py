@@ -23,13 +23,15 @@ def kmers_set(biopython_seq, kmer_size):
     return set(kmers)
 
 
-def pack_results(s, pair, K, KS):
+def pack_results(s, pair, K, KS, KT):
     return {
-        "id": s.id,
-        "pair": pair,
-        "ktot": K,
-        "shared": KS,
-        "f": KS / K,
+        "id": s.id, # strain id
+        "pair": pair, # pair id ("s1-s2")
+        "n_strain": K, # number of strain k-mers
+        "n_union": KT, # number of kmer union
+        "n_intersection": KS, # number of k-mer intersection
+        "f": KS / K, # fraction of shared k-mers on the single strain
+        "jaccardi": KS / KT, # jaccardi index
     }
 
 
@@ -45,15 +47,14 @@ if __name__ == "__main__":
     k1 = kmers_set(s1, kmer_size=args.k)
     k2 = kmers_set(s2, kmer_size=args.k)
 
-    # evaluate shared kmers
-    shared_k = k1.intersection(k2)
-
-    # evaluate kmer numbers
-    K1, K2, KS = len(k1), len(k2), len(shared_k)
+    # evaluate number of shared and total kmers
+    K1, K2 = len(k1), len(k2)
+    KS = len(k1.intersection(k2))
+    KT = len(k1.union(k2))
 
     # pack and save results
     pair = f"{s1.id}-{s2.id}"
-    r1 = pack_results(s1, pair, K1, KS)
-    r2 = pack_results(s2, pair, K2, KS)
+    r1 = pack_results(s1, pair, K1, KS, KT)
+    r2 = pack_results(s2, pair, K2, KS, KT)
     with open(args.json, "w") as f:
         json.dump([r1, r2], f)

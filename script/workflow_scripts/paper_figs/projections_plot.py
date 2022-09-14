@@ -43,7 +43,7 @@ def ax_boxplot(df, ax):
     sdf = sdf.rename(columns={"level_0": "kind", 0: "value"})
 
     # perform box-plot
-    sns.boxplot(ax=ax, data=sdf, x="value", y="kind", color="C0", width=0.6)
+    sns.boxplot(ax=ax, data=sdf, x="value", y="kind", color="C0", width=0.6, flierprops={"marker": "."},)
     ax.set_ylabel("")
     ax.set_xlabel("")
     ax.grid(axis="x", alpha=0.4)
