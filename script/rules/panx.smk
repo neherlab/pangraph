@@ -172,10 +172,14 @@ rule PX_diversity:
 
 # Combines the csv files produced by the previous rule
 rule PX_diversity_all:
+    message:
+        "Summary table for panx dataset diversity"
     input:
         expand(rules.PX_diversity.output, species=PX_species),
     output:
         csv="panx_diversity/all.csv",
+    conda:
+        "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/panx_dataset_diversity_averages.py \
