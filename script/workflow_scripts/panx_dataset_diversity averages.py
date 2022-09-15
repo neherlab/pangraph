@@ -20,7 +20,8 @@ def species_statistics(df):
     """Evaluate summary statistics for a species dataframe"""
 
     # core genes dataframe
-    cdf = df[df["core"]]
+    mask = df["core"] & df["non_cons_fraction"].notna()
+    cdf = df[mask]
 
     # function to evaluate weighed averages
     def w_avg(dflab, wlab):

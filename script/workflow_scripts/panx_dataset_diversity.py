@@ -188,12 +188,16 @@ def parse_alignments(gc_fld, cluster_list, kmer_l, n_cores):
     # define function to apply to the single cluster
     fld = pathlib.Path(gc_fld)
 
+    # shuffle list for improved performances when parallelizing (random distribution of core genes)
+    np.random.shuffle(cluster_list)
+
     with Pool(n_cores) as p:
-        cl_df = p.map(
-            partial(process_single_cluster, kmer_l=kmer_l, fld=fld), cluster_list, 30
+        df = p.map(
+            partial(process_single_cluster, kmer_l=kmer_l, fld=fld), cluster_list
         )
 
-    return pd.DataFrame(cl_df).set_index("msa")
+    ordr, asc = ["core", "count", "len_avg", "msa"], [False, False, False, True]
+    return pd.DataFrame(df).set_index("msa").sort_values(ordr, ascending=asc)
 
 
 if __name__ == "__main__":
