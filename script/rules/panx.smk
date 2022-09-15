@@ -155,39 +155,36 @@ rule PX_diversity:
         gc="panx_data/{species}/vis/geneCluster.json",
         fld="panx_data/{species}/vis/geneCluster",
     output:
-        "panx_diversity/{species}.json",
+        "panx_diversity/{species}.csv",
     params:
         ntot=lambda w: len(PX_accnums[w.species]),
         kmer_l=PX_config["kmer-size"],
+        n_cores=8,
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/panx_dataset_diversity.py \
-            --gc {input.gc} --species {wildcards.species} --kmer_l {params.kmer_l}\
-            --ntot {params.ntot} --gcfolder {input.fld} --out {output}
+            --gc_json {input.gc} --kmer_l {params.kmer_l} --ntot {params.ntot} \
+            --n_cores {params.n_cores} --gcfolder {input.fld} --out {output}
         """
 
 
+# Combines the csv files produced by the previous rule
 rule PX_diversity_all:
     input:
         expand(rules.PX_diversity.output, species=PX_species),
     output:
         csv="panx_diversity/all.csv",
-    run:
-        import pandas as pd
-        import json
-
-        data = []
-        for i in input:
-            with open(i, "r") as f:
-                data.append(json.load(f)["info"])
-        pd.DataFrame(data).to_csv(output.csv, index=False)
+    shell:
+        """
+        python3 workflow_scripts/panx_dataset_diversity_averages.py \
+            --dfs {input} --out {output.csv}
+        """
 
 
-        # ------------- General pangenome graph statistics vs n. isolates -----------
-        # nested dictionary {size (str) -> n. trial (str) -> [list of strains]}.
-
+# ------------- General pangenome graph statistics vs n. isolates -----------
+# nested dictionary {size (str) -> n. trial (str) -> [list of strains]}.
 
 
 with open(PX_config["incremental-size"], "r") as f:

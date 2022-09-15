@@ -56,7 +56,7 @@
     "PX_diversity": {
         "time": "05:58:00",
         "qos": "6hours",
-        "n": 1,
-        "mem": "16G"
+        "n": 8,
+        "mem": "20G"
     }
 }
