@@ -159,7 +159,7 @@ rule PX_diversity:
     params:
         ntot=lambda w: len(PX_accnums[w.species]),
         kmer_l=PX_config["kmer-size"],
-        n_cores=8,
+        n_cores=16,
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:

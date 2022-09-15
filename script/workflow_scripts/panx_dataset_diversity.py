@@ -7,6 +7,7 @@ import pandas as pd
 from Bio import AlignIO
 from multiprocessing import Pool
 from functools import partial
+from itertools import combinations
 
 # Creates a dataframe with the following entries for each gene cluster
 # 	"msa" : "GC_0001230_02",
@@ -103,21 +104,20 @@ def evaluate_shared_kmers(aln, k_len):
     shared kmer fraction and the average jaccardi index for all pairs of sequences"""
 
     # all kmer sets
-    ksets = {}
+    ksets = []
     for s in aln:
         seq = str(s.seq.ungap().upper())
-        ksets[s.id] = set([seq[l : l + k_len] for l in range(len(seq) - k_len)])
+        kmer_set = set([seq[l : l + k_len] for l in range(len(seq) - k_len + 1)])
+        ksets.append(kmer_set)
 
     # evaluate shared fraction of kmers
     Fs, Fj = [], []
-    for id1, k1 in ksets.items():
-        for id2, k2 in ksets.items():
-            if id1 == id2:
-                continue
-            ks = len(k1.intersection(k2))
-            kt = len(k1.union(k2))
-            Fs.append(ks / len(k1))
-            Fj.append(ks / kt)
+    for k1, k2 in combinations(ksets, 2):
+        ks = len(k1.intersection(k2))
+        kt = len(k1.union(k2))
+        Fs.append(ks / len(k1))
+        Fs.append(ks / len(k2))
+        Fj.append(ks / kt)
 
     return {
         "avg_kmer_shared_fract": np.mean(Fs),
@@ -190,7 +190,7 @@ def parse_alignments(gc_fld, cluster_list, kmer_l, n_cores):
 
     with Pool(n_cores) as p:
         cl_df = p.map(
-            partial(process_single_cluster, kmer_l=kmer_l, fld=fld), cluster_list, 50
+            partial(process_single_cluster, kmer_l=kmer_l, fld=fld), cluster_list, 30
         )
 
     return pd.DataFrame(cl_df).set_index("msa")
