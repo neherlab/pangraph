@@ -1,6 +1,5 @@
 import argparse
 import re
-import json
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -15,7 +14,7 @@ def parse_args():
     parser.add_argument("--kmer_dist", help="input kmer distance dataframe", type=str)
     parser.add_argument(
         "--core_div",
-        help="json with core genome divergence",
+        help="csv with core genome divergence",
         type=str,
     )
     parser.add_argument("--klen", help="kmer size", type=int)
@@ -23,12 +22,15 @@ def parse_args():
     return parser.parse_args()
 
 
+def beautify_species(name):
+    """Beautifies the species name"""
+    n1, n2 = name.split("_")
+    return f"{n1[0].upper()}. {n2.capitalize()}"
+
+
 def extract_species(csv):
-    """Given the csv file name extracts and returns the formatted species name."""
-    name = re.search(r"benchmark/[^/_]+_([^\.]+)\.full\.csv", csv).group(1)
-    name = name.split("_")
-    sp_name = name[0][0].upper() + ". " + name[1].capitalize()
-    return sp_name
+    """Given the csv file name extracts the species name"""
+    return re.search(r"benchmark/[^/_]+_([^\.]+)\.full\.csv", csv).group(1)
 
 
 def load_comparison_stats(csv):
@@ -91,7 +93,8 @@ def projection_plot(comp_df, species, savename):
     ax_boxplot(sdf, ax)
 
     # add species name
-    ax.text(0, 0, f"{species}", weight="bold", size="large")
+    sp_name = beautify_species(species)
+    ax.text(0, 0, f"{sp_name}", weight="bold", size="large")
 
     # shared segment sizes
     ax = axs[1]
@@ -119,18 +122,12 @@ if __name__ == "__main__":
     # load data
     species, comp_df = load_comparison_stats(args.csv)
 
-    # turn kbp into bp
-    for k in comp_df.columns:
-        if k[0] == "average segment size (kbp)":
-            comp_df[("average segment size (bp)", k[1])] = comp_df[k] * 1000
-
     # load kmer distance
     kmer_df = pd.read_csv(args.kmer_dist, index_col=[0, 1])
 
     # correct kmer distance for mutations
-    with open(args.core_div, "r") as f:
-        divergence = json.load(f)
-    d = divergence["avg. pairwise divergence"]
+    df = pd.read_csv(args.core_div).set_index("species")
+    d = df.loc[species]["avg_core_pairwise_divergence"]
     p_correct = np.power(1.0 - d, args.klen)
     kmer_df["corrected_f"] = np.minimum(kmer_df["f"] / p_correct, 1)
 

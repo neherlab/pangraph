@@ -16,22 +16,26 @@ def parse_args():
 
 
 def kmers_set(biopython_seq, kmer_size):
-    """Given a biopython seq object and k-mer size returns the set of kmers"""
-    seq = str(biopython_seq.seq)
-    L = len(seq)
-    kmers = [seq[i : i + kmer_size] for i in range(L - kmer_size)]
+    """Given a biopython seq object and k-mer size returns the set of kmers
+    of forward and reverse complement sequence."""
+    kmers = []
+    bseq = biopython_seq.seq
+    for bs in [bseq, bseq.reverse_complement()]:
+        seq = str(bs)
+        L = len(seq)
+        kmers += [seq[i : i + kmer_size] for i in range(L - kmer_size)]
     return set(kmers)
 
 
 def pack_results(s, pair, K, KS, KT):
     return {
-        "id": s.id, # strain id
-        "pair": pair, # pair id ("s1-s2")
-        "n_strain": K, # number of strain k-mers
-        "n_union": KT, # number of kmer union
-        "n_intersection": KS, # number of k-mer intersection
-        "f": KS / K, # fraction of shared k-mers on the single strain
-        "jaccardi": KS / KT, # jaccardi index
+        "id": s.id,  # strain id
+        "pair": pair,  # pair id ("s1-s2")
+        "n_strain": K,  # number of strain k-mers
+        "n_union": KT,  # number of kmer union
+        "n_intersection": KS,  # number of k-mer intersection
+        "f": KS / K,  # fraction of shared k-mers on the single strain
+        "jaccardi": KS / KT,  # jaccardi index
     }
 
 

@@ -57,7 +57,7 @@ def create_summary_df(df):
     will be saved. The first layer of the index corresponds to a different plot"""
 
     dfL, dfN = df["L"], df["N"]
-    k1, k2 = "fraction of total genome length", "average segment size (kbp)"
+    k1, k2 = "fraction of total genome length", "average segment size (bp)"
     vals = [
         "agree on sharing",
         "disagree on sharing",
@@ -69,7 +69,7 @@ def create_summary_df(df):
     for v in vals:
         sdf[(k1, v)] = dfL[v] / dfL["total"]
     for v in vals:
-        sdf[(k2, v)] = dfL[v] / (dfN[v] * 1000)
+        sdf[(k2, v)] = dfL[v] / dfN[v]
 
     return pd.DataFrame(sdf)
 

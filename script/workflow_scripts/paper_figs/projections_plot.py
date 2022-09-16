@@ -43,7 +43,15 @@ def ax_boxplot(df, ax):
     sdf = sdf.rename(columns={"level_0": "kind", 0: "value"})
 
     # perform box-plot
-    sns.boxplot(ax=ax, data=sdf, x="value", y="kind", color="C0", width=0.6, flierprops={"marker": "."},)
+    sns.boxplot(
+        ax=ax,
+        data=sdf,
+        x="value",
+        y="kind",
+        color="C0",
+        width=0.6,
+        flierprops={"marker": "."},
+    )
     ax.set_ylabel("")
     ax.set_xlabel("")
     ax.grid(axis="x", alpha=0.4)
@@ -91,18 +99,18 @@ def projection_plot(data, savename):
 
         # shared segment sizes
         ax = axs[ns, 1]
-        sdf = df["average segment size (kbp)"]
+        sdf = df["average segment size (bp)"]
         ax_boxplot(sdf, ax)
 
     # add titles
     # add_column_title(axs[0, 0], "fraction of total genome length")
-    # add_column_title(axs[0, 1], "average segment size (kbp)")
+    # add_column_title(axs[0, 1], "average segment size (bp)")
     axs[-1, 0].set_xlabel("fraction of total genome length")
-    axs[-1, 1].set_xlabel("average segment size (kbp)")
+    axs[-1, 1].set_xlabel("average segment size (bp)")
 
     # tweak second column ax
     ax.set_xscale("log")
-    axs[0, 1].set_xticks(10.0 ** np.arange(-3, 4))
+    axs[0, 1].set_xticks(10.0 ** np.arange(0, 7))
 
     # despine and save
     sns.despine(fig)

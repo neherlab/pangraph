@@ -62,7 +62,8 @@ rule PF_projection_plot_all:
         "Creating projection plot for paper"
     input:
         expand(
-            "projections/benchmark/minimap20-std_{species}.full.csv",
+            rules.MG_pairwise_projection_benchmark.output.csv_full,
+            kind="minimap20-std",
             species=PX_species,
         ),
     output:
@@ -82,7 +83,7 @@ rule PF_projection_plot_single:
     input:
         comp="projections/benchmark/minimap20-std_{species}.full.csv",
         kdist=rules.MG_shared_kmers_summary.output,
-        corediv=rules.PX_diversity.output,
+        corediv=rules.PX_diversity_all.output,
     output:
         "figs/paper/projections/proj_single_{species}.pdf",
     params:
