@@ -155,7 +155,7 @@ rule PX_diversity:
         gc="panx_data/{species}/vis/geneCluster.json",
         fld="panx_data/{species}/vis/geneCluster",
     output:
-        "panx_diversity/{species}.csv",
+        "panx_results/diversity/{species}.csv",
     params:
         ntot=lambda w: len(PX_accnums[w.species]),
         kmer_l=PX_config["kmer-size"],
@@ -177,13 +177,33 @@ rule PX_diversity_all:
     input:
         expand(rules.PX_diversity.output, species=PX_species),
     output:
-        csv="panx_diversity/all.csv",
+        csv="panx_results/diversity/all.csv",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/panx_dataset_diversity_averages.py \
             --dfs {input} --out {output.csv}
+        """
+
+
+rule PX_pairwise_divergence:
+    message:
+        "Pairwise divergence on core genes for species {wildcards.species}"
+    input:
+        gc="panx_data/{species}/vis/geneCluster.json",
+        fld="panx_data/{species}/vis/geneCluster",
+    output:
+        "panx_results/pairwise_divergence/{species}.csv",
+    params:
+        ntot=lambda w: len(PX_accnums[w.species]),
+    conda:
+        "../conda_envs/bioinfo_env.yml"
+    shell:
+        """
+        python3 workflow_scripts/panx_pairwise_core_divergence.py \
+            --gc_json {input.gc} --ntot {params.ntot} \
+            --gcfolder {input.fld} --out {output}
         """
 
 
