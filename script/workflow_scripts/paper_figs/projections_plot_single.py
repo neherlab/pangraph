@@ -13,8 +13,8 @@ def parse_args():
     parser.add_argument("--csv", help="input comparison stats", type=str)
     parser.add_argument("--kmer_dist", help="input kmer distance dataframe", type=str)
     parser.add_argument(
-        "--core_div",
-        help="csv with core genome divergence",
+        "--pairwise_div",
+        help="csv with core genome pairwise divergence",
         type=str,
     )
     parser.add_argument("--klen", help="kmer size", type=int)
@@ -40,22 +40,29 @@ def load_comparison_stats(csv):
     return species, df
 
 
-def add_kmer_distance_to_df(comp_df, kmer_df):
+def add_kmer_distance_to_df(comp_df, kmer_df, pw_div, kmer_l):
     """Add to the dataframe the (corrected) shared kmer fraction."""
-    kmer_dist = kmer_df["corrected_f"].to_dict()
+    kmer_dist = kmer_df["f"].to_dict()
     # kmer_dist = kmer_df["f"].to_dict()
     idx = comp_df.index.to_list()
     sh_fract = []
+    sh_fract_corr = []
     for i in idx:
         # extract pair of strains
         s1, s2 = re.search(r"__([^-]+)-([^-]+)\.json\|", i).groups()
+        
         # find corresponding shared kmer fraction
         d = kmer_dist[(s1, f"{s1}-{s2}")]
         sh_fract.append(d)
-    comp_df[
-        ("fraction of total genome length", "shared kmer fraction (corrected)")
-        # ("fraction of total genome length", "shared kmer fraction")
-    ] = sh_fract
+
+        # correct using pairwise divergence
+        corr_div = np.power(1-pw_div[(s1,s2)], kmer_l)
+        sh_fract_corr.append(min(d / corr_div ,1))
+
+
+    main_label = "fraction of total genome length"
+    comp_df[(main_label, "shared kmer fraction")] = sh_fract
+    comp_df[(main_label, "shared kmer fraction (corrected)")] = sh_fract_corr
     return comp_df
 
 
@@ -125,14 +132,9 @@ if __name__ == "__main__":
     # load kmer distance
     kmer_df = pd.read_csv(args.kmer_dist, index_col=[0, 1])
 
-    # correct kmer distance for mutations
-    df = pd.read_csv(args.core_div).set_index("species")
-    d = df.loc[species]["avg_core_pairwise_divergence"]
-    p_correct = np.power(1.0 - d, args.klen)
-    kmer_df["corrected_f"] = np.minimum(kmer_df["f"] / p_correct, 1)
-
     # add shared fraction estimated using kmers
-    comp_df = add_kmer_distance_to_df(comp_df, kmer_df)
+    pw_div = pd.read_csv(args.pairwise_div, index_col=[0,1])["div"].to_dict()
+    comp_df = add_kmer_distance_to_df(comp_df, kmer_df, pw_div, args.klen)
 
     # produce plot
     projection_plot(comp_df, species, args.pdf)

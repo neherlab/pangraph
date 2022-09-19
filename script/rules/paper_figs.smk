@@ -83,18 +83,18 @@ rule PF_projection_plot_single:
     input:
         comp="projections/benchmark/minimap20-std_{species}.full.csv",
         kdist=rules.MG_shared_kmers_summary.output,
-        corediv=rules.PX_diversity_all.output,
+        pw_div=rules.PX_pairwise_divergence.output,
     output:
         "figs/paper/projections/proj_single_{species}.pdf",
     params:
-        k=PX_config["kmer-size"],
+        klen=PX_config["kmer-size"],
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
         """
         python3 workflow_scripts/paper_figs/projections_plot_single.py \
-            --csv {input.comp} --kmer_dist {input.kdist} --klen {params.k} \
-            --core_div {input.corediv} --pdf {output}
+            --csv {input.comp} --kmer_dist {input.kdist} --klen {params.klen} \
+            --pairwise_div {input.pw_div} --pdf {output}
         """
 
 
