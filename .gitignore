@@ -22,6 +22,7 @@ script/projections
 script/size-benchmark
 script/incremental_size
 script/panx_results
+script/local_scripts
 __pycache__
 
 deps/minimap2/build
