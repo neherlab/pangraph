@@ -38,7 +38,15 @@ def ax_boxplot(df, ax):
     """Boxplot the relevant variables given the sub-dataframe and the ax."""
 
     # unstack and reformat dataframe
-    sdf = df.reset_index(drop=True).unstack().reset_index()
+    sdf = df.rename(
+        columns={
+            "agree on sharing": "agree (shared+private)",
+            "disagree on sharing": "disagree",
+            "shared on both": "agree (shared)",
+            "private on both": "agree (private)",
+        }
+    )
+    sdf = sdf.reset_index(drop=True).unstack().reset_index()
     sdf = sdf.drop(columns=["level_1"])
     sdf = sdf.rename(columns={"level_0": "kind", 0: "value"})
 

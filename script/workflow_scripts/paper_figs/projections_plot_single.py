@@ -19,6 +19,7 @@ def parse_args():
     )
     parser.add_argument("--klen", help="kmer size", type=int)
     parser.add_argument("--pdf", help="output pdf file", type=str)
+    parser.add_argument("--svg", help="output svg file", type=str)
     return parser.parse_args()
 
 
@@ -50,19 +51,18 @@ def add_kmer_distance_to_df(comp_df, kmer_df, pw_div, kmer_l):
     for i in idx:
         # extract pair of strains
         s1, s2 = re.search(r"__([^-]+)-([^-]+)\.json\|", i).groups()
-        
+
         # find corresponding shared kmer fraction
         d = kmer_dist[(s1, f"{s1}-{s2}")]
         sh_fract.append(d)
 
         # correct using pairwise divergence
-        corr_div = np.power(1-pw_div[(s1,s2)], kmer_l)
-        sh_fract_corr.append(min(d / corr_div ,1))
-
+        corr_div = np.power(1 - pw_div[(s1, s2)], kmer_l)
+        sh_fract_corr.append(min(d / corr_div, 1))
 
     main_label = "fraction of total genome length"
-    comp_df[(main_label, "shared kmer fraction")] = sh_fract
-    comp_df[(main_label, "shared kmer fraction (corrected)")] = sh_fract_corr
+    # comp_df[(main_label, "shared kmer fraction")] = sh_fract
+    comp_df[(main_label, "shared sequence (kmers)")] = sh_fract_corr
     return comp_df
 
 
@@ -70,7 +70,15 @@ def ax_boxplot(df, ax):
     """Boxplot the relevant variables given the sub-dataframe and the ax."""
 
     # unstack and reformat dataframe
-    sdf = df.reset_index(drop=True).unstack().reset_index()
+    sdf = df.rename(
+        columns={
+            "agree on sharing": "agree (shared+private)",
+            "disagree on sharing": "disagree",
+            "shared on both": "agree (shared)",
+            "private on both": "agree (private)",
+        }
+    )
+    sdf = sdf.reset_index(drop=True).unstack().reset_index()
     sdf = sdf.drop(columns=["level_1"])
     sdf = sdf.rename(columns={"level_0": "kind", 0: "value"})
 
@@ -89,10 +97,10 @@ def ax_boxplot(df, ax):
     ax.grid(axis="x", alpha=0.4)
 
 
-def projection_plot(comp_df, species, savename):
+def projection_plot(comp_df, species, savename1, savename2):
 
     # setup figure
-    fig, axs = plt.subplots(1, 2, figsize=(8, 2), sharey=False)
+    fig, axs = plt.subplots(2, 1, figsize=(5, 5))
 
     # shared genome fraction
     ax = axs[0]
@@ -118,7 +126,8 @@ def projection_plot(comp_df, species, savename):
     # despine and save
     sns.despine(fig)
     plt.tight_layout()
-    plt.savefig(savename)
+    plt.savefig(savename1)
+    plt.savefig(savename2)
     plt.close(fig)
 
 
@@ -133,8 +142,8 @@ if __name__ == "__main__":
     kmer_df = pd.read_csv(args.kmer_dist, index_col=[0, 1])
 
     # add shared fraction estimated using kmers
-    pw_div = pd.read_csv(args.pairwise_div, index_col=[0,1])["div"].to_dict()
+    pw_div = pd.read_csv(args.pairwise_div, index_col=[0, 1])["div"].to_dict()
     comp_df = add_kmer_distance_to_df(comp_df, kmer_df, pw_div, args.klen)
 
     # produce plot
-    projection_plot(comp_df, species, args.pdf)
+    projection_plot(comp_df, species, args.pdf, args.svg)

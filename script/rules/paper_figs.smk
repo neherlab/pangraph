@@ -85,7 +85,8 @@ rule PF_projection_plot_single:
         kdist=rules.MG_shared_kmers_summary.output,
         pw_div=rules.PX_pairwise_divergence.output,
     output:
-        "figs/paper/projections/proj_single_{species}.pdf",
+        pdf="figs/paper/projections/proj_single_{species}.pdf",
+        svg="figs/paper/projections/proj_single_{species}.svg",
     params:
         klen=PX_config["kmer-size"],
     conda:
@@ -94,7 +95,7 @@ rule PF_projection_plot_single:
         """
         python3 workflow_scripts/paper_figs/projections_plot_single.py \
             --csv {input.comp} --kmer_dist {input.kdist} --klen {params.klen} \
-            --pairwise_div {input.pw_div} --pdf {output}
+            --pairwise_div {input.pw_div} --pdf {output.pdf} --svg {output.svg}
         """
 
 
