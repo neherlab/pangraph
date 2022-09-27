@@ -216,6 +216,7 @@ def plot_suppl(df, style, savename):
     ylabs = {
         "mem": "max. memory (Gb)",
         "wall-time": "wall time (s)",
+        "n. blocks": "n. pancontigs",
     }
     yscale = {
         "wall-time": "log",
