@@ -119,6 +119,7 @@ Releases can be obtained from [Github](https://github.com/neherlab/pangraph/rele
 There are a few **optional** external programs that PanGraph can utilize
 1. [Mash](https://github.com/marbl/Mash) can be used to construct a guide tree in place of our internal algorithm.
 2. [MAFFT](https://mafft.cbrc.jp/alignment/software/) can be optionally used to polish homologous alignments. Only recommended for short alignments.
+3. [mmseqs2](https://github.com/soedinglab/MMseqs2) can be used as an alternative alignment kernel to the default *minimap2*. It allows merging of more diverged sequences, at the cost of higher computational time.
 In order to invoke functionality from PanGraph, these tools must be installed and available on **$PATH**
 
 For convenience, a script `bin/setup-pangraph` is provided within the repository to install both dependencies for a Linux machine without access to root.
