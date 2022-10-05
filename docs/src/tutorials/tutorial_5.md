@@ -74,12 +74,13 @@ Note that the plasmids are circular: in the linear representation, in two cases 
 Sheppard et al. previously analysed these plasmids and made a table of the structural changes they identified with respect to the reference plasmid (Table 1 in their [paper](https://doi.org/10.1128/AAC.00464-16)). We can see that the structural changes they identified are interpretable from the visualization we have made:
 
 
-|Accession	|Species	|Date	|Length (bp)	|Structural differences (Sheppard)| Corresponding block(s) (pangraph) |
-|NZ\_CP011575.1	|_K. pneumoniae_	|Mar-2011	|43,621	| | |
-|NZ\_CP011582.1	|_E. cloacae_	|Aug-2012	|43,433	|188-bp deletion| `f`|
-|NZ\_CP011598.1	|_K. intermedia_|Sep-2009	|43,621	| | |
-|NZ\_CP011608.1	|_C. freundii_	|Nov-2010	|44,846	|1,225-bp insertion| `c` |
-|NZ\_CP011656.1	|_C. freundii_	|Oct-2012	|129,196	|14,960-bp duplication and 70,615-bp insertion| `e,f,a`[^2] and `g`
+| Accession      | Species         | Date     | Length (bp) | Structural differences (Sheppard)             | Corresponding block(s) (pangraph) |
+| -------------- | --------------- | -------- | ----------- | --------------------------------------------- | --------------------------------- |
+| NZ\_CP011575.1 | _K. pneumoniae_ | Mar-2011 | 43,621      |                                               |                                   |
+| NZ\_CP011582.1 | _E. cloacae_    | Aug-2012 | 43,433      | 188-bp deletion                               | `f`                               |
+| NZ\_CP011598.1 | _K. intermedia_ | Sep-2009 | 43,621      |                                               |                                   |
+| NZ\_CP011608.1 | _C. freundii_   | Nov-2010 | 44,846      | 1,225-bp insertion                            | `c`                               |
+| NZ\_CP011656.1 | _C. freundii_   | Oct-2012 | 129,196     | 14,960-bp duplication and 70,615-bp insertion | `e,f,a`[^2] and `g`               |
 
 
 [^2]: The 14,960-bp duplication is represented as a repetition of `e,f,a` in the bottom plasmid. The total length is `5,045+188+9,727=14,960` as expected.
