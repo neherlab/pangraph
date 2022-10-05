@@ -1,7 +1,7 @@
 # Polish
 
 ## Description
-Realigns blocks of a multiple sequence alignment pangraph with an external multiple sequence alignment tool.
+Realigns blocks of a multiple sequence alignment pangraph with an external multiple sequence alignment tool. Requires [MAFFT](https://mafft.cbrc.jp/alignment/software/) command to be available in `PATH`.
 
 ## Options
 | Name           | Type    | Short Flag | Long Flag     | Description                                              |
