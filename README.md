@@ -52,9 +52,8 @@ However, if needed, global installation can be achieved by running
 The PanGraph package is available globally within the Julia REPL.
 
 ### Relocatable binary
-Releases can be obtained from [GitHub](https://github.com/neherlab/pangraph/releases)
 
-Alternatively, **pangraph** can be built locally on your machine by running (inside the cloned repo)
+**pangraph** can be built locally on your machine by running (inside the cloned repo)
 ```bash
     export jc="path/to/julia/executable" make pangraph && make install
 ```
