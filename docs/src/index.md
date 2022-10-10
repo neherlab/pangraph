@@ -31,69 +31,62 @@ The documentation, and source code, uses the following terminology:
 
 ## Installation
 
-There are multiple ways to install PanGraph (either the library or just command line interface)
+Pangraph is available both as a Docker container image or as a Julia library. Alternatively, binaries can be built in your system.
 
 ### Using Docker
 
-Docker container image for PanGraph is available on Docker Hub: https://hub.docker.com/r/neherlab/pangraph
+Docker container image for PanGraph is available on Docker Hub: <https://hub.docker.com/r/neherlab/pangraph>
 
- - Install Docker
+ **1. Install Docker**
 
-    Install Docker as described on the official website: https://docs.docker.com/get-docker/
+Install Docker as described on the official website: <https://docs.docker.com/get-docker/>
 
-    Optionally setup Docker so that it runs without `sudo` on Linux: https://docs.docker.com/engine/install/linux-postinstall/
+Optionally setup Docker so that it runs without `sudo` on Linux: <https://docs.docker.com/engine/install/linux-postinstall/>
 
- - Pull a version of the image
+ **2. Pull a version of the image**
 
-    To obtain the latest version, run:
+To obtain the latest version, run:
 
-    ```bash
+```bash
     docker pull neherlab/pangraph:latest
-    ```
+```
 
-    To obtain a specific version, for example `1.2.3`, run:
+To obtain a specific version, for example `1.2.3`, run:
    
-    ```bash
+```bash
     docker pull neherlab/pangraph:1.2.3
-    ```
+```
 
- - Run PanGraph container
+**3. Run PanGraph container**
 
-    Issue `docker run` command:
+Issue `docker run` command:
 
-    ```bash
+```bash
     docker run --rm -it \
       --name "pangraph-$(date +%s)" \
       --volume="$(pwd):/workdir" \
       --user="$(id -u):$(id -g)" \
-      --workdir=/workdir neherlab/pangraph:latest \
+      --workdir=/workdir \
+      neherlab/pangraph:latest \
       bash -c "pangraph build --circular --alpha 0 --beta 0 /workdir/data/synthetic/test.fa"
-    ```
+```
 
-    Here we mount current directory `.` (expressed as absolute path, using `pwd` shell command) as `/workdir` into the container so that pangraph can read the local
-    file `./data/synthetic/test.fa` as `/workdir/data/synthetic/test.fa"`:
+Here we mount current directory `.` (expressed as absolute path, using `pwd` shell command) as `/workdir` into the container so that pangraph can read the local
+file `./data/synthetic/test.fa` as `/workdir/data/synthetic/test.fa"`:
     
-    ```
+```
                            . -> /workdir
     ./data/synthetic/test.fa -> /workdir/data/synthetic/test.fa
-    ```
-
-    The `--name` flag sets the name of the container and the `date` command there ensures that a unique name is created on every run. This is optional. The `--rm` flag deletes the container (but not the image) after run.
-
-    Replace `:latest` with a specific version if desired. The `:latest` tag can also be omitted, as it is the default. 
-
-
-### From Julia REPL
-```julia
-    (@v1.x) pkg> add https://github.com/neherlab/pangraph.git
 ```
 
-### From Command Line
-```bash
-    julia -e 'using Pkg; Pkg.add("https://github.com/neherlab/pangraph.git"); Pkg.build()'
-```
+The `--name` flag sets the name of the container and the `date` command there ensures that a unique name is created on every run. This is optional. The `--rm` flag deletes the container (but not the image) after run.
 
-### Local Environment
+Replace `:latest` with a specific version if desired. The `:latest` tag can also be omitted, as it is the default. 
+
+
+### as Julia library
+
+**Local Environment**
 
 Clone the repository.
 ```bash
@@ -110,17 +103,37 @@ Enter the REPL
     julia --project=.
 ```
 
-### Binary
-Additionally, `pangraph` is available as a standalone, relocatable binary that should work on any Linux or MacOSX machine.
-Releases can be obtained from [Github](https://github.com/neherlab/pangraph/releases)
+**From Julia REPL**
+```julia
+    (@v1.x) pkg> add https://github.com/neherlab/pangraph.git
+```
+
+**Global Package from Command Line**
+```bash
+    julia -e 'using Pkg; Pkg.add(url="https://github.com/nnoll/minimap2_jll.jl"); Pkg.add(url="https://github.com/neherlab/pangraph.git")'
+```
+
+### building binaries
+
+PanGraph can be built locally on your machine by running (inside the cloned repo)
+```bash
+    export jc="path/to/julia/executable" make pangraph && make install
+```
+This will build the executable and place a symlink into `bin/`.
+
+**Importantly,** if `jc` is not explicitly set, it will default to `vendor/julia-$VERSION/bin/julia`. If this file does not exist, we will download automatically for the user, provided the host system is Linux or MacOSX.
+Moreover, for the compilation to work, it is necessary to have [MAFFT](https://mafft.cbrc.jp/alignment/software/) and [mmseqs2](https://github.com/soedinglab/MMseqs2) available in your `$PATH`, see [optional dependencies](#optional-dependencies).
+
+**Note,** it is [recommended by the PackageCompiler.jl documentation](https://julialang.github.io/PackageCompiler.jl/stable/#Installation-instructions) to utilize the officially distributed binaries for Julia, not those distributed by your Linux distribution. As such, compilation may not work if you attempt to do so.
+
 
 ### Optional dependencies
 
-There are a few **optional** external programs that PanGraph can utilize
+There are a few **optional** external programs that PanGraph can utilize:
 1. [Mash](https://github.com/marbl/Mash) can be used to construct a guide tree in place of our internal algorithm.
 2. [MAFFT](https://mafft.cbrc.jp/alignment/software/) can be optionally used to polish homologous alignments. Only recommended for short alignments.
 3. [mmseqs2](https://github.com/soedinglab/MMseqs2) can be used as an alternative alignment kernel to the default *minimap2*. It allows merging of more diverged sequences, at the cost of higher computational time.
-In order to invoke functionality from PanGraph, these tools must be installed and available on **$PATH**
+In order to invoke all functionalities from PanGraph, these tools must be installed and available on **$PATH**
 
 For convenience, a script `bin/setup-pangraph` is provided within the repository to install both dependencies for a Linux machine without access to root.
 It assumes GNU coreutils are available.
