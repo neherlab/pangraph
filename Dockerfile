@@ -21,6 +21,14 @@ RUN set -euxo pipefail \
 && apt-get clean autoclean >/dev/null \
 && rm -rf /var/lib/apt/lists/*
 
+RUN set -euxo pipefail >/dev/null \
+&& curl -sSL -o "mmseqs-linux.tar.gz" "https://github.com/soedinglab/MMseqs2/releases/download/13-45111/mmseqs-linux-sse2.tar.gz" \
+&& tar xf "mmseqs-linux.tar.gz" -C . 2>/dev/null \
+&& mv "mmseqs/bin/mmseqs" "/usr/bin/mmseqs" \
+&& chmod +x "/usr/bin/mmseqs" \
+&& rm "mmseqs-linux.tar.gz" \
+&& rm -r "mmseqs"
+
 ENV PATH="/build_dir/bin:/build_dir/vendor/julia/bin:$PATH"
 
 COPY . /build_dir/
@@ -54,6 +62,14 @@ RUN set -euxo pipefail \
 && apt-get autoremove --yes >/dev/null \
 && apt-get clean autoclean >/dev/null \
 && rm -rf /var/lib/apt/lists/*
+
+RUN set -euxo pipefail >/dev/null \
+&& curl -sSL -o "mmseqs-linux.tar.gz" "https://github.com/soedinglab/MMseqs2/releases/download/13-45111/mmseqs-linux-sse2.tar.gz" \
+&& tar xf "mmseqs-linux.tar.gz" -C . 2>/dev/null \
+&& mv "mmseqs/bin/mmseqs" "/usr/bin/mmseqs" \
+&& chmod +x "/usr/bin/mmseqs" \
+&& rm "mmseqs-linux.tar.gz" \
+&& rm -r "mmseqs"
 
 # Allows non-root users to read dependencies
 RUN set -euxo pipefail \
