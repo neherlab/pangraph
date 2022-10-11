@@ -31,3 +31,18 @@ dive neherlab/pangraph:<tag>
 ```
 
 Each [layer](https://stackoverflow.com/questions/31222377/what-are-docker-image-layers) reflects `FROM`, `COPY` and `RUN` commands and the files that have been added to the overlay file system of the image. This can be used to find redundant files. You could then further optimize `Dockerfile` and make the image smaller.
+
+
+### Testing the image
+
+Once the image has been built locally it can be tested by running (from the repository main folder):
+
+```bash
+docker run -it --rm \
+    --volume="$(pwd):/workdir" \
+    --workdir="/workdir" \
+    neherlab/pangraph \
+    /bin/bash docs/dev/docker_tests.sh
+```
+
+This will test all the available commands, see `docs/dev/docker_tests.sh` script.
