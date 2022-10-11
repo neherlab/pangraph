@@ -696,8 +696,6 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
         error("graph construction failed, see above for stacktrace")
     end
 
-    # close(events)
-
     return G
 end
 
