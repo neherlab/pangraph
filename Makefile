@@ -75,7 +75,7 @@ SHELL=bash
 docker:
 	set -euxo pipefail
 
-	# If $RELEASE_VERSION is set, use it as an additional docker tag
+	# If RELEASE_VERSION is set, use it as an additional docker tag
 	export DOCKER_TAGS="--tag $${CONTAINER_NAME}:latest"
 	if [ ! -z "$${RELEASE_VERSION:-}" ]; then
 		export DOCKER_TAGS="$${DOCKER_TAGS} --tag $${CONTAINER_NAME}:$${RELEASE_VERSION}"

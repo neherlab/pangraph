@@ -1,21 +1,36 @@
 #!/bin/sh -e
 
-os="Linux64"
 root=$(realpath ".local")
 
 mkdir -p $root
 
-download()
+downloadMash()
 {
     name="$1"; shift 1
     url="$1";  shift 1
     tag="$1";  shift 1
+    os="$1";  shift 1
 
     cd $root
 
     curl -L -o "$name-$os.tar" "$url/$tag/$name-$os-$tag.tar"
     tar xf "$name-$os.tar" -C . 2>/dev/null
     mv "$name-$os-$tag"/$name "../bin/$name"
+}
+
+downloadMMseqs()
+{
+    name="$1"; shift 1
+    url="$1";  shift 1
+    tagrel="$1";  shift 1
+    tagarch="$1";  shift 1
+    os="$1";  shift 1
+
+    cd $root
+
+    curl -L -o "$name-$os.tar.gz" "$url/$tagrel/$name-$os-$tagarch.tar.gz"
+    tar xf "$name-$os.tar.gz" -C . 2>/dev/null
+    mv "$name/bin/$name" "../bin/$name"
 }
 
 build()
@@ -38,6 +53,7 @@ build()
     make install
 }
 
-(download "mash" "https://github.com/marbl/Mash/releases/download" "v2.2")
+(downloadMash "mash" "https://github.com/marbl/Mash/releases/download" "v2.2" "Linux64")
+(downloadMMseqs "mmseqs" "https://github.com/soedinglab/MMseqs2/releases/download" "13-45111" "sse2" "linux")
 (build "mafft" "https://mafft.cbrc.jp/alignment/software" "7.490")
 # rm -r $root
