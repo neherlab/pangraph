@@ -73,8 +73,8 @@ Build = Command(
     Arg(
         Int,
         "k-mer length",
-        (short="-K", long="--kmer-len"),
-        "kmer length, only used for mmseqs2 alignment kernel. If not specified will use the default for mmseqs.",
+        (short="-K", long="--kmer-length"),
+        "kmer length, only used for mmseqs2 alignment kernel. If not specified will use mmseqs default.",
         0,
     )
    ],
