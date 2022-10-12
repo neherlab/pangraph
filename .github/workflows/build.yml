@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - '*'
+    branches:
+      - 'master'
+
+  pull_request:
+    branches:
+      - '*'
 
   repository_dispatch:
     types: build
@@ -26,24 +32,34 @@ jobs:
         with:
           fetch-depth: '1'
 
-      - name: 'Get git tag'
-        id: get_tag
-        run: echo ::set-output name=tag::${GITHUB_REF#refs/*/}
-
       - name: 'Build Docker image'
         env:
-          RELEASE_VERSION: ${{ steps.get_tag.outputs.tag }}
+          GIT_BRANCH: ${{ steps.get_tag.outputs.tag }}
         run: |
+          if [ ${{ github.ref_type }} == 'tag' ]; then
+            export GIT_TAG="${{ github.ref_name }}"
+          fi
+
+          if [ ${{ github.ref_type }} == 'branch' ]; then
+            export GIT_BRANCH="${{ github.ref_name }}"
+          fi
+
           make docker
 
       - name: 'Login to DockerHub'
-        env:
-          RELEASE_VERSION: ${{ steps.get_tag.outputs.tag }}
+        if: ${{ github.ref_type == 'tag' }}
         run: |
           echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
 
       - name: 'Push Docker image'
-        env:
-          RELEASE_VERSION: ${{ steps.get_tag.outputs.tag }}
+        if: ${{ github.ref_type == 'tag' }}
         run: |
+          if [ ${{ github.ref_type }} == 'tag' ]; then
+            export GIT_TAG="${{ github.ref_name }}"
+          fi
+
+          if [ ${{ github.ref_type }} == 'branch' ]; then
+            export GIT_BRANCH="${{ github.ref_name }}"
+          fi
+
           make docker-push

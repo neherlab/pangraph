@@ -77,16 +77,29 @@ SHELL=bash
 docker:
 	set -euxo pipefail
 
-	# If $RELEASE_VERSION is set, use it as an additional docker tag
-	export DOCKER_TAGS="--tag $${CONTAINER_NAME}:latest"
-	if [ ! -z "$${RELEASE_VERSION:-}" ]; then
-		export DOCKER_TAGS="$${DOCKER_TAGS} --tag $${CONTAINER_NAME}:$${RELEASE_VERSION}"
+	export DOCKER_TAGS=""
+
+	# If GIT_TAG is set, then also set the 'latest' tag
+	if [ ! -z "$${GIT_TAG:-}" ]; then
+		export DOCKER_TAGS="$${DOCKER_TAGS} --tag $${CONTAINER_NAME}:latest"
+		export DOCKER_TAGS="$${DOCKER_TAGS} --tag $${CONTAINER_NAME}:${GIT_TAG}"
+	fi
+
+	if [ ! -z "$${GIT_BRANCH:-}" ]; then
+		export DOCKER_TAGS="$${DOCKER_TAGS} --tag $${CONTAINER_NAME}:$${GIT_BRANCH}"
 	fi
 
 	docker build --target prod $${DOCKER_TAGS} .
 
 docker-push:
 	set -euxo pipefail
-	: "$${RELEASE_VERSION:?The RELEASE_VERSION environment variable is required.}"
-	docker push ${CONTAINER_NAME}:${RELEASE_VERSION}
-	docker push ${CONTAINER_NAME}:latest
+
+	# If GIT_TAG is set, then also push the 'latest' tag
+	if [ ! -z "$${GIT_TAG:-}" ]; then
+		docker push "$${CONTAINER_NAME}:latest"
+		docker push "$${CONTAINER_NAME}:${GIT_TAG}"
+	fi
+
+	if [ ! -z "$${GIT_BRANCH:-}" ]; then
+		docker push "$${CONTAINER_NAME}:$${GIT_BRANCH}"
+	fi
