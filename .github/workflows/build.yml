@@ -19,7 +19,7 @@ on:
 
 jobs:
   Docker-Build-and-Push:
-    name: 'Docker: build and push'
+    name: 'Docker build'
 
     runs-on: ubuntu-20.04
 
@@ -32,16 +32,19 @@ jobs:
         with:
           fetch-depth: '1'
 
+      - name: 'Get branch names'
+        id: branch-name
+        uses: tj-actions/branch-names@v6
+
       - name: 'Build Docker image'
-        env:
-          GIT_BRANCH: ${{ steps.get_tag.outputs.tag }}
         run: |
+          set -euxo pipefail
+          
           if [ ${{ github.ref_type }} == 'tag' ]; then
             export GIT_TAG="${{ github.ref_name }}"
-          fi
-
-          if [ ${{ github.ref_type }} == 'branch' ]; then
-            export GIT_BRANCH="${{ github.ref_name }}"
+          else
+            export GIT_BRANCH="${{ steps.branch-name.outputs.current_branch }}"
+            export GIT_BRANCH="${GIT_BRANCH//\//-}"
           fi
 
           make docker
@@ -54,12 +57,8 @@ jobs:
       - name: 'Push Docker image'
         if: ${{ github.ref_type == 'tag' }}
         run: |
-          if [ ${{ github.ref_type }} == 'tag' ]; then
-            export GIT_TAG="${{ github.ref_name }}"
-          fi
+          set -euxo pipefail
 
-          if [ ${{ github.ref_type }} == 'branch' ]; then
-            export GIT_BRANCH="${{ github.ref_name }}"
-          fi
+          export GIT_TAG="${{ github.ref_name }}"
 
           make docker-push
