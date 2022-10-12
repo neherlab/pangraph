@@ -15,7 +15,7 @@ Build a multiple sequence alignment pangraph.
 | enforce uppercase    | Boolean | u          | upper-case       | toggle to force genomes to uppercase characters                                                           |
 | distance calculator  | String  | d          | distance-backend | only accepts "native" or "mash"                                                                           |
 | alignment kernel     | String  | k          | alignment-kernel | only accepts "minimap2" or "mmseqs"                                                                       |
-| alignment kernel     | Integer | K          | kmer-length      | kmer length, only used for mmseqs2 alignment kernel. If not specified will use mmseqs default.            |
+| kmer length (mmseqs) | Integer | K          | kmer-length      | kmer length, only used for mmseqs2 alignment kernel. If not specified will use mmseqs default.            |
 
 ## Arguments
 Expects one or more fasta files.
