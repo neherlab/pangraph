@@ -43,7 +43,7 @@ docker run -it --rm \
     --workdir="/workdir" \
     --user="$(id -u):$(id -g)" \
     neherlab/pangraph \
-    bash docs/dev/docker_tests.sh
+    bash docs/dev/docker_test.sh
 ```
 
 This will test all the available commands, see `docs/dev/docker_tests.sh` script.
