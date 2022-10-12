@@ -61,7 +61,7 @@ Alternatively, command-line functionalities can be accessed by running the main 
     julia --project=. src/PanGraph.jl build -c example_datasets/ecoli.fa.gz > graph.json
 ```
 
-Note that to access the complete set of functionalities, the [optional dependencies](#optional-dependencies) must be installed and available in your `$PATH`.
+Note that to access the complete set of functionalities, the [optional dependencies](https://neherlab.github.io/pangraph/#Optional-dependencies) must be installed and available in your `$PATH`.
 
 
 ### Using Docker
@@ -124,7 +124,7 @@ PanGraph can be built locally on your machine by running (inside the cloned repo
 This will build the executable and place a symlink into `bin/`.
 
 **Importantly,** if `jc` is not explicitly set, it will default to `vendor/julia-$VERSION/bin/julia`. If this file does not exist, we will download automatically for the user, provided the host system is Linux or MacOSX.
-Moreover, for the compilation to work, it is necessary to have [MAFFT](https://mafft.cbrc.jp/alignment/software/) and [mmseqs2](https://github.com/soedinglab/MMseqs2) available in your `$PATH`, see [optional dependencies](#optional-dependencies).
+Moreover, for the compilation to work, it is necessary to have [MAFFT](https://mafft.cbrc.jp/alignment/software/) and [mmseqs2](https://github.com/soedinglab/MMseqs2) available in your `$PATH`, see [optional dependencies](https://neherlab.github.io/pangraph/#Optional-dependencies).
 
 **Note,** it is [recommended by the PackageCompiler.jl documentation](https://julialang.github.io/PackageCompiler.jl/stable/#Installation-instructions) to utilize the officially distributed binaries for Julia, not those distributed by your Linux distribution. As such, compilation may not work if you attempt to do so.
 
@@ -135,7 +135,7 @@ There are a few **optional** external programs that PanGraph can utilize:
 1. [Mash](https://github.com/marbl/Mash) can be used to construct a guide tree in place of our internal algorithm (see [build](https://neherlab.github.io/pangraph/cli/build/) command options).
 2. [MAFFT](https://mafft.cbrc.jp/alignment/software/) can be optionally used to polish block alignments (see [polish](https://neherlab.github.io/pangraph/cli/polish/) command). Only recommended for short alignments. 
 3. [mmseqs2](https://github.com/soedinglab/MMseqs2) can be used as an alternative alignment kernel to the default *minimap2* (see [build](https://neherlab.github.io/pangraph/cli/build/) command options). It allows merging of more diverged sequences, at the cost of higher computational time.
-4. 
+
 In order to invoke all functionalities from PanGraph, these tools must be installed and available on `$PATH`.
 
 For convenience, a script `bin/setup-pangraph` is provided within the repository to install both dependencies for a Linux machine without access to root.
