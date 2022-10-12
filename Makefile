@@ -88,7 +88,7 @@ docker:
 docker-test:
 	set -euxo pipefail
 
-	docker run -it --rm \
+	docker run -i --rm \
 		--volume="$$(pwd):/workdir" \
 		--workdir="/workdir" \
 		--user="$$(id -u):$$(id -g)" \
