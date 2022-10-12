@@ -36,9 +36,12 @@ echo "Test pangraph build - minimap asm20 no energy"
 export JULIA_NUM_THREADS=4
 pangraph build -c -k minimap2 -s 20 -a 0 -b 0 "$TESTDIR/input.fa" > "$TESTDIR/test1.json"
 
+echo "Test pangraph build - mash"
+pangraph build -c -d mash "$TESTDIR/input.fa" > "$TESTDIR/test2.json"
+
 echo "Test pangraph build - mmseqs"
 export JULIA_NUM_THREADS=1
-pangraph build -c -k mmseqs -K 8 "$TESTDIR/input.fa" > "$TESTDIR/test2.json"
+pangraph build -c -k mmseqs -K 8 "$TESTDIR/input.fa" > "$TESTDIR/test3.json"
 
 echo "Test pangraph polish"
 pangraph polish -c -l 10000 "$TESTDIR/test1.json" > "$TESTDIR/polished.json"
