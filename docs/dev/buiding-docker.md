@@ -46,4 +46,10 @@ docker run -it --rm \
     bash docs/dev/docker_test.sh
 ```
 
+Or more simply using instructions in the Makefile:
+
+```bash
+make docker-test
+```
+
 This will test all the available commands, see `docs/dev/docker_tests.sh` script.
