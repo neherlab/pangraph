@@ -85,6 +85,17 @@ docker:
 
 	docker build --target prod $${DOCKER_TAGS} .
 
+docker-test:
+	set -euxo pipefail
+
+	docker run -it --rm \
+		--volume="$$(pwd):/workdir" \
+		--workdir="/workdir" \
+		--user="$$(id -u):$$(id -g)" \
+		--ulimit core=0 \
+		"$${CONTAINER_NAME}:latest" \
+		bash docs/dev/docker_test.sh
+
 docker-push:
 	set -euxo pipefail
 

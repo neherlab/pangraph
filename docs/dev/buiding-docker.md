@@ -41,8 +41,9 @@ Once the image has been built locally it can be tested by running (from the repo
 docker run -it --rm \
     --volume="$(pwd):/workdir" \
     --workdir="/workdir" \
+    --user="$(id -u):$(id -g)" \
     neherlab/pangraph \
-    /bin/bash docs/dev/docker_tests.sh
+    bash docs/dev/docker_tests.sh
 ```
 
 This will test all the available commands, see `docs/dev/docker_tests.sh` script.

@@ -52,6 +52,12 @@ jobs:
 
           make docker
 
+      - name: 'Run tests'
+        run: |
+          set -euxo pipefail
+
+          make docker-test
+
       - name: 'Login to DockerHub'
         if: ${{ github.ref_type == 'tag' }}
         run: |
