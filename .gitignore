@@ -7,3 +7,6 @@ notes/
 vendor
 pangraph
 bin
+script
+playgrounds
+.vscode
