@@ -74,7 +74,7 @@ More details on the structure of this `json` file will be covered in the next tu
 
 ### Sequence diversity and alignment sensitivity
 
-As discussed in our paper[^1], two variables control the maximum diversity of homologous sequences that are merged in the same block: the **sensitivity of the alignment kernel** and the **values of the pseudo-energy hyperparameters** $\alpha$ and $\beta$.
+As discussed in our [paper](https://neherlab.github.io/pangraph/#Citing-PanGraph), two variables control the maximum diversity of homologous sequences that are merged in the same block: the **sensitivity of the alignment kernel** and the **values of the pseudo-energy hyperparameters** $\alpha$ and $\beta$.
 
 Pangraph can be run with two options for the alignment kernel:
 - `-k minimap2`: uses the default minimap2 alignment kernel, with *asm10* option. This kernel find matches between sequences with up to 10% divergence. Sensitivity can be increased to 20% adding the option `-s 20`, which runs minimap with the *asm20* option. 
@@ -87,8 +87,6 @@ Moreover, as explained in the paper[^1] only matches with negative pseudo-energy
 Therefore, **as a rule of thumb**:
 - if the average pairwise diversity of homologous sequences in your sample is below 5%, running pangraph with option `-k minimap2 -s 20 -b 5` will results in most merges performed correctly.
 - above this threshold, it is advised to use mmseqs2 as an alignment kernel, and optionally decreasing further the values of the energy hyperparameters `-k mmseqs -a 0 -b 0`.
-
-[^1]: PanGraph: scalable bacterial pan-genome graph construction. Nicholas Noll, Marco Molari, Richard Neher bioRxiv 2022.02.24.481757; doi: https://doi.org/10.1101/2022.02.24.481757
 
 ## Exporting the pangraph
 

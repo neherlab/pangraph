@@ -11,7 +11,7 @@ export align
     align(ref::PanContigs, qry::PanContigs, klen::Int64)
 Align homologous regions of `qry` and `ref` using mmseqs easy-search.
 `klen` tunes the kmer length. If `klen`=0 then mmseqs default is used.
-Returns the list of intervals between pancontigs.
+Returns the list of hits.
 """
 function align(ref::PanContigs, qry::PanContigs, klen::Int64)
 
