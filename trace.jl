@@ -13,9 +13,9 @@ PanGraph.main(["help", "marginalize"]) # marginalize usage
 PanGraph.main(["help", "polish"])      # polish usage
 PanGraph.main(["help", "help"])		   # help usage
 
-# build (native - mash - mmseqs)
+# build (native - mmseqs)
 PanGraph.main(["build", "-c", "-u", "-b", "0", "-a", "0", "$root/test.fa"])
-PanGraph.main(["build", "-c", "-u", "-d", "mash", "$root/test.fa"])
+# PanGraph.main(["build", "-c", "-u", "-d", "mash", "$root/test.fa"])
 PanGraph.main(["build", "-c", "-u", "-b", "0", "-a", "0", "-k", "mmseqs", "-K", "8", "$root/test.fa"])
 
 # export
