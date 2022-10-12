@@ -46,7 +46,3 @@ Modified CLI to accept input on standard input for all subcommands. This allows 
 ## v0.1-alpha
 
 Source code bundled as a relocatable application. Currently only for Linux-based operating systems but intend to release for MacOSX as well.
-
-## Citing
-
-[^1]
