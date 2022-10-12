@@ -99,15 +99,15 @@ Issue `docker run` command:
       --user="$(id -u):$(id -g)" \
       --workdir=/workdir \
       neherlab/pangraph:latest \
-      bash -c "pangraph build --circular --alpha 0 --beta 0 /workdir/data/synthetic/test.fa > graph.json"
+      bash -c "pangraph build --circular --alpha 0 --beta 0 /workdir/example_datasets/ecoli.fa.gz > graph.json"
 ```
 
 Here we mount current directory `.` (expressed as absolute path, using `pwd` shell command) as `/workdir` into the container so that pangraph can read the local
-file `./data/synthetic/test.fa` as `/workdir/data/synthetic/test.fa"`:
+file `./example_datasets/ecoli.fa.gz` as `/workdir/example_datasets/ecoli.fa.gz"`:
     
 ```
-                           . -> /workdir
-    ./data/synthetic/test.fa -> /workdir/data/synthetic/test.fa
+                                 . -> /workdir
+    ./example_datasets/ecoli.fa.gz -> /workdir/example_datasets/ecoli.fa.gz
 ```
 
 The `--name` flag sets the name of the container and the `date` command there ensures that a unique name is created on every run. This is optional. The `--rm` flag deletes the container (but not the image) after run.
