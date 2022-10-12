@@ -2,12 +2,12 @@
 
 ## Types
 ```@autodocs
-Modules = [PanGraph.Graphs.Minimap]
+Modules = [PanGraph.Minimap]
 Order = [:type, :constant]
 ```
 
 ## Functions
 ```@autodocs
-Modules = [PanGraph.Graphs.Minimap]
+Modules = [PanGraph.Minimap]
 Order = [:function]
 ```

@@ -12,8 +12,11 @@ makedocs(
             "tutorials/tutorial_2.md",
             "tutorials/tutorial_3.md",
             "tutorials/tutorial_4.md",
+            "tutorials/tutorial_5.md",
+            "tutorials/tutorial_6.md",
         ],
         "Library" => [
+            "lib/pangraph.md",
             "lib/align.md",
             "lib/block.md",
             "lib/edge.md",
@@ -21,6 +24,7 @@ makedocs(
             "lib/gfa.md",
             "lib/mash.md",
             "lib/minimap.md",
+            "lib/mmseqs.md",
             "lib/node.md",
             "lib/path.md",
             "lib/simulate.md",
@@ -32,6 +36,6 @@ makedocs(
             "cli/generate.md",
             "cli/marginalize.md",
             "cli/polish.md",
-        ]
-    ]
+        ],
+    ],
 )

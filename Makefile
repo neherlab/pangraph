@@ -67,8 +67,6 @@ release:
 clean:
 	rm -rf pangraph pangraph.tar.gz
 
-include script/rules.mk
-
 
 export CONTAINER_NAME=neherlab/pangraph
 
@@ -86,6 +84,17 @@ docker:
 	fi
 
 	docker build --target prod $${DOCKER_TAGS} .
+
+docker-test:
+	set -euxo pipefail
+
+	docker run -i --rm \
+		--volume="$$(pwd):/workdir" \
+		--workdir="/workdir" \
+		--user="$$(id -u):$$(id -g)" \
+		--ulimit core=0 \
+		"$${CONTAINER_NAME}:latest" \
+		bash docs/dev/docker_test.sh
 
 docker-push:
 	set -euxo pipefail

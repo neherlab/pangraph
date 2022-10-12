@@ -1,0 +1,7 @@
+configfile: "config/config.yml"
+
+include: "rules/accuracy.smk"
+include: "rules/panx.smk"
+include: "rules/marginalization.smk"
+include: "rules/size_benchmark.smk"
+include: "rules/paper_figs.smk"

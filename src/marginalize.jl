@@ -61,6 +61,7 @@ Marginalize = Command(
                    Graphs.detransitive!(G)
                end
 
+               # recompute positions
                Graphs.finalize!(G)
                open("$(output)/$(name₁)-$(name₂).json", "w") do io
                    marshal(io, G; fmt=:json)
@@ -84,7 +85,9 @@ Marginalize = Command(
            else
                Graphs.detransitive!(graph)
            end
-
+           
+           # recompute positions
+           Graphs.finalize!(graph)
            marshal(stdout, graph; fmt=:json)
        end
    end

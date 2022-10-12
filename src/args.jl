@@ -175,7 +175,7 @@ function Base.parse(cmd::Command, args)
     end
 end
 
-function Base.run(cmd::Command, args) 
+function Base.run(cmd::Command, args)
     if ismissing(cmd.run)
         error("command $(cmd.cmd) does not have a valid execution function")
     end

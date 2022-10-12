@@ -26,7 +26,7 @@ Build = Command(
         "block diversity cost",
         (short="-b", long="--beta"),
         "energy cost for interblock diversity due to alignment merger",
-        20,
+        10,
     ),
     Arg(
         Bool,
@@ -63,6 +63,20 @@ Build = Command(
         "backend to use to estimate pairwise distance for guide tree\n\trecognized options: [native, mash]",
         "native",
     ),
+    Arg(
+        String,
+        "alignment kernel",
+        (short="-k", long="--alignment-kernel"),
+        "backend to use for pairwise genome alignment\n\trecognized options: [minimap2, mmseqs]",
+        "minimap2",
+    ),
+    Arg(
+        Int,
+        "k-mer length",
+        (short="-K", long="--kmer-length"),
+        "kmer length, only used for mmseqs2 alignment kernel. If not specified will use mmseqs default.",
+        0,
+    )
    ],
 
    (args) -> let
@@ -80,7 +94,7 @@ Build = Command(
        α = arg(Build, "-a")
        β = arg(Build, "-b")
 
-       energy = (aln) -> let
+       energy = function(aln)
            len = aln.length
            len < minblock && return Inf
 
@@ -123,12 +137,23 @@ Build = Command(
            end
        end
 
-       graph = Graphs.align(isolates...;
+       aligner(contigs₁, contigs₂) = @match arg(Build, "-k") begin
+           "minimap2" => Minimap.align(contigs₁, contigs₂, minblock, sensitivity)
+           "mmseqs"   => let
+               if !Shell.havecommand("mmseqs")
+                   panic("external command mmseqs not found. please install before running build step with mmseqs backend\n")
+               end
+               kmer_len = arg(Build, "-K")
+               MMseqs.align(contigs₁, contigs₂, kmer_len)
+           end
+                    _ => error("unrecognized alignment kernel")
+       end
+
+       graph = Graphs.align(aligner, isolates...;
             compare     = compare,
             energy      = energy,
             minblock    = minblock,
             maxiter     = maxiter,
-            sensitivity = sensitivity,
        )
        finalize!(graph)
 

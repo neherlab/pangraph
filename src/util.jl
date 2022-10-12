@@ -10,9 +10,10 @@ import ..Graphs:
     reverse_complement, reverse_complement!,
     SNPMap, InsMap, DelMap
 
+import ...PanGraph: Alignment, Hit
+
 # exports
 export random_id, log
-export Alignment
 export cigar, uncigar
 export hamming_align
 
@@ -21,11 +22,23 @@ export make_consensus, alignment_alleles
 
 export write_fasta, read_fasta, name
 export read_paf
+export lock_semaphore
 
-Maybe{T} = Union{Nothing,T}
+# ------------------------------------------------------------------------
+# multithreading resource allocation
+
+function lock_semaphore(f::Function, s::Base.Semaphore)
+    Base.acquire(s)
+    try
+        return f()
+    finally
+        Base.release(s)
+    end
+end
 
 # ------------------------------------------------------------------------
 # random functions
+
 
 # random string of fixed length
 """
@@ -232,53 +245,6 @@ end
 # ------------------------------------------------------------------------
 # alignment functions
 
-# paf alignment pair
-"""
-	mutable struct Hit
-		name::String
-		length::Int
-		start::Int
-		stop::Int
-		seq::Maybe{Array{UInt8,1}}
-	end
-
-Hit is one side of a pairwise alignment between homologous sequences.
-"""
-mutable struct Hit
-    name::String
-    length::Int
-    start::Int
-    stop::Int
-    seq::Maybe{Array{UInt8,1}}
-end
-
-"""
-	mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Int,Char}}}}
-		qry::Hit
-		ref::Hit
-		matches::Int
-		length::Int
-		quality::Int
-		orientation::Bool
-		cigar::T
-		divergence::Union{Float64,Nothing}
-		align::Union{Float64,Nothing}
-	end
-
-Alignment is a pairwise homologous alignment between two sequences.
-"""
-mutable struct Alignment{T <: Union{String,Nothing,Array{Tuple{Int,Char}}}}
-    qry::Hit
-    ref::Hit
-    matches::Int
-    length::Int
-    quality::Int
-    orientation::Bool
-    cigar::T
-    divergence::Union{Float64,Nothing}
-    align::Union{Float64,Nothing}
-end
-
 # dynamic programming
 """
 	align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost::Score)
@@ -345,17 +311,17 @@ function align(seq₁::Array{UInt8}, seq₂::Array{UInt8}, cost)
             while j > k && ((score.M[i,j-k] + cost.gap(k)) != score.M[i,j])
                 k += 1
             end
-            write(a₁,'-'^k) 
-            write(a₂,seq₂[j-1:-1:j-k]) 
+            write(a₁,'-'^k)
+            write(a₂,seq₂[j-1:-1:j-k])
             j -= k
         elseif score.M[i,j] == score.I[i,j]
             k = 1
             while i > k && ((score.M[i-k,j] + cost.gap(k)) != score.M[i,j])
                 k += 1
             end
-            write(a₁,seq₁[i-1:-1:i-k]) 
-            write(a₂,'-'^k) 
-            i -= k 
+            write(a₁,seq₁[i-1:-1:i-k])
+            write(a₂,'-'^k)
+            i -= k
         else
             write(a₁,seq₁[i-1])
             write(a₂,seq₂[j-1])
@@ -386,11 +352,11 @@ Perform a simple alignment of `qry` to `ref` by minimizing hamming distance.
 Useful for fast, approximate alignments of small sequences.
 """
 function hamming_align(qry::Array{UInt8,1}, ref::Array{UInt8,1})
-    matches = [ 
+    matches = [
         let
             len = min(length(ref)-x+1, length(qry))
             sum(qry[1:len] .== ref[x:x+len-1])
-        end 
+        end
     for x ∈ 1:length(ref) ]
 
     return argmax(matches)
@@ -422,7 +388,7 @@ function reverse_complement!(hit::Hit)
     hit.stop  = hit.length - (start - 1)
 end
 
-function reverse_complement!(aln::Alignment) 
+function reverse_complement!(aln::Alignment)
     reverse_complement!(aln.qry)
     aln.orientation = ~aln.orientation
 end
@@ -529,7 +495,7 @@ struct Record
     meta :: String
 end
 
-name(r::Record) = isempty(r.meta) ? r.name : r.name * " " * r.meta 
+name(r::Record) = isempty(r.meta) ? r.name : r.name * " " * r.meta
 
 NL = '\n'
 Base.show(io::IO, rec::Record) = print(io, ">$(rec.name) $(rec.meta)$(NL)$(String(rec.seq[1:40]))...$(String(rec.seq[end-40:end]))")
@@ -582,57 +548,98 @@ Parse a PAF file from IO stream `io`.
 Return an iterator over all pairwise alignments.
 """
 function read_paf(io::IO)
-    chan = Channel{Alignment}(0)
-
     int(x)   = parse(Int,x)
     float(x) = parse(Float64,x)
     last(x)  = split(x,':')[end]
 
-    @async begin
-        for row in eachline(io)
-            elt = split(strip(row))
-            cg = nothing
-            dv = nothing
-            as = nothing
-            for x in elt[13:end]
-                if startswith(x, "cg:")
-                    cg = last(x)
-                elseif startswith(x, "de:f")
-                    dv = float(last(x))
-                elseif startswith(x, "AS:i")
-                    as = int(last(x))
-                end
+    return [ let
+        elt = split(strip(row))
+        cg = nothing
+        dv = nothing
+        as = nothing
+        for x in elt[13:end]
+            if startswith(x, "cg:")
+                cg = last(x)
+            elseif startswith(x, "de:f")
+                dv = last(x) |> float
+            elseif startswith(x, "gi:f")
+                dv = last(x) |> float
+                dv = 1. - (dv/100.)
+            elseif startswith(x, "AS:i")
+                as = last(x) |> int
             end
-
-            # XXX: important: shift PAF entry to be 1 indexed and right-inclusive to match julia
-            put!(chan, Alignment(
-                        Hit(
-                            elt[1],
-                            int(elt[2]),   # length
-                            int(elt[3])+1, # start
-                            int(elt[4]),   # stop
-                            nothing,
-                        ),
-                        Hit(
-                            elt[6],
-                            int(elt[7]),   # length
-                            int(elt[8])+1, # start
-                            int(elt[9]),   # stop
-                            nothing,
-                        ),
-                        int(elt[10]), 
-                        int(elt[11]), 
-                        int(elt[12]),
-                        elt[5] == "+",
-                        cg,
-                        dv,
-                        as)
-            )
         end
-        close(chan)
-    end
 
-    return chan
+        # XXX: important: shift PAF entry to be 1 indexed and right-inclusive to match julia
+        Alignment(
+            Hit(
+                elt[1],
+                int(elt[2]),   # length
+                int(elt[3])+1, # start
+                int(elt[4]),   # stop
+                nothing,
+            ),
+            Hit(
+                elt[6],
+                int(elt[7]),   # length
+                int(elt[8])+1, # start
+                int(elt[9]),   # stop
+                nothing,
+            ),
+            int(elt[10]),
+            int(elt[11]),
+            int(elt[12]),
+            elt[5] == "+",
+            String(cg),
+            dv,
+            as
+        )
+        end for row in eachline(io) ]
+end
+
+"""
+    read_mmseqs2(io::IO)
+
+Parse a simil-PAF file produced by mmseq2 from IO stream `io`.
+Return an iterator over all pairwise alignments.
+"""
+function read_mmseqs2(io::IO)
+    int(x)   = parse(Int,x)
+    float(x) = parse(Float64,x)
+    last(x)  = split(x,':')[end]
+
+    return [ let
+        elt = split(strip(row))
+
+        # XXX: important: shift PAF entry to be 1 indexed and right-inclusive to match julia
+        q1 = int(elt[3])
+        q2 = int(elt[4])
+        qstart, qend, strand = q1 < q2 ? (q1, q2, true) : (q2, q1, false)
+
+        Alignment(
+            Hit(
+                elt[1],
+                int(elt[2]),   # length
+                qstart, # start
+                qend,   # stop
+                nothing,
+            ),
+            Hit(
+                elt[6],
+                int(elt[7]),   # length
+                int(elt[8]), # start
+                int(elt[9]),   # stop
+                nothing,
+            ),
+            int(elt[10]),
+            int(elt[11]),
+            int(elt[12]),
+            strand,
+            String(elt[13]),
+            1. - float(elt[14]),
+            int(elt[15])
+        )
+        end for row in eachline(io) ]
 end
 
 # ------------------------------------------------------------------------
@@ -644,9 +651,10 @@ end
 Partition string `s` into an array of strings such that no string is longer than `nc` characters.
 """
 function columns(s; nc=80)
-    nr   = ceil(Int64, length(s)/nc)
+    L = length(s)
+    nr   = ceil(Int64, L/nc)
     l(i) = 1+(nc*(i-1)) 
-    r(i) = min(nc*i, length(s))
+    r(i) = min(nc*i, L)
     rows = [String(s[l(i):r(i)]) for i in 1:nr]
     return join(rows,'\n')
 end
@@ -721,7 +729,7 @@ function contiguous_trues(x)
     if inside
         push!(intervals, Interval(l, length(x)+1))
     end
-    
+
     return IntervalSet(intervals)
 end
 
@@ -764,7 +772,7 @@ function alignment_alleles(ref, aln, nodes)
     Δ(I) = (R = containing(refgaps, I)) == nothing ? 0 : I.lo - R.lo
     insert = Dict{Node,InsMap}(
             node => InsMap(
-                      (coord[ins.lo],Δ(ins)) => aln[ins,i] 
+                      (coord[ins.lo],Δ(ins)) => aln[ins,i]
                 for ins in contiguous_trues(δ.ins[:,i])
              )
         for (i,node) in enumerate(nodes)

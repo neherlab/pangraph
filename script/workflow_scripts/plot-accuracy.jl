@@ -5,7 +5,13 @@ using JLD2, FileIO
 
 import CairoMakie
 
-include("plot-util.jl")
+# plot in headless mode -> allow for plotting on the server where no display is available
+ENV["GKSwstype"] = "100"
+
+cdfplot(x; kwargs...)  = plot(sort(x),range(0,1,length=length(x)); kwargs...)
+cdfplot!(x; kwargs...) = plot!(sort(x),range(0,1,length=length(x)); kwargs...)
+
+α_mutrate_to_divergence = 21.5
 
 Base.zero(x::Type{Array{Float64,1}}) = Float64[]
 
@@ -63,7 +69,7 @@ diversity(data)  = collectentry(data,Float64,"dists",(arr,i,j,x)->arr[i,j]+=x, (
 complexity(data) = collectentry(data,Float64,"nblks",(arr,i,j,x)->arr[i,j]+=x, (arr,num)->arr./num)
 
 function plotgrid(data, x, y; group="", labels=true)
-    heatmap(string.(x), [@sprintf("%.1E",5*Y) for Y in y], data';
+    heatmap(string.(x), [@sprintf("%.1E",α_mutrate_to_divergence*Y) for Y in y], data';
         xlabel = labels ? "HGT rate / genome / generation" : "",
         ylabel = labels ? "pairwise diversity" : "",
         title  = length(group) > 0 ? "entropy $(group)" : "",
@@ -73,7 +79,7 @@ function plotgrid(data, x, y; group="", labels=true)
 end
 
 function plotcdfs(data, x, y; group="", fontsize=12, kwargs...)
-    i = size(data,1)÷2
+    i = max(1,size(data,1)÷2)
     c = cgrad(:matter, size(data,2), categorical=true)
     p = plot(;
         legend = :bottomright,
@@ -93,7 +99,7 @@ function plotcdfs(data, x, y; group="", fontsize=12, kwargs...)
         cdfplot!(data[i,j].+1;
             linewidth = 1,
             color     = c[j],
-            label     = @sprintf("%.1E", 5*y[j]),
+            label     = @sprintf("%.1E", α_mutrate_to_divergence*y[j]),
          )
     end
 
@@ -118,7 +124,7 @@ function publication(data, x, y)
         points = sort(reduce(vcat, data[i,j] for i in 1:size(data,1))).+1
         CairoMakie.lines!(axis, points , range(0,1,length(points)),
             color = c[j],
-            label = @sprintf("%.1e", 5*y[j])
+            label = @sprintf("%.1e", α_mutrate_to_divergence*y[j])
         )
     end
 
@@ -127,13 +133,23 @@ function publication(data, x, y)
     return fig
 end
 
-const re = r"-([0-9]+).jld2"
+const re = r"/accuracy-([^/]+)\.jld2"
 function group(path)
     return match(re, path)[1]
 end
 
-function main(path, destdir)
+function remove_extra_snps!(data, snps_keep)
+    for k in keys(data)
+        par = unpack(k)
+        par.snp ∈ snps_keep || delete!(data, k)
+    end
+end
+
+function main(path, destdir, snps_keep)
+
     data = load(path)
+    snps_keep = [parse(Float64,s) for s in snps_keep]
+    remove_extra_snps!(data, snps_keep)
     grid = plotgrid(entropy(data)...;  group=group(path))
     cdfs = plotcdfs(accuracy(data)...; group=group(path))
 
@@ -148,23 +164,10 @@ function main(path, destdir)
     # publication plot
     fig = publication(accuracy(data)...)
     CairoMakie.save("$(destdir)/paper-$(base(path)).png", fig, px_per_unit=2)
-#=
-    TODO: return one figure with correct layout
-    l = @layout[Plots.grid(1,2) a{0.05w}]
-    return (
-        plot(grid...,
-            heatmap((0:0.01:1).*ones(101,1);
-                    legend=:none,
-                    xticks=:none,
-                    yticks=(1:10:101, [@sprintf("%1.1f",1.5*x) for x in 0:0.1:1]),
-             ); layout=l
-        ),
-        plot(cdfs...),
-        plot(grid[1], cdfs[1])
-    )
-=#
+    CairoMakie.save("$(destdir)/paper-$(base(path)).pdf", fig)
+
 end
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    main(ARGS[1], ARGS[2])
+    main(ARGS[1], ARGS[2], ARGS[3:end])
 end

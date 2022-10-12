@@ -1,0 +1,62 @@
+{
+    "__default__": {
+        "time": "00:29:00",
+        "qos": "30min",
+        "n": 1,
+        "mem": "16G"
+    },
+    "AC_guess_pangraph_mmseqs": {
+        "time": "05:58:00",
+        "qos": "6hours",
+        "n": 8,
+        "mem": "100G"
+    },
+    "PX_build_full_pangraph": {
+        "time": "6-23:50:00",
+        "qos": "1week",
+        "n": 8,
+        "mem": "100G"
+    },
+    "PX_compression_benchmark": {
+        "time": "00:29:00",
+        "qos": "30min",
+        "n": 1,
+        "mem": "50G"
+    },
+    "MG_projection_full_graph": {
+        "time": "05:58:00",
+        "qos": "6hours",
+        "n": 8,
+        "mem": "100G"
+    },
+    "PX_IS_build_graph": {
+        "time": "05:58:00",
+        "qos": "6hours",
+        "n": 8,
+        "mem": "40G"
+    },
+    "MG_pairwise_graphs": {
+        "time": "00:29:00",
+        "qos": "30min",
+        "n": 1,
+        "mem": "50G"
+    },
+    "SB_generate_data": {
+        "time": "00:29:00",
+        "qos": "30min",
+        "n": 1,
+        "mem": "50G"
+    },
+    "SB_time_pangraph": {
+        "time": "05:58:00",
+        "qos": "6hours",
+        "n": 8,
+        "mem": "100G"
+    },
+    "PX_diversity": {
+        "time": "05:58:00",
+        "qos": "6hours",
+        "n": 16,
+        "mem": "20G"
+    }
+}

@@ -6,14 +6,12 @@ using ProgressMeter
 
 using Base.Threads: @spawn, @threads
 
-using ..Utility: read_paf, enforce_cutoff!
+using ..Utility: read_paf, enforce_cutoff!, lock_semaphore
 using ..Blocks
 using ..Paths: replace!
 using ..Nodes
 using ..Graphs
 using ..Mash
-
-import ..Minimap
 
 export align
 
@@ -298,6 +296,11 @@ function Base.length(node::Clade)
     return 1 + Base.length(node.left) + Base.length(node.right)
 end
 
+function n_inner_nodes(node::Clade)
+    isleaf(node) && return 0
+    return 1 + n_inner_nodes(node.left) + n_inner_nodes(node.right)
+end
+
 # ------------------------------------------------------------------------
 # ordering functions
 
@@ -341,15 +344,20 @@ function preprocess(hits, skip, energy, blocks!)
                 qry₀=qry₀,
                 ref₀=ref₀,
                 strand=strand,
-           )
+            )
         end for hit in hits if (energy(hit) < 0 && !skip(hit))
     ]
 
     return hits
 end
 
-function do_align(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, sensitivity::String)
-    hits = Minimap.align(pancontigs(G₁), pancontigs(G₂), minblock, sensitivity)
+function do_align(G₁::Graph, G₂::Graph, energy::Function, aligner::Function)
+    hits = if G₁ == G₂
+        self = pancontigs(G₁)
+        aligner(self, self)
+    else
+        aligner(pancontigs(G₁), pancontigs(G₂))
+    end
     sort!(hits; by=energy)
 
     return hits
@@ -390,13 +398,14 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 `minblock` is the minimum size block that will be produced from the algorithm.
 `maxiter` is maximum number of duplications that will be considered during this alignment.
 """
-function align_self(G₁::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; maxiter=100, sensitivity="asm10")
+function align_self(G₁::Graph, energy::Function, minblock::Int, aligner::Function, verify::Function, verbose::Bool; maxiter=100, sensitivity="asm10")
     G₀ = G₁
 
     for niter in 1:maxiter
         # calculate pairwise hits
-        hits = do_align(G₀, G₀, energy, minblock, sensitivity)
+        hits = do_align(G₀, G₀, energy, aligner)
 
+        # closures
         skip = (hit) -> (
                (hit.qry.name == hit.ref.name)
             || (hit.length < minblock)
@@ -523,25 +532,25 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 `minblock` is the minimum size block that will be produced from the algorithm.
 `maxiter` is maximum number of duplications that will be considered during this alignment.
 """
-function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, verify::Function, verbose::Bool; sensitivity="asm10")
-    hits = do_align(G₁, G₂, energy, minblock, sensitivity)
+function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, aligner::Function, verify::Function, verbose::Bool)
+    hits = do_align(G₁, G₂, energy, aligner)
 
+    # closures
     skip = (hit) -> (
-            !(hit.qry.name in keys(G₁.block))
-         || !(hit.ref.name in keys(G₂.block))
+            !(hit.ref.name in keys(G₁.block))
+         || !(hit.qry.name in keys(G₂.block))
          || (hit.length < minblock)
     )
     block = (hit) -> (
-        qry = pop!(G₁.block, hit.qry.name),
-        ref = pop!(G₂.block, hit.ref.name),
+        qry = pop!(G₂.block, hit.qry.name),
+        ref = pop!(G₁.block, hit.ref.name),
     )
-
     replace = (old, new, orientation) -> let
-        for path in values(G₁.sequence)
+        for path in values(G₂.sequence)
             replace!(path, old.qry, new.qry, orientation)
         end
 
-        for path in values(G₂.sequence)
+        for path in values(G₁.sequence)
             replace!(path, old.ref, new.ref, true)
         end
     end
@@ -570,11 +579,10 @@ end
 # TODO: the associative array is a bit hacky...
 #       can we push it directly into the channel?
 """
-	align(G::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100)
+	align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100)
 
-Align graph `G₁` to itself by looking for homology between blocks.
-Multithreaded by default.
-This is usually the function you want.
+Aligns a collection of graphs `Gs` using the specified `aligner` function to recover hits.
+Graphs are aligned following an internal guide tree, generated using kmer distance.
 
 `energy` is to be a function that takes an alignment between two blocks and produces a score.
 The _lower_ the score, the _better_ the alignment. Only negative energies are considered.
@@ -584,7 +592,7 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 
 `compare` is the function to be used to generate pairwise distances that generate the internal guide tree.
 """
-function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, sensitivity="asm10", maxiter=100)
+function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100)
     function verify(graph, msg="")
         if reference !== nothing
             for (name,path) ∈ graph.sequence
@@ -634,21 +642,17 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
     tree = ordering(compare, Gs...) |> balance
     log("--> tree: ", tree)
 
-    meter = Progress(length(tree); desc="alignment progress", output=stderr)
+    meter = Progress(n_inner_nodes(tree); desc="alignment progress", output=stderr)
     tips  = Dict{String,Graph}(collect(keys(G.sequence))[1] => G for G in Gs)
 
     log("--> aligning pairs")
 
-    events = Channel{Bool}(10);
-
-    @spawn let
-        while isopen(events)
-            take!(events)
-            next!(meter)
-        end
-    end
-
     error_channel = Channel(1)
+
+    # semaphore to ensure that only N=Threads.nthreads() are
+    # executing subcommands run(`cmd`) at the same time
+    s = Base.Semaphore(Threads.nthreads())
+    meter_lock = ReentrantLock()
 
     G = nothing
     for clade ∈ postorder(tree)
@@ -656,16 +660,23 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
             if isleaf(clade)
                 close(clade.graph)
                 put!(clade.parent.graph, tips[clade.name])
-                put!(events, true)
             else
                 Gₗ = take!(clade.graph)
                 Gᵣ = take!(clade.graph)
                 close(clade.graph)
 
-                G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, verify, false; sensitivity=sensitivity)
-                G₀ = align_self(G₀, energy, minblock, verify, false; sensitivity=sensitivity, maxiter=maxiter)
+                # the lock ensures that at most N=Threads.nthreads() processes are
+                # spawning run(`cmd`) instances at the same time
+                G₀ = lock_semaphore(s) do
+                    G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, false)
+                    align_self(G₀, energy, minblock, aligner, verify, false)
+                end
 
-                put!(events, true)
+                # advance progress bar in a thread-safe way
+                lock(meter_lock) do
+                    next!(meter)
+                end
+
                 if clade.parent !== nothing
                     put!(clade.parent.graph, G₀)
                 else
@@ -683,8 +694,6 @@ function align(Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblo
         @error "In-thread error during graph building:" exception=(err, backtrace)
         error("graph construction failed, see above for stacktrace")
     end
-
-    close(events)
 
     return G
 end

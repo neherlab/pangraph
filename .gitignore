@@ -13,6 +13,18 @@ pangraph
 pangraph.tar.gz
 bin
 tutorial
+playgrounds
+.vscode
+script/synthetic_data
+script/panx_data
+script/.snakemake
+script/projections
+script/size-benchmark
+script/incremental_size
+script/panx_results
+script/local_scripts
+__pycache__
+docker_test
 
 deps/minimap2/build
 deps/minimap2/products
