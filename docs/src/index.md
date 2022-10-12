@@ -131,7 +131,7 @@ Moreover, for the compilation to work, it is necessary to have [MAFFT](https://m
 
 ### Optional dependencies
 
-There are a few **optional** external programs that PanGraph can utilize:
+There are a few **optional** external programs that PanGraph can utilize[^1]:
 1. [Mash](https://github.com/marbl/Mash) can be used to construct a guide tree in place of our internal algorithm (see [build](https://neherlab.github.io/pangraph/cli/build/) command options).
 2. [MAFFT](https://mafft.cbrc.jp/alignment/software/) can be optionally used to polish block alignments (see [polish](https://neherlab.github.io/pangraph/cli/polish/) command). Only recommended for short alignments. 
 3. [mmseqs2](https://github.com/soedinglab/MMseqs2) can be used as an alternative alignment kernel to the default *minimap2* (see [build](https://neherlab.github.io/pangraph/cli/build/) command options). It allows merging of more diverged sequences, at the cost of higher computational time.
@@ -142,6 +142,8 @@ For convenience, a script `bin/setup-pangraph` is provided within the repository
 It assumes GNU coreutils are available.
 
 These dependencies are already available within the Docker container.
+
+[^1]: We recommend `mmseqs` version `13-45111`, `mash` version `v2.2.2` and `MAFFT` version `v7.475`
 
 ## User's Guide
 
