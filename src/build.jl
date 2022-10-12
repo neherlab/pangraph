@@ -69,6 +69,13 @@ Build = Command(
         (short="-k", long="--alignment-kernel"),
         "backend to use for pairwise genome alignment\n\trecognized options: [minimap2, mmseqs]",
         "minimap2",
+    ),
+    Arg(
+        Int,
+        "k-mer length",
+        (short="-K", long="--kmer-length"),
+        "kmer length, only used for mmseqs2 alignment kernel. If not specified will use mmseqs default.",
+        0,
     )
    ],
 
@@ -136,8 +143,8 @@ Build = Command(
                if !Shell.havecommand("mmseqs")
                    panic("external command mmseqs not found. please install before running build step with mmseqs backend\n")
                end
-
-               MMseqs.align(contigs₁, contigs₂)
+               kmer_len = arg(Build, "-K")
+               MMseqs.align(contigs₁, contigs₂, kmer_len)
            end
                     _ => error("unrecognized alignment kernel")
        end
