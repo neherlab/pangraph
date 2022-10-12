@@ -75,16 +75,12 @@ SHELL=bash
 docker:
 	set -euxo pipefail
 
-	export DOCKER_TAGS=""
+	export DOCKER_TAGS="--tag $${CONTAINER_NAME}:latest"
 
-	# If GIT_TAG is set, then also set the 'latest' tag
 	if [ ! -z "$${GIT_TAG:-}" ]; then
-		export DOCKER_TAGS="$${DOCKER_TAGS} --tag $${CONTAINER_NAME}:latest"
-		export DOCKER_TAGS="$${DOCKER_TAGS} --tag $${CONTAINER_NAME}:${GIT_TAG}"
-	fi
-
-	if [ ! -z "$${GIT_BRANCH:-}" ]; then
-		export DOCKER_TAGS="$${DOCKER_TAGS} --tag $${CONTAINER_NAME}:$${GIT_BRANCH}"
+		export DOCKER_TAGS="$${DOCKER_TAGS:-} --tag $${CONTAINER_NAME}:${GIT_TAG}"
+	elif [ ! -z "$${GIT_BRANCH:-}" ]; then
+		export DOCKER_TAGS="$${DOCKER_TAGS:-} --tag $${CONTAINER_NAME}:$${GIT_BRANCH}"
 	fi
 
 	docker build --target prod $${DOCKER_TAGS} .
@@ -92,12 +88,10 @@ docker:
 docker-push:
 	set -euxo pipefail
 
-	# If GIT_TAG is set, then also push the 'latest' tag
+	# If GIT_TAG is set, then we are about to release to production, so also push the 'latest' tag
 	if [ ! -z "$${GIT_TAG:-}" ]; then
 		docker push "$${CONTAINER_NAME}:latest"
 		docker push "$${CONTAINER_NAME}:${GIT_TAG}"
-	fi
-
-	if [ ! -z "$${GIT_BRANCH:-}" ]; then
+	elif [ ! -z "$${GIT_BRANCH:-}" ]; then
 		docker push "$${CONTAINER_NAME}:$${GIT_BRANCH}"
 	fi
