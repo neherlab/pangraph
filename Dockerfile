@@ -14,7 +14,6 @@ RUN set -euxo pipefail \
   curl \
   mafft \
   make \
-  mash \
   >/dev/null \
   && apt-get autoremove --yes >/dev/null \
   && apt-get clean autoclean >/dev/null \
@@ -59,6 +58,7 @@ RUN set -euxo pipefail \
   && apt-get install -qq --no-install-recommends --yes \
   mafft \
   mash \
+  fasttree \
   >/dev/null \
   && apt-get autoremove --yes >/dev/null \
   && apt-get clean autoclean >/dev/null \

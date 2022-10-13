@@ -1,14 +1,15 @@
 #!/bin/bash
 set -euxo pipefail
 
-# test that mash, mafft and mmseqs are available in path
+# test that mash, mafft, mmseqs and fasttree are available in path
 echo "mash version:"
 mash --version
 echo "mafft version:"
 mafft --version
 echo "mmseqs version:"
 mmseqs --help | grep "Version"
-
+echo "fasttree help:"
+fasttree -help
 
 # test pangraph commands help
 pangraph help build
@@ -46,8 +47,11 @@ pangraph build -c -k mmseqs -K 8 "$TESTDIR/input.fa" > "$TESTDIR/test3.json"
 echo "Test pangraph polish"
 pangraph polish -c -l 10000 "$TESTDIR/test1.json" > "$TESTDIR/polished.json"
 
-echo "Test pangraph export"
+echo "Test pangraph GFA export"
 pangraph export -o "$TESTDIR/export" "$TESTDIR/test1.json"
+
+echo "Test pangraph PanX export"
+pangraph export -ng -pX -o "$TESTDIR/export" "$TESTDIR/test1.json"
 
 echo "Test pangraph marginalize"
 pangraph marginalize -o "$TESTDIR/marginalize" "$TESTDIR/test1.json"
