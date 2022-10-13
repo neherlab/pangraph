@@ -33,6 +33,18 @@ downloadMMseqs()
     mv "$name/bin/$name" "../bin/$name"
 }
 
+downloadFasttree()
+{
+    name="$1"; shift 1
+    url="$1";  shift 1
+
+    cd $root
+
+    curl -L -o "$name" "$url"
+    chmod +x "$name"
+    mv "$name" "../bin/$name"
+}
+
 build()
 {
     name="$1"; shift 1
@@ -55,5 +67,6 @@ build()
 
 (downloadMash "mash" "https://github.com/marbl/Mash/releases/download" "v2.2" "Linux64")
 (downloadMMseqs "mmseqs" "https://github.com/soedinglab/MMseqs2/releases/download" "13-45111" "sse2" "linux")
+(downloadFasttree "fasttree" "http://www.microbesonline.org/fasttree/FastTree")
 (build "mafft" "https://mafft.cbrc.jp/alignment/software" "7.490")
 # rm -r $root

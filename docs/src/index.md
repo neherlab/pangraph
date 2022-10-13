@@ -145,6 +145,7 @@ There are a few **optional** external programs that PanGraph can utilize[^1]:
 1. [Mash](https://github.com/marbl/Mash) can be used to construct a guide tree in place of our internal algorithm (see [build](https://neherlab.github.io/pangraph/cli/build/) command options).
 2. [MAFFT](https://mafft.cbrc.jp/alignment/software/) can be optionally used to polish block alignments (see [polish](https://neherlab.github.io/pangraph/cli/polish/) command). Only recommended for short alignments. 
 3. [mmseqs2](https://github.com/soedinglab/MMseqs2) can be used as an alternative alignment kernel to the default *minimap2* (see [build](https://neherlab.github.io/pangraph/cli/build/) command options). It allows merging of more diverged sequences, at the cost of higher computational time.
+4. [fasttree](http://www.microbesonline.org/fasttree/) is used to build phylogenetic trees for export in [PanX](https://github.com/neherlab/pan-genome-analysis)-compatible format (see [export](https://neherlab.github.io/pangraph/cli/export/) command options and the [tutorial section](https://neherlab.github.io/pangraph/tutorials/tutorial_3/#Explore-block-alignments-with-the-panX-visualization)).
 
 In order to invoke all functionalities from PanGraph, these tools must be installed and available on `$PATH`.
 
@@ -153,7 +154,7 @@ It assumes GNU coreutils are available.
 
 These dependencies are already available within the Docker container.
 
-[^1]: We recommend `mmseqs` version `13-45111`, `mash` version `v2.2.2` and `MAFFT` version `v7.475`
+[^1]: We recommend `mmseqs` version `13-45111`, `mash` version `v2.2.2`, `MAFFT` version `v7.475` and `fasttree` version `2.1.11`
 
 ## User's Guide
 

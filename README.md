@@ -77,8 +77,8 @@ Moreover, for the compilation to work, it is necessary to have [MAFFT](https://m
 
 ### Optional dependencies
 
-**pangraph** can _optionally_ use [mash](https://github.com/marbl/Mash), [MAFFT](https://mafft.cbrc.jp/alignment/software/) or [mmseqs2](https://github.com/soedinglab/MMseqs2), as explained in [the documentation](https://neherlab.github.io/pangraph/#Optional-dependencies).
-For full functionality, it is recommended to install these tools and have them available on `$PATH`.
+**pangraph** can _optionally_ use [mash](https://github.com/marbl/Mash), [MAFFT](https://mafft.cbrc.jp/alignment/software/), [mmseqs2](https://github.com/soedinglab/MMseqs2) or [fasttree](http://www.microbesonline.org/fasttree/) for some optional functionalities, as explained in [the documentation](https://neherlab.github.io/pangraph/#Optional-dependencies).
+For use of these functionalities, it is recommended to install these tools and have them available on `$PATH`.
 
 Alternatively, a script `bin/setup-pangraph` is provided to install both tools into `bin/` for Linux-based operating systems.
 
