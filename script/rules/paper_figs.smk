@@ -121,8 +121,8 @@ rule PF_panx_compression_plot:
     message:
         "Creating plots for PanX compression performances"
     input:
-        comp=rules.PX_summary_compression_benchmark.csv,
-        summ=rules.PX_summary_performance_benchmark.csv,
+        comp=rules.PX_summary_compression_benchmark.output.csv,
+        summ=rules.PX_summary_performance_benchmark.output.csv,
     output:
         main="figs/paper/panx/main.pdf",
         suppl="figs/paper/panx/suppl.pdf",
