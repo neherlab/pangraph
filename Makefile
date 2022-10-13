@@ -60,6 +60,7 @@ pangraph/bin/pangraph: compile.jl trace.jl $(srcs) $(testdatum) $(jc)
 
 documentation: environment
 	$(jc) $(jflags) -e 'import Pkg; Pkg.add(name="Documenter");'
+	$(jc) $(jflags) -e 'import Pkg; Pkg.build();'
 	$(jc) $(jflags) docs/make.jl
 
 release:
