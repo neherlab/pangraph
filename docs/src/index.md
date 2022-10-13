@@ -35,7 +35,7 @@ The documentation, and source code, uses the following terminology:
 Pangraph is available:
 - as a **Julia library**
 - as a **Docker container**
-- can be compiled into a **relocatable binary**
+- can be compiled into a **binary**
 
 
 ### as a Julia library
@@ -74,9 +74,9 @@ Install Docker as described on the official website: <https://docs.docker.com/ge
 
 Optionally setup Docker so that it runs without `sudo` on Linux: <https://docs.docker.com/engine/install/linux-postinstall/>
 
- **2. Pull a version of the image**
+ **2. Pull a version of the PanGraph Docker image**
 
-To obtain the latest version, run:
+To obtain the latest released version, run:
 
 ```bash
     docker pull neherlab/pangraph:latest
@@ -88,7 +88,15 @@ To obtain a specific version, for example `1.2.3`, run:
     docker pull neherlab/pangraph:1.2.3
 ```
 
-**3. Run PanGraph container**
+To obtain the latest development version (from `master` branch), run:
+
+```bash
+    docker pull neherlab/pangraph:master
+```
+
+> ⚠️ Note that the development versions can contain new and undocumented features, breaking changes and bugs. For most users, we recommend using either `:latest` or an explicit version.
+
+**3. Run PanGraph Docker container**
 
 Issue `docker run` command:
 
@@ -101,6 +109,8 @@ Issue `docker run` command:
       neherlab/pangraph:latest \
       bash -c "pangraph build --circular --alpha 0 --beta 0 /workdir/example_datasets/ecoli.fa.gz > graph.json"
 ```
+
+Replace the `:latest` tag with either an explicit version, e.g. `:1.2.3` or `:master`, depending on which version you pulled in the previous section. If you haven't run `docker pull`, the `docker run` command should pull the corresponding version for you.
 
 Here we mount current directory `.` (expressed as absolute path, using `pwd` shell command) as `/workdir` into the container so that pangraph can read the local
 file `./example_datasets/ecoli.fa.gz` as `/workdir/example_datasets/ecoli.fa.gz"`:
@@ -115,7 +125,7 @@ The `--name` flag sets the name of the container and the `date` command there en
 Replace `:latest` with a specific version if desired. The `:latest` tag can also be omitted, as it is the default. 
 
 
-### building binaries
+### Building binaries locally
 
 PanGraph can be built locally on your machine by running (inside the cloned repo)
 ```bash

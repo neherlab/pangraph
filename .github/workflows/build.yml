@@ -59,15 +59,20 @@ jobs:
           make docker-test
 
       - name: 'Login to DockerHub'
-        if: ${{ github.ref_type == 'tag' }}
+        if: github.ref_type == 'tag' || steps.branch-name.outputs.is_default == 'true'
         run: |
           echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
 
       - name: 'Push Docker image'
-        if: ${{ github.ref_type == 'tag' }}
+        if: github.ref_type == 'tag' || steps.branch-name.outputs.is_default == 'true'
         run: |
           set -euxo pipefail
 
-          export GIT_TAG="${{ github.ref_name }}"
+          if [ ${{ github.ref_type }} == 'tag' ]; then
+            export GIT_TAG="${{ github.ref_name }}"
+          else
+            export GIT_BRANCH="${{ steps.branch-name.outputs.current_branch }}"
+            export GIT_BRANCH="${GIT_BRANCH//\//-}"
+          fi
 
           make docker-push
