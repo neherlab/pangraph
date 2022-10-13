@@ -1,15 +1,15 @@
 #!/bin/bash
 set -euxo pipefail
 
-# test that mash, mafft and mmseqs are available in path
+# test that mash, mafft, mmseqs and fasttree are available in path
 echo "mash version:"
 mash --version
 echo "mafft version:"
 mafft --version
 echo "mmseqs version:"
 mmseqs --help | grep "Version"
-echo "fasttree version:"
-fasttree -help 2>&1 | head -n1
+echo "fasttree help:"
+fasttree -help
 
 # test pangraph commands help
 pangraph help build
