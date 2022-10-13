@@ -9,8 +9,7 @@ mafft --version
 echo "mmseqs version:"
 mmseqs --help | grep "Version"
 echo "fasttree version:"
-fasttree 2>&1 | grep "version"
-
+fasttree -help 2>&1 | head -n1
 
 # test pangraph commands help
 pangraph help build
