@@ -38,7 +38,7 @@ makedocs(
             "cli/polish.md",
         ],
         "Development" => [
-            "dev/buiding-docker.md",
+            "dev/building-docker.md",
             "dev/building-documentation.md",
             "dev/releasing.md",
         ],
