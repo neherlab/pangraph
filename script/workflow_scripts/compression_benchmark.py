@@ -38,7 +38,7 @@ def single_fasta_stats(fa):
 
 def extract_species(fname):
     """Extract species from the fasta filename input"""
-    return re.match("panx_data/([^/]+)/", fname).group(1)
+    return re.match("panx_results/fasta/([^/]+)/", fname).group(1)
 
 
 def summary_fasta_stats(fas):
