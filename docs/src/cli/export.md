@@ -18,7 +18,7 @@ Export a pangraph to a chosen file format(s)
 | Output directory    | String  | o          | output-directory    | path to directory where output will be stored (default: `export`)                 |
 | Prefix              | String  | p          | prefix              | basename of exported files (default: `pangraph`)                                  |
 | GFA                 | Boolean | ng         | no-export-gfa       | toggles whether pangraph is exported as GFA.                                      |
-| PanX                | Boolean | px         | export-panX         | toggles whether pangraph is exported to panX visualization compatible format.     |
+| PanX                | Boolean | pX         | export-panX         | toggles whether pangraph is exported to panX visualization compatible format.     |
 
 ## Arguments
 Zero or one pangraph file which must be formatted as a JSON.
