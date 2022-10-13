@@ -40,3 +40,6 @@ jobs:
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: docs/build
+          git-config-name: ${{ secrets.GH_PAGES_DEPLOY_USERNAME }}
+          git-config-email: ${{ secrets.GH_PAGES_DEPLOY_EMAIL }}
+
