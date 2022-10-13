@@ -4,7 +4,7 @@ The documentation is hosted on <https://neherlab.github.io/pangraph/>.
 
 ### Automated documentation releases
 
-The Continuous integration (CI) will trigger a build and deployment of the docs website to GitHub Pages on every commit to `master` branch (a direct push or a merge of a pull request). You can track the build process on GitHub Actions:
+The Continuous integration (CI) will trigger a build and deployment of the docs website to GitHub Pages on every git tag (along with the main build). You can track the build process on GitHub Actions:
 
 https://github.com/neherlab/pangraph/actions
 

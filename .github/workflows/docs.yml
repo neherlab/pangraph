@@ -2,8 +2,8 @@ name: Docs
 
 on:
   push:
-    branches:
-      - 'master'
+    tags:
+      - '*'
 
   repository_dispatch:
     types: docs
