@@ -1,4 +1,4 @@
-## 👷 Building pangraph Docker image locally
+# Building Docker image
 
 ### Install dependencies
 
@@ -43,7 +43,7 @@ docker run -it --rm \
     --workdir="/workdir" \
     --user="$(id -u):$(id -g)" \
     neherlab/pangraph \
-    bash docs/dev/docker_test.sh
+    bash tests/run-cli-tests.sh
 ```
 
 Or more simply using instructions in the Makefile:
@@ -52,4 +52,4 @@ Or more simply using instructions in the Makefile:
 make docker-test
 ```
 
-This will test all the available commands, see `docs/dev/docker_tests.sh` script.
+This will test all the available commands, see `tests/run-cli-tests.sh` script.

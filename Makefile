@@ -96,7 +96,7 @@ docker-test:
 		--user="$$(id -u):$$(id -g)" \
 		--ulimit core=0 \
 		"$${CONTAINER_NAME}:latest" \
-		bash docs/dev/docker_test.sh
+		bash tests/run-cli-tests.sh
 
 docker-push:
 	set -euxo pipefail

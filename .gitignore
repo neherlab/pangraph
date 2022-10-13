@@ -24,7 +24,7 @@ script/incremental_size
 script/panx_results
 script/local_scripts
 __pycache__
-docker_test
+tests/data
 
 deps/minimap2/build
 deps/minimap2/products

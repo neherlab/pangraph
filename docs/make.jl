@@ -37,5 +37,10 @@ makedocs(
             "cli/marginalize.md",
             "cli/polish.md",
         ],
+        "Development" => [
+            "dev/buiding-docker.md",
+            "dev/building-documentation.md",
+            "dev/releasing.md",
+        ],
     ],
 )

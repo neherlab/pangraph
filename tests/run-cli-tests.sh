@@ -17,16 +17,16 @@ pangraph help export
 pangraph help marginalize
 
 # create input data
-TESTDIR="docker_test"
+TESTDIR="tests/data"
 mkdir -p "$TESTDIR"
 
-julia --project=. -e 'using PanGraph; \
+julia --project=. -e "using PanGraph; \
     sequences=[PanGraph.Simulation.randseq(30000) for _ in 1:6]; \
-    open("docker_test/randseqs.fa", "w") do io ;\
+    open(\"$TESTDIR/randseqs.fa\", \"w\") do io ;\
         for (i,sequence) in enumerate(sequences) ; \
-            PanGraph.Simulation.write_fasta(io, "isolate_$(i)", sequence) ; \
+            PanGraph.Simulation.write_fasta(io, \"isolate_$(i)\", sequence) ; \
         end ; \
-    end'
+    end"
 
 # test pangraph commands
 echo "Test pangraph generate"

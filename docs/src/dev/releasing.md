@@ -1,4 +1,4 @@
-## 🆕 Releasing pangraph
+# Releasing
 
 ### Releasing a new version
 
