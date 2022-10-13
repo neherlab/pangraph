@@ -10,6 +10,7 @@
 - fixed a bug in detransitive, see this [commit](https://github.com/neherlab/pangraph/commit/a9651323aba2822d1b1c380a086fae4216c8030d)
 - added snakemake pipeline in the `script` folder to perform the analysis published in our [paper](https://github.com/neherlab/pangraph#citing).
 - added `-K` option to the `build` command to control kmer length for mmseqs aligner, see this [commit](https://github.com/neherlab/pangraph/commit/0857c36c7c8d11d53e8efab91cf5d18c35685a6e).
+- added `fasttree` to docker container and PanX export to docker tests, see [#37](https://github.com/neherlab/pangraph/pull/37).
 
 ## v0.5.0
 
