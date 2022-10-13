@@ -8,6 +8,8 @@ echo "mafft version:"
 mafft --version
 echo "mmseqs version:"
 mmseqs --help | grep "Version"
+echo "fasttree version:"
+fasttree 2>&1 | grep "version"
 
 
 # test pangraph commands help
@@ -46,8 +48,11 @@ pangraph build -c -k mmseqs -K 8 "$TESTDIR/input.fa" > "$TESTDIR/test3.json"
 echo "Test pangraph polish"
 pangraph polish -c -l 10000 "$TESTDIR/test1.json" > "$TESTDIR/polished.json"
 
-echo "Test pangraph export"
+echo "Test pangraph GFA export"
 pangraph export -o "$TESTDIR/export" "$TESTDIR/test1.json"
+
+echo "Test pangraph PanX export"
+pangraph export -ng -pX -o "$TESTDIR/export" "$TESTDIR/test1.json"
 
 echo "Test pangraph marginalize"
 pangraph marginalize -o "$TESTDIR/marginalize" "$TESTDIR/test1.json"
