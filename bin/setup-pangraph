@@ -69,4 +69,4 @@ build()
 (downloadMMseqs "mmseqs" "https://github.com/soedinglab/MMseqs2/releases/download" "13-45111" "sse2" "linux")
 (downloadFasttree "fasttree" "http://www.microbesonline.org/fasttree/FastTree")
 (build "mafft" "https://mafft.cbrc.jp/alignment/software" "7.490")
-rm -r $root
+# rm -r $root
