@@ -38,8 +38,8 @@ wildcard_constraints:
 # final benchmark plots
 rule PX_benchmark_all:
     input:
-        "panx_data/benchmark/benchmark_compression.csv",
-        "panx_data/benchmark/benchmark_summary.csv",
+        "panx_results/benchmark/benchmark_compression.csv",
+        "panx_results/benchmark/benchmark_summary.csv",
 
 
 # convert genbank files to fasta
@@ -49,7 +49,7 @@ rule PX_gbk_to_fa:
     input:
         "panx_data/{species}/input_GenBank/{acc}.gbk",
     output:
-        "panx_data/{species}/fa/{acc}.fa",
+        "panx_results/fasta/{species}/{acc}.fa",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
@@ -65,10 +65,12 @@ rule PX_build_full_pangraph:
     message:
         "building full pangraph ({wildcards.kind}) for {wildcards.species}"
     input:
-        lambda w: expand("panx_data/{{species}}/fa/{acc}.fa", acc=PX_accnums[w.species]),
+        lambda w: expand(
+            "panx_results/fasta/{{species}}/{acc}.fa", acc=PX_accnums[w.species]
+        ),
     output:
-        pg="panx_data/{species}/pangraphs/pangraph-{kind}.json",
-        bm="panx_data/{species}/pangraphs/benchmark/pangraph-{kind}.txt",
+        pg="panx_results/pangraphs/{species}/pangraph-{kind}.json",
+        bm="panx_results/pangraphs/{species}/benchmark/pangraph-{kind}.txt",
     params:
         opt=lambda w: PX_ker_opt[w.kind],
     conda:
@@ -89,13 +91,13 @@ rule PX_summary_performance_benchmark:
         "Summary of pangraph performances"
     input:
         expand(
-            "panx_data/{species}/pangraphs/benchmark/pangraph-{kind}.txt",
+            rules.PX_build_full_pangraph.output.bm,
             species=PX_species,
             kind=PX_ker_names,
         ),
     output:
-        csv="panx_data/benchmark/benchmark_summary.csv",
-        pdf="panx_data/benchmark/benchmark_summary.pdf",
+        csv="panx_results/benchmark/benchmark_summary.csv",
+        pdf="panx_results/benchmark/benchmark_summary.pdf",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
@@ -113,13 +115,14 @@ rule PX_compression_benchmark:
         "Compression performances for species {wildcards.species}"
     input:
         pang=expand(
-            "panx_data/{{species}}/pangraphs/pangraph-{kind}.json", kind=PX_ker_names
+            "panx_results/pangraphs/{{species}}/pangraph-{kind}.json",
+            kind=PX_ker_names,
         ),
         fa=lambda w: expand(
-            "panx_data/{{species}}/fa/{acc}.fa", acc=PX_accnums[w.species]
+            "panx_results/fasta/{{species}}/{acc}.fa", acc=PX_accnums[w.species]
         ),
     output:
-        json="panx_data/benchmark/{species}/compression.json",
+        json="panx_results/benchmark/{species}/compression.json",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
@@ -135,10 +138,10 @@ rule PX_summary_compression_benchmark:
     message:
         "Summary of compression performances"
     input:
-        expand("panx_data/benchmark/{species}/compression.json", species=PX_species),
+        expand(rules.PX_compression_benchmark.output.json, species=PX_species),
     output:
-        csv="panx_data/benchmark/benchmark_compression.csv",
-        pdf="panx_data/benchmark/benchmark_compression.pdf",
+        csv="panx_results/benchmark/benchmark_compression.csv",
+        pdf="panx_results/benchmark/benchmark_compression.pdf",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
@@ -225,7 +228,7 @@ def IS_select_strains(w):
     s = w.size
     t = w.trial
     strains = PX_IS_strains[s][t]
-    return [f"panx_data/escherichia_coli/fa/{s}.fa" for s in strains]
+    return [f"panx_results/fasta/escherichia_coli/{s}.fa" for s in strains]
 
 
 # rule to build a pangenome graph for the selected set of strains, specified by the size + trial dictionary
@@ -268,9 +271,9 @@ rule PX_IS_extract_stats_full_graph:
     message:
         "Extracting stats for full pangenome graph"
     input:
-        pang="panx_data/escherichia_coli/pangraphs/pangraph-minimap20-std.json",
+        pang="panx_results/pangraphs/escherichia_coli/pangraph-minimap20-std.json",
         fasta=expand(
-            "panx_data/escherichia_coli/fa/{acc}.fa",
+            "panx_results/fasta/escherichia_coli/{acc}.fa",
             acc=PX_IS_allstrains,
         ),
     output:
