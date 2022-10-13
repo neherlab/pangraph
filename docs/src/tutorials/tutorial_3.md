@@ -8,7 +8,7 @@ This third tutorial is focused on block alignments and is divided in three main 
 [^1]: Ding, Wei, Franz Baumdicker, and Richard A. Neher. "panX: pan-genome analysis and exploration." Nucleic acids research 46.1 (2018): e5-e5.
 
 !!! note "Requirements"
-    Exporting files for the panX visualization requires [fasttree](http://www.microbesonline.org/fasttree). Running the panX visualization requires [node.js](https://nodejs.org/en/).
+    Polishing the pangenome graph requires [mafft](https://mafft.cbrc.jp/alignment/software/). Exporting files for the panX visualization requires [fasttree](http://www.microbesonline.org/fasttree). Running the panX visualization requires [node.js](https://nodejs.org/en/).
 
 ## Polishing the alignments
 
