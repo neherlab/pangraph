@@ -58,8 +58,9 @@ endif
 pangraph/bin/pangraph: compile.jl trace.jl $(srcs) $(testdatum) $(jc)
 	$(jc) $(jflags) $<
 
-documentation:
-	cd docs && julia --project=./.. make.jl
+documentation: environment
+	$(jc) $(jflags) -e 'import Pkg; Pkg.add(name="Documenter");'
+	$(jc) $(jflags) docs/make.jl
 
 release:
 	tar czf pangraph.tar.gz pangraph
