@@ -30,6 +30,20 @@ julia --project=. -e "using PanGraph; \
     end"
 
 # test pangraph commands
+
+echo "Test pangraph help"
+pangraph help
+pangraph help help
+pangraph help build
+pangraph help generate
+pangraph help version
+pangraph help export
+pangraph help marginalize
+pangraph help polish
+
+echo "Test pangraph version"
+pangraph version
+
 echo "Test pangraph generate"
 pangraph generate -s 100 -r 1e-1 -m 1e-3 -d 5e-2 -i 1e-2 -t 5 "$TESTDIR/randseqs.fa" > "$TESTDIR/input.fa"
 
