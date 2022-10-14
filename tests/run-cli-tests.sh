@@ -1,60 +1,67 @@
-#!/bin/bash
+#!/usr/bin/env bash
+
 set -euxo pipefail
 
-# test that mash, mafft, mmseqs and fasttree are available in path
-echo "mash version:"
-mash --version
-echo "mafft version:"
-mafft --version
-echo "mmseqs version:"
-mmseqs --help | grep "Version"
-echo "fasttree help:"
-fasttree -help
+: "${1:? ${0}: Path to pangraph executable is required}"
 
-# test pangraph commands help
-pangraph help build
-pangraph help polish
-pangraph help export
-pangraph help marginalize
+function abspath() {
+  readlink -m "$1"
+}
 
-# create input data
-TESTDIR="tests/data"
-mkdir -p "$TESTDIR"
+# shellcheck disable=SC2155
+export THIS_DIR=$(
+  cd "$(dirname "${BASH_SOURCE[0]}")"
+  pwd
+)
 
-julia --project=. -e "using PanGraph; \
-    sequences=[PanGraph.Simulation.randseq(30000) for _ in 1:6]; \
-    open(\"$TESTDIR/randseqs.fa\", \"w\") do io ;\
-        for (i,sequence) in enumerate(sequences) ; \
-            PanGraph.Simulation.write_fasta(io, \"isolate_$(i)\", sequence) ; \
-        end ; \
-    end"
+# shellcheck disable=SC2155
+export PROJECT_ROOT_DIR="$(abspath "${THIS_DIR}/..")"
 
-# test pangraph commands
-echo "Test pangraph generate"
-pangraph generate -s 100 -r 1e-1 -m 1e-3 -d 5e-2 -i 1e-2 -t 5 "$TESTDIR/randseqs.fa" > "$TESTDIR/input.fa"
+PANGRAPH="${1}"
+IN_DIR="${PROJECT_ROOT_DIR}/tests/in"
+OUT_DIR="${PROJECT_ROOT_DIR}/tests/out"
 
-echo "Test pangraph build - minimap asm20 no energy"
-export JULIA_NUM_THREADS=4
-pangraph build -c -k minimap2 -s 20 -a 0 -b 0 "$TESTDIR/input.fa" > "$TESTDIR/test1.json"
+mkdir -p "$OUT_DIR"
 
-echo "Test pangraph build - mash"
-pangraph build -c -d mash "$TESTDIR/input.fa" > "$TESTDIR/test2.json"
+# Test version
+${PANGRAPH} --version
 
-echo "Test pangraph build - mmseqs"
-export JULIA_NUM_THREADS=1
-pangraph build -c -k mmseqs -K 8 "$TESTDIR/input.fa" > "$TESTDIR/test3.json"
+# Test long help
+${PANGRAPH} --help
+${PANGRAPH} build --help
+${PANGRAPH} export --help
+${PANGRAPH} generate --help
+${PANGRAPH} marginalize --help
+${PANGRAPH} polish --help
 
-echo "Test pangraph polish"
-pangraph polish -c -l 10000 "$TESTDIR/test1.json" > "$TESTDIR/polished.json"
+# Test short help
+${PANGRAPH} -h
+${PANGRAPH} build -h
+${PANGRAPH} export -h
+${PANGRAPH} generate -h
+${PANGRAPH} marginalize -h
+${PANGRAPH} polish -h
 
-echo "Test pangraph GFA export"
-pangraph export -o "$TESTDIR/export" "$TESTDIR/test1.json"
+# Test pangraph generate
+${PANGRAPH} generate -v -s 100 -r 1e-1 -m 1e-3 -d 5e-2 -i 1e-2 -t 5 "$IN_DIR/randseqs.fa" >"$OUT_DIR/input.fa"
 
-echo "Test pangraph PanX export"
-pangraph export -ng -pX -o "$TESTDIR/export" "$TESTDIR/test1.json"
+# Test pangraph build - minimap asm20 no energy
+${PANGRAPH} build -v -c -k minimap2 -s 20 -a 0 -b 0 "$OUT_DIR/input.fa" >"$OUT_DIR/test1.json"
 
-echo "Test pangraph marginalize"
-pangraph marginalize -o "$TESTDIR/marginalize" "$TESTDIR/test1.json"
+# Test pangraph build - mash
+${PANGRAPH} build -v -c -d mash "$OUT_DIR/input.fa" >"$OUT_DIR/test2.json"
 
-# remove generated files
-rm -r $TESTDIR
+# Test pangraph build - mmseqs
+${PANGRAPH} build -v -c -k mmseqs -K 8 "$OUT_DIR/input.fa" >"$OUT_DIR/test3.json"
+
+# "Test pangraph polish
+${PANGRAPH} polish -v -c -l 10000 "$OUT_DIR/test1.json" >"$OUT_DIR/polished.json"
+
+# Test pangraph GFA export
+${PANGRAPH} export -v -o "$OUT_DIR/export" "$OUT_DIR/test1.json"
+
+# Test pangraph PanX export
+${PANGRAPH} export -v --ng --px -o "$OUT_DIR/export" "$OUT_DIR/test1.json"
+
+# Test pangraph marginalize
+${PANGRAPH} marginalize -v -o "$OUT_DIR/marginalize" "$OUT_DIR/test1.json"
