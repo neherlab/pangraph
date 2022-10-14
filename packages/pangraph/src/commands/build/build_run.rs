@@ -34,8 +34,8 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
 pub fn build(fastas: &[FastaRecord], args: &PangraphBuildArgs) -> Result<PangraphJson, Report> {
   // TODO: create proper pangraph JSON ;)
   let pangraph_json = PangraphJson {
-    foo: 42,
-    bar: o!("Hello, world!"),
+    paths: vec![],
+    blocks: vec![],
   };
   Ok(pangraph_json)
 }
