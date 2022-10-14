@@ -1,16 +1,11 @@
-# using Pkg
-# const PANGRAPH_VERSION = begin
-#     dir = dirname(string(first(methods(PanGraph.eval)).file))
-#     project_file = joinpath(dir, "..", "Project.toml")
-#     Pkg.TOML.parsefile(project_file)["version"]
-# end
+using Pkg
 
-# using Pkg
-# pangraph_pkg_status = sprint(io -> Pkg.status("PanGraph"; io = io))
-# re = r"PanGraph (\S+)"
-# const PANGRAPH_VERSION = match(re, pangraph_pkg_status)[1]
-
-const PANGRAPH_VERSION = "v0.6.0"
+# extract pangraph version using pkg status
+const PANGRAPH_VERSION = begin
+    pangraph_pkg_status = sprint(io -> Pkg.status("PanGraph"; io = io))
+    re = r"PanGraph (\S+)"
+    String(match(re, pangraph_pkg_status)[1])
+end
 
 Version = Command(
     "version",
@@ -24,4 +19,3 @@ Version = Command(
         println(stderr, "Pangraph version $PANGRAPH_VERSION")
     end,
 )
-
