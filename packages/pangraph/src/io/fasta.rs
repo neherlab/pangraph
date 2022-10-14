@@ -1,12 +1,11 @@
 use crate::io::compression::Decompressor;
 use crate::io::concat::concat;
-use crate::io::file::{create_file, open_stdin};
+use crate::io::file::{create_file, open_file_or_stdin, open_stdin};
 use crate::make_error;
-use eyre::{Report, WrapErr};
+use eyre::Report;
 use log::info;
 use serde::{Deserialize, Serialize};
 use std::fmt::Display;
-use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 use std::str::FromStr;
@@ -70,13 +69,7 @@ impl<'a> FastaReader<'a> {
 
     let readers: Vec<Box<dyn BufRead + 'a>> = filepaths
       .iter()
-      .map(|filepath| -> Result<Box<dyn BufRead + 'a>, Report> {
-        let filepath = filepath.as_ref();
-        let file = File::open(&filepath).wrap_err_with(|| format!("When opening file: {filepath:?}"))?;
-        let decompressor = Decompressor::from_path(file, &filepath)?;
-        let reader = BufReader::with_capacity(32 * 1024, decompressor);
-        Ok(Box::new(reader))
-      })
+      .map(|filepath| -> Result<Box<dyn BufRead + 'a>, Report> { open_file_or_stdin(&Some(filepath)) })
       .collect::<Result<Vec<Box<dyn BufRead + 'a>>, Report>>()?;
 
     let concat = concat(readers.into_iter());

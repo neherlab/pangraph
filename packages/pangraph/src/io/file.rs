@@ -6,7 +6,7 @@ use std::fs::File;
 use std::io::{stdin, stdout, BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-use crate::io::compression::Decompressor;
+use crate::io::compression::{Compressor, Decompressor};
 #[cfg(not(target_arch = "wasm32"))]
 use atty::{is as is_tty, Stream};
 
@@ -38,13 +38,14 @@ pub fn open_file_or_stdin<P: AsRef<Path>>(filepath: &Option<P>) -> Result<Box<dy
   match filepath {
     Some(filepath) => {
       let filepath = filepath.as_ref();
-
-      if filepath == PathBuf::from("-") || filepath == PathBuf::from("") {
+      if is_path_stdin(filepath) {
         open_stdin()
       } else {
         let file = File::open(filepath).wrap_err_with(|| format!("When opening file '{filepath:?}'"))?;
-        let decompressor = Decompressor::from_path(file, filepath)?;
-        Ok(Box::new(BufReader::new(decompressor)))
+        let buf_file = BufReader::with_capacity(32 * 1024, file);
+        let decompressor = Decompressor::from_path(buf_file, filepath)?;
+        let buf_decompressor = BufReader::with_capacity(32 * 1024, decompressor);
+        Ok(Box::new(buf_decompressor))
       }
     }
     None => open_stdin(),
@@ -55,17 +56,26 @@ pub fn open_file_or_stdin<P: AsRef<Path>>(filepath: &Option<P>) -> Result<Box<dy
 pub fn create_file(filepath: impl AsRef<Path>) -> Result<Box<dyn Write + Send>, Report> {
   let filepath = filepath.as_ref();
 
-  let file: Box<dyn Write + Sync + Send> = if filepath == PathBuf::from("-") {
-    info!("File path is '-'. Writing to standard output.");
-    Box::new(stdout())
+  let file: Box<dyn Write + Sync + Send> = if is_path_stdout(filepath) {
+    info!("File path is {filepath:?}. Writing to standard output.");
+    Box::new(BufWriter::with_capacity(32 * 1024, stdout()))
   } else {
     ensure_dir(&filepath)?;
     Box::new(File::create(&filepath).wrap_err_with(|| format!("When creating file: '{filepath:?}'"))?)
   };
 
   let buf_file = BufWriter::with_capacity(32 * 1024, file);
+  let compressor = Compressor::from_path(buf_file, filepath)?;
+  let buf_compressor = BufWriter::with_capacity(32 * 1024, compressor);
+  Ok(Box::new(buf_compressor))
+}
 
-  let writer = BufWriter::with_capacity(32 * 1024, buf_file);
+pub fn is_path_stdin(filepath: impl AsRef<Path>) -> bool {
+  let filepath = filepath.as_ref();
+  filepath == PathBuf::from("-") || filepath == PathBuf::from("/dev/stdin")
+}
 
-  Ok(Box::new(writer))
+pub fn is_path_stdout(filepath: impl AsRef<Path>) -> bool {
+  let filepath = filepath.as_ref();
+  filepath == PathBuf::from("-") || filepath == PathBuf::from("/dev/stdout")
 }
