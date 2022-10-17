@@ -11,6 +11,7 @@ PanGraph.main(["help", "export"])      # export usage
 PanGraph.main(["help", "generate"])    # generate usage
 PanGraph.main(["help", "marginalize"]) # marginalize usage
 PanGraph.main(["help", "polish"])      # polish usage
+PanGraph.main(["help", "version"])		   # version usage
 PanGraph.main(["help", "help"])		   # help usage
 
 # build (native - mmseqs)

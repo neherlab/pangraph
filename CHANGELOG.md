@@ -1,5 +1,11 @@
 # PanGraph Changelog
 
+## v0.6.1
+
+- added `pangraph version` command that prints PanGraph's version on stderr, by @mmolari and @ivan-aksamentov, see [#40](https://github.com/neherlab/pangraph/pull/40).
+- fix: wrong PanGraph's package version tag in `Project.toml`.
+- added `tools/release.sh` script to automate the release process, by @mmolari and @ivan-aksamentov, see [#41](https://github.com/neherlab/pangraph/pull/41).
+
 ## v0.6.0
 
 - added [mmseqs2](https://github.com/soedinglab/MMseqs2) as an alternative alignment kernel that guarantees higher sensitivity at the expense of longer computational time, see [#33](https://github.com/neherlab/pangraph/pull/33).

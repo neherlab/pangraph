@@ -5,6 +5,9 @@ Help = Command(
 	"one command name",
 	Arg[],
 	function(args)
+		# print version
+		run(Version,[])
+
 		command = parse(Help, args)
 		command === nothing  && return usage(Dispatch)
 		length(command) == 0 && return usage(Dispatch)
