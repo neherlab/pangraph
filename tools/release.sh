@@ -70,4 +70,12 @@ done
 gh release view "${version}" --repo "$REPO" >/dev/null
 
 echo "Draft release successfully submitted. Please review on GitHub and approve:"
-echo "https://github.com/${REPO}/releases/tag/${version}"
+echo "  https://github.com/${REPO}/releases/tag/${version}"
+echo ""
+echo "Once approved, it will be visible externally, and the new git tag will be created, which should trigger CI build. You can track its progress at:"
+echo "  https://github.com//${REPO}/actions"
+echo ""
+echo "Once the CI build is done, please check that the new docker image tag '${version}' appears on DockerHub and that the 'latest' tag is updated and has the same digest:"
+echo "  https://hub.docker.com/r/${REPO}/tags"
+echo ""
+echo "If so, then the release is succesful and the new container image is available for end users."
