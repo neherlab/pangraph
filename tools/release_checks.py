@@ -23,7 +23,7 @@ def parse_args():
 def capture_first_changelog_entries(changelog_file):
     """Captures and returns the first two lines of the changelog that start with '## '"""
 
-    with open(args.changelog, "r") as f:
+    with open(changelog_file, "r") as f:
         changelog = f.readlines()
 
     # capture first two entries
