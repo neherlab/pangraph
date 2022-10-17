@@ -69,4 +69,5 @@ done
 # Check the release once again, in case of other errors
 gh release view "${version}" --repo "$REPO" >/dev/null
 
-echo "Draft release successfully submitted. Please review on GitHub and approve."
+echo "Draft release successfully submitted. Please review on GitHub and approve:"
+echo "https://github.com/${REPO}/releases/tag/${version}"
