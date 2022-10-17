@@ -26,16 +26,16 @@ gh auth status >/dev/null
 
 # check for uncommitted changes
 if [ -n "$(git status --porcelain)" ]; then
-  echo "ERROR: there are uncommitted changes in the repo" >/dev/stderr
-  echo "please commit before releasing a new version." >/dev/stderr
+  echo "ERROR: there are uncommitted changes in the repo." >/dev/stderr
+  echo "Please commit before releasing a new version." >/dev/stderr
   exit 1
 fi
 
 # check that the user is on master branch
 curr_branch="$(cd ${THIS_DIR} && git branch --show-current)"
 if [ "$curr_branch" != "master" ] ; then
-    echo "ERROR: repo is on branch ${curr_branch}" >/dev/stderr
-    echo "releasing is only possible on master branch" >/dev/stderr
+    echo "ERROR: repo is on branch ${curr_branch}." >/dev/stderr
+    echo "Releasing is only possible on master branch." >/dev/stderr
     exit 1
 fi
 
@@ -69,4 +69,4 @@ done
 # Check the release once again, in case of other errors
 gh release view "${version}" --repo "$REPO" >/dev/null
 
-echo "draft release successfully submitted. Please review on github and approve."
+echo "Draft release successfully submitted. Please review on GitHub and approve."
