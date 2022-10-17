@@ -70,7 +70,7 @@ done
 gh release view "${version}" --repo "$REPO" >/dev/null
 
 echo "Draft release successfully submitted. Please review on GitHub and approve:"
-echo "  https://github.com/${REPO}/releases/tag/${version}"
+gh release view 0.6.1 | grep "url:"
 echo ""
 echo "Once approved, it will be visible externally, and the new git tag will be created, which should trigger CI build. You can track its progress at:"
 echo "  https://github.com//${REPO}/actions"
