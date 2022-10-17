@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+# pylint: disable=redefined-outer-name,invalid-name,missing-module-docstring,missing-function-docstring,no-else-return
+
 import argparse
 import re
 
