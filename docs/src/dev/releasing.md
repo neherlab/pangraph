@@ -2,22 +2,29 @@
 
 ### Releasing a new version
 
-Continuous integration (CI) will build a new version of the Docker container (see `Dockerfile`) on every pushed git tag.
-
-Make sure you are on a correct branch and commit. Most of the time you want to release code from `master`:
+To release a new version, run the provided bash script from the master branch of the repository:
 
 ```bash
-git checkout master
-```
-
-In order to create and push a git tag, run:
-
-```
-git tag $RELEASE_VERSION
-git push origin --tags
+bash tools/release.sh $RELEASE_VERSION
 ```
 
 where `$RELEASE_VERSION` is a valid [semantic version](https://semver.org/), without a `v` prefix (i.e. `1.2.3` is correct, `v1.2.3` is not).
+
+The script will:
+- check that the user is on the `master` branch.
+- check that there are no uncommitted changes.
+- check that the desired version is not already present in the repo.
+- check that the version argument matches the expected "X.Y.Z".
+- check that the version matches the version reported in `Project.toml`
+- check that `CHANGELOG.md` has an entry for the release version, and use it to generate release notes.
+
+If these conditions are met, then the script will create a release draft. This draft can be inspected on github (see [releases](https://github.com/neherlab/pangraph/releases)) and approved.
+
+The script requires a working installation of python3 and `gh` (instructions for [installation on linux](https://github.com/cli/cli/blob/trunk/docs/install_linux.md)).
+
+### CI for new releases
+
+Continuous integration (CI) will build a new version of the Docker container (see `Dockerfile`) on every pushed git tag (or every commit on an open pull request).
 
 The CI workflow will build the container image and will push it to Docker Hub. The image will be tagged with:
  

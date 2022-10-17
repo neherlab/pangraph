@@ -2,8 +2,9 @@
 
 ## v0.6.1 (draft)
 
-- added `pangraph version` command that prints PanGraph's version on stderr.
+- added `pangraph version` command that prints PanGraph's version on stderr, by @mmolari and @ivan-aksamentov, see [#40](https://github.com/neherlab/pangraph/pull/40).
 - fix: wrong PanGraph's package version tag in `Project.toml`.
+- added `tools/release.sh` script to automate the release process, see [#41](https://github.com/neherlab/pangraph/pull/41).
 
 ## v0.6.0
 
