@@ -2,7 +2,6 @@
 # sequence is saved. The fasta record id is the same as the genbank filename.
 # The script checks that the original sequence id is compatible with this name.
 
-from selectors import EpollSelector
 from Bio import SeqIO
 import argparse
 import re
