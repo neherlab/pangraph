@@ -79,7 +79,7 @@ rule SB_summary_dataframe:
             n=SB_trials,
         ),
     output:
-        "figs/size-benchmark/size_vs_time.csv",
+        "size-benchmark/summary/size_vs_time.csv",
     conda:
         "../conda_envs/bioinfo_env.yml"
     shell:
