@@ -45,8 +45,6 @@ COPY --from=builder /build_dir/pangraph/ /usr/
 
 # Copy julia dependencies from the builder stage
 COPY --from=builder /root/.julia/artifacts /root/.julia/artifacts
-COPY --from=builder /root/.julia/conda/3/bin /root/.julia/conda/3/bin
-COPY --from=builder /root/.julia/conda/3/lib /root/.julia/conda/3/lib
 
 COPY --from=builder /usr/bin/mmseqs /usr/bin/mmseqs
 

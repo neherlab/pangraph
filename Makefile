@@ -22,7 +22,6 @@ install: pangraph/bin/pangraph
 
 environment: $(jc)
 	$(jc) $(jflags) -e 'import Pkg; Pkg.instantiate();'
-	$(jc) $(jflags) -e 'import Pkg; Pkg.add(name="Conda"); import Conda; Conda.add("ete3", channel="etetoolkit")' \
 	$(jc) $(jflags) -e 'import Pkg; Pkg.build();'
 
 pangraph: pangraph/bin/pangraph

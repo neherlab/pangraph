@@ -3,6 +3,7 @@ module PanX
 using GZip, JSON
 using Rematch
 using ProgressMeter
+using TreeTools
 
 import ..Graphs
 # ------------------------------------------------------------------------
@@ -13,16 +14,16 @@ module Phylo
 using Rematch
 
 # use internal python so we can build a conda environment
-import PyCall
-Ete3 = PyCall.PyNULL()
+# import PyCall
+# Ete3 = PyCall.PyNULL()
 
-function __init__()
-    PyCall.pyimport("warnings").filterwarnings("ignore") # ignore syntax warnings
-    copy!(Ete3, PyCall.pyimport_conda("ete3", "ete3", "etetoolkit"))
-end
+# function __init__()
+#     PyCall.pyimport("warnings").filterwarnings("ignore") # ignore syntax warnings
+#     copy!(Ete3, PyCall.pyimport_conda("ete3", "ete3", "etetoolkit"))
+# end
 
 function tree(newick)
-    return Ete3.Tree(newick)
+    return read_tree(newick)
 end
 
 function binary!(tree)
