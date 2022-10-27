@@ -13,42 +13,42 @@ module Phylo
 
 using Rematch
 
-# use internal python so we can build a conda environment
-# import PyCall
-# Ete3 = PyCall.PyNULL()
+function rescale!(tree, by::Real)
+	for n in nodes(tree)
+		ismissing(n.tau) && error("Can't rescale tree with missing branch length.")
+		!isroot(n) && n.tau *= by
+	end
+	return nothing
+end
 
-# function __init__()
-#     PyCall.pyimport("warnings").filterwarnings("ignore") # ignore syntax warnings
-#     copy!(Ete3, PyCall.pyimport_conda("ete3", "ete3", "etetoolkit"))
+# function tree(newick)
+#     return read_tree(newick)
 # end
 
-function tree(newick)
-    return read_tree(newick)
-end
+# function binary!(tree)
+#     tree.resolve_polytomy(recursive=true)
+#     return tree
+# end
 
-function binary!(tree)
-    tree.resolve_polytomy(recursive=true)
-    return tree
-end
+# function root!(tree)
+#     midpoint = tree.get_midpoint_outgroup()
+#     tree.set_outgroup(midpoint)
+#     tree.ladderize()
+#     return tree
+# end
 
-function root!(tree)
-    midpoint = tree.get_midpoint_outgroup()
-    tree.set_outgroup(midpoint)
-    tree.ladderize()
-    return tree
-end
+# function rescale!(tree, by::T) where T <: Real
+#     for node in tree.traverse("preorder")
+#         node.dist *= by
+#     end
+# end
 
-function rescale!(tree, by::T) where T <: Real
-    for node in tree.traverse("preorder")
-        node.dist *= by
-    end
-end
+# write(io::IO, tree::PyCall.PyObject) = Base.write(io, tree.write(format=1))
 
-write(io::IO, tree::PyCall.PyObject) = Base.write(io, tree.write(format=1))
-
-function dictionary(tree::PyCall.PyObject, level::Int, i::Int; mutations=false)
+dictionary(tree::TreeTools.Tree; mutations=false) = dictionary(tree.root, 0, 0; mutations)
+function dictionary(tt_node::TreeTools.TreeNode, level::Int, i::Int; mutations=false)
     node = Dict(
-        "name" => if tree.name == ""
+        "name" => if label(tt_node) == ""
             i += 1
             suffix = string(i-1)
             suffix = @match length(suffix) begin
@@ -60,9 +60,9 @@ function dictionary(tree::PyCall.PyObject, level::Int, i::Int; mutations=false)
             end
             "NODE_$(suffix)"
         else
-            tree.name
+            label(tt_node)
         end,
-        "branch_length" => tree.dist,
+        "branch_length" => branch_length(tt_node),
     )
 
     if mutations
@@ -73,21 +73,21 @@ function dictionary(tree::PyCall.PyObject, level::Int, i::Int; mutations=false)
         node["clade"] = level
     end
 
-    if tree.name != ""
+    if label(tt_node) != ""
         if mutations
-            node["accession"]  = split(tree.name,'#')[1]
+            node["accession"]  = split(label(tt_node),'#')[1]
             node["annotation"] = "pan-contig"
         else
             node["attr"] = Dict(
-                "host"   => tree.name,
-                "strain" => tree.name,
+                "host"   => label(tt_node),
+                "strain" => label(tt_node),
             )
         end
         return node, i
     end
 
     node["children"] = Dict[]
-    for child in tree.children
+    for child in children(tt_node)
         c, i = dictionary(child, level+1, i; mutations=mutations)
         push!(node["children"], c)
     end
@@ -170,18 +170,22 @@ function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
         `fasttree -nt -gtr $(alignment)`, stdout=out, stderr=devnull);
         wait=true
     )
-    tree = Phylo.tree(String(take!(out)))
 
-    Phylo.binary!(tree)
-    Phylo.root!(tree)
-    Phylo.rescale!(tree, scale)
-
-    open("$root/$prefix.nwk", "w") do io
-        Phylo.write(io, tree)
-    end
+    tree = parse_newick_string(String(take!(out)))
+    TreeTools.binarize!(tree)
+    TreeTools.root!(tree; method=:midpoint) # tree remains binary
+    rescale!(tree, scale)
+    write("$root/$prefix.nwk", tree, "w")
+    # tree = Phylo.tree(String(take!(out)))
+    # Phylo.binary!(tree)
+    # Phylo.root!(tree)
+    # Phylo.rescale!(tree, scale)
+    # open("$root/$prefix.nwk", "w") do io
+    #     write(io, tree)
+    # end
 
     open("$root/$(prefix)_tree.json", "w") do io
-        out, _ = Phylo.dictionary(tree,0,0;mutations=true)
+        out, _ = Phylo.dictionary(tree; mutations=true)
         JSON.print(io, out)
     end
 
@@ -260,21 +264,29 @@ function emitcore(genes::Array{Graphs.Block}, root::String, identifier)
         `fasttree -nt -gtr $(path)`, stdout=out, stderr=devnull);
         wait=true
     )
-    tree = Phylo.tree(String(take!(out)))
     gzip(path)
 
-    Phylo.binary!(tree)
-    Phylo.root!(tree)
-    Phylo.rescale!(tree, scale)
+    tree = parse_newick_string(String(take!(out)))
+    TreeTools.binarize!(tree)
+    TreeTools.root!(tree; method=:midpoint) # tree remains binary
+    rescale!(tree, scale)
+
+    # tree = Phylo.tree(String(take!(out)))
+    # Phylo.binary!(tree)
+    # Phylo.root!(tree)
+    # Phylo.rescale!(tree, scale)
 
     # emit as newick
-    open("$root/strain_tree.nwk", "w") do io
-        Phylo.write(io, tree)
-    end
+    write("$root/strain_tree.nwk", tree, "w")
+
+    # open("$root/strain_tree.nwk", "w") do io
+    #     write(io, tree)
+    # end
+
 
     # emit as bespoke json
     open("$root/coreGenomeTree.json", "w") do io
-        out, _ = Phylo.dictionary(tree, 0, 0,)
+        out, _ = Phylo.dictionary(tree)
         JSON.print(io, out)
     end
 end
