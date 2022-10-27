@@ -12,8 +12,9 @@ import ..Graphs
 
 function rescale!(tree, by::Real)
 	for n in nodes(tree)
+        isroot(n) && continue
 		ismissing(n.tau) && error("Can't rescale tree with missing branch length.")
-		!isroot(n) && (n.tau *= by)
+		n.tau *= by
 	end
 	return nothing
 end
