@@ -130,6 +130,26 @@ function identifiers(graph::Graphs.Graph)
     end
 end
 
+function produce_tree(alignment, scale)
+    # run treetime and capture output
+    out = IOBuffer()
+    run(pipeline(
+        `fasttree -nt -gtr $(alignment)`, stdout=out, stderr=devnull);
+        wait=true
+    )
+    tree_string = strip(String(take!(out)))
+    close(out)
+
+    # println(tree_string)
+    # build and process tree
+    tree = parse_newick_string(tree_string)
+    TreeTools.binarize!(tree)
+    TreeTools.root!(tree; method=:midpoint) # tree remains binary
+    rescale!(tree, scale)
+    return tree
+end
+
+
 function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
     path = "$(root)/$(prefix)_na_aln.fa"
     open(path, "w") do io
@@ -161,19 +181,7 @@ function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
         path, 1
     end
 
-    out = IOBuffer()
-    run(pipeline(
-        `fasttree -nt -gtr $(alignment)`, stdout=out, stderr=devnull);
-        wait=true
-    )
-    tree_string = strip(String(take!(out)))
-    close(out)
-
-    # println(tree_string)
-    tree = parse_newick_string(tree_string)
-    TreeTools.binarize!(tree)
-    TreeTools.root!(tree; method=:midpoint) # tree remains binary
-    rescale!(tree, scale)
+    tree = produce_tree(alignment, scale)
     write("$root/$prefix.nwk", tree, "w")
     # tree = Phylo.tree(String(take!(out)))
     # Phylo.binary!(tree)
@@ -258,17 +266,9 @@ function emitcore(genes::Array{Graphs.Block}, root::String, identifier)
         end
     end
 
-    out = IOBuffer()
-    run(pipeline(
-        `fasttree -nt -gtr $(path)`, stdout=out, stderr=devnull);
-        wait=true
-    )
-    gzip(path)
 
-    tree = parse_newick_string(String(take!(out)))
-    TreeTools.binarize!(tree)
-    TreeTools.root!(tree; method=:midpoint) # tree remains binary
-    rescale!(tree, scale)
+    produce_tree(path, scale)
+    gzip(path)
 
     # tree = Phylo.tree(String(take!(out)))
     # Phylo.binary!(tree)
