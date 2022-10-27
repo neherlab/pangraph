@@ -165,8 +165,11 @@ function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
         `fasttree -nt -gtr $(alignment)`, stdout=out, stderr=devnull);
         wait=true
     )
+    tree_string = strip(String(take!(out)))
+    close(out)
 
-    tree = parse_newick_string(String(take!(out)))
+    # println(tree_string)
+    tree = parse_newick_string(tree_string)
     TreeTools.binarize!(tree)
     TreeTools.root!(tree; method=:midpoint) # tree remains binary
     rescale!(tree, scale)
