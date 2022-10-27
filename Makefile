@@ -21,7 +21,7 @@ install: pangraph/bin/pangraph
 	ln -s $$(pwd)/$< bin/pangraph
 
 environment: $(jc)
-	$(jc) $(jflags) -e 'using Pkg; pkg"add TreeTools#functions_for_pangraph"; Pkg.instantiate();'
+	$(jc) $(jflags) -e 'import Pkg; Pkg.instantiate();'
 	$(jc) $(jflags) -e 'import Pkg; Pkg.build();'
 
 pangraph: pangraph/bin/pangraph

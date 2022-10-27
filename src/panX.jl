@@ -6,17 +6,14 @@ using ProgressMeter
 using TreeTools
 
 import ..Graphs
+
 # ------------------------------------------------------------------------
 # Phylogenetic tree manipulation
-
-module Phylo
-
-using Rematch
 
 function rescale!(tree, by::Real)
 	for n in nodes(tree)
 		ismissing(n.tau) && error("Can't rescale tree with missing branch length.")
-		!isroot(n) && n.tau *= by
+		!isroot(n) && (n.tau *= by)
 	end
 	return nothing
 end
@@ -94,8 +91,6 @@ function dictionary(tt_node::TreeTools.TreeNode, level::Int, i::Int; mutations=f
 
     return node, i
 end
-
-end # Phylo
 
 function gzip(from::AbstractString, to::AbstractString; clean=false)
     isfile(from) || error("$(from) not found")
@@ -185,7 +180,7 @@ function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
     # end
 
     open("$root/$(prefix)_tree.json", "w") do io
-        out, _ = Phylo.dictionary(tree; mutations=true)
+        out, _ = dictionary(tree; mutations=true)
         JSON.print(io, out)
     end
 
@@ -286,7 +281,7 @@ function emitcore(genes::Array{Graphs.Block}, root::String, identifier)
 
     # emit as bespoke json
     open("$root/coreGenomeTree.json", "w") do io
-        out, _ = Phylo.dictionary(tree)
+        out, _ = dictionary(tree)
         JSON.print(io, out)
     end
 end
