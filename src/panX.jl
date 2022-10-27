@@ -267,7 +267,7 @@ function emitcore(genes::Array{Graphs.Block}, root::String, identifier)
     end
 
 
-    produce_tree(path, scale)
+    tree = produce_tree(path, scale)
     gzip(path)
 
     # tree = Phylo.tree(String(take!(out)))
