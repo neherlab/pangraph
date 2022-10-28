@@ -19,48 +19,20 @@ function rescale!(tree, by::Real)
 	return nothing
 end
 
-# function tree(newick)
-#     return read_tree(newick)
-# end
-
-# function binary!(tree)
-#     tree.resolve_polytomy(recursive=true)
-#     return tree
-# end
-
-# function root!(tree)
-#     midpoint = tree.get_midpoint_outgroup()
-#     tree.set_outgroup(midpoint)
-#     tree.ladderize()
-#     return tree
-# end
-
-# function rescale!(tree, by::T) where T <: Real
-#     for node in tree.traverse("preorder")
-#         node.dist *= by
-#     end
-# end
-
-# write(io::IO, tree::PyCall.PyObject) = Base.write(io, tree.write(format=1))
-
 dictionary(tree::TreeTools.Tree; mutations=false) = dictionary(tree.root, 0, 0; mutations)
 function dictionary(tt_node::TreeTools.TreeNode, level::Int, i::Int; mutations=false)
+
+    node_lab = label(tt_node)
+
     node = Dict(
-        "name" => if label(tt_node) == ""
+        "name" => if !isleaf(tt_node)
             i += 1
-            suffix = string(i-1)
-            suffix = @match length(suffix) begin
-                1 => "0000$(suffix)"
-                2 => "000$(suffix)"
-                3 => "00$(suffix)"
-                4 => "0$(suffix)"
-                _ => suffix
-            end
+            suffix = lpad(i-1, 5, "0")
             "NODE_$(suffix)"
         else
-            label(tt_node)
+            node_lab
         end,
-        "branch_length" => branch_length(tt_node),
+        "branch_length" => ismissing(branch_length(tt_node)) ? 0 : branch_length(tt_node),
     )
 
     if mutations
@@ -71,14 +43,14 @@ function dictionary(tt_node::TreeTools.TreeNode, level::Int, i::Int; mutations=f
         node["clade"] = level
     end
 
-    if label(tt_node) != ""
+    if isleaf(tt_node)
         if mutations
-            node["accession"]  = split(label(tt_node),'#')[1]
+            node["accession"]  = split(node_lab,'#')[1]
             node["annotation"] = "pan-contig"
         else
             node["attr"] = Dict(
-                "host"   => label(tt_node),
-                "strain" => label(tt_node),
+                "host"   => node_lab,
+                "strain" => node_lab,
             )
         end
         return node, i
@@ -140,7 +112,6 @@ function produce_tree(alignment, scale)
     tree_string = strip(String(take!(out)))
     close(out)
 
-    # println(tree_string)
     # build and process tree
     tree = parse_newick_string(tree_string)
     TreeTools.binarize!(tree)
@@ -182,14 +153,8 @@ function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
     end
 
     tree = produce_tree(alignment, scale)
-    write("$root/$prefix.nwk", tree, "w")
-    # tree = Phylo.tree(String(take!(out)))
-    # Phylo.binary!(tree)
-    # Phylo.root!(tree)
-    # Phylo.rescale!(tree, scale)
-    # open("$root/$prefix.nwk", "w") do io
-    #     write(io, tree)
-    # end
+
+    write("$root/$prefix.nwk", tree, "w"; internal_labels=false)
 
     open("$root/$(prefix)_tree.json", "w") do io
         out, _ = dictionary(tree; mutations=true)
@@ -213,7 +178,7 @@ function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
         end
     end
 
-    return tree
+    # return tree
 end
 
 function coreblocks(G::Graphs.Graph, identifier)
@@ -270,18 +235,8 @@ function emitcore(genes::Array{Graphs.Block}, root::String, identifier)
     tree = produce_tree(path, scale)
     gzip(path)
 
-    # tree = Phylo.tree(String(take!(out)))
-    # Phylo.binary!(tree)
-    # Phylo.root!(tree)
-    # Phylo.rescale!(tree, scale)
-
     # emit as newick
-    write("$root/strain_tree.nwk", tree, "w")
-
-    # open("$root/strain_tree.nwk", "w") do io
-    #     write(io, tree)
-    # end
-
+    write("$root/strain_tree.nwk", tree, "w"; internal_labels=false)
 
     # emit as bespoke json
     open("$root/coreGenomeTree.json", "w") do io
@@ -290,19 +245,7 @@ function emitcore(genes::Array{Graphs.Block}, root::String, identifier)
     end
 end
 
-function fmt(i::Int)
-    s = string(i)
-    @match length(s) begin
-        1 => "0000000$s"
-        2 => "000000$s"
-        3 => "00000$s"
-        4 => "0000$s"
-        5 => "000$s"
-        6 => "00$s"
-        7 => "0$s"
-        _ => s
-    end
-end
+fmt(i::Int) = lpad(i, 8, "0")
 
 function emit(G::Graphs.Graph, root::String)
     isdir(root) || mkdir(root)

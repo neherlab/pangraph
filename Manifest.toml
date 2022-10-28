@@ -415,7 +415,7 @@ version = "0.9.9"
 
 [[deps.TreeTools]]
 deps = ["Random"]
-git-tree-sha1 = "e16ec1f0d3a0022d107e8228ceac5cc21ffb9187"
+git-tree-sha1 = "df7b52c8a488e3a6ace7977f856e4f736a15b96f"
 repo-rev = "functions_for_pangraph"
 repo-url = "https://github.com/PierreBarrat/TreeTools.jl.git"
 uuid = "62f0eae3-8c0e-4032-a621-7756092209e5"
