@@ -1,5 +1,9 @@
 # PanGraph Changelog
 
+## v0.6.2 (draft)
+
+- removed the dependency on `conda` and substituted it with [TreeTools](https://github.com/PierreBarrat/TreeTools.jl), by @PierreBarrat and @mmolari, see [#45](https://github.com/neherlab/pangraph/pull/45).
+
 ## v0.6.1
 
 - added `pangraph version` command that prints PanGraph's version on stderr, by @mmolari and @ivan-aksamentov, see [#40](https://github.com/neherlab/pangraph/pull/40).
