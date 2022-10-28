@@ -117,7 +117,7 @@ function produce_tree(alignment, scale)
     # build and process tree
     tree = parse_newick_string(tree_string)
     TreeTools.binarize!(tree)
-    lgger = ConsoleLogger(Error) # Custom logger to filter out warnings from `root!`
+    lgger = ConsoleLogger(Logging.Error) # Custom logger to filter out warnings from `root!`
     with_logger(lgger) do
     	TreeTools.root!(tree; method=:midpoint) # tree remains binary
     end
