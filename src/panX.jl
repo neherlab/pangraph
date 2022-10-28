@@ -1,6 +1,8 @@
 module PanX
 
-using GZip, JSON
+using GZip
+using JSON
+using Logging
 using Rematch
 using ProgressMeter
 using TreeTools
@@ -115,7 +117,10 @@ function produce_tree(alignment, scale)
     # build and process tree
     tree = parse_newick_string(tree_string)
     TreeTools.binarize!(tree)
-    TreeTools.root!(tree; method=:midpoint) # tree remains binary
+    lgger = ConsoleLogger(Error) # Custom logger to filter out warnings from `root!`
+    with_logger(lgger) do
+    	TreeTools.root!(tree; method=:midpoint) # tree remains binary
+    end
     rescale!(tree, scale)
     return tree
 end
