@@ -3,6 +3,7 @@
 ## v0.6.2 (draft)
 
 - removed the dependency on `conda` and substituted it with [TreeTools](https://github.com/PierreBarrat/TreeTools.jl), by @PierreBarrat and @mmolari, see [#45](https://github.com/neherlab/pangraph/pull/45).
+- added `script/config/accnums.json` file with list of accession number for GenBank sequences used for pangraph algorithm validation.
 
 ## v0.6.1
 
