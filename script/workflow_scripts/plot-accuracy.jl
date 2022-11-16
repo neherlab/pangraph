@@ -149,10 +149,10 @@ function main(path, destdir, snps_keep)
 
     data = load(path)
     snps_keep = [parse(Float64,s) for s in snps_keep]
-    remove_extra_snps!(data, snps_keep)
     grid = plotgrid(entropy(data)...;  group=group(path))
+    remove_extra_snps!(data, snps_keep)
     cdfs = plotcdfs(accuracy(data)...; group=group(path))
-
+    
     save(base, name) = savefig("$(destdir)/$(base)-$(name).png")
     save(plot, base, name) = savefig(plot, "$(destdir)/$(base)-$(name).png")
 
