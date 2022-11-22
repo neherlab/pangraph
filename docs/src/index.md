@@ -149,8 +149,12 @@ There are a few **optional** external programs that PanGraph can utilize[^1]:
 
 In order to invoke all functionalities from PanGraph, these tools must be installed and available on `$PATH`.
 
-For convenience, a script `bin/setup-pangraph` is provided within the repository to install both dependencies for a Linux machine without access to root.
-It assumes GNU coreutils are available.
+If [conda](https://docs.conda.io/en/latest/) is available, one can run the following command to install all of these dependencies in a new environment named `pangraph`:
+```
+conda create -n pangraph -c conda-forge -c bioconda mmseqs2=13.45111 mash=2.2.2 mafft=7.475 FastTree=2.1.11
+```
+
+Alternatively, a script `bin/setup-pangraph` is provided within the repository to install both dependencies for a Linux machine without access to root. It assumes GNU coreutils are available.
 
 These dependencies are already available within the Docker container.
 
