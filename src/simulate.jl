@@ -369,7 +369,7 @@ randseq(len::Int) = rand(UInt8.(['A','C','G','T']), len)
 function test()
     N = 10
     L = Int(1e5)
-	evolve! = model(Params(;N=N,L=L,snp=1e-3,hgt=0,inv=0))
+	evolve! = model(Params(;N=N,L=L,snp=1e-3,hgt=5e-2,inv=5e-2,del=5e-2))
 	ancestors = [randseq(L) for _ in 1:N]
 
 	sequences, G = run(evolve!, 20, ancestors; graph=true)

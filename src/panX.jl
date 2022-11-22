@@ -1,67 +1,40 @@
 module PanX
 
-using GZip, JSON
+using GZip
+using JSON
+using Logging
 using Rematch
 using ProgressMeter
+using TreeTools
 
 import ..Graphs
+
 # ------------------------------------------------------------------------
 # Phylogenetic tree manipulation
 
-module Phylo
-
-using Rematch
-
-# use internal python so we can build a conda environment
-import PyCall
-Ete3 = PyCall.PyNULL()
-
-function __init__()
-    PyCall.pyimport("warnings").filterwarnings("ignore") # ignore syntax warnings
-    copy!(Ete3, PyCall.pyimport_conda("ete3", "ete3", "etetoolkit"))
+function rescale!(tree, by::Real)
+	for n in nodes(tree)
+        isroot(n) && continue
+		ismissing(n.tau) && error("Can't rescale tree with missing branch length.")
+		n.tau *= by
+	end
+	return nothing
 end
 
-function tree(newick)
-    return Ete3.Tree(newick)
-end
+dictionary(tree::TreeTools.Tree; mutations=false) = dictionary(tree.root, 0, 0; mutations)
+function dictionary(tt_node::TreeTools.TreeNode, level::Int, i::Int; mutations=false)
 
-function binary!(tree)
-    tree.resolve_polytomy(recursive=true)
-    return tree
-end
+    node_lab = label(tt_node)
 
-function root!(tree)
-    midpoint = tree.get_midpoint_outgroup()
-    tree.set_outgroup(midpoint)
-    tree.ladderize()
-    return tree
-end
-
-function rescale!(tree, by::T) where T <: Real
-    for node in tree.traverse("preorder")
-        node.dist *= by
-    end
-end
-
-write(io::IO, tree::PyCall.PyObject) = Base.write(io, tree.write(format=1))
-
-function dictionary(tree::PyCall.PyObject, level::Int, i::Int; mutations=false)
     node = Dict(
-        "name" => if tree.name == ""
+        "name" => if !isleaf(tt_node)
             i += 1
-            suffix = string(i-1)
-            suffix = @match length(suffix) begin
-                1 => "0000$(suffix)"
-                2 => "000$(suffix)"
-                3 => "00$(suffix)"
-                4 => "0$(suffix)"
-                _ => suffix
-            end
+            suffix = lpad(i-1, 5, "0")
             "NODE_$(suffix)"
         else
-            tree.name
+            node_lab
         end,
-        "branch_length" => tree.dist,
+        "branch_length" => ismissing(branch_length(tt_node)) ? 0 : branch_length(tt_node),
     )
 
     if mutations
@@ -72,29 +45,27 @@ function dictionary(tree::PyCall.PyObject, level::Int, i::Int; mutations=false)
         node["clade"] = level
     end
 
-    if tree.name != ""
+    if isleaf(tt_node)
         if mutations
-            node["accession"]  = split(tree.name,'#')[1]
+            node["accession"]  = split(node_lab,'#')[1]
             node["annotation"] = "pan-contig"
         else
             node["attr"] = Dict(
-                "host"   => tree.name,
-                "strain" => tree.name,
+                "host"   => node_lab,
+                "strain" => node_lab,
             )
         end
         return node, i
     end
 
     node["children"] = Dict[]
-    for child in tree.children
+    for child in children(tt_node)
         c, i = dictionary(child, level+1, i; mutations=mutations)
         push!(node["children"], c)
     end
 
     return node, i
 end
-
-end # Phylo
 
 function gzip(from::AbstractString, to::AbstractString; clean=false)
     isfile(from) || error("$(from) not found")
@@ -133,6 +104,28 @@ function identifiers(graph::Graphs.Graph)
     end
 end
 
+function produce_tree(alignment, scale)
+    # run treetime and capture output
+    out = IOBuffer()
+    run(pipeline(
+        `fasttree -nt -gtr $(alignment)`, stdout=out, stderr=devnull);
+        wait=true
+    )
+    tree_string = strip(String(take!(out)))
+    close(out)
+
+    # build and process tree
+    tree = parse_newick_string(tree_string)
+    TreeTools.binarize!(tree)
+    lgger = ConsoleLogger(Logging.Error) # Custom logger to filter out warnings from `root!`
+    with_logger(lgger) do
+    	TreeTools.root!(tree; method=:midpoint) # tree remains binary
+    end
+    rescale!(tree, scale)
+    return tree
+end
+
+
 function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
     path = "$(root)/$(prefix)_na_aln.fa"
     open(path, "w") do io
@@ -164,23 +157,12 @@ function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
         path, 1
     end
 
-    out = IOBuffer()
-    run(pipeline(
-        `fasttree -nt -gtr $(alignment)`, stdout=out, stderr=devnull);
-        wait=true
-    )
-    tree = Phylo.tree(String(take!(out)))
+    tree = produce_tree(alignment, scale)
 
-    Phylo.binary!(tree)
-    Phylo.root!(tree)
-    Phylo.rescale!(tree, scale)
-
-    open("$root/$prefix.nwk", "w") do io
-        Phylo.write(io, tree)
-    end
+    write("$root/$prefix.nwk", tree, "w"; internal_labels=false)
 
     open("$root/$(prefix)_tree.json", "w") do io
-        out, _ = Phylo.dictionary(tree,0,0;mutations=true)
+        out, _ = dictionary(tree; mutations=true)
         JSON.print(io, out)
     end
 
@@ -201,7 +183,7 @@ function emitblock(block::Graphs.Block, root, prefix, identifier; reduced=true)
         end
     end
 
-    return tree
+    # return tree
 end
 
 function coreblocks(G::Graphs.Graph, identifier)
@@ -254,43 +236,21 @@ function emitcore(genes::Array{Graphs.Block}, root::String, identifier)
         end
     end
 
-    out = IOBuffer()
-    run(pipeline(
-        `fasttree -nt -gtr $(path)`, stdout=out, stderr=devnull);
-        wait=true
-    )
-    tree = Phylo.tree(String(take!(out)))
+
+    tree = produce_tree(path, scale)
     gzip(path)
 
-    Phylo.binary!(tree)
-    Phylo.root!(tree)
-    Phylo.rescale!(tree, scale)
-
     # emit as newick
-    open("$root/strain_tree.nwk", "w") do io
-        Phylo.write(io, tree)
-    end
+    write("$root/strain_tree.nwk", tree, "w"; internal_labels=false)
 
     # emit as bespoke json
     open("$root/coreGenomeTree.json", "w") do io
-        out, _ = Phylo.dictionary(tree, 0, 0,)
+        out, _ = dictionary(tree)
         JSON.print(io, out)
     end
 end
 
-function fmt(i::Int)
-    s = string(i)
-    @match length(s) begin
-        1 => "0000000$s"
-        2 => "000000$s"
-        3 => "00000$s"
-        4 => "0000$s"
-        5 => "000$s"
-        6 => "00$s"
-        7 => "0$s"
-        _ => s
-    end
-end
+fmt(i::Int) = lpad(i, 8, "0")
 
 function emit(G::Graphs.Graph, root::String)
     isdir(root) || mkdir(root)

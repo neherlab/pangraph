@@ -8,11 +8,12 @@ export align
 
 
 """
-    align(ref::PanContigs, qry::PanContigs)
-Align homologous regions of `qry` and `ref`.
-Returns the list of intervals between pancontigs.
+    align(ref::PanContigs, qry::PanContigs, klen::Int64)
+Align homologous regions of `qry` and `ref` using mmseqs easy-search.
+`klen` tunes the kmer length. If `klen`=0 then mmseqs default is used.
+Returns the list of hits.
 """
-function align(ref::PanContigs, qry::PanContigs)
+function align(ref::PanContigs, qry::PanContigs, klen::Int64)
 
     hits = mktempdir() do dir
         # hits = let dir = mktempdir(; cleanup = false)
@@ -39,6 +40,11 @@ function align(ref::PanContigs, qry::PanContigs)
             reffa = qryfa
         end
 
+        # kmer length
+        klen_opt = klen == 0 ? [] : ["-k", "$klen"]
+        # format of output file
+        fmat_outp = "query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw"
+
         run(
             pipeline(
                 `mmseqs easy-search
@@ -47,7 +53,8 @@ function align(ref::PanContigs, qry::PanContigs)
                 --max-seq-len 10000
                 -a
                 --search-type 3
-                --format-output query,qlen,qstart,qend,empty,target,tlen,tstart,tend,nident,alnlen,bits,cigar,fident,raw`,
+                --format-output $fmat_outp
+                $klen_opt`,
                 stdout = devnull,
                 stderr = devnull,
             ),

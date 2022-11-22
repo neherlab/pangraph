@@ -1,0 +1,45 @@
+name: Docs
+
+on:
+  push:
+    tags:
+      - '*'
+
+  repository_dispatch:
+    types: docs
+
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  Build-and-Deploy-Docs:
+    name: 'Build and push docs'
+
+    runs-on: ubuntu-20.04
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: '1'
+
+      - name: Build docs
+        run: |
+          make documentation
+
+      - name: Deploy docs
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: docs/build
+          git-config-name: ${{ secrets.GH_PAGES_DEPLOY_USERNAME }}
+          git-config-email: ${{ secrets.GH_PAGES_DEPLOY_EMAIL }}
+

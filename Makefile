@@ -22,7 +22,6 @@ install: pangraph/bin/pangraph
 
 environment: $(jc)
 	$(jc) $(jflags) -e 'import Pkg; Pkg.instantiate();'
-	$(jc) $(jflags) -e 'import Pkg; Pkg.add(name="Conda"); import Conda; Conda.add("ete3", channel="etetoolkit")' \
 	$(jc) $(jflags) -e 'import Pkg; Pkg.build();'
 
 pangraph: pangraph/bin/pangraph
@@ -58,8 +57,10 @@ endif
 pangraph/bin/pangraph: compile.jl trace.jl $(srcs) $(testdatum) $(jc)
 	$(jc) $(jflags) $<
 
-documentation:
-	cd docs && julia --project=./.. make.jl
+documentation: environment
+	$(jc) $(jflags) -e 'import Pkg; Pkg.add(name="Documenter");'
+	$(jc) $(jflags) -e 'import Pkg; Pkg.build();'
+	$(jc) $(jflags) docs/make.jl
 
 release:
 	tar czf pangraph.tar.gz pangraph
@@ -75,16 +76,34 @@ SHELL=bash
 docker:
 	set -euxo pipefail
 
-	# If $RELEASE_VERSION is set, use it as an additional docker tag
 	export DOCKER_TAGS="--tag $${CONTAINER_NAME}:latest"
-	if [ ! -z "$${RELEASE_VERSION:-}" ]; then
-		export DOCKER_TAGS="$${DOCKER_TAGS} --tag $${CONTAINER_NAME}:$${RELEASE_VERSION}"
+
+	if [ ! -z "$${GIT_TAG:-}" ]; then
+		export DOCKER_TAGS="$${DOCKER_TAGS:-} --tag $${CONTAINER_NAME}:${GIT_TAG}"
+	elif [ ! -z "$${GIT_BRANCH:-}" ]; then
+		export DOCKER_TAGS="$${DOCKER_TAGS:-} --tag $${CONTAINER_NAME}:$${GIT_BRANCH}"
 	fi
 
 	docker build --target prod $${DOCKER_TAGS} .
 
+docker-test:
+	set -euxo pipefail
+
+	docker run -i --rm \
+		--volume="$$(pwd):/workdir" \
+		--workdir="/workdir" \
+		--user="$$(id -u):$$(id -g)" \
+		--ulimit core=0 \
+		"$${CONTAINER_NAME}:latest" \
+		bash tests/run-cli-tests.sh
+
 docker-push:
 	set -euxo pipefail
-	: "$${RELEASE_VERSION:?The RELEASE_VERSION environment variable is required.}"
-	docker push ${CONTAINER_NAME}:${RELEASE_VERSION}
-	docker push ${CONTAINER_NAME}:latest
+
+	# If GIT_TAG is set, then we are about to release to production, so also push the 'latest' tag
+	if [ ! -z "$${GIT_TAG:-}" ]; then
+		docker push "$${CONTAINER_NAME}:latest"
+		docker push "$${CONTAINER_NAME}:${GIT_TAG}"
+	elif [ ! -z "$${GIT_BRANCH:-}" ]; then
+		docker push "$${CONTAINER_NAME}:$${GIT_BRANCH}"
+	fi

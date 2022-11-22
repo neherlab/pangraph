@@ -132,6 +132,7 @@ using .Commands
 include("build.jl")
 include("generate.jl")
 include("help.jl")
+include("version.jl")
 include("polish.jl")
 include("marginalize.jl")
 include("export.jl")
@@ -145,6 +146,7 @@ Dispatch = Command(
      Build,
      Generate,
 	 Help,
+     Version,
      Polish,
      Marginalize,
      Export,

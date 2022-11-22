@@ -579,11 +579,10 @@ end
 # TODO: the associative array is a bit hacky...
 #       can we push it directly into the channel?
 """
-	align(G::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100)
+	align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100)
 
-Align graph `G₁` to itself by looking for homology between blocks.
-Multithreaded by default.
-This is usually the function you want.
+Aligns a collection of graphs `Gs` using the specified `aligner` function to recover hits.
+Graphs are aligned following an internal guide tree, generated using kmer distance.
 
 `energy` is to be a function that takes an alignment between two blocks and produces a score.
 The _lower_ the score, the _better_ the alignment. Only negative energies are considered.
@@ -695,8 +694,6 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
         @error "In-thread error during graph building:" exception=(err, backtrace)
         error("graph construction failed, see above for stacktrace")
     end
-
-    # close(events)
 
     return G
 end
