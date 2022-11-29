@@ -57,6 +57,7 @@ RUN set -euxo pipefail \
   mafft \
   mash \
   fasttree \
+  procps \
   >/dev/null \
   && apt-get autoremove --yes >/dev/null \
   && apt-get clean autoclean >/dev/null \
