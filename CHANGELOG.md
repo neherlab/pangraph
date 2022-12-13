@@ -1,10 +1,11 @@
 # PanGraph Changelog
 
-## v0.6.2 (draft)
+## v0.6.2
 
 - removed the dependency on conda/PyCall and substituted it with [TreeTools](https://github.com/PierreBarrat/TreeTools.jl), by @PierreBarrat and @mmolari, see [#45](https://github.com/neherlab/pangraph/pull/45). This reduces the size of the docker image.
 - added `script/config/accnums.json` file with list of accession number for GenBank sequences used for pangraph algorithm validation.
 - added `procps` to docker image. This is needed for compatibility of the docker image with nextflow. By @plaquette, see [#48](https://github.com/neherlab/pangraph/pull/48).
+- minor improvements in the analysis pipeline, see [#49](https://github.com/neherlab/pangraph/pull/49).
 
 ## v0.6.1
 
