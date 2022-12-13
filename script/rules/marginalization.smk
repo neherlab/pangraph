@@ -31,7 +31,7 @@ rule MG_projection_full_graph:
         "Creating projection graph for species {wildcards.species}"
     input:
         lambda w: expand(
-            "panx_data/{{species}}/fa/{acc}.fa", acc=MG_opt[w.species]["strains"]
+            "panx_results/fasta/{{species}}/{acc}.fa", acc=MG_opt[w.species]["strains"]
         ),
     output:
         "projections/{species}/full/pangraph_{kind}.json",
@@ -51,8 +51,8 @@ rule MG_pairwise_graphs:
     message:
         "Building pairwise graph for strains {wildcards.s1} - {wildcards.s2} ({wildcards.species})"
     input:
-        "panx_data/{species}/fa/{s1}.fa",
-        "panx_data/{species}/fa/{s2}.fa",
+        "panx_results/fasta/{species}/{s1}.fa",
+        "panx_results/fasta/{species}/{s2}.fa",
     output:
         "projections/{species}/pairwise/pangraph_{kind}__{s1}-{s2}.json",
     params:
@@ -85,8 +85,8 @@ rule MG_shared_kmers_pair:
     message:
         "species {wildcards.species} - evaluating the number of shared kmers {wildcards.s1}|{wildcards.s2}"
     input:
-        s1="panx_data/{species}/fa/{s1}.fa",
-        s2="panx_data/{species}/fa/{s2}.fa",
+        s1="panx_results/fasta/{species}/{s1}.fa",
+        s2="panx_results/fasta/{species}/{s2}.fa",
     output:
         temp("projections/{species}/kmers/{s1}-{s2}.json"),
     params:
@@ -126,7 +126,6 @@ rule MG_shared_kmers_summary:
             with open(i, "r") as f:
                 data += json.load(f)
         pd.DataFrame(data).to_csv(output.csv, index=False)
-
 
 
 rule MG_compare_projection_pairwise:

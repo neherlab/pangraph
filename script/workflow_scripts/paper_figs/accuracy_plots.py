@@ -128,7 +128,7 @@ if __name__ == "__main__":
         df,
         args.pdf_snps,
         kernel_title=titles,
-        fit_max_snps=0.002,
+        fit_max_snps=0.001,
     )
 
     # extract breakpoint misplacement distance, keep only relevant distance,

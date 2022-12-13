@@ -31,7 +31,7 @@ convert = {
     "species": str,
     "kind": str,
     "n-isolates": lambda x: len(
-        [y for y in x.split(" ") if y.startswith("panx_data/")]
+        [y for y in x.split(" ") if y.startswith("panx_results/fasta/")]
     ),
     "mem": lambda x: int(x) / 1e6,
     "wall-time": parsetime,
@@ -39,7 +39,7 @@ convert = {
     "sys-time": lambda x: float(x) / (3600),
     "cpu-percent": int,
     "command": lambda x: " ".join(
-        [y for y in x.split(" ") if not y.startswith("panx_data/")]
+        [y for y in x.split(" ") if not y.startswith("panx_results/fasta/")]
     ),
 }
 
