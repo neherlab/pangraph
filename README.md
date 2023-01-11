@@ -101,7 +101,7 @@ Export a graph `graph.json` into `export/pangraph.gfa` as GFA for visualization
 Compute all pairwise graphs and estimate parsimonious number of events between strains.
 Output all computed data to directory `pairs`
 ```bash
-	pangraph marginalize -d pairs graph.json
+	pangraph marginalize graph.json -o pairs
 ```
 
 ## Citing
