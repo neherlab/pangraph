@@ -52,6 +52,7 @@ def set_xlabels(ax, style):
         labels,
         rotation=35,
         ha="right",
+        style="italic",
     )
     ax.set_xlabel("")
     ax.grid(axis="y", alpha=0.2)
