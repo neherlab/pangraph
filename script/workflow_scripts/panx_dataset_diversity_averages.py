@@ -16,6 +16,18 @@ def parse_args():
     return parser.parse_args()
 
 
+def soft_core(df):
+    N = df[df["core"]]["count"].to_numpy()[0]
+    N_thr = 0.95 * N
+
+    mask = (~df["dupl"]) & (df["count"] >= N_thr)
+
+    return {
+        "soft_core_len": df[mask]["len_avg"].sum(),
+        "n. soft-core genes": np.sum(mask),
+    }
+
+
 def species_statistics(df):
     """Evaluate summary statistics for a species dataframe"""
 
@@ -53,6 +65,9 @@ if __name__ == "__main__":
 
         # evaluate summary statistics
         info = species_statistics(df)
+
+        # evaluate soft core
+        info |= soft_core(df)
 
         # parse species name from filename
         info["species"] = re.search(r"\/([^\/]+)\.csv$", df_file).group(1)
