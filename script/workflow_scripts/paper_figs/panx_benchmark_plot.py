@@ -29,7 +29,7 @@ def load_dataframes(csv_comp, csv_summ):
 def short_species_name(name):
     """Return shortened version of species name"""
     sname = name.split("_")
-    p1, p2 = sname[0][0].upper(), sname[1].capitalize()
+    p1, p2 = sname[0][0].upper(), sname[1]
     return f"{p1}. {p2}"
 
 
@@ -82,6 +82,16 @@ def barplot(ax, style, series):
     set_xlabels(ax, style)
 
 
+def h_bars(ax, style, N_dict):
+    # ordered list of species
+    S = style["sp-order"]
+
+    for n, s in enumerate(S):
+        b, e = n - 0.50, n + 0.40
+        h = 1.0 / N_dict[s]
+        ax.plot([b, e], [h, h], "--", color=style["hbar"]["color"])
+
+
 def custom_legend(ax, style, side):
     """Produce double legend: one per alignment kernel and one for options"""
 
@@ -123,10 +133,28 @@ def custom_legend(ax, style, side):
         handles=elements,
         loc=f"center {side}",
         title="pseudo-energy",
+        fontsize=7.5,
+        title_fontsize=8.5,
+    )
+    ax.add_artist(lg1)
+
+
+def hline_legend(ax, style):
+    elements = [
+        Line2D(
+            [0],
+            [0],
+            label="1 / n. isolates",
+            linestyle="--",
+            color=style["hbar"]["color"],
+        )
+    ]
+    ax.legend(
+        handles=elements,
+        loc="upper right",
         fontsize=8,
         title_fontsize=9,
     )
-    ax.add_artist(lg1)
 
 
 def add_panel_label(ax, nax):
@@ -144,8 +172,9 @@ def plot_main(df, style, savename):
     )
 
     # plot legend
-    ax = axs[0, -1]
+    ax = axs[0, -2]
     custom_legend(ax, style, side="right")
+
     # plot_n_isolates(ax, df, style)
 
     # setup for each panel
@@ -176,6 +205,12 @@ def plot_main(df, style, savename):
         # yscale
         if yv in yscale:
             ax.set_yscale(yscale[yv])
+
+        if yv == "sequence compression":
+            # add horizontal axes for "sequence compression"
+            Ns = df.groupby("species")["n. genomes"].mean().to_dict()
+            h_bars(ax, style, Ns)
+            hline_legend(ax, style)
 
     # setup axes
     sns.despine(fig)
@@ -241,6 +276,11 @@ def plot_suppl(df, style, savename):
         if yv in yscale:
             ax.set_yscale(yscale[yv])
 
+        if yv == "sequence compression":
+            # add horizontal axes for "sequence compression"
+            Ns = df.groupby("species")["n. genomes"].mean().to_dict()
+            h_bars(ax, style, Ns)
+            hline_legend(ax, style)
     # setup axes
     sns.despine(fig)
     plt.tight_layout()
@@ -293,6 +333,9 @@ if __name__ == "__main__":
         "minimap10": "minimap2 asm10",
         "minimap20": "minimap2 asm20",
         "mmseqs": "mmseqs2",
+    }
+    style["hbar"] = {
+        "color": "k",
     }
 
     # plot and save figures
