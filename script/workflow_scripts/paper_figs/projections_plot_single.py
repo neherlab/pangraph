@@ -26,7 +26,7 @@ def parse_args():
 def beautify_species(name):
     """Beautifies the species name"""
     n1, n2 = name.split("_")
-    return f"{n1[0].upper()}. {n2.capitalize()}"
+    return f"{n1[0].upper()}. {n2}"
 
 
 def extract_species(csv):
@@ -92,15 +92,42 @@ def ax_boxplot(df, ax):
         width=0.6,
         flierprops={"marker": "."},
     )
+
+    # print mean and standard deviation
+    means = sdf.groupby("kind")["value"].mean().to_dict()
+    stds = sdf.groupby("kind")["value"].std().to_dict()
+
+    K = len(sdf["kind"].unique())
+    dK = 1 / K
+    for n, c in enumerate(sdf["kind"].unique()):
+        txt = f"{means[c]:.3} $\pm$ {stds[c]:.1}"
+        txt = scientific_notation(txt)
+        ax.text(
+            1,
+            (1 - dK * 0.6) - n * dK,
+            txt,
+            # verticalalignment="center",
+            transform=ax.transAxes,
+        )
+
     ax.set_ylabel("")
     ax.set_xlabel("")
     ax.grid(axis="x", alpha=0.4)
 
 
+def scientific_notation(txt):
+    def latex_exp(m):
+        a1 = "-" if m.group(1) == "-" else ""
+        a2 = m.group(2).lstrip("0")
+        return r"$\times 10^{" + a1 + a2 + "}$"
+
+    return re.sub("e([+-])([\d][\d])", latex_exp, txt)
+
+
 def projection_plot(comp_df, species, savename1, savename2):
 
     # setup figure
-    fig, axs = plt.subplots(2, 1, figsize=(5, 5))
+    fig, axs = plt.subplots(2, 1, figsize=(7, 5))
 
     # shared genome fraction
     ax = axs[0]
