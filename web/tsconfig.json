@@ -1,0 +1,54 @@
+{
+  "compilerOptions": {
+    "baseUrl": "./",
+    "paths": {
+      "*": ["src/types/*", "src/generated/*"],
+      "src/*": ["./src/*"]
+    },
+    "target": "esnext",
+    "module": "esnext",
+    "lib": ["esnext", "dom", "webworker"],
+    "jsx": "preserve",
+    "moduleResolution": "node",
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "declaration": true,
+    "declarationMap": true,
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "preserveConstEnums": true,
+    "removeComments": false,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "tsBuildInfoFile": ".cache/.tsbuildinfo"
+  },
+  "exclude": [
+    ".build",
+    ".cache",
+    ".idea",
+    ".ignore",
+    ".reports",
+    ".vscode",
+    ".vscode*",
+    "3rdparty",
+    "dist",
+    "docker",
+    "node_modules",
+    "public",
+    "tsconfig.json"
+  ],
+  "include": [
+    "**/*.js", "**/*.jsx", "**/*.cjs", "**/*.cjsx", "**/*.mjs", "**/*.mjsx",
+    "**/*.ts", "**/*.tsx", "**/*.cts", "**/*.ctsx", "**/*.mts", "**/*.mtsx",
+    "next-env.d.ts"
+  ]
+}
