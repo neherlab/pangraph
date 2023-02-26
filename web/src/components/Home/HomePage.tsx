@@ -1,14 +1,14 @@
 import React from 'react'
 import styled from 'styled-components'
-import { PROJECT_NAME } from 'src/constants'
 import { PageContainerHorizontal } from 'src/components/Layout/PageContainer'
+import Viewer from 'src/components/Viewer/Viewer'
 
 export function HomePage() {
   return (
     <PageContainerHorizontal>
       <MainContent>
         <MainContentInner>
-          <h2>{PROJECT_NAME}</h2>
+          <Viewer />
         </MainContentInner>
       </MainContent>
     </PageContainerHorizontal>
