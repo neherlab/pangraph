@@ -12,5 +12,6 @@ config/next/lib/EmitFilePlugin.js
 infra/lambda-at-edge/basicAuth.js
 node_modules
 public
+src/vendor
 styles
 tsconfig.json

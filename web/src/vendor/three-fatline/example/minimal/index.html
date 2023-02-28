@@ -1,0 +1,42 @@
+<head>
+  <style> body { margin: 0; }</style>
+
+  <script src="//unpkg.com/three"></script>
+  <script src="//unpkg.com/three-render-objects"></script>
+
+  <script src="//unpkg.com/three-fatline"></script>
+  <!--<script src="../../dist/three-fatline.js"></script>-->
+</head>
+
+<body>
+  <div id="myscene"></div>
+
+  <script>
+    const points = [
+      new THREE.Vector3(-160, 200, 0),
+      new THREE.Vector3(0, -200, 0),
+      new THREE.Vector3(160, 200, 0)
+    ];
+
+    const geometry = new THREE.LineGeometry();
+    geometry.setPositions([].concat(...points.map(({ x, y, z }) => [x, y, z])));
+
+    const matLine = new THREE.LineMaterial({
+      color: 'red',
+      linewidth: 10, // px
+      resolution: new THREE.Vector2(window.innerWidth, window.innerHeight) // resolution of the viewport
+    });
+
+    const line = new THREE.Line2(geometry, matLine);
+
+    //
+
+    const ObjRender = ThreeRenderObjects()(document.getElementById('myscene'))
+      .objects([line]);
+
+    (function animate() {
+      ObjRender.tick(); // render it
+      requestAnimationFrame(animate);
+    })(); // IIFE
+  </script>
+</body>

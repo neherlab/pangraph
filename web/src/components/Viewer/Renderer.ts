@@ -1,13 +1,4 @@
-import {
-  AxesHelper,
-  DoubleSide,
-  Mesh,
-  MeshBasicMaterial,
-  PerspectiveCamera,
-  Scene,
-  TorusGeometry,
-  WebGLRenderer,
-} from 'three'
+import { AxesHelper, Object3D, PerspectiveCamera, Scene, Vector2, WebGLRenderer } from 'three'
 import { Easing, Tween } from '@tweenjs/tween.js'
 import { OrbitControls } from 'three-stdlib'
 import type { RenderSettings } from 'src/components/Viewer/Scene'
@@ -16,23 +7,9 @@ import { CameraPreset } from 'src/state/camera.state'
 import { FrameCounter, RenderStats } from './gl/FrameCounter'
 import { makeCoordinatePlanes } from './gl/makePlane'
 import { UserInput } from './gl/UserInput'
+import { makeBezierCurves } from './makeBezierCurves'
 
-const CAMERA_POS_Z = 300
-
-export async function initGeometry(mesh?: Mesh) {
-  const geometry = new TorusGeometry(10, 3, 16, 100)
-
-  const material = new MeshBasicMaterial({ color: 'lime', vertexColors: false, side: DoubleSide })
-  if (!mesh) {
-    mesh = new Mesh(geometry, material) // eslint-disable-line no-param-reassign
-  }
-
-  // NOTE: Apply default mesh rotation, to make sure the default view is along negative Z axis.
-  // NOTE: This prevents weird OrbitControls behavior.
-  mesh.rotation.x = -Math.PI / 2
-
-  return mesh
-}
+const CAMERA_POS_Z = 50
 
 export function getViewportSize(canvas: HTMLCanvasElement) {
   if (!canvas.parentElement) {
@@ -53,8 +30,7 @@ export class Renderer {
   private cameraPresetTarget: CameraPreset | undefined
   private cameraTween: Tween<CameraPreset> | undefined
 
-  private mesh: Mesh | undefined
-  private material: MeshBasicMaterial | undefined
+  private objects: Object3D[] = []
 
   private rafHandle: number | undefined
   private shouldRender = true
@@ -99,19 +75,18 @@ export class Renderer {
 
     this.input = new UserInput(canvas)
 
-    void this.init() // eslint-disable-line no-void
+    void this.init(new Vector2(width, height)) // eslint-disable-line no-void
   }
 
-  public async init() {
-    this.mesh = await initGeometry(this.mesh)
-    this.mesh.geometry.computeBoundingSphere()
-    this.scene.add(this.mesh)
-
+  public async init(resolution: Vector2) {
     const axesHelper = new AxesHelper(1000)
     this.scene.add(axesHelper)
 
     const coordPlanes = makeCoordinatePlanes()
     this.scene.add(...coordPlanes)
+
+    this.objects = makeBezierCurves(resolution)
+    this.scene.add(...this.objects)
   }
 
   public destroy() {
@@ -119,8 +94,8 @@ export class Renderer {
       cancelAnimationFrame(this.rafHandle)
     }
 
-    this.mesh?.geometry.dispose()
-    this.material?.dispose()
+    // this.objects.forEach(object => object.geometry.dispose())
+    // this.material?.dispose()
     this.camera.clear()
     this.controls.dispose()
     this.scene.clear()
