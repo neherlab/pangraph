@@ -19,7 +19,7 @@ import morgan from 'morgan'
 import expressStaticGzip from 'express-static-gzip'
 import { getenv } from '../../lib/getenv'
 import { findModuleRoot } from '../../lib/findModuleRoot'
-import { modifyHeaders } from '../../infra/web/lambda-at-edge/ViewerResponse.lambda'
+import { modifyHeaders } from '../../infra/web/lambda-at-edge/ViewerResponse.lambda.cjs'
 
 const { moduleRoot } = findModuleRoot()
 

@@ -18,7 +18,7 @@ import allowMethods from 'allow-methods'
 import compression from 'compression'
 import morgan from 'morgan'
 import expressStaticGzip from 'express-static-gzip'
-import { modifyHeaders } from '../../infra/data/lambda-at-edge/ViewerResponse.lambda'
+import { modifyHeaders } from '../../infra/data/lambda-at-edge/ViewerResponse.lambda.cjs'
 
 export interface NewHeaders {
   [key: string]: { key: string; value: string }[]
