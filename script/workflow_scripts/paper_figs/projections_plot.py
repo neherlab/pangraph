@@ -19,7 +19,7 @@ def extract_species(csv):
     """Given the csv file name extracts and returns the formatted species name."""
     name = re.search(r"benchmark/[^/_]+_([^\.]+)\.full\.csv", csv).group(1)
     name = name.split("_")
-    sp_name = name[0][0].upper() + ". " + name[1].capitalize()
+    sp_name = name[0][0].upper() + ". " + name[1]
     return sp_name
 
 
