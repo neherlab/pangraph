@@ -172,4 +172,4 @@ Please see the high-level overview for definitions of library terminology.
 
 ## Citing PanGraph
 
-PanGraph: scalable bacterial pan-genome graph construction. Nicholas Noll, Marco Molari, Richard Neher bioRxiv 2022.02.24.481757; doi: <https://doi.org/10.1101/2022.02.24.481757>
+PanGraph: scalable bacterial pan-genome graph construction. Nicholas Noll, Marco Molari, Liam P. Shaw, Richard Neher bioRxiv 2022.02.24.481757; doi: <https://doi.org/10.1101/2022.02.24.481757>
