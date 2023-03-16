@@ -1,6 +1,6 @@
 # PanGraph Changelog
 
-## v0.6.3 (draft)
+## v0.6.3
 
 - fixed an issue with PanX export by upgrading TreeTools version, see [#52](https://github.com/neherlab/pangraph/issues/52) by @mmolari and @PierreBarrat
 - minor upgrades to the analysis scripts following PanGraph's paper reviews, see [#51](https://github.com/neherlab/pangraph/pull/51).
