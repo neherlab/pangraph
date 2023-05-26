@@ -1,5 +1,9 @@
 # PanGraph Changelog
 
+## v0.6.4 (draft)
+
+- fasta input files are checked for duplicated records, and white lines between records are tolerated, see [#55](https://github.com/neherlab/pangraph/pull/55).
+
 ## v0.6.3
 
 - fixed an issue with PanX export by upgrading TreeTools version, see [#52](https://github.com/neherlab/pangraph/issues/52) by @mmolari and @PierreBarrat
