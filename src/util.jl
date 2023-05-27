@@ -506,24 +506,25 @@ Base.show(io::IO, rec::Record) = print(io, ">$(rec.name) $(rec.meta)$(NL)$(Strin
 Parse a FASTA file from IO stream `io`.
 Return an iterator over all records.
 """
-function read_fasta(io::IO)
+function read_fasta(io::IO)::Channel{Record}
     chan = Channel{Record}(0)
     @async begin
-        buf=IOBuffer()
-        line=readline(io)
-        while !isempty(line) && line[1] == '>'
-            words      = split(line[2:end])
-            name, meta = words[1], join(words[2:end], " ")
-
-            line=readline(io)
-
-            while !isempty(line) && line[1] != '>'
-                write(buf,rstrip(line))
-                line=readline(io)
+        buf = IOBuffer()
+        name, meta = "", ""
+        for line in eachline(io)
+            if startswith(line, '>')
+                if !isempty(name)
+                    put!(chan, Record(take!(buf), name, meta))
+                end
+                words = split(line[2:end])
+                name, meta = words[1], join(words[2:end], " ")
+            else
+                write(buf, rstrip(line))
             end
+        end
+        if !isempty(name)
             put!(chan, Record(take!(buf), name, meta))
         end
-
         close(buf)
         close(chan)
     end

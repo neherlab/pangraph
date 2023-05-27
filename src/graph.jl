@@ -154,6 +154,21 @@ function Graph(name::String, sequence::Array{UInt8}; circular=false)
     )
 end
 
+
+"""
+Utility function that raises an error if the list of records has entries with duplicated
+names. The error message contains the name in question.
+"""
+function check_duplicate_names(records)
+    names = Set{String}()
+    for r in records
+        if r.name in names
+            error("duplicated record in fasta file: >$(r.name)")
+        end
+        push!(names, r.name)
+    end
+end
+
 """
     graphs(io::IO; circular=false)
 
@@ -162,7 +177,9 @@ If circular is unspecified, all genomes are assumed to be linear.
 """
 function graphs(io::IO; circular=false, upper=false)
     case = upper ? (c::UInt8) -> UInt8(uppercase(Char(c))) : (c::UInt8) -> c
-    return [Graph(record.name, case.(record.seq); circular=circular) for record in read_fasta(io)]
+    records = collect(read_fasta(io))
+    check_duplicate_names(records)
+    return [Graph(record.name, case.(record.seq); circular=circular) for record in records]
 end
 
 # --------------------------------
