@@ -148,7 +148,6 @@ class IndexedCollection:
         return len(self.list)
 
     def __getitem__(self, idx):
-
         # if indexed by block id
         if isinstance(idx, str):
             pos = self.id_to_pos[idx]
@@ -256,7 +255,7 @@ class Block:
 
 
 class Path:
-    """Python wrapper for pangraph block object. It has attributes:
+    """Python wrapper for pangraph path object. It has attributes:
     - name (str): strain name
     - offset (int): offset of the first block in path?
     - circular (bool): whether the path object is circular
@@ -268,12 +267,14 @@ class Path:
         once per strain)
     - block_strains (str) : list of strains in which blocks occurr
     - block_strands (bool) : whether the block occurrs on direct or reverse strand.
+    - block_positions (int) : list of nucleotide start positions of blocks in the path
     """
 
     def __init__(self, pan_path):
         self.name = pan_path["name"]
         self.offset = pan_path["offset"]
         self.circular = pan_path["circular"]
+        self.block_positions = np.array(pan_path["position"])
         blocks = pan_path["blocks"]
         self.block_ids = np.array([block["id"] for block in blocks])
         self.block_nums = np.array([block["number"] for block in blocks])
