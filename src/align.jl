@@ -3,6 +3,7 @@ module Align
 using Rematch, Dates
 using LinearAlgebra
 using ProgressMeter
+using Random
 
 using Base.Threads: @spawn, @threads
 
@@ -26,6 +27,7 @@ end
 # ------------------------------------------------------------------------
 # guide tree for order of pairwise comparison for multiple alignments
 
+
 # TODO: distance?
 """
 	mutable struct Clade
@@ -33,7 +35,7 @@ end
 		parent :: Union{Clade,Nothing}
 		left   :: Union{Clade,Nothing}
 		right  :: Union{Clade,Nothing}
-		graph  :: Channel{Graph}
+		graph  :: Channel{Tuple{Graph,Int}}
 	end
 
 Clade is a node (internal or leaf) of a binary guide tree used to order pairwise alignments
@@ -41,13 +43,16 @@ associated to a multiple genome alignment in progress.
 `name` is only non-empty for leaf nodes.
 `parent` is `nothing` for the root node.
 `graph` is a 0-sized channel that is used as a message passing primitive in alignment.
+    It contains the graph and an index used to decide the order of items in a pair in
+    pairwise graph merge.
 """
+Message=Tuple{Graph,Int}
 mutable struct Clade
     name   :: String
     parent :: Union{Clade,Nothing}
     left   :: Union{Clade,Nothing}
     right  :: Union{Clade,Nothing}
-    graph  :: Channel{Graph}
+    graph  :: Channel{Message}
 end
 
 # ---------------------------
@@ -58,20 +63,20 @@ end
 
 Generate an empty, disconnected clade.
 """
-Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(2))
+Clade() = Clade("", nothing, nothing, nothing, Channel{Message}(2))
 """
 	Clade(name)
 
 Generate an empty, disconnected clade with name `name`.
 """
-Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(2))
+Clade(name) = Clade(name, nothing, nothing, nothing, Channel{Message}(2))
 """
 	Clade(left::Clade, right::Clade)
 
 Generate an nameless clade with `left` and `right` children.
 """
 function Clade(left::Clade, right::Clade)
-    parent = Clade("",nothing,left,right,Channel{Graph}(2))
+    parent = Clade("", nothing, left, right, Channel{Message}(2))
 
     left.parent = parent
     right.parent = parent
@@ -655,15 +660,22 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
     meter_lock = ReentrantLock()
 
     G = nothing
-    for clade ∈ postorder(tree)
+    for (n_clade, clade) ∈ enumerate(postorder(tree))
         @spawn try
+            Random.seed!(n_clade)
             if isleaf(clade)
                 close(clade.graph)
-                put!(clade.parent.graph, tips[clade.name])
+                msg = (tips[clade.name], n_clade)
+                put!(clade.parent.graph, msg)
             else
-                Gₗ = take!(clade.graph)
-                Gᵣ = take!(clade.graph)
+                Gₗ, Pₗ = take!(clade.graph)
+                Gᵣ, Pᵣ = take!(clade.graph)
                 close(clade.graph)
+                # ensure a consistent ordering of the two graphs,
+                # irrespective of which process is sending the message first.
+                if Pₗ > Pᵣ
+                    Gₗ, Gᵣ = Gᵣ, Gₗ
+                end
 
                 # the lock ensures that at most N=Threads.nthreads() processes are
                 # spawning run(`cmd`) instances at the same time
@@ -678,7 +690,8 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                 end
 
                 if clade.parent !== nothing
-                    put!(clade.parent.graph, G₀)
+                    msg = (G₀, n_clade)
+                    put!(clade.parent.graph, msg)
                 else
                     G = G₀
                     close(error_channel)

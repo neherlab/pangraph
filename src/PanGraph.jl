@@ -163,6 +163,8 @@ function main(args)
 end
 
 function julia_main()::Cint
+    # initialize random seed for reproducibility
+    seed!(0)
     try
         main(ARGS)
     catch
