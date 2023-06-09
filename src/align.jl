@@ -356,6 +356,31 @@ function preprocess(hits, skip, energy, blocks!)
     return hits
 end
 
+# DEBUG
+function log_alignment(G₁::Graph, G₂::Graph, hits, fname::String)
+    open(fname, "w") do io
+        for G in (G₁, G₂)
+            write(io, "------------ G ------------\n")
+            PC = pancontigs(G)
+            for (name, seq) in zip(PC.name, PC.sequence)
+                write(io, ">$name\n")
+                write(io, seq, "\n")
+            end
+        end
+        write(io, "------------ hits ------------\n")
+        for h in hits
+            write(io, """
+            .........................
+            qry -> $(h.qry.name) | $(h.qry.start) -> $(h.qry.stop) | $(h.qry.length)
+            ref -> $(h.ref.name) | $(h.ref.start) -> $(h.ref.stop) | $(h.ref.length)
+            len -> $(h.length)
+            strand -> $(h.orientation)
+            cigar -> $(h.cigar)
+            """)
+        end
+    end
+end
+
 function do_align(G₁::Graph, G₂::Graph, energy::Function, aligner::Function)
     hits = if G₁ == G₂
         self = pancontigs(G₁)
@@ -364,6 +389,9 @@ function do_align(G₁::Graph, G₂::Graph, energy::Function, aligner::Function)
         aligner(pancontigs(G₁), pancontigs(G₂))
     end
     sort!(hits; by=energy)
+    
+    # DEBUG
+    # log_alignment(G₁, G₂, hits, "issue/minimap/$(randstring(10)).log")
 
     return hits
 end
@@ -662,7 +690,11 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
     G = nothing
     for (n_clade, clade) ∈ enumerate(postorder(tree))
         @spawn try
+
+            # random seed for the thread - to ensure deterministic reproducibility
+            # in block names
             Random.seed!(n_clade)
+
             if isleaf(clade)
                 close(clade.graph)
                 msg = (tips[clade.name], n_clade)
@@ -676,13 +708,20 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                 if Pₗ > Pᵣ
                     Gₗ, Gᵣ = Gᵣ, Gₗ
                 end
-
+                
                 # the lock ensures that at most N=Threads.nthreads() processes are
                 # spawning run(`cmd`) instances at the same time
                 G₀ = lock_semaphore(s) do
                     G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, false)
                     align_self(G₀, energy, minblock, aligner, verify, false)
                 end
+
+                # DEBUG : save graph at each iteration in a file
+                # open("issue/comp/graph_iteration_$(n_clade).json", "w") do io
+                #     finalize!(G₀)
+                #     marshal(io, G₀; fmt=:json)
+                # end
+
 
                 # advance progress bar in a thread-safe way
                 lock(meter_lock) do

@@ -4,6 +4,7 @@ using Rematch
 
 import Base:
     show, length, append!, keys, merge!, pop!
+import OrderedCollections: OrderedDict, OrderedSet
 
 # internal modules
 using ..Intervals
@@ -28,10 +29,16 @@ export depth, combine, swap!, check  # operators
 export assertequivalent
 export alignment, diversity
 
-const AlleleMaps{T} = Union{Dict{Node{T},SNPMap},Dict{Node{T},InsMap},Dict{Node{T},DelMap}} 
+const AlleleMaps{T} = Union{OrderedDict{Node{T},SNPMap},OrderedDict{Node{T},InsMap},OrderedDict{Node{T},DelMap}} 
 
 # ------------------------------------------------------------------------
 # utility functions
+
+# DEBUG
+function log(msg...)
+    println(stderr, msg...)
+    flush(stderr)
+end
 
 """
 	applyalleles(seq::Array{UInt8}, mutate::SNPMap, insert::InsMap, delete::DelMap)
@@ -270,9 +277,9 @@ end
         uuid     :: String
         sequence :: Array{UInt8}
         gaps     :: Dict{Int,Int}
-        mutate   :: Dict{Node{Block},SNPMap}
-        insert   :: Dict{Node{Block},InsMap}
-        delete   :: Dict{Node{Block},DelMap}
+        mutate   :: OrderedDict{Node{Block},SNPMap}
+        insert   :: OrderedDict{Node{Block},InsMap}
+        delete   :: OrderedDict{Node{Block},DelMap}
     end
 
 Store a multiple sequence alignment of contiguous DNA related by homology.
@@ -286,10 +293,13 @@ mutable struct Block
     uuid     :: String
     sequence :: Array{UInt8}
     gaps     :: Dict{Int,Int}
-    mutate   :: Dict{Node{Block},SNPMap}
-    insert   :: Dict{Node{Block},InsMap}
-    delete   :: Dict{Node{Block},DelMap}
+    mutate   :: OrderedDict{Node{Block},SNPMap}
+    insert   :: OrderedDict{Node{Block},InsMap}
+    delete   :: OrderedDict{Node{Block},DelMap}
 end
+SNPsDict = OrderedDict{Node{Block},SNPMap}
+InsDict  = OrderedDict{Node{Block},InsMap}
+DelDict  = OrderedDict{Node{Block},DelMap}
 
 function show(io::IO, m::Dict{Node{Block}, T}) where T <: Union{SNPMap, InsMap, DelMap}
     print(io, "{\n")
@@ -317,13 +327,13 @@ Block(sequence,gaps,mutate,insert,delete) = Block(random_id(),sequence,gaps,muta
 Construct a block with a unique `uuid` with fixed `sequence` and `gaps`.
 No individuals and thus polymorphisms are initialized.
 """
-Block(sequence,gaps) = Block(sequence,gaps,Dict{Node{Block},SNPMap}(),Dict{Node{Block},InsMap}(),Dict{Node{Block},DelMap}())
+Block(sequence,gaps) = Block(sequence,gaps,SNPsDict(),InsDict(),DelDict())
 """
 	Block(sequence,gaps)
 
 Construct a block with a unique `uuid` with fixed `sequence`.
 """
-Block(sequence) = Block(sequence,Dict{Int,Int}(),Dict{Node{Block},SNPMap}(),Dict{Node{Block},InsMap}(),Dict{Node{Block},DelMap}())
+Block(sequence) = Block(sequence,Dict{Int,Int}(),SNPsDict(),InsDict(),DelDict())
 """
 	Block(sequence,gaps)
 
@@ -333,20 +343,20 @@ Block()         = Block(UInt8[])
 
 # move alleles
 translate(d::Dict{Int,Int}, δ) = Dict(x+δ => v for (x,v) ∈ d) # gaps
-translate(d::Dict{Node{Block},InsMap}, δ) = Dict{Node{Block},InsMap}(n => Dict((x+δ,Δ) => v for ((x,Δ),v) ∈ val) for (n,val) ∈ d) # insertions 
-translate(dict::T, δ) where T <: AlleleMaps{Block} = Dict(key=>Dict(x+δ=>v for (x,v) in val) for (key,val) in dict)
+translate(d::InsDict, δ) = InsDict(n => Dict((x+δ,Δ) => v for ((x,Δ),v) ∈ val) for (n,val) ∈ d) # insertions 
+translate(dict::T, δ) where T <: Union{SNPsDict,DelDict} = T(key=>Dict(x+δ=>v for (x,v) in val) for (key,val) in dict)
 
 # select alleles within window
-lociwithin(dict::Dict{Node{Block},SNPMap}, i) =
-Dict{Node{Block},SNPMap}(
+lociwithin(dict::SNPsDict, i) =
+SNPsDict(
     node => SNPMap(
         locus => allele for (locus,allele) in subdict if i.start ≤ locus ≤ i.stop
     ) for (node, subdict) ∈ dict
 )
 
 # XXX: have to deal with left case i.e. you have a deletion that starts before i.start but continues onwards
-lociwithin(dict::Dict{Node{Block},DelMap}, i) = 
-Dict{Node{Block},DelMap}(
+lociwithin(dict::DelDict, i) = 
+DelDict(
     node => DelMap(
        let
            k = max(locus,i.start) 
@@ -357,9 +367,9 @@ Dict{Node{Block},DelMap}(
 )
 
 # XXX: have to special case the left edge
-function lociwithin(dict::Dict{Node{Block},InsMap}, i) 
+function lociwithin(dict::InsDict, i) 
     i = (i.start == 1) ? (0:i.stop) : i
-    return Dict{Node{Block},InsMap}(
+    return InsDict(
         node => InsMap(
             locus => insert for (locus, insert) in subdict if i.start ≤ first(locus) ≤ i.stop
         ) for (node, subdict) ∈ dict
@@ -372,12 +382,12 @@ function lociwithin(dict::Dict{Int,Int}, i)
 end
 
 # copy dictionary
-Base.copy(dict::T) where T <: AlleleMaps{Block} = Dict(node=>Base.copy(subdict) for (node,subdict) in dict)
+Base.copy(dict::T) where T <: AlleleMaps{Block} = T(node=>Base.copy(subdict) for (node,subdict) in dict)
 
 # merge alleles (recursively)
 function merge!(base::T, others::T...) where T <: AlleleMaps{Block}
     # keys not found in base
-    for node ∈ Set(k for other in others for k ∈ keys(other) if k ∉ keys(base))
+    for node ∈ OrderedSet(k for other in others for k ∈ keys(other) if k ∉ keys(base))
         base[node] = merge((other[node] for other in others if node ∈ keys(other))...)
     end
 
@@ -390,7 +400,7 @@ function merge!(base::T, others::T...) where T <: AlleleMaps{Block}
 end
 
 function merge_cat!(base::InsMap, gaps::Dict{Int,Int}, others::InsMap...)
-    new    = Set(locus for other in others for locus in first.(keys(other)))
+    new    = OrderedSet(locus for other in others for locus in first.(keys(other)))
     shared = intersect(Set(keys(gaps)), new)
 
     length(shared) == 0 && return merge!(base, others...)
@@ -407,10 +417,10 @@ function merge_cat!(base::InsMap, gaps::Dict{Int,Int}, others::InsMap...)
     end
 end
 
-function merge_cat!(base::Dict{Node{Block},InsMap}, others::Dict{Node{Block},InsMap}...)
-    Ks = Set(keys(base))
+function merge_cat!(base::InsDict, others::InsDict...)
+    Ks = OrderedSet(keys(base))
     # keys not found in base
-    for node ∈ Set(k for other in others for k ∈ keys(other) if k ∉ Ks)
+    for node ∈ OrderedSet(k for other in others for k ∈ keys(other) if k ∉ Ks)
         base[node] = merge((other[node] for other in others if node ∈ keys(other))...)
     end
 
@@ -588,9 +598,9 @@ function reverse_complement(b::Block; keepid=false)
     revcmpl(dict::DelMap) = Dict(len-(locus+del-1)+1 => del for (locus,del) in dict)
     revcmpl(dict::InsMap) = Dict((len-locus,b.gaps[locus]-length(ins)-off) => reverse_complement(ins) for ((locus,off),ins) in dict)
 
-    mutate = Dict(node => revcmpl(snp) for (node, snp) in b.mutate)
-    insert = Dict(node => revcmpl(ins) for (node, ins) in b.insert)
-    delete = Dict(node => revcmpl(del) for (node, del) in b.delete)
+    mutate = SNPsDict(node => revcmpl(snp) for (node, snp) in b.mutate)
+    insert = InsDict(node => revcmpl(ins) for (node, ins) in b.insert)
+    delete = DelDict(node => revcmpl(del) for (node, del) in b.delete)
     gaps   = Dict(len-locus => gap  for (locus, gap) in b.gaps)
 
     return keepid ? Block(b.uuid, seq,gaps,mutate,insert,delete) : Block(seq,gaps,mutate,insert,delete)
@@ -776,7 +786,7 @@ function sequence(b::Block, node::Node{Block}; gaps=false, debug=false, forward=
     return (node.strand || forward) ? seq : reverse_complement(seq)
 end
 
-function gapconsensus(insert::Dict{Node{Block},InsMap}, len::Int, x::Int)
+function gapconsensus(insert::InsDict, len::Int, x::Int)
     num = sum(1 for ins in values(insert) for locus in keys(ins) if first(locus) == x; init=0)
     @assert num > 0
 
@@ -968,6 +978,11 @@ function rereference(qry::Block, ref::Block, segments)
         delete = Base.copy(ref.delete),
     )
 
+    # DEBUG
+    # log("type of combined mutate", typeof(combined.mutate))
+    # log("type of combined insert", typeof(combined.insert))
+    # log("type of combined delete", typeof(combined.delete))
+
     map(dict, from, to) = translate(lociwithin(dict, from), to.start-from.start)
 
     x = (
@@ -1048,7 +1063,7 @@ function rereference(qry::Block, ref::Block, segments)
                         end
 
                         for I in unmatched
-                            merge!(combined.delete, Dict(node => Dict(I.lo=>length(I))))
+                            merge!(combined.delete, DelDict(node => Dict(I.lo=>length(I))))
                         end
                     end
 
@@ -1061,7 +1076,7 @@ function rereference(qry::Block, ref::Block, segments)
 
                     newgap = nothing
                 else
-                    newdeletes = Dict(node => Dict(x.ref=>Δ.stop-Δ.start+1) for node ∈ keys(qry))
+                    newdeletes = DelDict(node => Dict(x.ref=>Δ.stop-Δ.start+1) for node ∈ keys(qry))
                     merge!(combined.delete, newdeletes)
                 end
 
@@ -1082,7 +1097,7 @@ function rereference(qry::Block, ref::Block, segments)
 
                 newgap = (x.ref-1, 0)
 
-                newinserts = Dict(
+                newinserts = InsDict(
                     let
                         seq = applyalleles(qry.sequence[Δ], mutate[node], insert[node], delete[node])
                         if length(seq) > 0
@@ -1107,7 +1122,7 @@ function rereference(qry::Block, ref::Block, segments)
             end
             (Δq, Δr) => let # simple translation of alleles of qry -> ref
                 # carry over mutations to qry sequences as long as its different from new reference
-                muts = Dict(
+                muts = SNPsDict(
                     node => Dict(
                          x => nuc for (x,nuc) in subdict if nuc != ref.sequence[x]
                     ) for (node, subdict) in map(qry.mutate,Δq,Δr)
@@ -1117,7 +1132,7 @@ function rereference(qry::Block, ref::Block, segments)
                 # apply mutations to all qry sequences where qry ≠ ref that are not deleted or already mutated
                 qrysnps = findall(qry.sequence[Δq] .!= ref.sequence[Δr])
 
-                newmuts = Dict(
+                newmuts = SNPsDict(
                     node => Dict(
                         Δr.start+(x-1) => qry.sequence[Δq.start+(x-1)] for x in qrysnps if ((Δq.start+(x-1)) ∉ keys(qry.mutate[node])) 
                    ) for node ∈ keys(qry)
