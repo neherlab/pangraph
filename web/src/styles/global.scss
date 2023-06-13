@@ -1,0 +1,65 @@
+@use 'sass:map';
+
+@import '../../node_modules/typeface-open-sans';
+@import '../../node_modules/typeface-droid-sans-mono';
+@import './font-family-system';
+
+@import './variables';
+@import './bootstrap';
+@import './theme';
+
+
+html,
+body,
+#__next {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: $body-bg;
+}
+
+.container,
+.container-fluid {
+  padding: 0;
+}
+
+.bi.bi-link-45deg.mdx-link-icon {
+  color: $gray-600;
+}
+
+/* Override bootstrap for better contrast */
+h3,
+.h3 {
+  font-size: 1.5rem;
+}
+
+p {
+  text-align: justify;
+  text-justify: inter-word;
+}
+
+.blockquote {
+  display: flex;
+  min-height: 80px;
+  padding: 5px 10px;
+  background-color: $blockquote-bg-color;
+
+  > p {
+    margin: auto;
+  }
+}
+
+// Always show spinbox arrows in Chrome
+[type='number']::-webkit-inner-spin-button,
+[type='number']::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
+.btn.disabled,
+.btn:disabled {
+  cursor: not-allowed;
+}

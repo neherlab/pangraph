@@ -1,0 +1,12 @@
+*.log
+.DS_Store
+\.build
+\.cache
+\.env
+\.idea
+\.ignore
+\.json-autotranslate-cache/
+\.reports
+\.vscode
+dist/
+node_modules
