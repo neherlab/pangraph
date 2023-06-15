@@ -72,8 +72,8 @@ const DelMap = Dict{Int,Int}
 
 export Maybe, SNPMap, InsMap, DelMap
 
-Base.show(io::IO, m::SNPMap) = show(io, [ k => Char(v) for (k,v) in m ])
-Base.show(io::IO, m::InsMap) = show(io, [ k => String(Base.copy(v)) for (k,v) in m ])
+Base.show(io::IO, m::SNPMap) = show(io, [ k => Char(v) for (k,v) in m |> sort ])
+Base.show(io::IO, m::InsMap) = show(io, [ k => String(Base.copy(v)) for (k,v) in m |> sort])
 
 include("interval.jl")
 include("counter.jl")
@@ -444,9 +444,9 @@ function marshal_json(io::IO, G::Graph; opt=nothing)
     end
 
     # block serialization
-    pack(d::SNPMap) = [(k,Char(v)) for (k,v) ∈ d]
-    pack(d::InsMap) = [(k,String(copy(v))) for (k,v) ∈ d]
-    pack(d::DelMap) = [(k,v) for (k,v) ∈ d]
+    pack(d::SNPMap) = [(k,Char(v)) for (k,v) ∈ d] |> sort
+    pack(d::InsMap) = [(k,String(copy(v))) for (k,v) ∈ d] |> sort
+    pack(d::DelMap) = [(k,v) for (k,v) ∈ d] |> sort
 
     strip(id) = (name=id.name,number=id.number,strand=id.strand)
     function dict(b::Block)

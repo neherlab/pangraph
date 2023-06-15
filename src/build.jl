@@ -149,11 +149,21 @@ Build = Command(
                     _ => error("unrecognized alignment kernel")
        end
 
+       # DEBUG: collect all reference sequences.
+       reference = Dict(
+        begin
+            key = collect(keys(G.sequence))[1]
+            seq = sequence(collect(values(G.sequence))[1])
+            key => seq
+        end
+        for G in isolates)
+
        graph = Graphs.align(aligner, isolates...;
             compare     = compare,
             energy      = energy,
             minblock    = minblock,
             maxiter     = maxiter,
+            reference   = reference,
        )
        finalize!(graph)
 

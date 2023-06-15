@@ -396,6 +396,19 @@ function do_align(G₁::Graph, G₂::Graph, energy::Function, aligner::Function)
     return hits
 end
 
+# DEBUG
+function verbose_hit(hit)
+    msg = """
+    qry -> $(hit.qry.name) | $(hit.qry.start) -> $(hit.qry.stop) | $(hit.qry.length)
+    ref -> $(hit.ref.name) | $(hit.ref.start) -> $(hit.ref.stop) | $(hit.ref.length)
+    len -> $(hit.length)
+    strand -> $(hit.orientation)
+    cigar -> $(hit.cigar)
+    """
+    return msg
+end
+
+
 # TODO: make thread safe
 function align_kernel(matches, minblock, replace!, verbose)
     blocks   = Array{Array{Block,1},1}(undef, length(matches))
@@ -403,10 +416,10 @@ function align_kernel(matches, minblock, replace!, verbose)
         # destructure precomputed hit
         hit,qry,ref,qry₀,ref₀,strand = match
 
-        verbose && log(hit)
+        verbose && log("hit ---------\n", verbose_hit(hit))
 
         enforce_cutoff!(hit, minblock)
-        blks = combine(qry, ref, hit; minblock=minblock)
+        blks = combine(qry, ref, hit; minblock=minblock, verbose=verbose)
 
         qrys = map(b -> b.block, filter(b -> b.kind != :ref, blks))
         refs = map(b -> b.block, filter(b -> b.kind != :qry, blks))
@@ -473,6 +486,8 @@ function align_self(G₁::Graph, energy::Function, minblock::Int, aligner::Funct
         detransitive!(G₀)
         purge!(G₀)
         prune!(G₀)
+
+        verbose && verify(G₀)
     end
 
     return G₀
@@ -590,6 +605,9 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, a
 
     merges = preprocess(hits, skip, energy, block)
 
+    verbose && log("n. merges $(length(merges))")
+
+
     blocks   = align_kernel(merges, minblock, replace, verbose)
     sequence = merge(G₁.sequence, G₂.sequence)
 
@@ -602,9 +620,17 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, a
         sequence,
     )
 
+    # DEBUG
+    verbose && log("finish align pair, verifying...")
+    verbose && verify(G)
+    
     detransitive!(G)
     purge!(G)
     prune!(G)
+
+    # DEBUG
+    verbose && log("finish align pair polishing, verifying...")
+    verbose && verify(G)
 
     return G
 end
@@ -640,7 +666,10 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                     end
                     left, right = max(badloci[1]-10, 1), min(badloci[1]+10, length(seq))
                     cumulative_lengths = cumsum([length(n.block, n) for n in path.node])
-
+                    
+                    println("#### $(msg)")
+                    println("--> name:             $(name)")
+                    println("--> n. isolates:      $(length(graph.sequence))")
                     println("--> length:           ref($(length(ref))) <=> seq($(length(seq)))")
                     println("--> number of nodes:  $(length(path.node))")
                     println("--> path offset:      $(path.offset)")
@@ -709,18 +738,30 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                     Gₗ, Gᵣ = Gᵣ, Gₗ
                 end
                 
+                # DEBUG
+                # log("--> aligning $(Pₗ) and $(Pᵣ) -> $(n_clade)")
+
+                # DEBUG
+                verbose = n_clade == 110
+
                 # the lock ensures that at most N=Threads.nthreads() processes are
                 # spawning run(`cmd`) instances at the same time
                 G₀ = lock_semaphore(s) do
-                    G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, false)
-                    align_self(G₀, energy, minblock, aligner, verify, false)
+                    verbose && log("--> aligning pair for $n_clade")
+                    G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, verbose)
+                    verbose && log("--> aligning self for $n_clade")
+                    align_self(G₀, energy, minblock, aligner, verify, verbose)
                 end
 
                 # DEBUG : save graph at each iteration in a file
-                # open("issue/comp/graph_iteration_$(n_clade).json", "w") do io
-                #     finalize!(G₀)
-                #     marshal(io, G₀; fmt=:json)
-                # end
+                if n_clade ∈ [104, 109, 110]
+                    open("issue/comp/graph_iteration_$(n_clade).json", "w") do io
+                        finalize!(G₀)
+                        marshal(io, G₀; fmt=:json)
+                    end
+                end
+                verify(G₀, "iteration $(n_clade)")
+
 
 
                 # advance progress bar in a thread-safe way
