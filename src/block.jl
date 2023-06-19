@@ -687,30 +687,36 @@ function sequence_gaps!(seq, b::Block, node::Node{Block}; debug = false)
     ref = sequence(b; gaps = true)
     @assert length(seq) == length(ref)
 
+    debug && log("seq-gaps: ref ->")
+    debug && log(join(Char.(ref)))
+
     loci = allele_positions(b, node)
     Ξ(x) = x + reduce(+, (δ for (l, δ) in b.gaps if l < x); init = 0)
 
     for l in loci
         @match l.kind begin
-            :snp => begin
+        :snp => begin
                 x = l.pos
                 seq[Ξ(x)] = b.mutate[node][x]
+                debug && log("locus SNP $(l.pos) -> $(Ξ(x)) | $(b.mutate[node][x])")
             end
             :ins => begin
                 ins = b.insert[node][l.pos]
                 len = length(ins)
-
+                
                 x = Ξ(l.pos[1]) # NOTE: insertion occurs AFTER the key position
                 δ = l.pos[2]
-
+                
                 seq[x+δ+1:x+len+δ] = ins
+                debug && log("locus INS $(l.pos) -> $(Ξ(l.pos[1])) , $δ | $ins")
             end
             :del => begin
                 len = b.delete[node][l.pos]
                 x = Ξ(l.pos)
                 y = Ξ(l.pos + len - 1)
-
+                
                 seq[x:y] .= UInt8('-')
+                debug && log("locus DEL $(l.pos) -> ($x, $y) | $len")
             end
             _ => error("unrecognized locus kind")
         end
@@ -961,7 +967,7 @@ function regap!(b::Block)
     end
 end
 
-function alignment(b::Block)
+function alignment(b::Block; verbose = false)
     # NOTE: we can't assume that keys(b) will return the same order on subsequent calls
     #       thus we collect into array here for a static ordering of the nodes
     nodes = collect(keys(b))
@@ -970,7 +976,7 @@ function alignment(b::Block)
     aln = Array{UInt8}(undef, length(ref), depth(b))
     for (i, node) in enumerate(nodes)
         aln[:, i] = ref
-        sequence!(view(aln, :, i), b, node; gaps = true)
+        sequence!(view(aln, :, i), b, node; gaps = true, debug=verbose)
     end
 
     return aln, nodes, ref
@@ -981,16 +987,37 @@ end
 
 Update the consensus sequence of block `b` by majority-rule over the multiple sequence alignment.
 """
-function reconsensus!(b::Block)
+function reconsensus!(b::Block; verbose = false)
     # NOTE: no point to compute this for blocks with 1 or 2 individuals
     depth(b) <= 2 && return false
 
-    aln, nodes, ref = alignment(b)
+    # DEBUG
+    # here I still have the insertion
+    # verbose && writefa("block.fa", seqdict(b))
+
+    aln, nodes, ref = alignment(b, verbose=verbose)
 
     consensus = make_consensus(aln)
     if all(consensus .== ref) # hot path: if consensus sequence did not change, abort!
+        verbose && println("block.jl/ln:992 consensus did not change")
         return false
     end
+
+    if verbose
+        # DEBUG
+        # here I loose the insertion
+        # export alignment
+        open("alignment.fa", "w") do io
+            println(io, ">consensus")
+            println(io, join(Char.(consensus)))
+            println(io, ">reference")
+            println(io, join(Char.(ref)))
+            for (i, node) in enumerate(nodes)
+                println(io, ">$i")
+                println(io, join(Char.(aln[:, i])))
+            end
+        end
+    end 
 
     b.gaps, b.mutate, b.delete, b.insert, b.sequence =
         alignment_alleles(consensus, aln, nodes)
@@ -1001,6 +1028,7 @@ end
 # DEBUG
 function log_modifs(cb, nn)
     results = "block = " * (keys(cb.mutate) |> collect |> first).block.uuid
+    results *= "\nsequence = " * join(Char.(cb.sequence))
     results *= "\ngaps=(\n"
     for (k, v) in cb.gaps |> collect |> sort
         results *= "\t$k => $v,\n"
@@ -1131,7 +1159,10 @@ function rereference(qry::Block, ref::Block, segments; verbose = false)
                                         if node ∉ keys(combined.mutate)
                                             combined.mutate[node] = SNPMap()
                                         end
-                                        verbose && log("- - - adding SNP $i -> ", Char(ins[i-start+1]))
+                                        verbose && log(
+                                            "- - - adding SNP $i -> ",
+                                            Char(ins[i-start+1]),
+                                        )
                                         combined.mutate[node][i] = ins[i-start+1]
                                     end
                                 end
@@ -1181,17 +1212,20 @@ function rereference(qry::Block, ref::Block, segments; verbose = false)
 
                         for key in delqkeys
                             verbose && log(
-                                    "- - deleting query insertion: ",
-                                    key,
-                                    " -> ",
-                                    join(Char.(qry.insert[node][key])),
-                                )
+                                "- - deleting query insertion: ",
+                                key,
+                                " -> ",
+                                join(Char.(qry.insert[node][key])),
+                            )
                             delete!(qry.insert[node], key)
                         end
 
                         for I in unmatched
                             verbose && log("- - adding unmatched to deletions: ", I)
-                            merge!(combined.delete, DelDict(node => Dict(I.lo => length(I))))
+                            merge!(
+                                combined.delete,
+                                DelDict(node => Dict(I.lo => length(I))),
+                            )
                         end
                     end
 
@@ -1222,13 +1256,16 @@ function rereference(qry::Block, ref::Block, segments; verbose = false)
                 delete = translate(lociwithin(qry.delete, Δ), 1 - Δ.start)
 
                 if (x.ref - 1) ∈ keys(newgaps) # TODO: more sophisticated alignment? have to worry about overriding alignment
+                    verbose && log("- ref has new gap in this position -> aligning to gap consensus")
                     δ = newgaps[x.ref-1] #hamming_align(qry.sequence[Δ], gapconsensus(combined.insert, newgaps[x.ref-1], x.ref-1)) - 1
                 elseif (x.ref - 1) ∈ keys(ref.gaps) # some sequences in ref have overlapping sequence with qry
+                    verbose && log("- ref has original gap in this position -> aligning to gap consensus")
                     δ = hamming_align(qry.sequence[Δ], gapconsensus(ref, x.ref - 1)) - 1
                 else # novel for all qry sequences. apply alleles to consensus and store as insertion
+                    verbose && log("- ref has no gap in this position")
                     δ = 0
                 end
-
+                verbose && log("- creating a new gap to add query sequences in this position")
                 newgap = (x.ref - 1, 0)
 
                 newinserts = InsDict(
@@ -1243,7 +1280,7 @@ function rereference(qry::Block, ref::Block, segments; verbose = false)
                             if (δ + length(seq)) > last(newgap)
                                 newgap = (first(newgap), length(seq) + δ)
                             end
-                            node => Dict((x.ref - 1, δ) => seq)
+                            node => InsMap((x.ref - 1, δ) => seq)
                         else
                             node => InsMap()
                         end
@@ -1258,6 +1295,9 @@ function rereference(qry::Block, ref::Block, segments; verbose = false)
 
                 merge!(combined.insert, newinserts)
                 x = (qry = Δ.stop + 1, ref = x.ref)
+                
+                verbose && log("- new gaps: ", newgaps)
+
             end
             (Δq, Δr) => let # simple translation of alleles of qry -> ref
                 # carry over mutations to qry sequences as long as its different from new reference
@@ -1327,7 +1367,27 @@ function rereference(qry::Block, ref::Block, segments; verbose = false)
 
     # verbose && log("ref final ---- \n" * log_modifs(ref, nn))
     # verbose && log("qry final ---- \n" * log_modifs(qry, nn))
-    # verbose && log("new final ---- \n" * log_modifs(new, nn))
+    verbose && log("new final ---- \n" * log_modifs(new, nn))
+
+    # if verbose
+    #     # write sequences to fasta
+    #     open("old_seq.fasta", "w") do io
+    #         for (node, seq) in original_seq_dict
+    #             println(io, ">$(nn[node])")
+    #             println(io, join(Char.(seq)))
+    #         end
+    #     end
+    #     open("new_seq.fasta", "w") do io
+    #         for node in keys(new)
+    #             seq = sequence(new, node)
+    #             if !node.strand
+    #                 seq = reverse_complement(seq)
+    #             end
+    #             println(io, ">$(nn[node])")
+    #             println(io, join(Char.(seq)))
+    #         end
+    #     end
+    # end
 
     # assertequivalent(new, ref, "after rereference - ref reconstruction error")
     # assertequivalent(new, qry, "after rereference - qry reconstruction error")
@@ -1340,9 +1400,7 @@ end
 
 function asserteq(new, old, nn)
 
-    @assert length(keys(new)) == length(keys(old))
-
-    if ! issetequal(Set(keys(old)), Set(keys(new)))
+    if !issetequal(Set(keys(old)), Set(keys(new)))
         error("old keys not equal to new keys")
     end
 
@@ -1396,8 +1454,8 @@ function asserteq(new, old, nn)
             # @show old.delete[node]
             @show new.delete[node]
 
-            # error(msg)
-            log("error in node $(nn[node])")
+            error(msg)
+            # log("error in node $(nn[node])")
         end
     end
 
@@ -1487,6 +1545,32 @@ function coordinates(blk::Block, node::Node)
     return coords
 end
 
+function writefa(fname, seqdict)
+    open(fname, "w") do io
+        for (n, seq) in values(seqdict) |> enumerate
+            write(io, ">$n\n")
+            fa_seq = join(Char.(seq))
+            # wrap every 80 characters
+            for i ∈ 1:80:length(fa_seq)
+                write(io, fa_seq[i:min(i + 79, end)])
+                write(io, "\n")
+            end
+        end
+    end
+end
+
+function checkeq(new, old)
+    newseqs = seqdict(new)
+
+    @assert length(newseqs) == length(old)
+    if !(Set(values(newseqs)) == Set(values(old)))
+        # write sequences as fasta file
+        writefa("newseqs.fa", newseqs)
+        writefa("oldseqs.fa", old)
+
+        error("sequences not equal")
+    end
+end
 
 """
 	combine(qry::Block, ref::Block, aln::Alignment; minblock=500)
@@ -1523,9 +1607,25 @@ function combine(qry::Block, ref::Block, aln::Alignment; minblock = 500, verbose
                 r = Block(ref, Δr)
                 q = Block(qry, Δq)
 
+                # capture dict of sequences
+                oldseqs = merge(seqdict(q), seqdict(r))
+
                 new = rereference(q, r, segment, verbose = verbose)
-                reconsensus!(new)
+
+                verbose && log("check equality after rereference")
+                checkeq(new, oldseqs)
+
+                reconsensus!(new, verbose = false)
+                verbose && log("check equality after reconsensus")
+                checkeq(new, oldseqs)
+
+
                 regap!(new)
+                verbose && log("check equality after regap")
+                checkeq(new, oldseqs)
+
+
+
 
                 push!(blocks, (block = new, kind = :all))
             end
