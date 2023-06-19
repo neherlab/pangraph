@@ -15,9 +15,9 @@ PanGraph.main(["help", "version"])		   # version usage
 PanGraph.main(["help", "help"])		   # help usage
 
 # build (native - mmseqs)
-PanGraph.main(["build", "-c", "-u", "-b", "0", "-a", "0", "$root/test.fa"])
+PanGraph.main(["build", "-v", "-c", "-u", "-b", "0", "-a", "0", "$root/test.fa"])
 # PanGraph.main(["build", "-c", "-u", "-d", "mash", "$root/test.fa"])
-PanGraph.main(["build", "-c", "-u", "-b", "0", "-a", "0", "-k", "mmseqs", "-K", "8", "$root/test.fa"])
+PanGraph.main(["build", "-v", "-c", "-u", "-b", "0", "-a", "0", "-k", "mmseqs", "-K", "8", "$root/test.fa"])
 
 # export
 PanGraph.main(["export", "-o", "$root/export", "$root/test.json"])
