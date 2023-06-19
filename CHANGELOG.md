@@ -3,7 +3,8 @@
 ## v0.7.0 (draft)
 
 - fasta input files are checked for duplicated records, and white lines between records are tolerated, see [#55](https://github.com/neherlab/pangraph/pull/55).
-- PanGraph execution is now deterministic, and same input files always produce the same output.
+- PanGraph execution is now deterministic, and same input files always produce the same output, see [#57](https://github.com/neherlab/pangraph/pull/57).
+- introduced the `-v` flag in the `build` command. This activates consistency checks at each mergers. In this check we verify that the input genomes can be exactly reconstructed from the graph. See [#57](https://github.com/neherlab/pangraph/pull/57).
 - Fixed [#56](https://github.com/neherlab/pangraph/issues/56)
 
 ## v0.6.3
