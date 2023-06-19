@@ -101,6 +101,8 @@ using .Intervals
 import .Shell: mash, mafft, havecommand
 import ..PanGraph: PanContigs
 
+using OrderedCollections: OrderedDict
+
 export Graph
 export Shell, Blocks, Nodes, Utility
 
@@ -508,9 +510,9 @@ function unmarshal(io)
             b.sequence,
             b.gaps,
             # empty until we build the required node{block} objects
-            Dict{Node{Block},SNPMap}(),
-            Dict{Node{Block},InsMap}(),
-            Dict{Node{Block},DelMap}(),
+            OrderedDict{Node{Block},SNPMap}(),
+            OrderedDict{Node{Block},InsMap}(),
+            OrderedDict{Node{Block},DelMap}(),
         )
     end)
 
