@@ -695,7 +695,7 @@ function sequence_gaps!(seq, b::Block, node::Node{Block}; debug = false)
 
     for l in loci
         @match l.kind begin
-        :snp => begin
+            :snp => begin
                 x = l.pos
                 seq[Ξ(x)] = b.mutate[node][x]
                 debug && log("locus SNP $(l.pos) -> $(Ξ(x)) | $(b.mutate[node][x])")
@@ -703,10 +703,10 @@ function sequence_gaps!(seq, b::Block, node::Node{Block}; debug = false)
             :ins => begin
                 ins = b.insert[node][l.pos]
                 len = length(ins)
-                
+
                 x = Ξ(l.pos[1]) # NOTE: insertion occurs AFTER the key position
                 δ = l.pos[2]
-                
+
                 seq[x+δ+1:x+len+δ] = ins
                 debug && log("locus INS $(l.pos) -> $(Ξ(l.pos[1])) , $δ | $ins")
             end
@@ -714,7 +714,7 @@ function sequence_gaps!(seq, b::Block, node::Node{Block}; debug = false)
                 len = b.delete[node][l.pos]
                 x = Ξ(l.pos)
                 y = Ξ(l.pos + len - 1)
-                
+
                 seq[x:y] .= UInt8('-')
                 debug && log("locus DEL $(l.pos) -> ($x, $y) | $len")
             end
@@ -976,7 +976,7 @@ function alignment(b::Block; verbose = false)
     aln = Array{UInt8}(undef, length(ref), depth(b))
     for (i, node) in enumerate(nodes)
         aln[:, i] = ref
-        sequence!(view(aln, :, i), b, node; gaps = true, debug=verbose)
+        sequence!(view(aln, :, i), b, node; gaps = true, debug = verbose)
     end
 
     return aln, nodes, ref
@@ -995,7 +995,7 @@ function reconsensus!(b::Block; verbose = false)
     # here I still have the insertion
     # verbose && writefa("block.fa", seqdict(b))
 
-    aln, nodes, ref = alignment(b, verbose=verbose)
+    aln, nodes, ref = alignment(b, verbose = verbose)
 
     consensus = make_consensus(aln)
     if all(consensus .== ref) # hot path: if consensus sequence did not change, abort!
@@ -1017,7 +1017,7 @@ function reconsensus!(b::Block; verbose = false)
                 println(io, join(Char.(aln[:, i])))
             end
         end
-    end 
+    end
 
     b.gaps, b.mutate, b.delete, b.insert, b.sequence =
         alignment_alleles(consensus, aln, nodes)
@@ -1113,7 +1113,8 @@ function rereference(qry::Block, ref::Block, segments; verbose = false)
         verbose && log("")
         @match (segment.qry, segment.ref) begin
             (nothing, Δ) => let # sequence in ref consensus not found in qry consensus
-                verbose && log("^^^ processing only ref:", (Δ.start, Δ.stop))
+                verbose && log("^^^ processing only ref: ", (Δ.start, Δ.stop))
+                verbose && log("    only thing to add: insertion in query in this position")
                 if (x.qry - 1) ∈ keys(qry.gaps) # some insertions in qry have overlapping sequence with ref
                     verbose && log("! qry alignment has insertion in this position")
                     # TODO: allow for (-) hamming alignments
@@ -1230,7 +1231,18 @@ function rereference(qry::Block, ref::Block, segments; verbose = false)
                     end
 
                     delete!(qry.gaps, x.qry - 1)
-                    delete!(newgaps, Δ.start - 1)
+                    
+                    # if no insertion remaining in the gap, remove
+                    ins_pos = [
+                        locus
+                        for (node, ins) ∈ combined.insert
+                            for ((locus, δ), ins) ∈ ins
+                    ]
+                    verbose && log("- insertion positions: ", ins_pos)
+                    if (Δ.start - 1) ∉ ins_pos
+                        verbose && log("! removing gap at this position.")
+                        delete!(newgaps, Δ.start - 1)
+                    end
 
                     if last(newgap) > 0
                         newgaps[newgap[1]] = newgap[2]
@@ -1250,22 +1262,27 @@ function rereference(qry::Block, ref::Block, segments; verbose = false)
                 x = (qry = x.qry, ref = Δ.stop + 1)
             end
             (Δ, nothing) => let # sequence in qry consensus not found in ref consensus
-                verbose && log("^^^ processing only query:", (Δ.start, Δ.stop))
+                verbose && log("^^^ processing only query: ", (Δ.start, Δ.stop))
                 mutate = translate(lociwithin(qry.mutate, Δ), 1 - Δ.start)
                 insert = translate(lociwithin(qry.insert, Δ), 1 - Δ.start)
                 delete = translate(lociwithin(qry.delete, Δ), 1 - Δ.start)
 
                 if (x.ref - 1) ∈ keys(newgaps) # TODO: more sophisticated alignment? have to worry about overriding alignment
-                    verbose && log("- ref has new gap in this position -> aligning to gap consensus")
+                    verbose && log(
+                        "- ref has new gap in this position -> aligning to gap consensus",
+                    )
                     δ = newgaps[x.ref-1] #hamming_align(qry.sequence[Δ], gapconsensus(combined.insert, newgaps[x.ref-1], x.ref-1)) - 1
                 elseif (x.ref - 1) ∈ keys(ref.gaps) # some sequences in ref have overlapping sequence with qry
-                    verbose && log("- ref has original gap in this position -> aligning to gap consensus")
+                    verbose && log(
+                        "- ref has original gap in this position -> aligning to gap consensus",
+                    )
                     δ = hamming_align(qry.sequence[Δ], gapconsensus(ref, x.ref - 1)) - 1
                 else # novel for all qry sequences. apply alleles to consensus and store as insertion
                     verbose && log("- ref has no gap in this position")
                     δ = 0
                 end
-                verbose && log("- creating a new gap to add query sequences in this position")
+                verbose &&
+                    log("- creating a new gap to add query sequences in this position")
                 newgap = (x.ref - 1, 0)
 
                 newinserts = InsDict(
@@ -1276,10 +1293,19 @@ function rereference(qry::Block, ref::Block, segments; verbose = false)
                             insert[node],
                             delete[node],
                         )
+                        verbose && log(
+                            "- - inserted seq $(nn[node]) -> ",
+                            join(Char.(seq)),
+                        )
+
                         if length(seq) > 0
                             if (δ + length(seq)) > last(newgap)
+                                verbose && log(
+                                    "- - - newgap size increase -> $(length(seq) + δ)",
+                                )
                                 newgap = (first(newgap), length(seq) + δ)
                             end
+                            verbose && log("- - adding insertion map entry")
                             node => InsMap((x.ref - 1, δ) => seq)
                         else
                             node => InsMap()
@@ -1288,15 +1314,17 @@ function rereference(qry::Block, ref::Block, segments; verbose = false)
                 )
 
                 if last(newgap) > 0
+                    verbose && log("- is gap already present?: ", newgap[1] ∈ keys(newgaps))
                     if newgap[1] ∉ keys(newgaps) || newgap[2] > newgaps[newgap[1]]
+                        verbose && log("- adding/extending new gap: ", newgap)
                         newgaps[newgap[1]] = newgap[2]
                     end
                 end
 
+                verbose && log("- new gaps: ", newgaps)
                 merge!(combined.insert, newinserts)
                 x = (qry = Δ.stop + 1, ref = x.ref)
-                
-                verbose && log("- new gaps: ", newgaps)
+
 
             end
             (Δq, Δr) => let # simple translation of alleles of qry -> ref
