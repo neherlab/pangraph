@@ -1,6 +1,6 @@
 # PanGraph Changelog
 
-## v0.7.0 (draft)
+## v0.7.0
 
 - fasta input files are checked for duplicated records, and white lines between records are tolerated, see [#55](https://github.com/neherlab/pangraph/pull/55).
 - PanGraph execution is now deterministic, and same input files always produce the same output, see [#57](https://github.com/neherlab/pangraph/pull/57).
