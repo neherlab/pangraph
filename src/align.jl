@@ -431,7 +431,7 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 `minblock` is the minimum size block that will be produced from the algorithm.
 `maxiter` is maximum number of duplications that will be considered during this alignment.
 """
-function align_self(G₁::Graph, energy::Function, minblock::Int, aligner::Function, verify::Function, verbose::Bool; maxiter=100, sensitivity="asm10")
+function align_self(G₁::Graph, energy::Function, minblock::Int, aligner::Function, verify::Function, verbose::Bool; maxiter=100)
     G₀ = G₁
 
     for niter in 1:maxiter
@@ -473,6 +473,9 @@ function align_self(G₁::Graph, energy::Function, minblock::Int, aligner::Funct
         detransitive!(G₀)
         purge!(G₀)
         prune!(G₀)
+
+        # verify that isolates are correctly reconstructed (-v flag)
+        verify(G₀, msg="verify align-self $niter")
     end
 
     return G₀
@@ -606,6 +609,9 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, a
     purge!(G)
     prune!(G)
 
+    # verify that isolates are correctly reconstructed (-v flag)
+    verify(G, msg="verify align-pair")
+
     return G
 end
 
@@ -625,8 +631,8 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 
 `compare` is the function to be used to generate pairwise distances that generate the internal guide tree.
 """
-function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100)
-    function verify(graph, msg="")
+function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100, verbose=false)
+    function verify(graph; msg="")
         if reference !== nothing
             for (name,path) ∈ graph.sequence
                 seq = sequence(path)
@@ -663,7 +669,7 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                     println("--> insert:           $(path.node[i].block.insert[path.node[i]])")
                     println("--> delete:           $(path.node[i].block.delete[path.node[i]])")
 
-                    error("--> isolate '$name' incorrectly reconstructed")
+                    error("$msg\n--> isolate '$name' incorrectly reconstructed")
                 end
             end
         end
@@ -712,8 +718,12 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                 # the lock ensures that at most N=Threads.nthreads() processes are
                 # spawning run(`cmd`) instances at the same time
                 G₀ = lock_semaphore(s) do
-                    G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, false)
-                    align_self(G₀, energy, minblock, aligner, verify, false)
+                    verbose && log("--> align-pair for clade n. $n_clade")
+                    G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, verbose)
+                    verbose && log("--> align-self for clade n. $n_clade")
+                    G₀ = align_self(G₀, energy, minblock, aligner, verify, verbose, maxiter=maxiter)
+                    verbose && log("--> graph merging for clade n. $n_clade completed")
+                    G₀
                 end
 
                 # DEBUG : save graph at each iteration in a file

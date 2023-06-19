@@ -1068,7 +1068,7 @@ function rereference(qry::Block, ref::Block, segments)
                     end
 
                     delete!(qry.gaps, x.qry-1)
-                    # DEBUG delete only if no more insertions are present here
+                    # DEBUG delete only if no more insertions are present in this gap
                     if Δ.start-1 ∉ [
                         locus for (node, ins) ∈ combined.insert for (locus, δ) ∈ keys(ins)
                     ]
