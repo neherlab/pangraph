@@ -1104,7 +1104,7 @@ function rereference(qry::Block, ref::Block, segments)
                             if (δ+length(seq)) > last(newgap)
                                 newgap = (first(newgap),length(seq)+δ)
                             end
-                            node => Dict((x.ref-1,δ) => seq) 
+                            node => InsMap((x.ref-1,δ) => seq) 
                         else
                             node => InsMap()
                         end
