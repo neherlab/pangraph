@@ -26,7 +26,7 @@ PanGraph.main(["export", "-o", "$root/export", "$root/test.json"])
 PanGraph.main(["generate", "-o", "$root/export.json", "$root/test.fa"])
 
 # marginalize
-PanGraph.main(["marginalize", "-o", "$root/pairs", "$root/test.json"])
+PanGraph.main(["marginalize", "-v", "-o", "$root/pairs", "$root/test.json"])
 
 # polish
 PanGraph.main(["polish", "-c", "-l", "10000", "$root/test.json"])

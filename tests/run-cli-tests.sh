@@ -68,7 +68,7 @@ echo "Test pangraph PanX export"
 pangraph export -ng -pX -o "$TESTDIR/export" "$TESTDIR/test1.json"
 
 echo "Test pangraph marginalize"
-pangraph marginalize -o "$TESTDIR/marginalize" "$TESTDIR/test1.json"
+pangraph marginalize -v -o "$TESTDIR/marginalize" "$TESTDIR/test1.json"
 
 # remove generated files
 rm -r $TESTDIR
