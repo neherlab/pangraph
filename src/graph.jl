@@ -5,6 +5,8 @@ using Random
 using Rematch
 using ProgressMeter
 
+import OrderedCollections: OrderedDict
+
 import JSON
 
 import ..PanGraph: Maybe
@@ -157,6 +159,47 @@ function Graph(name::String, sequence::Array{UInt8}; circular=false)
 end
 
 
+function copy(G::Graph)
+    blocks = deepcopy(G.block)
+    paths = deepcopy(G.sequence)
+    nodes_match = Dict{Node, Node}()
+    for (name, path) in G.sequence
+        new_nodes = Node[]
+        for node in path.node
+            if node ∉ keys(nodes_match)
+                nodes_match[node] = Node(blocks[node.block.uuid], node.strand)
+            end
+            push!(new_nodes, nodes_match[node])
+        end
+        paths[name].node = new_nodes
+    end
+    for (uuid, block) in G.block
+
+        new_ins = OrderedDict{Node, InsMap}()
+        for (k, v) in block.insert
+            new_node = nodes_match[k]
+            new_ins[new_node] = deepcopy(v)
+        end
+        blocks[uuid].insert = new_ins
+
+        new_del = OrderedDict{Node, DelMap}()
+        for (k, v) in block.delete
+            new_node = nodes_match[k]
+            new_del[new_node] = deepcopy(v)
+        end
+        blocks[uuid].delete = new_del
+
+        new_snp = OrderedDict{Node, SNPMap}()
+        for (k, v) in block.mutate
+            new_node = nodes_match[k]
+            new_snp[new_node] = deepcopy(v)
+        end
+        blocks[uuid].mutate = new_snp
+
+    end
+    return Graph(blocks, paths)
+end
+
 """
 Utility function that raises an error if the list of records has entries with duplicated
 names. The error message contains the name in question.
@@ -207,6 +250,7 @@ function detransitive!(G::Graph)
     for (j, depth) in junctions(values(G.sequence))
         if (numisos[j.left.block] == numisos[j.right.block] == depth)
             push!(transitives, j)
+            # log("transitive junction: $j")
         end
     end
 

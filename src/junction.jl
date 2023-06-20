@@ -19,7 +19,7 @@ blocks(j::Junction) = (left=(j.left.block,j.left.strand), right=(j.right.block,j
 
 Base.hash(j::Junction) = Base.hash(blocks(j)) ⊻ Base.hash(blocks(reverse(j)))
 Base.isequal(j₁::Junction, j₂::Junction) = Base.isequal(blocks(j₁), blocks(j₂)) || Base.isequal(blocks(j₁), blocks(reverse(j₂)))
-
+Base.print(io::IO, j::Junction) = print(io, "Junction($(j.left) <---> $(j.right))")
 # --------------------------------
 # custom operators
 
