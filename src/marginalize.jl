@@ -98,7 +98,7 @@ Marginalize = Command(
         isolates = arg(Marginalize, "-s")
         if length(isolates) > 0
 
-            G = Graphs.copy(graph)
+            G = Graphs.copy_graph(graph)
             names = split(isolates, ',')
             Graphs.keeponly!(G, names...)
 
