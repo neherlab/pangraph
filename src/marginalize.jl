@@ -1,94 +1,125 @@
 Marginalize = Command(
-   "marginalize",
-   "pangraph marginalize <options> [arguments]",
-   "computes all pairwise marginalizations of a multiple sequence alignment graph",
-   """multiple sequence alignment accepted in formats: [json]""",
-   [
-    Arg(
-        String,
-        "output path",
-        (short="-o", long="--output-path"),
-        "path to directory where all pairwise marginalizations will be stored\n\tif empty, will skip this computation",
-        ""
-    ),
-    Arg(
-        Bool,
-        "reduce paralog paths",
-        (short="-r", long="--reduce-paralog"),
-        "collapse coparallel paths through duplications",
-        false,
-    ),
-    Arg(
-        String,
-        "isolates to project onto",
-        (short="-s", long="--strains"),
-        "collapse the graph to only blocks contained by paths of the given isolates.\n\tcomma seperated list, no spaces",
-        "",
-    ),
-   ],
-   (args) -> let
-       path = parse(Marginalize, args)
-       path = if (path === nothing || length(path) == 0)
-           nothing
-       elseif length(path) == 1
-           path
-       else
-           return 2
-       end
+    "marginalize",
+    "pangraph marginalize <options> [arguments]",
+    "computes all pairwise marginalizations of a multiple sequence alignment graph",
+    """multiple sequence alignment accepted in formats: [json]""",
+    [
+        Arg(
+            String,
+            "output path",
+            (short = "-o", long = "--output-path"),
+            "path to directory where all pairwise marginalizations will be stored\n\tif empty, will skip this computation",
+            "",
+        ),
+        Arg(
+            Bool,
+            "reduce paralog paths",
+            (short = "-r", long = "--reduce-paralog"),
+            "collapse coparallel paths through duplications",
+            false,
+        ),
+        Arg(
+            String,
+            "isolates to project onto",
+            (short = "-s", long = "--strains"),
+            "collapse the graph to only blocks contained by paths of the given isolates.\n\tcomma seperated list, no spaces",
+            "",
+        ),
+        Arg(
+            Bool,
+            "check that genomes are preserved",
+            (short = "-v", long = "--verify"),
+            "sanity check that verifies that genomes in the output graphs are identical\n\tto genomes in the input graphs.",
+            false,
+        ),
+    ],
+    (args) -> let
+        path = parse(Marginalize, args)
+        path = if (path === nothing || length(path) == 0)
+            nothing
+        elseif length(path) == 1
+            path
+        else
+            return 2
+        end
 
-       graph  = load(path, Marginalize)
-       names  = collect(keys(graph.sequence))
+        graph = load(path, Marginalize)
+        names = collect(keys(graph.sequence))
 
-       reduce = arg(Marginalize, "-r")
-       output = arg(Marginalize, "-o")
+        reduce = arg(Marginalize, "-r")
+        output = arg(Marginalize, "-o")
+        verify_flag = arg(Marginalize, "-v")
 
-       if length(output) > 0
-           isdir(output) || mkpath(output)
-           pairs  = [ (n₁,n₂) for n₁ in names for n₂ in names if n₁ < n₂ ]
+        function verify(G₀, G₋)
+            # verifies that after the marginalization all genomes from
+            # G₋ are exactly equal to their initial value in in G₀
+            for (name, path) in G₋.sequence
+                seq₀ = sequence(G₀.sequence[name], shift = true)
+                seq₋ = sequence(path, shift = true)
+                @assert seq₀ == seq₋
+            end
+        end
 
-           Threads.@threads for (name₁, name₂) in pairs
-               G = Graphs.copy(graph)
-               Graphs.keeponly!(G, name₁, name₂)
-               if reduce
-                   changed = true
-                   while changed
-                       l = length(G.block)
-                       Graphs.deparalog!(G)
-                       Graphs.detransitive!(G)
-                       changed = l != length(G.block)
-                   end
-               else
-                   Graphs.detransitive!(G)
-               end
+        function log(msg...)
+            println(stderr, msg...)
+            flush(stderr)
+        end
 
-               # recompute positions
-               Graphs.finalize!(G)
-               open("$(output)/$(name₁)-$(name₂).json", "w") do io
-                   marshal(io, G; fmt=:json)
-               end
-           end
-       end
+        if length(output) > 0
+            isdir(output) || mkpath(output)
+            pairs = [(n₁, n₂) for n₁ in names for n₂ in names if n₁ < n₂]
 
-       isolates = arg(Marginalize, "-s")
-       if length(isolates) > 0
-           names = split(isolates,',')
-           Graphs.keeponly!(graph, names...)
+            Threads.@threads for (name₁, name₂) in pairs
+                G = Graphs.copy_graph(graph)
+                Graphs.keeponly!(G, name₁, name₂)
+                if reduce
+                    changed = true
+                    while changed
+                        l = length(G.block)
+                        Graphs.deparalog!(G)
+                        Graphs.detransitive!(G)
+                        changed = l != length(G.block)
+                    end
+                else
+                    Graphs.detransitive!(G)
+                end
 
-           if reduce
-               changed = true
-               while changed
-                   l = length(graph.block)
-                   Graphs.deparalog!(graph)
-                   Graphs.detransitive!(graph)
-                   changed = l != length(graph.block)
-               end
-           else
-               Graphs.detransitive!(graph)
-           end
-           
-           # recompute positions
-           Graphs.finalize!(graph)
-           marshal(stdout, graph; fmt=:json)
-       end
-   end
+                # recompute positions
+                Graphs.finalize!(G)
+
+                verify_flag && verify(graph, G)
+
+                open("$(output)/$(name₁)-$(name₂).json", "w") do io
+                    marshal(io, G; fmt = :json)
+                end
+            end
+        end
+
+        isolates = arg(Marginalize, "-s")
+        if length(isolates) > 0
+
+            G = Graphs.copy(graph)
+            names = split(isolates, ',')
+            Graphs.keeponly!(G, names...)
+
+            if reduce
+                changed = true
+                while changed
+                    l = length(G.block)
+                    Graphs.deparalog!(G)
+                    Graphs.detransitive!(G)
+                    changed = l != length(G.block)
+                end
+            else
+                Graphs.detransitive!(G)
+            end
+
+            # recompute positions
+            Graphs.finalize!(G)
+
+            verify_flag && verify(graph, G)
+
+            marshal(stdout, G; fmt = :json)
+        end
+    end,
 )

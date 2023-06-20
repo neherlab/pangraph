@@ -157,11 +157,11 @@ function Graph(name::String, sequence::Array{UInt8}; circular=false)
 end
 
 """
-    copy(G::Graph)
+    copy_graph(G::Graph)
 
 Returns a deep copy of `G`.
 """
-function copy(G::Graph)
+function copy_graph(G::Graph)
     blocks = deepcopy(G.block)
     paths = deepcopy(G.sequence)
     nodes_match = Dict{Node, Node}()
