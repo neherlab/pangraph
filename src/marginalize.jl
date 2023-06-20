@@ -47,7 +47,7 @@ Marginalize = Command(
            pairs  = [ (n₁,n₂) for n₁ in names for n₂ in names if n₁ < n₂ ]
 
            Threads.@threads for (name₁, name₂) in pairs
-               G = deepcopy(graph)
+               G = Graphs.copy(graph)
                Graphs.keeponly!(G, name₁, name₂)
                if reduce
                    changed = true
