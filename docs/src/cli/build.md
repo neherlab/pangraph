@@ -16,7 +16,7 @@ Build a multiple sequence alignment pangraph.
 | distance calculator  | String  | d          | distance-backend | only accepts "native" or "mash"                                                                               |
 | alignment kernel     | String  | k          | alignment-kernel | only accepts "minimap2" or "mmseqs"                                                                           |
 | kmer length (mmseqs) | Integer | K          | kmer-length      | kmer length, only used for mmseqs2 alignment kernel. If not specified will use mmseqs default.                |
-| consistency check    | Boolean | v          | verify           | toggle to activate consistency check: verifies that input genomes can be exactly reconstructed from the graph |
+| consistency check    | Boolean | t          | test             | toggle to activate consistency check: verifies that input genomes can be exactly reconstructed from the graph |
 
 ## Arguments
 Expects one or more fasta files.

@@ -80,7 +80,7 @@ Build = Command(
         Arg(
             Bool,
             "verify that input genomes can be reconstructed from output",
-            (short = "-v", long = "--verify"),
+            (short = "-t", long = "--test"),
             "toggle to activate consistency check at each step of the graph merging process",
             false,
         ),
@@ -161,7 +161,7 @@ Build = Command(
 
         # if testing is set to true, collect dictionary of reference sequences for comparisons
         reference =
-            arg(Build, "-v") ?
+            arg(Build, "-t") ?
             Dict(begin
                     key = collect(keys(G.sequence))[1]
                     seq = sequence(collect(values(G.sequence))[1])
@@ -181,7 +181,7 @@ Build = Command(
         finalize!(graph)
 
         # test graph consistency
-        arg(Build, "-v") && Graphs.consistency_check(graph)
+        arg(Build, "-t") && Graphs.consistency_check(graph)
 
         marshal(stdout, graph; fmt = :json)
     end,

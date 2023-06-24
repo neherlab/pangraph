@@ -28,8 +28,8 @@ Marginalize = Command(
         Arg(
             Bool,
             "check that genomes are preserved",
-            (short = "-v", long = "--verify"),
-            "sanity check that verifies that genomes in the output graphs are identical\n\tto genomes in the input graphs.",
+            (short = "-t", long = "--test"),
+            "consistency check that verifies that genomes in the output graphs are identical\n\tto genomes in the input graphs.",
             false,
         ),
     ],
@@ -48,7 +48,7 @@ Marginalize = Command(
 
         reduce = arg(Marginalize, "-r")
         output = arg(Marginalize, "-o")
-        verify_flag = arg(Marginalize, "-v")
+        test_flag = arg(Marginalize, "-t")
 
         function verify(G₀, G₋)
             # verifies that after the marginalization all genomes from
@@ -87,7 +87,7 @@ Marginalize = Command(
                 # recompute positions
                 Graphs.finalize!(G)
 
-                verify_flag && verify(graph, G)
+                test_flag && verify(graph, G)
 
                 open("$(output)/$(name₁)-$(name₂).json", "w") do io
                     marshal(io, G; fmt = :json)
@@ -117,7 +117,7 @@ Marginalize = Command(
             # recompute positions
             Graphs.finalize!(G)
 
-            verify_flag && verify(graph, G)
+            test_flag && verify(graph, G)
 
             marshal(stdout, G; fmt = :json)
         end
