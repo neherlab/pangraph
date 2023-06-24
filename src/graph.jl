@@ -678,6 +678,36 @@ function finalize!(g)
     end
 end
 
+"""
+    consistency_check(G::Graph)
+
+performs final consistency checks on the graph. Implemented checks for now are:
+- check 1-1 correspondence between gaps and insertion positions in block alignments.
+"""
+function consistency_check(graph)
+
+    # for each block, check that each insertion corresponds to a gap
+    # and each gap has at least one insertion
+    for (id, b) in graph.block
+        
+        # collect gap positions
+        gaps = b.gaps |> keys |> collect
+
+        # collect insertion positions
+        ins_pos = b.insert |> values .|> keys
+        ins_pos = [first(i) for ip in ins_pos for i in ip if length(i) == 2] |> unique
+
+        # check 1-1 correspondence
+        if Set(gaps) != Set(ins_pos)
+            msg = "Consistency check failed in block $id:\n"
+            msg *= "no 1-1 correspondence between\n"
+            msg *= "gaps -> $gaps\n"
+            msg *= "insertion positions -> $ins_pos\n"
+            error(msg)
+        end
+    end
+end
+
 # ------------------------------------------------------------------------
 # main point of entry
 

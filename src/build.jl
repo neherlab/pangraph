@@ -159,6 +159,7 @@ Build = Command(
             _ => error("unrecognized alignment kernel")
         end
 
+        # if testing is set to true, collect dictionary of reference sequences for comparisons
         reference =
             arg(Build, "-v") ?
             Dict(begin
@@ -178,6 +179,9 @@ Build = Command(
             verbose = false,
         )
         finalize!(graph)
+
+        # test graph consistency
+        arg(Build, "-v") && Graphs.consistency_check(graph)
 
         marshal(stdout, graph; fmt = :json)
     end,
