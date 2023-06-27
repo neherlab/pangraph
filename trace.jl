@@ -15,9 +15,9 @@ PanGraph.main(["help", "version"])		   # version usage
 PanGraph.main(["help", "help"])		   # help usage
 
 # build (native - mmseqs)
-PanGraph.main(["build", "-c", "-u", "-b", "0", "-a", "0", "$root/test.fa"])
+PanGraph.main(["build", "-t", "-c", "-u", "-b", "0", "-a", "0", "$root/test.fa"])
 # PanGraph.main(["build", "-c", "-u", "-d", "mash", "$root/test.fa"])
-PanGraph.main(["build", "-c", "-u", "-b", "0", "-a", "0", "-k", "mmseqs", "-K", "8", "$root/test.fa"])
+PanGraph.main(["build", "-t", "-c", "-u", "-b", "0", "-a", "0", "-k", "mmseqs", "-K", "8", "$root/test.fa"])
 
 # export
 PanGraph.main(["export", "-o", "$root/export", "$root/test.json"])
@@ -26,7 +26,7 @@ PanGraph.main(["export", "-o", "$root/export", "$root/test.json"])
 PanGraph.main(["generate", "-o", "$root/export.json", "$root/test.fa"])
 
 # marginalize
-PanGraph.main(["marginalize", "-o", "$root/pairs", "$root/test.json"])
+PanGraph.main(["marginalize", "-t", "-o", "$root/pairs", "$root/test.json"])
 
 # polish
 PanGraph.main(["polish", "-c", "-l", "10000", "$root/test.json"])

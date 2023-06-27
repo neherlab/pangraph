@@ -101,6 +101,8 @@ using .Intervals
 import .Shell: mash, mafft, havecommand
 import ..PanGraph: PanContigs
 
+using OrderedCollections: OrderedDict
+
 export Graph
 export Shell, Blocks, Nodes, Utility
 
@@ -152,6 +154,52 @@ function Graph(name::String, sequence::Array{UInt8}; circular=false)
          Dict([pair(path)]),
          # TODO: more items...
     )
+end
+
+"""
+    copy_graph(G::Graph)
+
+Returns a deep copy of `G`.
+"""
+function copy_graph(G::Graph)
+    blocks = deepcopy(G.block)
+    paths = deepcopy(G.sequence)
+    nodes_match = Dict{Node, Node}()
+    for (name, path) in G.sequence
+        new_nodes = Node[]
+        for node in path.node
+            if node ∉ keys(nodes_match)
+                nodes_match[node] = Node(blocks[node.block.uuid], node.strand)
+            end
+            push!(new_nodes, nodes_match[node])
+        end
+        paths[name].node = new_nodes
+    end
+    for (uuid, block) in G.block
+
+        new_ins = OrderedDict{Node, InsMap}()
+        for (k, v) in block.insert
+            new_node = nodes_match[k]
+            new_ins[new_node] = deepcopy(v)
+        end
+        blocks[uuid].insert = new_ins
+
+        new_del = OrderedDict{Node, DelMap}()
+        for (k, v) in block.delete
+            new_node = nodes_match[k]
+            new_del[new_node] = deepcopy(v)
+        end
+        blocks[uuid].delete = new_del
+
+        new_snp = OrderedDict{Node, SNPMap}()
+        for (k, v) in block.mutate
+            new_node = nodes_match[k]
+            new_snp[new_node] = deepcopy(v)
+        end
+        blocks[uuid].mutate = new_snp
+
+    end
+    return Graph(blocks, paths)
 end
 
 
@@ -508,9 +556,9 @@ function unmarshal(io)
             b.sequence,
             b.gaps,
             # empty until we build the required node{block} objects
-            Dict{Node{Block},SNPMap}(),
-            Dict{Node{Block},InsMap}(),
-            Dict{Node{Block},DelMap}(),
+            OrderedDict{Node{Block},SNPMap}(),
+            OrderedDict{Node{Block},InsMap}(),
+            OrderedDict{Node{Block},DelMap}(),
         )
     end)
 
@@ -627,6 +675,36 @@ Intended to be ran after multiple sequence alignment is complete
 function finalize!(g)
     for p in values(g.sequence)
         positions!(p)
+    end
+end
+
+"""
+    consistency_check(G::Graph)
+
+performs final consistency checks on the graph. Implemented checks for now are:
+- check 1-1 correspondence between gaps and insertion positions in block alignments.
+"""
+function consistency_check(graph)
+
+    # for each block, check that each insertion corresponds to a gap
+    # and each gap has at least one insertion
+    for (id, b) in graph.block
+        
+        # collect gap positions
+        gaps = b.gaps |> keys |> collect
+
+        # collect insertion positions
+        ins_pos = b.insert |> values .|> keys
+        ins_pos = [first(i) for ip in ins_pos for i in ip if length(i) == 2] |> unique
+
+        # check 1-1 correspondence
+        if Set(gaps) != Set(ins_pos)
+            msg = "Consistency check failed in block $id:\n"
+            msg *= "no 1-1 correspondence between\n"
+            msg *= "gaps -> $gaps\n"
+            msg *= "insertion positions -> $ins_pos\n"
+            error(msg)
+        end
     end
 end
 

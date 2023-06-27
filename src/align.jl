@@ -3,6 +3,7 @@ module Align
 using Rematch, Dates
 using LinearAlgebra
 using ProgressMeter
+using Random
 
 using Base.Threads: @spawn, @threads
 
@@ -26,6 +27,7 @@ end
 # ------------------------------------------------------------------------
 # guide tree for order of pairwise comparison for multiple alignments
 
+
 # TODO: distance?
 """
 	mutable struct Clade
@@ -33,7 +35,7 @@ end
 		parent :: Union{Clade,Nothing}
 		left   :: Union{Clade,Nothing}
 		right  :: Union{Clade,Nothing}
-		graph  :: Channel{Graph}
+		graph  :: Channel{Tuple{Graph,Int}}
 	end
 
 Clade is a node (internal or leaf) of a binary guide tree used to order pairwise alignments
@@ -41,13 +43,16 @@ associated to a multiple genome alignment in progress.
 `name` is only non-empty for leaf nodes.
 `parent` is `nothing` for the root node.
 `graph` is a 0-sized channel that is used as a message passing primitive in alignment.
+    It contains the graph and an index used to decide the order of items in a pair in
+    pairwise graph merge.
 """
+Message=Tuple{Graph,Int}
 mutable struct Clade
     name   :: String
     parent :: Union{Clade,Nothing}
     left   :: Union{Clade,Nothing}
     right  :: Union{Clade,Nothing}
-    graph  :: Channel{Graph}
+    graph  :: Channel{Message}
 end
 
 # ---------------------------
@@ -58,20 +63,20 @@ end
 
 Generate an empty, disconnected clade.
 """
-Clade()     = Clade("",nothing,nothing,nothing,Channel{Graph}(2))
+Clade() = Clade("", nothing, nothing, nothing, Channel{Message}(2))
 """
 	Clade(name)
 
 Generate an empty, disconnected clade with name `name`.
 """
-Clade(name) = Clade(name,nothing,nothing,nothing,Channel{Graph}(2))
+Clade(name) = Clade(name, nothing, nothing, nothing, Channel{Message}(2))
 """
 	Clade(left::Clade, right::Clade)
 
 Generate an nameless clade with `left` and `right` children.
 """
 function Clade(left::Clade, right::Clade)
-    parent = Clade("",nothing,left,right,Channel{Graph}(2))
+    parent = Clade("", nothing, left, right, Channel{Message}(2))
 
     left.parent = parent
     right.parent = parent
@@ -351,6 +356,31 @@ function preprocess(hits, skip, energy, blocks!)
     return hits
 end
 
+# DEBUG
+function log_alignment(G₁::Graph, G₂::Graph, hits, fname::String)
+    open(fname, "w") do io
+        for G in (G₁, G₂)
+            write(io, "------------ G ------------\n")
+            PC = pancontigs(G)
+            for (name, seq) in zip(PC.name, PC.sequence)
+                write(io, ">$name\n")
+                write(io, seq, "\n")
+            end
+        end
+        write(io, "------------ hits ------------\n")
+        for h in hits
+            write(io, """
+            .........................
+            qry -> $(h.qry.name) | $(h.qry.start) -> $(h.qry.stop) | $(h.qry.length)
+            ref -> $(h.ref.name) | $(h.ref.start) -> $(h.ref.stop) | $(h.ref.length)
+            len -> $(h.length)
+            strand -> $(h.orientation)
+            cigar -> $(h.cigar)
+            """)
+        end
+    end
+end
+
 function do_align(G₁::Graph, G₂::Graph, energy::Function, aligner::Function)
     hits = if G₁ == G₂
         self = pancontigs(G₁)
@@ -359,6 +389,9 @@ function do_align(G₁::Graph, G₂::Graph, energy::Function, aligner::Function)
         aligner(pancontigs(G₁), pancontigs(G₂))
     end
     sort!(hits; by=energy)
+    
+    # DEBUG
+    # log_alignment(G₁, G₂, hits, "issue/minimap/$(randstring(10)).log")
 
     return hits
 end
@@ -398,7 +431,7 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 `minblock` is the minimum size block that will be produced from the algorithm.
 `maxiter` is maximum number of duplications that will be considered during this alignment.
 """
-function align_self(G₁::Graph, energy::Function, minblock::Int, aligner::Function, verify::Function, verbose::Bool; maxiter=100, sensitivity="asm10")
+function align_self(G₁::Graph, energy::Function, minblock::Int, aligner::Function, verify::Function, verbose::Bool; maxiter=100)
     G₀ = G₁
 
     for niter in 1:maxiter
@@ -440,6 +473,9 @@ function align_self(G₁::Graph, energy::Function, minblock::Int, aligner::Funct
         detransitive!(G₀)
         purge!(G₀)
         prune!(G₀)
+
+        # verify that isolates are correctly reconstructed (-v flag)
+        verify(G₀, msg="verify align-self $niter")
     end
 
     return G₀
@@ -573,6 +609,9 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, a
     purge!(G)
     prune!(G)
 
+    # verify that isolates are correctly reconstructed (-v flag)
+    verify(G, msg="verify align-pair")
+
     return G
 end
 
@@ -592,8 +631,8 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 
 `compare` is the function to be used to generate pairwise distances that generate the internal guide tree.
 """
-function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100)
-    function verify(graph, msg="")
+function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100, verbose=false, rand_seed=0)
+    function verify(graph; msg="")
         if reference !== nothing
             for (name,path) ∈ graph.sequence
                 seq = sequence(path)
@@ -630,7 +669,7 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                     println("--> insert:           $(path.node[i].block.insert[path.node[i]])")
                     println("--> delete:           $(path.node[i].block.delete[path.node[i]])")
 
-                    error("--> isolate '$name' incorrectly reconstructed")
+                    error("$msg\n--> isolate '$name' incorrectly reconstructed")
                 end
             end
         end
@@ -655,22 +694,44 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
     meter_lock = ReentrantLock()
 
     G = nothing
-    for clade ∈ postorder(tree)
+    for (n_clade, clade) ∈ enumerate(postorder(tree))
         @spawn try
+
+            # random seed for the thread - to ensure deterministic reproducibility
+            # in block names
+            Random.seed!(rand_seed+n_clade)
+
             if isleaf(clade)
                 close(clade.graph)
-                put!(clade.parent.graph, tips[clade.name])
+                msg = (tips[clade.name], n_clade)
+                put!(clade.parent.graph, msg)
             else
-                Gₗ = take!(clade.graph)
-                Gᵣ = take!(clade.graph)
+                Gₗ, Pₗ = take!(clade.graph)
+                Gᵣ, Pᵣ = take!(clade.graph)
                 close(clade.graph)
-
+                # ensure a consistent ordering of the two graphs,
+                # irrespective of which process is sending the message first.
+                if Pₗ > Pᵣ
+                    Gₗ, Gᵣ = Gᵣ, Gₗ
+                end
+                
                 # the lock ensures that at most N=Threads.nthreads() processes are
                 # spawning run(`cmd`) instances at the same time
                 G₀ = lock_semaphore(s) do
-                    G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, false)
-                    align_self(G₀, energy, minblock, aligner, verify, false)
+                    verbose && log("--> align-pair for clade n. $n_clade")
+                    G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, verbose)
+                    verbose && log("--> align-self for clade n. $n_clade")
+                    G₀ = align_self(G₀, energy, minblock, aligner, verify, verbose, maxiter=maxiter)
+                    verbose && log("--> graph merging for clade n. $n_clade completed")
+                    G₀
                 end
+
+                # DEBUG : save graph at each iteration in a file
+                # open("issue/comp/graph_iteration_$(n_clade).json", "w") do io
+                #     finalize!(G₀)
+                #     marshal(io, G₀; fmt=:json)
+                # end
+
 
                 # advance progress bar in a thread-safe way
                 lock(meter_lock) do
@@ -678,7 +739,8 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                 end
 
                 if clade.parent !== nothing
-                    put!(clade.parent.graph, G₀)
+                    msg = (G₀, n_clade)
+                    put!(clade.parent.graph, msg)
                 else
                     G = G₀
                     close(error_channel)
