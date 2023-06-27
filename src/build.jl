@@ -84,6 +84,13 @@ Build = Command(
             "toggle to activate consistency check at each step of the graph merging process",
             false,
         ),
+        Arg(
+            Int,
+            "random seed",
+            (short = "-r", long = "--random-seed"),
+            "random seed. Controls block random naming.",
+            0,
+        ),
     ],
     (args) -> let
         files = parse(Build, args)
@@ -122,6 +129,9 @@ Build = Command(
                 exit(1)
             end
         end
+
+        r_seed = arg(Build, "-r")
+        seed!(r_seed)
 
         graph(io) = graphs(io; circular = circular, upper = uppercase)
         isolates = (G for file in files for G ∈ open(graph, file))
@@ -177,6 +187,7 @@ Build = Command(
             maxiter = maxiter,
             reference = reference,
             verbose = false,
+            rand_seed = r_seed,
         )
         finalize!(graph)
 
