@@ -88,7 +88,7 @@ Build = Command(
             Int,
             "random seed",
             (short = "-r", long = "--random-seed"),
-            "random seed. Controls block random naming.",
+            "random seed for pangraph construction.",
             0,
         ),
     ],

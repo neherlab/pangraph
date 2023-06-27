@@ -17,7 +17,7 @@ Build a multiple sequence alignment pangraph.
 | alignment kernel     | String  | k          | alignment-kernel | only accepts "minimap2" or "mmseqs"                                                                           |
 | kmer length (mmseqs) | Integer | K          | kmer-length      | kmer length, only used for mmseqs2 alignment kernel. If not specified will use mmseqs default.                |
 | consistency check    | Boolean | t          | test             | toggle to activate consistency check: verifies that input genomes can be exactly reconstructed from the graph |
-| random seed          | Int     | r          | random-seed      | controls the random naming of blocks                                                                          |
+| random seed          | Int     | r          | random-seed      | random seed for pangraph construction.                                                                        |
 
 ## Arguments
 Expects one or more fasta files.
