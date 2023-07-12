@@ -70,27 +70,27 @@ Marginalize = Command(
             pairs = [(n₁, n₂) for n₁ in names for n₂ in names if n₁ < n₂]
 
             Threads.@threads for (name₁, name₂) in pairs
-                G = Graphs.copy_graph(graph)
-                Graphs.keeponly!(G, name₁, name₂)
+                Γ = Graphs.copy_graph(graph)
+                Graphs.keeponly!(Γ, name₁, name₂)
                 if reduce
                     changed = true
                     while changed
-                        l = length(G.block)
-                        Graphs.deparalog!(G)
-                        Graphs.detransitive!(G)
-                        changed = l != length(G.block)
+                        l = length(Γ.block)
+                        Graphs.deparalog!(Γ)
+                        Graphs.detransitive!(Γ)
+                        changed = l != length(Γ.block)
                     end
                 else
-                    Graphs.detransitive!(G)
+                    Graphs.detransitive!(Γ)
                 end
 
                 # recompute positions
-                Graphs.finalize!(G)
+                Graphs.finalize!(Γ)
 
-                test_flag && verify(graph, G)
+                test_flag && verify(graph, Γ)
 
                 open("$(output)/$(name₁)-$(name₂).json", "w") do io
-                    marshal(io, G; fmt = :json)
+                    marshal(io, Γ; fmt = :json)
                 end
             end
         end
