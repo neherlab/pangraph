@@ -1,5 +1,9 @@
 # PanGraph Changelog
 
+## v0.7.1
+
+- minor fix for multi-threaded marginalize, see [#58](https://github.com/neherlab/pangraph/pull/58).
+
 ## v0.7.0
 
 - fasta input files are checked for duplicated records, and white lines between records are tolerated, see [#55](https://github.com/neherlab/pangraph/pull/55).
