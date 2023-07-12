@@ -1,5 +1,9 @@
 # PanGraph Changelog
 
+## v0.7.2 (draft)
+
+- added `-n` flag to `build` command, to prevent balancing of the guide tree.
+
 ## v0.7.1
 
 - minor fix for multi-threaded marginalize, see [#58](https://github.com/neherlab/pangraph/pull/58).

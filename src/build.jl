@@ -91,6 +91,13 @@ Build = Command(
             "random seed for pangraph construction.",
             0,
         ),
+        Arg(
+            Bool,
+            "do not balance guide tree",
+            (short = "-n", long = "--not-balanced"),
+            "toggle to use original guide tree without forcing balancing.\nslows down parallelization but improves merge ordering.",
+            false,
+        ),
     ],
     (args) -> let
         files = parse(Build, args)
@@ -178,6 +185,9 @@ Build = Command(
                     key => seq
                 end for G in isolates) : nothing
 
+        # force balanced guide tree
+        balance_guide_tree = !arg(Build, "-n")
+
         graph = Graphs.align(
             aligner,
             isolates...;
@@ -188,6 +198,7 @@ Build = Command(
             reference = reference,
             verbose = false,
             rand_seed = r_seed,
+            force_balance = balance_guide_tree,
         )
         finalize!(graph)
 

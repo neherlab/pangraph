@@ -57,6 +57,10 @@ pangraph build -t -c -d mash "$TESTDIR/input.fa" > "$TESTDIR/test2.json"
 echo "Test pangraph build - mmseqs"
 export JULIA_NUM_THREADS=1
 pangraph build -t -c -k mmseqs -K 8 "$TESTDIR/input.fa" > "$TESTDIR/test3.json"
+export JULIA_NUM_THREADS=4
+
+echo "Test pangraph build - unbalanced tree"
+pangraph build -t -c -n -k minimap2 -s 10 -a 100 -b 20 "$TESTDIR/input.fa" > "$TESTDIR/test4.json"
 
 echo "Test pangraph polish"
 pangraph polish -c -l 10000 "$TESTDIR/test1.json" > "$TESTDIR/polished.json"

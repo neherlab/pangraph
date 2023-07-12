@@ -631,7 +631,7 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 
 `compare` is the function to be used to generate pairwise distances that generate the internal guide tree.
 """
-function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100, verbose=false, rand_seed=0)
+function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100, verbose=false, rand_seed=0, force_balance=true)
     function verify(graph; msg="")
         if reference !== nothing
             for (name,path) ∈ graph.sequence
@@ -678,7 +678,11 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
     end
 
     log("--> ordering")
-    tree = ordering(compare, Gs...) |> balance
+    tree = ordering(compare, Gs...) 
+    if force_balance
+        log("--> balancing tree")
+        tree = balance(tree)
+    end
     log("--> tree: ", tree)
 
     meter = Progress(n_inner_nodes(tree); desc="alignment progress", output=stderr)
