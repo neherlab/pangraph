@@ -1,7 +1,7 @@
 name = "PanGraph"
 uuid = "0f9f61ca-f32c-45e1-b3bc-00138f4f8814"
 authors = ["Nicholas Noll <nbnoll@eml.cc>"]
-version = "0.7.1"
+version = "0.7.2"
 
 [deps]
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
@@ -24,4 +24,4 @@ TreeTools = "62f0eae3-8c0e-4032-a621-7756092209e5"
 minimap2_jll = "d341526d-637d-5003-8fc4-9c6812cd2b55"
 
 [compat]
-TreeTools = ">= 0.6.2"
+TreeTools = "0.6.5"

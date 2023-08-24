@@ -1,5 +1,9 @@
 # PanGraph Changelog
 
+## v0.7.2
+
+- minor fix in tree midpoint rooting during panX export, see [#59](https://github.com/neherlab/pangraph/issues/59).
+
 ## v0.7.1
 
 - minor fix for multi-threaded marginalize, see [#58](https://github.com/neherlab/pangraph/pull/58).
