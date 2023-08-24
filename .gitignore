@@ -1,4 +1,3 @@
-\.cache
 .dep
 .local
 data
@@ -14,7 +13,7 @@ pangraph.tar.gz
 bin
 tutorial
 playgrounds
-.vscode
+/.vscode
 script/synthetic_data
 script/panx_data
 script/.snakemake
@@ -25,6 +24,7 @@ script/panx_results
 script/local_scripts
 __pycache__
 tests/data
+/debug
 
 deps/minimap2/build
 deps/minimap2/products
