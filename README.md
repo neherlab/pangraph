@@ -28,6 +28,8 @@ pangraph is available:
 
 For more extended instructions on installation please refer to the [documentation](https://neherlab.github.io/pangraph/#Installation).
 
+**Note:** pangraph was written in **Julia version 1.7.2**. Compatibility more recent versions of Julia is not guaranteed.
+
 ### Julia Library
 
 To install pangraph as a julia library in a local environment:
@@ -75,6 +77,7 @@ Moreover, for the compilation to work, it is necessary to have [MAFFT](https://m
 
 **Note,** it is [recommended by the PackageCompiler.jl documentation](https://julialang.github.io/PackageCompiler.jl/stable/#Installation-instructions) to utilize the officially distributed binaries for Julia, not those distributed by your Linux distribution. As such, compilation may not work if you attempt to do so.
 
+**Note,** pangraph was developed in Julia v.1.7.2. Compatibility with more recent versions of Julia is not guaranteed. 
 
 ### Optional dependencies
 

@@ -40,7 +40,7 @@ Pangraph is available:
 
 ### as a Julia library
 
-The library is written in and thus requires [Julia](https://julialang.org/downloads/) to be installed on your machine.
+The library is written in and thus requires [Julia](https://julialang.org/downloads/) to be installed on your machine. (Note: pangraph was developed in Julia v.1.7.2, compatibility with more recent versions is not guaranteed.)
 
 To install pangraph as a julia library in a local environment:
 ```bash
@@ -138,6 +138,7 @@ Moreover, for the compilation to work, it is necessary to have [MAFFT](https://m
 
 **Note,** it is [recommended by the PackageCompiler.jl documentation](https://julialang.github.io/PackageCompiler.jl/stable/#Installation-instructions) to utilize the officially distributed binaries for Julia, not those distributed by your Linux distribution. As such, compilation may not work if you attempt to do so.
 
+**Note,** pangraph was developed in Julia v.1.7.2. Compatibility with more recent versions of Julia is not guaranteed.
 
 ### Optional dependencies
 
