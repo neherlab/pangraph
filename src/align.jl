@@ -732,6 +732,11 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                         finalize!(G₀)
                         marshal(io, G₀; fmt=:json)
                     end
+                    # if the file exists, remove input intermediate files that were successfully merged
+                    fl = "$(debugdir)/graph_iteration_$(Pₗ).json"
+                    fr = "$(debugdir)/graph_iteration_$(Pᵣ).json"
+                    isfile(fl) && rm(fl)
+                    isfile(fr) && rm(fr)
                 end
 
                 # advance progress bar in a thread-safe way
