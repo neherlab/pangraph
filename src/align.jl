@@ -618,7 +618,7 @@ end
 # TODO: the associative array is a bit hacky...
 #       can we push it directly into the channel?
 """
-	align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100)
+	align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100, verbose=false, debugdir=nothing)
 
 Aligns a collection of graphs `Gs` using the specified `aligner` function to recover hits.
 Graphs are aligned following an internal guide tree, generated using kmer distance.
@@ -631,7 +631,7 @@ The _lower_ the score, the _better_ the alignment. Only negative energies are co
 
 `compare` is the function to be used to generate pairwise distances that generate the internal guide tree.
 """
-function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100, verbose=false, rand_seed=0)
+function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(hit)->(-Inf), minblock=100, reference=nothing, maxiter=100, verbose=false, rand_seed=0, debugdir=nothing)
     function verify(graph; msg="")
         if reference !== nothing
             for (name,path) ∈ graph.sequence
@@ -718,7 +718,7 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                 # the lock ensures that at most N=Threads.nthreads() processes are
                 # spawning run(`cmd`) instances at the same time
                 G₀ = lock_semaphore(s) do
-                    verbose && log("--> align-pair for clade n. $n_clade")
+                    verbose && log("--> align-pair for clade n. $n_clade from $(Pₗ) and $(Pᵣ)")
                     G₀ = align_pair(Gₗ, Gᵣ, energy, minblock, aligner, verify, verbose)
                     verbose && log("--> align-self for clade n. $n_clade")
                     G₀ = align_self(G₀, energy, minblock, aligner, verify, verbose, maxiter=maxiter)
@@ -726,12 +726,13 @@ function align(aligner::Function, Gs::Graph...; compare=Mash.distance, energy=(h
                     G₀
                 end
 
-                # DEBUG : save graph at each iteration in a file
-                # open("issue/comp/graph_iteration_$(n_clade).json", "w") do io
-                #     finalize!(G₀)
-                #     marshal(io, G₀; fmt=:json)
-                # end
-
+                # if debug: save graph at each iteration in a file
+                if debugdir !== nothing
+                    open("$(debugdir)/graph_iteration_$(n_clade).json", "w") do io
+                        finalize!(G₀)
+                        marshal(io, G₀; fmt=:json)
+                    end
+                end
 
                 # advance progress bar in a thread-safe way
                 lock(meter_lock) do

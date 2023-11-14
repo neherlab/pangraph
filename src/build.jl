@@ -85,6 +85,20 @@ Build = Command(
             false,
         ),
         Arg(
+            Bool,
+            "debug mode",
+            (short = "-D", long = "--debug"),
+            "toggle to activate debug mode: saves intermediate results",
+            false,
+        ),
+        Arg(
+            Bool,
+            "debug mode",
+            (short = "-v", long = "--verbose"),
+            "toggle to activate verbose mode",
+            false,
+        ),
+        Arg(
             Int,
             "random seed",
             (short = "-r", long = "--random-seed"),
@@ -93,6 +107,8 @@ Build = Command(
         ),
     ],
     (args) -> let
+
+        # parse input files
         files = parse(Build, args)
         files = if files === nothing || length(files) == 0
             ["/dev/stdin"]
@@ -100,9 +116,28 @@ Build = Command(
             files
         end
 
+        # if verbose mode: print all arguments
+        verbose = arg(Build, "-v")
+
+        if verbose
+            println(stderr, "pangraph build command arguments:")
+            for arg in Build.arg
+                println(stderr, "\t", arg.flag.long, " = ", arg.value)
+            end
+        end
+
+        debugdir = nothing
+        if arg(Build, "-D")
+            # create debug directory
+            debugdir = joinpath(pwd(), "debug")
+            isdir(debugdir) || mkdir(debugdir)
+        end
+
+        # parse command arguments
         minblock = arg(Build, "-l")
         circular = arg(Build, "-c")
         uppercase = arg(Build, "-u")
+        verbose = arg(Build, "-v")
 
         α = arg(Build, "-a")
         β = arg(Build, "-b")
@@ -186,8 +221,9 @@ Build = Command(
             minblock = minblock,
             maxiter = maxiter,
             reference = reference,
-            verbose = false,
+            verbose = verbose,
             rand_seed = r_seed,
+            debugdir = debugdir,
         )
         finalize!(graph)
 
