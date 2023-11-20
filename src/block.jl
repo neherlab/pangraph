@@ -957,6 +957,22 @@ function reconsensus!(b::Block)
     return true
 end
 
+# """
+#     debug function that saves all of the block information on a text file.
+# """
+# function all_block_info(io::IO, b::Block)
+#     println(io, "Block ID: ", b.uuid)
+#     println(io, "Sequence: ", b.sequence .|> Char |> join)
+#     println(io, "Gaps: ", b.gaps)
+#     for (name, dict) in zip(["Mutations", "Insertions", "Deletions"], [b.mutate, b.insert, b.delete])
+#         println(io, "$name ---")
+#         for (node, value) in dict
+#             println(io, "\tNode: ", hash(node))
+#             println(io, "\t\t", value)
+#         end
+#     end
+# end
+
 # TODO: align consensus sequences within overlapping gaps of qry and ref.
 #       right now we parsimoniously stuff all sequences at the beginning of gaps
 #       problems:
@@ -998,7 +1014,6 @@ function rereference(qry::Block, ref::Block, segments)
                     # TODO: allow for (-) hamming alignments
                     gap = gapconsensus(qry, x.qry-1)
                     pos = hamming_align(gap, ref.sequence[Δ])-1
-
                     newgap = (Δ.stop, 0)
 
                     for node ∈ keys(qry)
@@ -1015,7 +1030,7 @@ function rereference(qry::Block, ref::Block, segments)
                             start = Δ.start + pos + δ
                             stop  = start + length(ins) - 1
 
-                            if 1 ≤ start ≤ Δ.stop 
+                            if 1 ≤ start ≤ Δ.stop
                                 for i ∈ start:min(Δ.stop,stop)
                                     if ins[i-start+1] != ref.sequence[i]
                                         if node ∉ keys(combined.mutate)
@@ -1080,7 +1095,7 @@ function rereference(qry::Block, ref::Block, segments)
                     end
 
                     newgap = nothing
-                else
+                else # no insertions in qry, just add as new deletion
                     newdeletes = DelDict(node => Dict(x.ref=>Δ.stop-Δ.start+1) for node ∈ keys(qry))
                     merge!(combined.delete, newdeletes)
                 end
@@ -1088,9 +1103,32 @@ function rereference(qry::Block, ref::Block, segments)
                 x = (qry=x.qry, ref=Δ.stop+1)
             end
             (Δ, nothing) => let # sequence in qry consensus not found in ref consensus
-                mutate = translate(lociwithin(qry.mutate,Δ),1-Δ.start)
-                insert = translate(lociwithin(qry.insert,Δ),1-Δ.start)
-                delete = translate(lociwithin(qry.delete,Δ),1-Δ.start)
+                mutate = lociwithin(qry.mutate,Δ)
+                insert = lociwithin(qry.insert,Δ)
+                delete = lociwithin(qry.delete,Δ)
+
+                # delete all query insertions that will be accounted for in this segment
+                del_gaps = Int[]
+                for (node, subdict) in insert
+                    for (locus, nuc) in subdict
+                        @assert locus[1] in keys(qry.gaps)
+                        # append locus to del_gaps
+                        push!(del_gaps, locus[1])
+                        delete!(qry.insert[node], locus)
+                    end
+                end
+                
+                # remove corresponding query gaps
+                for dg in unique(del_gaps)
+                    @assert dg ∉ [locus[1] for (node, subdict) ∈ qry.insert for (locus, nuc) ∈ keys(subdict)]
+                    delete!(qry.gaps, dg)
+                end
+
+                # shift variations on the segment start
+                mutate = translate(mutate,1-Δ.start)
+                insert = translate(insert,1-Δ.start)
+                delete = translate(delete,1-Δ.start)
+
 
                 if (x.ref-1) ∈ keys(newgaps) # TODO: more sophisticated alignment? have to worry about overriding alignment
                     δ = newgaps[x.ref-1] #hamming_align(qry.sequence[Δ], gapconsensus(combined.insert, newgaps[x.ref-1], x.ref-1)) - 1
@@ -1109,13 +1147,13 @@ function rereference(qry::Block, ref::Block, segments)
                             if (δ+length(seq)) > last(newgap)
                                 newgap = (first(newgap),length(seq)+δ)
                             end
-                            node => InsMap((x.ref-1,δ) => seq) 
+                            node => InsMap((x.ref-1,δ) => seq)
                         else
                             node => InsMap()
                         end
                     end for node ∈ keys(qry)
                 )
-
+                
                 if last(newgap) > 0
                     if newgap[1] ∉ keys(newgaps) || newgap[2] > newgaps[newgap[1]]
                         newgaps[newgap[1]] = newgap[2]
@@ -1143,7 +1181,7 @@ function rereference(qry::Block, ref::Block, segments)
                    ) for node ∈ keys(qry)
                 )
 
-                # XXX: hacky way to ensure deletions are not inclued in newmuts
+                # XXX: hacky way to ensure deletions are not included in newmuts
                 newdels = map(qry.delete,Δq,Δr)
                 for (node, subdict) in newdels
                     for (pos, len) in subdict

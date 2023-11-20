@@ -463,6 +463,7 @@ function align_self(G₁::Graph, energy::Function, minblock::Int, aligner::Funct
         merges = preprocess(hits, skip, energy, block)
         length(merges) > 0 || break
 
+        # dictionary block-id => block
         blocks = align_kernel(merges, minblock, replace, verbose)
         merge!(blocks, G₀.block)
 
@@ -593,6 +594,7 @@ function align_pair(G₁::Graph, G₂::Graph, energy::Function, minblock::Int, a
 
     merges = preprocess(hits, skip, energy, block)
 
+    # dictionary block-id => block
     blocks   = align_kernel(merges, minblock, replace, verbose)
     sequence = merge(G₁.sequence, G₂.sequence)
 
