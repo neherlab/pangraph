@@ -1,5 +1,9 @@
 # PanGraph Changelog
 
+## v0.7.3 (draft)
+
+- bugfix in graph building: a particular edge-case would cause minor inconsistencies in the block alignment when merging graphs, see issue [#62](https://github.com/neherlab/pangraph/issues/62) and PR [#63](https://github.com/neherlab/pangraph/pull/63).
+
 ## v0.7.2
 
 - minor fix in tree midpoint rooting during panX export, see [#59](https://github.com/neherlab/pangraph/issues/59).
