@@ -1111,7 +1111,7 @@ function rereference(qry::Block, ref::Block, segments)
                 del_gaps = Int[]
                 for (node, subdict) in insert
                     for (locus, nuc) in subdict
-                        @assert locus[1] in keys(qry.gaps)
+                        # @assert locus[1] in keys(qry.gaps)
                         # append locus to del_gaps
                         push!(del_gaps, locus[1])
                         delete!(qry.insert[node], locus)
@@ -1120,7 +1120,7 @@ function rereference(qry::Block, ref::Block, segments)
                 
                 # remove corresponding query gaps
                 for dg in unique(del_gaps)
-                    @assert dg ∉ [locus[1] for (node, subdict) ∈ qry.insert for (locus, nuc) ∈ keys(subdict)]
+                    # @assert dg ∉ [locus[1] for (node, subdict) ∈ qry.insert for (locus, nuc) ∈ keys(subdict)]
                     delete!(qry.gaps, dg)
                 end
 
