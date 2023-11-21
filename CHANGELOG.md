@@ -1,6 +1,6 @@
 # PanGraph Changelog
 
-## v0.7.3 (draft)
+## v0.7.3
 
 - bugfix in graph building: a particular edge-case would cause minor inconsistencies in the block alignment when merging graphs, see issue [#62](https://github.com/neherlab/pangraph/issues/62) and PR [#63](https://github.com/neherlab/pangraph/pull/63).
 
