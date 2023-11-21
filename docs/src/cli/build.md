@@ -17,6 +17,8 @@ Build a multiple sequence alignment pangraph.
 | alignment kernel     | String  | k          | alignment-kernel | only accepts "minimap2" or "mmseqs"                                                                           |
 | kmer length (mmseqs) | Integer | K          | kmer-length      | kmer length, only used for mmseqs2 alignment kernel. If not specified will use mmseqs default.                |
 | consistency check    | Boolean | t          | test             | toggle to activate consistency check: verifies that input genomes can be exactly reconstructed from the graph |
+| verbose mode         | Boolean | v          | verbose          | toggle to activate verbose mode                                                                               |
+| debug mode           | Boolean | D          | debug            | toggle to activate debug mode: during merging intermediate graphs are saved in the `debug` folder             |
 | random seed          | Int     | r          | random-seed      | random seed for pangraph construction.                                                                        |
 
 ## Arguments
