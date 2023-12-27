@@ -102,7 +102,7 @@ impl<'a> FastaReader<'a> {
         break;
       }
 
-      let fragment = self.line.trim_end().chars().into_iter().map(|c| c.to_ascii_uppercase());
+      let fragment = self.line.trim_end().chars().map(|c| c.to_ascii_uppercase());
 
       record.seq.extend(fragment);
     }

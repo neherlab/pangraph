@@ -82,7 +82,7 @@ pub struct PangraphInsert {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Insertion {}
+pub struct Insertion;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PangraphDelete {
@@ -92,7 +92,7 @@ pub struct PangraphDelete {
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Deletion {}
+pub struct Deletion;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PangraphPositions {

@@ -9,6 +9,11 @@ codegen-units = 4096
 incremental = true
 lto = "off"
 
+[profile.profiling]
+inherits = "release"
+debug = 1
+strip = false
+
 # Optimize dependencies even in debug mode
 [profile.dev.package."*"]
 opt-level = 2
@@ -24,6 +29,33 @@ opt-level = 3
 opt-level = 3
 [profile.dev.package.pretty_assertions]
 opt-level = 3
+
+
+[profile.opt-dev]
+inherits = "dev"
+codegen-units = 128
+incremental = true
+opt-level = 2
+lto = "off"
+panic = "abort"
+strip = true
+
+# Optimize dependencies even in debug mode
+[profile.opt-dev.package."*"]
+opt-level = 2
+[profile.opt-dev.package.backtrace]
+opt-level = 3
+[profile.opt-dev.package.color-spantrace]
+opt-level = 3
+[profile.opt-dev.package.tracing]
+opt-level = 3
+[profile.opt-dev.package.tracing-error]
+opt-level = 3
+[profile.opt-dev.package.tracing-subscriber]
+opt-level = 3
+[profile.opt-dev.package.pretty_assertions]
+opt-level = 3
+
 
 [profile.release]
 codegen-units = 1
@@ -67,7 +99,7 @@ rustflags = [
   "-Wfuture_incompatible",
   "-Wnonstandard_style",
   "-Wrust_2018_idioms",
-   "-Wtrivial_casts",
+  # "-Wtrivial_casts",
   "-Wtrivial_numeric_casts",
   # Enable all clippy lint groups
   # Order is important!
@@ -153,14 +185,19 @@ rustflags = [
   "-Wclippy::zero_sized_map_values",
   #
   # Disable some of the clippy lints
+  "-Aclippy::arithmetic-side-effects",
   "-Aclippy::as_conversions",
+  "-Aclippy::assign_op_pattern",
+  "-Aclippy::bool-to-int-with-if",
   "-Aclippy::cast_lossless",
   "-Aclippy::cast_possible_truncation",
   "-Aclippy::cast_possible_wrap",
   "-Aclippy::cast_precision_loss",
   "-Aclippy::cast_sign_loss",
   "-Aclippy::cognitive_complexity",
+  "-Aclippy::comparison-chain",
   "-Aclippy::default_numeric_fallback",
+  "-Aclippy::deref_by_slicing",
   "-Aclippy::doc_markdown",
   "-Aclippy::else_if_without_else",
   "-Aclippy::exhaustive_enums",
@@ -168,24 +205,31 @@ rustflags = [
   "-Aclippy::expect_used",
   "-Aclippy::float_arithmetic",
   "-Aclippy::if_not_else",
+  "-Aclippy::impl-trait-in-params",
   "-Aclippy::implicit_hasher",
   "-Aclippy::implicit_return",
   "-Aclippy::inconsistent_digit_grouping",
   "-Aclippy::indexing_slicing",
-  "-Aclippy::integer_arithmetic",
+  "-Aclippy::arithmetic_side_effects",
   "-Aclippy::integer_division",
   "-Aclippy::iter_nth_zero",
   "-Aclippy::large_digit_groups",
   "-Aclippy::let_underscore_must_use",
+  "-Aclippy::manual-string-new",
   "-Aclippy::match_same_arms",
+  "-Aclippy::missing-assert-message",
+  "-Aclippy::missing_const_for_fn",
   "-Aclippy::missing_docs_in_private_items",
   "-Aclippy::missing_errors_doc",
   "-Aclippy::missing_inline_in_public_items",
   "-Aclippy::missing_panics_doc",
+  "-Aclippy::missing_trait_methods",
   "-Aclippy::mod_module_files",
   "-Aclippy::module_inception",
   "-Aclippy::module_name_repetitions",
+  "-Aclippy::modulo_arithmetic",
   "-Aclippy::must_use_candidate",
+  "-Aclippy::needless_for_each",
   "-Aclippy::new_without_default",
   "-Aclippy::non_ascii_literal",
   "-Aclippy::option_if_let_else",
@@ -195,7 +239,10 @@ rustflags = [
   "-Aclippy::print_stderr",
   "-Aclippy::print_stdout",
   "-Aclippy::pub-use",
+  "-Aclippy::question-mark-used",
   "-Aclippy::self-named-module-files",
+  "-Aclippy::semicolon_inside_block",
+  "-Aclippy::semicolon_outside_block",
   "-Aclippy::separated_literal_suffix",
   "-Aclippy::shadow_reuse",
   "-Aclippy::shadow_same",
@@ -203,9 +250,12 @@ rustflags = [
   "-Aclippy::should_implement_trait",
   "-Aclippy::similar_names",
   "-Aclippy::single_char_lifetime_names",
+  "-Aclippy::std-instead-of-alloc",
+  "-Aclippy::std_instead_of_core",
   "-Aclippy::suboptimal_flops",
   "-Aclippy::too_many_arguments",
   "-Aclippy::too_many_lines",
+  "-Aclippy::type_repetition_in_bounds",
   "-Aclippy::unnecessary_wraps",
   "-Aclippy::unreachable",
   "-Aclippy::unreadable_literal",

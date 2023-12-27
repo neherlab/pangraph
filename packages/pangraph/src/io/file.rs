@@ -60,8 +60,8 @@ pub fn create_file(filepath: impl AsRef<Path>) -> Result<Box<dyn Write + Send>, 
     info!("File path is {filepath:?}. Writing to standard output.");
     Box::new(BufWriter::with_capacity(32 * 1024, stdout()))
   } else {
-    ensure_dir(&filepath)?;
-    Box::new(File::create(&filepath).wrap_err_with(|| format!("When creating file: '{filepath:?}'"))?)
+    ensure_dir(filepath)?;
+    Box::new(File::create(filepath).wrap_err_with(|| format!("When creating file: '{filepath:?}'"))?)
   };
 
   let buf_file = BufWriter::with_capacity(32 * 1024, file);
