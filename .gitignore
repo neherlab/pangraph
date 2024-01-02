@@ -37,3 +37,6 @@ deps/minimap2/products
 *.out
 *.pdf
 *.fdb_latexmk
+
+
+.ipynb_checkpoints/
