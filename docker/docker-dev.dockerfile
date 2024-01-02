@@ -29,7 +29,6 @@ RUN set -euxo pipefail >/dev/null \
   gnupg \
   libssl-dev \
   lsb-release \
-  mafft \
   make \
   pkg-config \
   python3 \
@@ -199,8 +198,32 @@ USER 0
 
 # Install mmseqs
 RUN set -euxo pipefail >/dev/null \
-  && export MMSEQS_VERSION="13-45111" \
-  && curl -fsSL "https://github.com/soedinglab/MMseqs2/releases/download/${MMSEQS_VERSION}/mmseqs-linux-sse2.tar.gz" | tar -C "/usr/bin/" -xz --strip-components=2 "mmseqs/bin/mmseqs"
+&& export MMSEQS_VERSION="13-45111" \
+&& curl -fsSL "https://github.com/soedinglab/MMseqs2/releases/download/${MMSEQS_VERSION}/mmseqs-linux-sse2.tar.gz" | tar -C "/usr/bin/" -xz --strip-components=2 "mmseqs/bin/mmseqs" \
+&& mmseqs --help | grep "Version"
+
+# Install mash
+RUN set -euxo pipefail >/dev/null \
+&& curl -fsSL "https://github.com/marbl/Mash/releases/download/v2.2/mash-Linux64-v2.2.tar" | tar -C "/usr/bin/" -x --strip-components=1 "mash-Linux64-v2.2/mash" \
+&& mash --version
+
+# Install fasttree
+RUN set -euxo pipefail >/dev/null \
+&& curl -fsSLo "/usr/bin/fasttree" "http://www.microbesonline.org/fasttree/FastTree" \
+&& chmod +x "/usr/bin/fasttree" \
+&& fasttree -help
+
+# Install mafft
+RUN set -euxo pipefail >/dev/null \
+&& mkdir -p "/opt/mafft" \
+&& curl -fsSL "https://mafft.cbrc.jp/alignment/software/mafft-7.490-linux.tgz" \
+  | tar xz -C "/usr/bin/" --strip-components=1 "mafft-linux64/" \
+&& ln -s "/usr/bin/mafft.bat" "/usr/bin/mafft" \
+&& chmod 0777 "/usr/bin/mafft.bat" \
+&& chown root:root "/usr/bin/mafft.bat" \
+ && chmod -R 0777 "/usr/bin/mafftdir" \
+&& chown -R root:root "/usr/bin/mafftdir" \
+&& mafft --version
 
 USER ${USER}
 
