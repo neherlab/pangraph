@@ -5,4 +5,5 @@ pub mod float_fmt;
 pub mod global_init;
 pub mod random;
 pub mod string;
+pub mod subprocess;
 pub mod vec;
