@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [ ! -d "~/.jupyter/lab" ]; then
+  cp -r /files/.jupyter ~/.jupyter
+fi
+
+jupyter lab --ip='*' --port=8888 --IdentityProvider.token='' -y --no-browser --ServerApp.log_level=ERROR --ExtensionApp.log_level=ERROR --LabApp.log_level=ERROR
