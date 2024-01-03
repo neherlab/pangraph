@@ -61,7 +61,7 @@ DOCKER_IMAGE_VERSION="$(find \
   .dockerignore \
   .gitignore \
   docker-dev \
-  docker/**/* \
+  docker/ \
   Manifest.toml \
 -type f -print0 | sort -z | xargs -0 cat | sha256sum| cut -f 1 -d ' ')"
 

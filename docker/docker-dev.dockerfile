@@ -5,7 +5,6 @@ FROM $DOCKER_BASE_IMAGE as dev
 SHELL ["bash", "-euxo", "pipefail", "-c"]
 
 ARG DOCKER_BASE_IMAGE
-ARG DASEL_VERSION="1.22.1"
 
 # Install required packages if running Debian or Ubuntu
 RUN set -euxo pipefail >/dev/null \
@@ -48,10 +47,9 @@ ENV UID=$UID
 ENV GID=$GID
 ENV TERM="xterm-256color"
 ENV HOME="/home/${USER}"
-ENV NODE_DIR="/opt/node"
-ENV PATH="${NODE_DIR}/bin:${HOME}/.local/bin:${HOME}/.cargo/bin:${HOME}/.cargo/install/bin:${PATH}"
+ENV PATH="${NODE_DIR}/bin:${HOME}/.local/bin:${PATH}"
 
-# Install dasel, a tool to query TOML files
+# Install jq, a tool to query JSON files
 RUN set -euxo pipefail >/dev/null \
 && curl -fsSL -o "/usr/bin/jq" "https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64" \
 && chmod +x "/usr/bin/jq" \
@@ -59,9 +57,38 @@ RUN set -euxo pipefail >/dev/null \
 
 # Install dasel, a tool to query TOML files
 RUN set -euxo pipefail >/dev/null \
-&& curl -fsSL "https://github.com/TomWright/dasel/releases/download/v${DASEL_VERSION}/dasel_linux_amd64" -o "/usr/bin/dasel" \
+&& curl -fsSL "https://github.com/TomWright/dasel/releases/download/v1.22.1/dasel_linux_amd64" -o "/usr/bin/dasel" \
 && chmod +x "/usr/bin/dasel" \
 && dasel --version
+
+# Install mmseqs
+RUN set -euxo pipefail >/dev/null \
+&& export MMSEQS_VERSION="13-45111" \
+&& curl -fsSL "https://github.com/soedinglab/MMseqs2/releases/download/${MMSEQS_VERSION}/mmseqs-linux-sse2.tar.gz" | tar -C "/usr/bin/" -xz --strip-components=2 "mmseqs/bin/mmseqs" \
+&& mmseqs --help | grep "Version"
+
+# Install mash
+RUN set -euxo pipefail >/dev/null \
+&& curl -fsSL "https://github.com/marbl/Mash/releases/download/v2.2/mash-Linux64-v2.2.tar" | tar -C "/usr/bin/" -x --strip-components=1 "mash-Linux64-v2.2/mash" \
+&& mash --version
+
+# Install fasttree
+RUN set -euxo pipefail >/dev/null \
+&& curl -fsSLo "/usr/bin/fasttree" "http://www.microbesonline.org/fasttree/FastTree" \
+&& chmod +x "/usr/bin/fasttree" \
+&& fasttree -help
+
+# Install mafft
+RUN set -euxo pipefail >/dev/null \
+&& mkdir -p "/opt/mafft" \
+&& curl -fsSL "https://mafft.cbrc.jp/alignment/software/mafft-7.490-linux.tgz" \
+  | tar xz -C "/usr/bin/" --strip-components=1 "mafft-linux64/" \
+&& ln -s "/usr/bin/mafft.bat" "/usr/bin/mafft" \
+&& chmod 0777 "/usr/bin/mafft.bat" \
+&& chown root:root "/usr/bin/mafft.bat" \
+&& chmod -R 0777 "/usr/bin/mafftdir" \
+&& chown -R root:root "/usr/bin/mafftdir" \
+&& mafft --version
 
 
 COPY docker/files /files
