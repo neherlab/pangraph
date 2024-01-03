@@ -45,9 +45,14 @@ if [ -f "${PROJECT_ROOT_DIR}/.env" ]; then
   . "${PROJECT_ROOT_DIR}/.env"
 fi
 
+RUN=0
 JUPYTER=0
 
 case "${1:-}" in
+"run" | "r")
+  shift
+  RUN=1
+  ;;
 "jupyter" | "j")
   shift
   JUPYTER=1
@@ -107,8 +112,11 @@ fi
 PARAMS=""
 COMMAND=${*:-bash}
 PORTS=
-if [ "${JUPYTER}" == "1" ]; then
+if [ "${RUN}" == "1" ]; then
+  COMMAND="julia --project=. ${*:-}"
+elif [ "${JUPYTER}" == "1" ]; then
   COMMAND="/files/start-jupyter"
+  PORTS="-p 10000:8888"
 elif [ -z "${*:-}" ]; then
   COMMAND="bash"
 else
@@ -142,7 +150,6 @@ ${NICE} docker run --rm \
   --env="USER=${USER}" \
   --env="GROUP=${GROUP}" \
   --env="PS1=\${USER}@\${HOST}" \
-  -p "10000:8888" \
   --ulimit core=0 \
   ${PORTS} \
   "${DOCKER_REPO}" \
