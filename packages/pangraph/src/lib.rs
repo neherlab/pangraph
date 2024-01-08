@@ -1,3 +1,4 @@
+pub mod align;
 pub mod commands;
 pub mod io;
 pub mod utils;
