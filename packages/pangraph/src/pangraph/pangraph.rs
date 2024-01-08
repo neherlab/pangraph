@@ -17,9 +17,9 @@ pub struct Pangraph {
 }
 
 impl Pangraph {
-  pub fn singleton(fasta: &FastaRecord, circular: bool) -> Self {
-    let block = PangraphBlock::new(fasta.seq.clone());
-    let path = PangraphPath::new(&fasta.seq_name, block.id, circular);
+  pub fn singleton(fasta: FastaRecord, circular: bool) -> Self {
+    let block = PangraphBlock::new(fasta.seq);
+    let path = PangraphPath::new(fasta.seq_name, block.id, circular);
     Self {
       blocks: vec![block],
       paths: vec![path],
@@ -70,9 +70,9 @@ pub struct PangraphPath {
 }
 
 impl PangraphPath {
-  pub fn new(seq_name: &str, block_id: usize, circular: bool) -> Self {
+  pub fn new(name: String, block_id: usize, circular: bool) -> Self {
     Self {
-      name: seq_name.to_owned(),
+      name,
       nodes: vec![PangraphNode {
         block_id,
         strand: Strand::default(), // FIXME: should we assume forward strand here?

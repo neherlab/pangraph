@@ -30,17 +30,17 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
 
   // TODO: check for duplicate fasta names
 
-  let pangraph_json = build(&fastas, args)?;
+  let pangraph_json = build(fastas, args)?;
 
   json_write("-", &pangraph_json)?;
 
   Ok(())
 }
 
-pub fn build(fastas: &[FastaRecord], args: &PangraphBuildArgs) -> Result<Vec<Pangraph>, Report> {
+pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Vec<Pangraph>, Report> {
   // Build singleton graphs from input sequences
   let graphs = fastas
-    .iter()
+    .into_iter()
     .map(|fasta| Pangraph::singleton(fasta, args.circular))
     .collect_vec();
 
