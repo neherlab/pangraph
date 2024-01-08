@@ -1,5 +1,5 @@
 use crate::commands::export::export_args::PangraphExportArgs;
-use crate::graph::pangraph::Pangraph;
+use crate::pangraph::pangraph::Pangraph;
 use crate::utils::random::get_random_number_generator;
 use eyre::Report;
 

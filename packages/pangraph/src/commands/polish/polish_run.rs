@@ -1,6 +1,6 @@
 use crate::commands::polish::polish_args::PangraphPolishArgs;
-use crate::graph::pangraph::Pangraph;
 use crate::io::json::json_write;
+use crate::pangraph::pangraph::Pangraph;
 use crate::utils::random::get_random_number_generator;
 use eyre::Report;
 

@@ -1,7 +1,7 @@
 pub mod align;
 pub mod commands;
-pub mod graph;
 pub mod io;
+pub mod pangraph;
 pub mod utils;
 
 #[cfg(test)]
