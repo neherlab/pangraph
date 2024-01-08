@@ -76,6 +76,9 @@ export FILES_TO_IGNORE="\
 
 export LINT_FIX="--fix --allow-staged"
 
+DOCKER_TARGET="dev"
+RUST_TARGET=""
+
 FORCE_DOCKER_IMAGE_BUILD=${FORCE_DOCKER_IMAGE_BUILD:-}
 DOCKER_IMAGE_PUSH=0
 BUILD=0
@@ -91,6 +94,7 @@ EXAMPLE=0
 LINT=0
 FORMAT=0
 FIX=
+JUPYTER=0
 
 case "${1:-}" in
 "docker-image-build" | "d")
@@ -260,6 +264,11 @@ case "${1:-}" in
   WATCH=1
   FIX="--check"
   ;;
+"jupyter" | "j")
+  shift
+  JUPYTER=1
+  DOCKER_TARGET="py"
+  ;;
 "exec" | "e")
   shift
   RUN=0
@@ -270,10 +279,8 @@ if [ "${WASM}" == "1" ]; then
   CROSS="wasm32-unknown-unknown"
 fi
 
-DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE:=ubuntu:20.04}"
+DOCKER_BASE_IMAGE="${DOCKER_BASE_IMAGE:=ubuntu:22.04}"
 CLANG_VERSION="${CLANG_VERSION:=13}"
-DOCKER_TARGET="dev"
-RUST_TARGET=""
 if [ -n "${CROSS:-}" ]; then
   if [[ "${CROSS}" == *linux-gnu ]]; then
 
@@ -387,6 +394,9 @@ elif [ "${LINT}" == "1" ]; then
   COMMAND="cargo clippy --exclude=3rdparty -q --target-dir=\"${BUILD_DIR_REL}\" --all ${FIX:-}"
 elif [ "${FORMAT}" == "1" ]; then
   COMMAND="cargo fmt -q --all ${FIX:-}"
+elif [ "${JUPYTER}" == "1" ]; then
+  COMMAND="/files/start-jupyter"
+  PORTS="-p 10001:8888"
 else
   COMMAND="${NICE} ${TIME} ${COMMAND}"
 fi
@@ -406,11 +416,10 @@ else
   COMMAND="${NICE} ${TIME} ${COMMAND}"
 fi
 
-mkdir -p "${BUILD_DIR}" "${CACHE_DIR}/.cargo/"{install,registry}
+mkdir -p "${BUILD_DIR}" "${CACHE_DIR}/.cargo/"{install,registry} "${CACHE_DIR}/.jupyter"
 
 # shellcheck disable=SC2086
 ${NICE} docker run -it --rm \
-  --network=host \
   --init \
   --name="${DOCKER_CONTAINER_NAME}" \
   --hostname="${DOCKER_IMAGE_NAME_SAFE}" \
@@ -418,6 +427,7 @@ ${NICE} docker run -it --rm \
   --volume="${PROJECT_ROOT_DIR}:/workdir" \
   --volume="${CACHE_DIR}/.cargo/install:/home/${USER}/.cargo/install" \
   --volume="${CACHE_DIR}/.cargo/registry:/home/${USER}/.cargo/registry" \
+  --volume="${CACHE_DIR}/.jupyter:/home/${USER}/.jupyter" \
   --workdir="/workdir/${PACKAGE_DIR_REL}" \
   --env="UID=$(id -u)" \
   --env="GID=$(id -g)" \
