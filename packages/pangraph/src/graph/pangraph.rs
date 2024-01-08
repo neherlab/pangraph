@@ -5,6 +5,7 @@ use crate::io::json::json_parse;
 use crate::utils::id::random_id;
 use eyre::{Report, WrapErr};
 use serde::{Deserialize, Serialize};
+use smart_default::SmartDefault;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::str::FromStr;
@@ -17,14 +18,11 @@ pub struct Pangraph {
 
 impl Pangraph {
   pub fn singleton(fasta: &FastaRecord, circular: bool) -> Self {
+    let block = PangraphBlock::new(fasta.seq.clone());
+    let path = PangraphPath::new(&fasta.seq_name, &block.id, circular);
     Self {
-      blocks: vec![PangraphBlock::from_seq(fasta.seq.clone())],
-      paths: vec![PangraphPath {
-        name: fasta.seq_name.clone(),
-        offset: circular.then_some(0),
-        circular,
-        position: vec![],
-      }],
+      blocks: vec![block],
+      paths: vec![path],
     }
   }
 
@@ -49,12 +47,41 @@ impl FromStr for Pangraph {
   }
 }
 
+#[derive(Clone, Serialize, Deserialize, Debug, SmartDefault)]
+pub enum Strand {
+  #[default]
+  Forward,
+  Reverse,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct PangraphNode {
+  block_id: String,
+  strand: Strand,
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PangraphPath {
   pub name: String,
+  pub nodes: Vec<PangraphNode>,
   pub offset: Option<isize>,
   pub circular: bool,
   pub position: Vec<usize>,
+}
+
+impl PangraphPath {
+  pub fn new(seq_name: &str, block_id: &str, circular: bool) -> Self {
+    Self {
+      name: seq_name.to_owned(),
+      nodes: vec![PangraphNode {
+        block_id: block_id.to_owned(),
+        strand: Strand::default(), // FIXME: should we assume forward strand here?
+      }],
+      offset: circular.then_some(0),
+      circular,
+      position: vec![],
+    }
+  }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -69,7 +96,7 @@ pub struct PangraphBlock {
 }
 
 impl PangraphBlock {
-  pub fn from_seq(sequence: String) -> Self {
+  pub fn new(sequence: String) -> Self {
     Self {
       id: random_id(),
       sequence,
