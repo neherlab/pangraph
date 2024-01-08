@@ -1,6 +1,8 @@
+use crate::io::fasta::FastaRecord;
 use crate::io::file::open_file_or_stdin;
 use crate::io::fs::read_reader_to_string;
 use crate::io::json::json_parse;
+use crate::utils::id::random_id;
 use eyre::{Report, WrapErr};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -13,15 +15,19 @@ pub struct Pangraph {
   pub blocks: Vec<PangraphBlock>,
 }
 
-impl FromStr for Pangraph {
-  type Err = Report;
-
-  fn from_str(s: &str) -> Result<Self, Self::Err> {
-    json_parse(s).wrap_err("When parsing Pangraph JSON contents")
-  }
-}
-
 impl Pangraph {
+  pub fn singleton(fasta: &FastaRecord, circular: bool) -> Self {
+    Self {
+      blocks: vec![PangraphBlock::from_seq(fasta.seq.clone())],
+      paths: vec![PangraphPath {
+        name: fasta.seq_name.clone(),
+        offset: circular.then_some(0),
+        circular,
+        position: vec![],
+      }],
+    }
+  }
+
   pub fn from_path<P: AsRef<Path>>(filepath: &Option<P>) -> Result<Self, Report> {
     let reader = open_file_or_stdin(filepath)?;
     let data = read_reader_to_string(reader).wrap_err("When reading Pangraph JSON")?;
@@ -35,10 +41,18 @@ impl Pangraph {
   }
 }
 
+impl FromStr for Pangraph {
+  type Err = Report;
+
+  fn from_str(s: &str) -> Result<Self, Self::Err> {
+    json_parse(s).wrap_err("When parsing Pangraph JSON contents")
+  }
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PangraphPath {
   pub name: String,
-  pub offset: isize,
+  pub offset: Option<isize>,
   pub circular: bool,
   pub position: Vec<usize>,
 }
@@ -52,6 +66,20 @@ pub struct PangraphBlock {
   pub insert: Vec<PangraphInsert>,
   pub delete: Vec<PangraphDelete>,
   pub positions: Vec<PangraphPositions>,
+}
+
+impl PangraphBlock {
+  pub fn from_seq(sequence: String) -> Self {
+    Self {
+      id: random_id(),
+      sequence,
+      gaps: BTreeMap::default(),
+      mutate: vec![],
+      insert: vec![],
+      delete: vec![],
+      positions: vec![],
+    }
+  }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
