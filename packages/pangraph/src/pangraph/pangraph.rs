@@ -19,7 +19,7 @@ pub struct Pangraph {
 impl Pangraph {
   pub fn singleton(fasta: &FastaRecord, circular: bool) -> Self {
     let block = PangraphBlock::new(fasta.seq.clone());
-    let path = PangraphPath::new(&fasta.seq_name, &block.id, circular);
+    let path = PangraphPath::new(&fasta.seq_name, block.id, circular);
     Self {
       blocks: vec![block],
       paths: vec![path],
@@ -56,7 +56,7 @@ pub enum Strand {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PangraphNode {
-  block_id: String,
+  block_id: usize,
   strand: Strand,
 }
 
@@ -70,11 +70,11 @@ pub struct PangraphPath {
 }
 
 impl PangraphPath {
-  pub fn new(seq_name: &str, block_id: &str, circular: bool) -> Self {
+  pub fn new(seq_name: &str, block_id: usize, circular: bool) -> Self {
     Self {
       name: seq_name.to_owned(),
       nodes: vec![PangraphNode {
-        block_id: block_id.to_owned(),
+        block_id,
         strand: Strand::default(), // FIXME: should we assume forward strand here?
       }],
       offset: circular.then_some(0),
@@ -86,7 +86,7 @@ impl PangraphPath {
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PangraphBlock {
-  pub id: String,
+  pub id: usize,
   pub sequence: String,
   pub gaps: BTreeMap<String, usize>,
   pub mutate: Vec<PangraphMutate>,
