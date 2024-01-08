@@ -8,12 +8,12 @@ use std::path::Path;
 use std::str::FromStr;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct PangraphJson {
+pub struct Pangraph {
   pub paths: Vec<PangraphPath>,
   pub blocks: Vec<PangraphBlock>,
 }
 
-impl FromStr for PangraphJson {
+impl FromStr for Pangraph {
   type Err = Report;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -21,7 +21,7 @@ impl FromStr for PangraphJson {
   }
 }
 
-impl PangraphJson {
+impl Pangraph {
   pub fn from_path<P: AsRef<Path>>(filepath: &Option<P>) -> Result<Self, Report> {
     let reader = open_file_or_stdin(filepath)?;
     let data = read_reader_to_string(reader).wrap_err("When reading Pangraph JSON")?;

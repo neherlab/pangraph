@@ -1,8 +1,7 @@
 use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::graph::pangraph::Pangraph;
 use crate::io::fasta::{read_many_fasta, FastaRecord};
 use crate::io::json::json_write;
-use crate::io::pangraph_json::PangraphJson;
-use crate::o;
 use crate::utils::random::get_random_number_generator;
 use eyre::Report;
 
@@ -31,9 +30,9 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   Ok(())
 }
 
-pub fn build(fastas: &[FastaRecord], args: &PangraphBuildArgs) -> Result<PangraphJson, Report> {
+pub fn build(fastas: &[FastaRecord], args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
   // TODO: create proper pangraph JSON ;)
-  let pangraph_json = PangraphJson {
+  let pangraph_json = Pangraph {
     paths: vec![],
     blocks: vec![],
   };

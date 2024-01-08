@@ -1,5 +1,5 @@
 use crate::commands::export::export_args::PangraphExportArgs;
-use crate::io::pangraph_json::PangraphJson;
+use crate::graph::pangraph::Pangraph;
 use crate::utils::random::get_random_number_generator;
 use eyre::Report;
 
@@ -24,7 +24,7 @@ pub fn export_run(args: &PangraphExportArgs) -> Result<(), Report> {
 
   let rng = get_random_number_generator(seed);
 
-  let pangraph_json = PangraphJson::from_path(input_json)?;
+  let pangraph_json = Pangraph::from_path(input_json)?;
 
   Ok(())
 }
