@@ -1,3 +1,4 @@
+use crate::distance::mash::hash::hash;
 use crate::utils::number_min_max::IsMinMaxValueOfType;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
@@ -13,7 +14,7 @@ pub struct MinimizersParams {
 /// A minimizer is a k-mer that, given a hash function that maps k-mers to integers, is the minimum k-mer within a given set of k-mers.
 /// The value is the result of applying the hash function to the k-mer.
 /// The position is a bit packed integer that includes reference ID, locus, and strand.
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Eq, PartialEq)]
 pub struct Minimizer {
   pub value: u64, // TODO: decide on a smaller the integer type here and in related functions, if memory consumption is of significance
   pub position: u64,
@@ -152,19 +153,6 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
   minimizer
 }
 
-/// A transliteration of Jenkin's invertible hash function for 64 bit integers.
-/// Bijectively maps any k-mer to an integer.
-const fn hash(x: u64, mask: u64) -> u64 {
-  let mut x = (!x).wrapping_add(x << 21) & mask;
-  x = x ^ (x >> 24);
-  x = (x + (x << 3) + (x << 8)) & mask;
-  x = x ^ (x >> 14);
-  x = (x + (x << 2) + (x << 4)) & mask;
-  x = x ^ (x >> 28);
-  x = (x + (x << 31)) & mask;
-  x
-}
-
 #[rustfmt::skip]
 const MAP: [u64; 256] = [
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
@@ -184,19 +172,3 @@ const MAP: [u64; 256] = [
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
 ];
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use pretty_assertions::assert_eq;
-  use rstest::rstest;
-
-  #[rstest]
-  #[case::zero((0, 0), 0)]
-  #[case::zero_mask((123, 0), 0)]
-  #[case::zero_value((0, 456), 136)]
-  #[case::random((123, 456), 384)]
-  fn test_hash(#[case] input: (u64, u64), #[case] expected: u64) {
-    assert_eq!(hash(input.0, input.1), expected);
-  }
-}

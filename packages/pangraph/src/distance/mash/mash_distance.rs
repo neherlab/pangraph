@@ -1,5 +1,5 @@
 use crate::distance::mash::minimizer::{minimizers_sketch, MinimizersParams};
-use crate::pangraph::pangraph::{Pangraph, PangraphBlock, PangraphPath};
+use crate::pangraph::pangraph::Pangraph;
 use itertools::Itertools;
 use ndarray::{array, Array, Array2};
 use serde::{Deserialize, Serialize};
@@ -59,7 +59,7 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<u
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::pangraph::pangraph::PangraphBlock;
+  use crate::pangraph::pangraph::{PangraphBlock, PangraphPath};
   use ndarray::array;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
