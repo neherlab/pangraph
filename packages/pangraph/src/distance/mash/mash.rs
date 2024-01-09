@@ -1,13 +1,17 @@
 use crate::distance::mash::minimizer::{minimizers_sketch, MinimizersParams};
 use crate::pangraph::pangraph::{Pangraph, PangraphBlock, PangraphPath};
 use itertools::Itertools;
-use ndarray::{Array, Array2};
+use ndarray::{array, Array, Array2};
 use serde::{Deserialize, Serialize};
 
 /// Compute the pairwise distance between all input graphs.
 /// Distance is the set distance between minimizers.
 /// Linear-time algorithm using hash collisions.
 pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<u64> {
+  if graphs.is_empty() {
+    return array![[]];
+  }
+
   let sequences = graphs
     .iter()
     .flat_map(|graph| graph.blocks.iter().map(|block| &block.sequence));
@@ -19,11 +23,12 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<u
     .collect_vec();
 
   let n = graphs.len();
+
   let mut distance = Array::zeros((n, n));
   let mut l: usize = 0;
   let mut r: usize = 0;
-  while l <= minimizers.len() {
-    while r <= minimizers.len() && minimizers[r].value == minimizers[l].value {
+  while l < minimizers.len() {
+    while r < minimizers.len() && minimizers[r].value == minimizers[l].value {
       r += 1;
     }
 
