@@ -172,3 +172,25 @@ const MAP: [u64; 256] = [
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
   4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
 ];
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use pretty_assertions::assert_eq;
+  use rstest::rstest;
+
+  #[rstest]
+  fn test_minimizers_sketch_general_case() {
+    let params = MinimizersParams { w: 5, k: 12 };
+    let seq = "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC";
+    let actual = minimizers_sketch(seq, 0, &params);
+    let expected = vec![Minimizer { value: 0, position: 0 }];
+    assert_eq!(actual, expected);
+  }
+
+  #[rstest]
+  fn test_minimizers_sketch_empty() {
+    let actual = minimizers_sketch("", 0, &MinimizersParams::default());
+    assert_eq!(actual, vec![]);
+  }
+}
