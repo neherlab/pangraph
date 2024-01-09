@@ -4,6 +4,7 @@ pub mod error;
 pub mod float_fmt;
 pub mod global_init;
 pub mod id;
+pub mod number_min_max;
 pub mod random;
 pub mod string;
 pub mod subprocess;

@@ -37,6 +37,18 @@ impl Pangraph {
     tree_str += "\n";
     Ok(tree_str)
   }
+
+  pub fn sequences(&self) {
+    
+  }
+  
+  pub fn names(&self) {
+    
+  }
+  
+  pub fn sequence_map(&self) {
+    
+  }
 }
 
 impl FromStr for Pangraph {
