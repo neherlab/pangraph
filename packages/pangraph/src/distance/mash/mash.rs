@@ -120,7 +120,7 @@ mod tests {
   fn test_mash_distance_empty() {
     let graphs = [];
     let actual = mash_distance(&graphs, &MinimizersParams::default());
-    let expected = Array2::<u64>::default((0, 0));
+    let expected: Array2<u64> = array![[]];
     assert_eq!(actual, expected);
   }
 
@@ -128,7 +128,7 @@ mod tests {
   fn test_mash_distance_one() {
     let graphs = [create_fake_graph("ATGCATGC")];
     let actual = mash_distance(&graphs, &MinimizersParams::default());
-    let expected = Array2::<u64>::default((0, 0));
+    let expected = array![[0]];
     assert_eq!(actual, expected);
   }
 }
