@@ -24,8 +24,3 @@ Thumbs.db
 ehthumbs.db
 tests/out
 /bin
-/data/synthetic
-/docs/build
-/playgrounds
-/pangraph
-/script
