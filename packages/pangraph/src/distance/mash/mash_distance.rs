@@ -1,7 +1,7 @@
 use crate::distance::mash::minimizer::{minimizers_sketch, MinimizersParams};
 use crate::pangraph::pangraph::Pangraph;
 use itertools::Itertools;
-use ndarray::{array, Array, Array2, ArrayBase};
+use ndarray::{array, Array, Array2};
 use serde::{Deserialize, Serialize};
 
 /// Compute the pairwise distance between all input graphs.
@@ -47,8 +47,6 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<f
 
     l = r;
   }
-
-  println!("{:?}", distance);
 
   for i in 0..n {
     for j in (i + 1)..n {
