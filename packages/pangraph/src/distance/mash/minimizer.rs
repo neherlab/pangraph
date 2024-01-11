@@ -88,12 +88,12 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
 
     window[bi] = new.clone();
     if (l == w + k - 1) && !min.is_max() {
-      for i in bi..(*w as usize) {
+      for i in (bi + 1)..(*w as usize) {
         if min.value == window[i].value && min.position != window[i].position {
           minimizer.push(window[i].clone());
         }
       }
-      for i in 0..bi {
+      for i in 0..(bi + 1) {
         if min.value == window[i].value && min.position != window[i].position {
           minimizer.push(window[i].clone());
         }
@@ -119,7 +119,7 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
         }
       }
 
-      for i in 0..bi {
+      for i in 0..(bi + 1) {
         if window[i].value < min.value {
           mi = i;
           min = window[i].clone();
@@ -132,7 +132,7 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
             minimizer.push(window[i].clone());
           }
         }
-        for i in 0..bi {
+        for i in 0..(bi + 1) {
           if min.value == window[i].value && min.position != window[i].position {
             minimizer.push(window[i].clone());
           }
@@ -181,27 +181,24 @@ mod tests {
 
   #[rstest]
   fn test_minimizers_sketch_general_case() {
-    let params = MinimizersParams { w: 40, k: 8 };
+    let params = MinimizersParams { w: 16, k: 8 };
     let seq = "CGATCCTTCGGGAACGTGTGACGCGAAGGTGCATGGGAGATCTCGCATTGCTGTTCTGGACGACGCGAAGAGTACTGCTACTTTCATGTCGCCTACGCCT";
     let actual = minimizers_sketch(seq, 1, &params);
     let expected = vec![
-      Minimizer {
-        value: 3600,
-        position: 4294967386,
-      },
-      Minimizer {
-        value: 2383,
-        position: 4294967415,
-      },
-      Minimizer {
-        value: 2190,
-        position: 4294967461,
-      },
-      Minimizer {
-        value: 378,
-        position: 4294967466,
-      },
+      (9685, 4294967328),
+      (7669, 4294967355),
+      (5583, 4294967359),
+      (3600, 4294967386),
+      (2383, 4294967415),
+      (4791, 4294967427),
+      (5338, 4294967451),
+      (2190, 4294967461),
+      (378, 4294967466),
     ];
+    let expected = expected
+      .into_iter()
+      .map(|(value, position)| Minimizer { value, position })
+      .collect::<Vec<_>>();
     assert_eq!(actual, expected);
   }
 
