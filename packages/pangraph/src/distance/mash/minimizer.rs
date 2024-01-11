@@ -60,11 +60,11 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
   let mut window = vec![Minimizer::max(); *w as usize];
 
   let mut l: u64 = 0;
-  let mut bi: usize = 1;
-  let mut mi: usize = 1;
+  let mut bi: usize = 0;
+  let mut mi: usize = 0;
 
   for (locus, nuc) in seq.as_ref().chars().enumerate() {
-    let locus = locus as u64;
+    let locus = (locus as u64) + 1;
     let c = MAP[nuc as usize];
 
     let new = if c >= 4 {
@@ -93,7 +93,7 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
           minimizer.push(window[i].clone());
         }
       }
-      for i in 1..bi {
+      for i in 0..(bi + 1) {
         if min.value == window[i].value && min.position != window[i].position {
           minimizer.push(window[i].clone());
         }
@@ -119,7 +119,7 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
         }
       }
 
-      for i in 1..bi {
+      for i in 0..(bi + 1) {
         if window[i].value < min.value {
           mi = i;
           min = window[i].clone();
@@ -132,7 +132,7 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
             minimizer.push(window[i].clone());
           }
         }
-        for i in 1..bi {
+        for i in 0..(bi + 1) {
           if min.value == window[i].value && min.position != window[i].position {
             minimizer.push(window[i].clone());
           }
@@ -141,8 +141,8 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
     }
 
     bi += 1;
-    if bi > *w as usize {
-      bi = 1;
+    if bi >= *w as usize {
+      bi = 0;
     }
   }
 
@@ -181,10 +181,24 @@ mod tests {
 
   #[rstest]
   fn test_minimizers_sketch_general_case() {
-    let params = MinimizersParams { w: 5, k: 12 };
-    let seq = "ATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGCATGC";
-    let actual = minimizers_sketch(seq, 0, &params);
-    let expected = vec![Minimizer { value: 0, position: 0 }];
+    let params = MinimizersParams { w: 16, k: 8 };
+    let seq = "CGATCCTTCGGGAACGTGTGACGCGAAGGTGCATGGGAGATCTCGCATTGCTGTTCTGGACGACGCGAAGAGTACTGCTACTTTCATGTCGCCTACGCCT";
+    let actual = minimizers_sketch(seq, 1, &params);
+    let expected = vec![
+      (9685, 4294967328),
+      (7669, 4294967355),
+      (5583, 4294967359),
+      (3600, 4294967386),
+      (2383, 4294967415),
+      (4791, 4294967427),
+      (5338, 4294967451),
+      (2190, 4294967461),
+      (378, 4294967466),
+    ];
+    let expected = expected
+      .into_iter()
+      .map(|(value, position)| Minimizer { value, position })
+      .collect::<Vec<_>>();
     assert_eq!(actual, expected);
   }
 

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 /// Compute the pairwise distance between all input graphs.
 /// Distance is the set distance between minimizers.
 /// Linear-time algorithm using hash collisions.
-pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<u64> {
+pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<f64> {
   if graphs.is_empty() {
     return array![[]];
   }
@@ -32,14 +32,17 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<u
       r += 1;
     }
 
-    let hits = minimizers[l..(r - 1)]
+    let hits: Vec<_> = minimizers[l..r]
       .iter()
       .map(|m| (m.position >> 32) as usize)
       .unique()
-      .sorted();
+      .sorted()
+      .collect();
 
-    for (i, j) in hits.tuples() {
-      distance[(i, j)] += 1;
+    for i in 0..hits.len() {
+      for j in i..hits.len() {
+        distance[(hits[i], hits[j])] += 1.0;
+      }
     }
 
     l = r;
@@ -47,10 +50,10 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<u
 
   for i in 0..n {
     for j in (i + 1)..n {
-      distance[(i, j)] = 1 - distance[(i, j)] / distance[(i, i)];
+      distance[(i, j)] = 1.0 - distance[(i, j)] / distance[(i, i)];
       distance[(j, i)] = distance[(i, j)];
     }
-    distance[(i, i)] = 0;
+    distance[(i, i)] = 0.0;
   }
 
   distance
@@ -94,23 +97,35 @@ mod tests {
   fn test_mash_distance_general_case() {
     #[rustfmt::skip]
 
-    let graphs = [
-      create_fake_graph("ATGCATGC"),
-      create_fake_graph("ATGCATGC"),
-      create_fake_graph("ATGCATGC"),
-      create_fake_graph("ATGCATGC"),
-      create_fake_graph("ATGCATGC"),
-    ];
+    let params = MinimizersParams { w: 16, k: 8 };
 
-    let actual = mash_distance(&graphs, &MinimizersParams::default());
+    // from this tree:
+    //    |---------1
+    //    |         |--2
+    // ---|            |--3
+    //    |
+    //    |---------4
+    //              |--5
+    //                 |--6
 
-    #[rustfmt::skip]
+    let graphs = vec![
+      "CATAGAAGCAGTCCCTGAGCACGACGCGTGTAACAATCGTTTTCAGACCTAGGACGTTAGAATATCGATCGCACGCTACGACCGACGATTAGCCGCACGAGCAAGTCGAAAACCCGAGTTAAGAGGCTGGACGTGATCCTAGACTTCGTC",
+      "CATAGAAGCAGTCCCTGAGCACGAGGCGCGCAACAATCGTTTTCAGCCCTAGGACGTTAGAATATTGATCACAAGCTACGACCGACGATTAGCCGCACGAGCAAGTCGACAACCCGAGTTAAGAGGCTGGACGTGATGCTAGACTTCGTC",
+      "CATAGAAGCAGTCCCTGAGCATGACGCGCGCAACGATCGTTTTCAGCCCTAGCACGTGAGAATATTGATCACAAGCTACGACCGACGATTAGCCGCACGAGCTAGTCGCCAACCCGAGTAAGGAGGCTGGACGTGATGCTAGACTACGTC",
+      "ACATCAAAACTTAAAGTCGGTTACCATCTACAAATGTAGTAAGGGGGATTCTAATGAGAGAAGTGGACTGTGTAGATGGACCCGCTCACCTGCCCAGTATCTTAGTGGCGTATTCAGGATCTGGGAGGATTTGTTATTGCCTATTAGAGA",
+      "ACATCAAAACTTAAAGTCGGTTCCCATCTACAAAAGTAGAAAGGGGGATTCTAATGAGAGATGTGGACTGTGTAGATGGACCCGCTAACCTGGCCAGTTTCTTAGTGGCTTAATCAGGATCTGGGAGGATTCGTTACTGCCTATTAGAGA",
+      "ACATCAGAACTTAAAGTCGGTTCCTATCTCCAAAAGTATAAAGTGGGATTCTAATGAGAGATGTGGACTGTGTCGATAAACCCGCTAACCTGGCCTGTTTCTTGTTGGCTTAATCAGGATCTGAGAGGATTCGTTACTGCCTAGTAGTGA",
+    ].into_iter().map(create_fake_graph).collect_vec();
+
+    let actual = mash_distance(&graphs, &params);
+
     let expected = array![
-      [0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0],
+      [0.0, 1. - 6. / 9., 0.75, 1.0, 1.0, 1.0],
+      [1. - 6. / 9., 0.0, 0.5, 1.0, 1.0, 1.0],
+      [0.75, 0.5, 0.0, 1.0, 1.0, 1.0],
+      [1.0, 1.0, 1.0, 0.0, 0.625, 0.875],
+      [1.0, 1.0, 1.0, 0.625, 0.0, 5. / 7.],
+      [1.0, 1.0, 1.0, 0.875, 5. / 7., 0.0],
     ];
 
     assert_eq!(actual, expected);
@@ -120,7 +135,7 @@ mod tests {
   fn test_mash_distance_empty() {
     let graphs = [];
     let actual = mash_distance(&graphs, &MinimizersParams::default());
-    let expected: Array2<u64> = array![[]];
+    let expected: Array2<f64> = array![[]];
     assert_eq!(actual, expected);
   }
 
@@ -128,7 +143,7 @@ mod tests {
   fn test_mash_distance_one() {
     let graphs = [create_fake_graph("ATGCATGC")];
     let actual = mash_distance(&graphs, &MinimizersParams::default());
-    let expected = array![[0]];
+    let expected = array![[0.0]];
     assert_eq!(actual, expected);
   }
 }
