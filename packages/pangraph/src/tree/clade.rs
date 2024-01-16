@@ -75,16 +75,22 @@ where
   F: Fn(&Clade) -> T,
 {
   let mut result = vec![];
-  let mut stack = VecDeque::from([Arc::clone(clade)]);
-  while let Some(current) = stack.pop_front() {
-    result.push(f(&current.read_arc()));
-    if let Some(right) = current.read_arc().right.as_ref() {
-      stack.push_front(Arc::clone(right));
+
+  fn recurr<T, F>(clade: &Arc<RwLock<Clade>>, result: &mut Vec<T>, f: &F) -> ()
+  where
+    F: Fn(&Clade) -> T,
+  {
+    if let Some(ref left) = clade.read().left {
+      recurr(left, result, f);
     }
-    if let Some(left) = current.read_arc().left.as_ref() {
-      stack.push_front(Arc::clone(left));
+    if let Some(ref right) = clade.read().right {
+      recurr(right, result, f);
     }
+    result.push(f(&clade.read()));
   }
+
+  recurr(clade, &mut result, &f);
+
   result
 }
 
@@ -119,9 +125,10 @@ mod tests {
     let abcd = Arc::new(RwLock::new(Clade::from_children(&ab, &cd)));
     let root = Arc::new(RwLock::new(Clade::from_children(&abcd, &gh)));
 
-    let result: Vec<String> = postorder(&root, |clade| clade.name.clone().unwrap_or_default());
-    assert_eq!(result, vec!["", "", "", "A", "B", "", "C", "D", "", "G", "H",]);
     let nwk = root.read().to_newick();
     assert_eq!(nwk, "(((A,B),(C,D)),(G,H));");
+
+    let result: Vec<String> = postorder(&root, |clade| clade.name.clone().unwrap_or_default());
+    assert_eq!(result, vec!["A", "B", "", "C", "D", "", "", "G", "H", "", ""]);
   }
 }

@@ -241,23 +241,76 @@ mod tests {
 
   #[rstest]
   fn test_build_tree_using_neighbor_joining() {
-    let names = vec!["A", "B", "C", "D"];
+    let names = vec!["A", "B", "C", "D", "E"];
 
     #[rustfmt::skip]
     let D = array![
-      [0.0, 4.0, 7.0, 8.0],
-      [4.0, 0.0, 6.0, 5.0],
-      [7.0, 6.0, 0.0, 3.0],
-      [8.0, 5.0, 3.0, 0.0],
+      [0.0,  5.0,  9.0,  9.0, 8.0],
+      [5.0,  0.0, 10.0, 10.0, 9.0],
+      [9.0, 10.0,  0.0,  8.0, 7.0],
+      [9.0, 10.0,  8.0,  0.0, 3.0],
+      [8.0,  9.0,  7.0,  3.0, 0.0],
     ];
 
     let tree = build_tree_using_neighbor_joining(&D, &names).unwrap();
+
+    let nwk = tree.to_newick();
+    assert_eq!(nwk, "((((A,B),C),D),E);");
 
     let nodes: Vec<String> = postorder(&Arc::new(RwLock::new(tree)), |clade| {
       clade.name.clone().unwrap_or_default()
     });
 
-    let nodes_expected: Vec<String> = vec_of_owned!["", "", "", "A", "B", "C", "D",];
+    let nodes_expected: Vec<String> = vec_of_owned!["A", "B", "", "C", "", "D", "", "E", ""];
+    assert_eq!(nodes, nodes_expected);
+  }
+
+  #[rstest]
+  fn test_build_tree_using_neighbor_joining_2() {
+    let names = vec!["A", "B", "C", "D", "E", "F", "G", "H"];
+
+    // expected tree:
+    //               __ A
+    //      ________|
+    //     |        |__ H
+    //     |
+    //     |          __ B
+    //     |       __|
+    //   __|      |  |__ E
+    //  |  |   ___|
+    //  |  |  |   |__ D
+    //  |  |__|
+    //  |     |    __ C
+    //  |     |___|
+    //  |         |__ G
+    //  |
+    //  |____________ F
+    //
+    // newick: (((A,H),(((B,E),D),(C,G))),F)
+
+    #[rustfmt::skip]
+    let D = array![
+      //  A     B     C     D     E     F     G     H
+      [ 0.0, 46.0, 37.0, 46.0, 46.0, 14.0, 37.0,  1.0],  // A
+      [46.0,  0.0, 46.0,  7.0,  1.0, 46.0, 46.0, 46.0],  // B
+      [37.0, 46.0,  0.0, 46.0, 46.0, 37.0,  1.0, 37.0],  // C
+      [46.0,  7.0, 46.0,  0.0,  7.0, 46.0, 46.0, 46.0],  // D
+      [46.0,  1.0, 46.0,  7.0,  0.0, 46.0, 46.0, 46.0],  // E
+      [14.0, 46.0, 37.0, 46.0, 46.0,  0.0, 37.0, 14.0],  // F
+      [37.0, 46.0,  1.0, 46.0, 46.0, 37.0,  0.0, 37.0],  // G
+      [ 1.0, 46.0, 37.0, 46.0, 46.0, 14.0, 37.0,  0.0],  // H
+    ];
+
+    let tree = build_tree_using_neighbor_joining(&D, &names).unwrap();
+
+    let nwk = tree.to_newick();
+    assert_eq!(nwk, "(((A,H),(((B,E),D),(C,G))),F);");
+
+    let nodes: Vec<String> = postorder(&Arc::new(RwLock::new(tree)), |clade| {
+      clade.name.clone().unwrap_or_default()
+    });
+
+    let nodes_expected: Vec<String> = vec_of_owned!["A", "H", "", "B", "E", "", "D", "", "C", "G", "", "", "", "F", ""];
     assert_eq!(nodes, nodes_expected);
   }
 }
