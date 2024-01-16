@@ -3,6 +3,7 @@ pub mod commands;
 pub mod distance;
 pub mod io;
 pub mod pangraph;
+pub mod tree;
 pub mod utils;
 
 #[cfg(test)]
