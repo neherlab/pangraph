@@ -82,32 +82,17 @@ fn pair(Q: &Array2<f64>) -> Result<(usize, usize), Report> {
   })
 }
 
-fn dist(D: &Array2<f64>, i: usize, j: usize) -> (f64, f64, Array1<f64>) {
+fn dist(D: &Array2<f64>, i: usize, j: usize) -> Array1<f64> {
   let n = D.len_of(Axis(0));
   assert!(n > 2);
 
-  let mut d1 =
-    0.5 * D[(i, j)] + 1.0 / (2.0 * ((n as f64) - 2.0)) * (D.slice(s![i, ..]).sum() - D.slice(s![j, ..]).sum());
+  let dn: Array1<f64> = 0.5 * (&D.slice(s![i, ..]) + &D.slice(s![j, ..]) - D[(i, j)]);
 
-  let mut d2 = D[(i, j)] - d1;
-
-  if d1 < 0.0 {
-    d2 -= d1;
-    d1 = 0.0;
-  }
-
-  if d2 < 0.0 {
-    d1 -= d2;
-    d2 = 0.0;
-  }
-
-  let dn: Array1<f64> = 0.5 * (&D.slice(s![i, ..]) + &D.slice(s![j, ..]) + D[(i, j)]);
-
-  (d1, d2, dn)
+  dn
 }
 
 fn join_in_place(D: &mut Array2<f64>, nodes: &mut Vec<Arc<RwLock<Clade>>>) -> Result<(), Report> {
-  let q = create_Q_matrix_native(D);
+  let q = create_Q_matrix(D).unwrap();
   let (i, j) = pair(&q)?;
 
   let node = Arc::new(RwLock::new(Clade::from_children(&nodes[i], &nodes[j])));
@@ -116,7 +101,7 @@ fn join_in_place(D: &mut Array2<f64>, nodes: &mut Vec<Arc<RwLock<Clade>>>) -> Re
   nodes[i] = Arc::clone(&node);
   nodes.remove(j);
 
-  let (d1, d2, dn) = dist(D, i, j);
+  let dn = dist(D, i, j);
   D.slice_mut(s![i, ..]).assign(&dn);
   D.slice_mut(s![.., i]).assign(&dn);
   D[(i, i)] = 0.0;
@@ -141,22 +126,25 @@ mod tests {
 
   #[rstest]
   fn test_create_Q_matrix() {
+    // example from wikipedia: https://en.wikipedia.org/wiki/Neighbor_joining#Example
     #[rustfmt::skip]
     let distance = array![
-      [0.0, 4.0, 7.0, 8.0],
-      [4.0, 0.0, 6.0, 5.0],
-      [7.0, 6.0, 0.0, 3.0],
-      [8.0, 5.0, 3.0, 0.0],
+      [0.0,  5.0,  9.0,  9.0, 8.0],
+      [5.0,  0.0, 10.0, 10.0, 9.0],
+      [9.0, 10.0,  0.0,  8.0, 7.0],
+      [9.0, 10.0,  8.0,  0.0, 3.0],
+      [8.0,  9.0,  7.0,  3.0, 0.0],
     ];
 
     let actual = create_Q_matrix(&distance).unwrap();
 
     #[rustfmt::skip]
     let expected = array![
-      [  INF, -26.0, -21.0 , -19.0],
-      [-26.0,   INF, -19.0,  -21.0],
-      [-21.0, -19.0,   INF , -26.0],
-      [-19.0, -21.0, -26.0,    INF],
+      [  INF, -50.0, -38.0 , -34.0, -34.0],
+      [-50.0,   INF, -38.0,  -34.0, -34.0],
+      [-38.0, -38.0,   INF , -40.0, -40.0],
+      [-34.0, -34.0,  -40.0,   INF, -48.0],
+      [-34.0, -34.0,  -40.0, -48.0,   INF],
     ];
 
     assert_eq!(actual, expected);
@@ -166,20 +154,22 @@ mod tests {
   fn test_create_Q_matrix_native() {
     #[rustfmt::skip]
     let distance = array![
-      [0.0, 4.0, 7.0, 8.0],
-      [4.0, 0.0, 6.0, 5.0],
-      [7.0, 6.0, 0.0, 3.0],
-      [8.0, 5.0, 3.0, 0.0],
+      [0.0,  5.0,  9.0,  9.0, 8.0],
+      [5.0,  0.0, 10.0, 10.0, 9.0],
+      [9.0, 10.0,  0.0,  8.0, 7.0],
+      [9.0, 10.0,  8.0,  0.0, 3.0],
+      [8.0,  9.0,  7.0,  3.0, 0.0],
     ];
 
     let actual = create_Q_matrix_native(&distance);
 
     #[rustfmt::skip]
     let expected = array![
-      [  INF, -26.0, -21.0 , -19.0],
-      [-26.0,   INF, -19.0,  -21.0],
-      [-21.0, -19.0,   INF , -26.0],
-      [-19.0, -21.0, -26.0,    INF],
+      [  INF, -50.0, -38.0 , -34.0, -34.0],
+      [-50.0,   INF, -38.0,  -34.0, -34.0],
+      [-38.0, -38.0,   INF , -40.0, -40.0],
+      [-34.0, -34.0,  -40.0,   INF, -48.0],
+      [-34.0, -34.0,  -40.0, -48.0,   INF],
     ];
 
     assert_eq!(actual, expected);
@@ -189,59 +179,63 @@ mod tests {
   fn test_dist() {
     #[rustfmt::skip]
     let distance = array![
-      [0.0, 4.0, 7.0, 8.0],
-      [4.0, 0.0, 6.0, 5.0],
-      [7.0, 6.0, 0.0, 3.0],
-      [8.0, 5.0, 3.0, 0.0],
+      [0.0,  5.0,  9.0,  9.0, 8.0],
+      [5.0,  0.0, 10.0, 10.0, 9.0],
+      [9.0, 10.0,  0.0,  8.0, 7.0],
+      [9.0, 10.0,  8.0,  0.0, 3.0],
+      [8.0,  9.0,  7.0,  3.0, 0.0],
     ];
 
-    let actual = dist(&distance, 1, 2);
-    let expected = (2.75, 3.25, array![8.5, 6.0, 6.0, 7.0]);
+    let actual = dist(&distance, 0, 1);
+    let expected = array![0., 0., 7., 7., 6.];
     assert_eq!(actual, expected);
   }
 
   #[rstest]
   fn test_join() {
-    let mut nodes = vec!["A", "B", "C", "D"]
+    let mut nodes = vec!["A", "B", "C", "D", "E"]
       .into_iter()
       .map(|name| Arc::new(RwLock::new(Clade::new(name))))
       .collect_vec();
 
     #[rustfmt::skip]
     let mut D = array![
-      [0.0, 4.0, 7.0, 8.0],
-      [4.0, 0.0, 6.0, 5.0],
-      [7.0, 6.0, 0.0, 3.0],
-      [8.0, 5.0, 3.0, 0.0],
+      [0.0,  5.0,  9.0,  9.0, 8.0],
+      [5.0,  0.0, 10.0, 10.0, 9.0],
+      [9.0, 10.0,  0.0,  8.0, 7.0],
+      [9.0, 10.0,  8.0,  0.0, 3.0],
+      [8.0,  9.0,  7.0,  3.0, 0.0],
     ];
 
     join_in_place(&mut D, &mut nodes).unwrap();
 
     #[rustfmt::skip]
     let D_expected = array![
-      [0.0,  8.5,  8.5],
-      [8.5,  0.0,  3.0],
-      [8.5,  3.0,  0.0],
+      [0.0, 7.0,  7.0, 6.0],
+      [7.0, 0.0,  8.0, 7.0],
+      [7.0, 8.0,  0.0, 3.0],
+      [6.0, 7.0,  3.0, 0.0],
     ];
 
     assert_eq!(&D, &D_expected);
 
     let nodes_actual = nodes.iter().map(|node| node.read_arc().name.clone()).collect_vec();
-    let nodes_expected = vec![None, Some(o!("C")), Some(o!("D"))];
+    let nodes_expected = vec![None, Some(o!("C")), Some(o!("D")), Some(o!("E"))];
     assert_eq!(nodes_actual, nodes_expected);
 
     join_in_place(&mut D, &mut nodes).unwrap();
 
     #[rustfmt::skip]
     let D_expected = array![
-      [ 0.0, 10.0],
-      [10.0,  0.0],
+      [0.0,  4.0, 3.0],
+      [4.0,  0.0, 3.0],
+      [3.0,  3.0, 0.0],
     ];
 
     assert_eq!(&D, &D_expected);
 
     let nodes_actual = nodes.iter().map(|node| node.read_arc().name.clone()).collect_vec();
-    let nodes_expected = vec![None, Some(o!("D"))];
+    let nodes_expected = vec![None, Some(o!("D")), Some(o!("E"))];
     assert_eq!(nodes_actual, nodes_expected);
   }
 
