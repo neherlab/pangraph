@@ -43,6 +43,31 @@ impl Clade {
   pub fn is_root(&self) -> bool {
     self.parent.is_none()
   }
+
+  pub fn to_newick(&self) -> String {
+    fn recurse(clade: &Clade) -> String {
+      if clade.is_leaf() {
+        clade.name.clone().unwrap_or_default()
+      } else {
+        let mut newick = String::from("(");
+        if let Some(ref left) = clade.left {
+          newick.push_str(&recurse(&left.read()));
+        }
+        newick.push(',');
+        if let Some(ref right) = clade.right {
+          newick.push_str(&recurse(&right.read()));
+        }
+        newick.push(')');
+        if let Some(ref name) = clade.name {
+          newick.push_str(name);
+        }
+        newick
+      }
+    }
+
+    let newick = recurse(self);
+    format!("{};", newick)
+  }
 }
 
 pub fn postorder<T, F>(clade: &Arc<RwLock<Clade>>, f: F) -> Vec<T>
@@ -61,32 +86,6 @@ where
     }
   }
   result
-}
-
-pub fn clade_to_newick(clade: &Arc<RwLock<Clade>>) -> String {
-  fn recurse(clade: &Clade) -> String {
-    if clade.is_leaf() {
-      clade.name.clone().unwrap_or_default()
-    } else {
-      let mut newick = String::from("(");
-      if let Some(ref left) = clade.left {
-        newick.push_str(&recurse(&left.read()));
-      }
-      newick.push(',');
-      if let Some(ref right) = clade.right {
-        newick.push_str(&recurse(&right.read()));
-      }
-      newick.push(')');
-      if let Some(ref name) = clade.name {
-        newick.push_str(name);
-      }
-      newick
-    }
-  }
-
-  let clade_read = clade.read();
-  let newick = recurse(&clade_read);
-  format!("{};", newick)
 }
 
 #[cfg(test)]
@@ -122,7 +121,7 @@ mod tests {
 
     let result: Vec<String> = postorder(&root, |clade| clade.name.clone().unwrap_or_default());
     assert_eq!(result, vec!["", "", "", "A", "B", "", "C", "D", "", "G", "H",]);
-    let nwk = clade_to_newick(&root);
+    let nwk = root.read().to_newick();
     assert_eq!(nwk, "(((A,B),(C,D)),(G,H));");
   }
 }
