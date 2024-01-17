@@ -1,7 +1,6 @@
 use crate::utils::id::random_id;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
 use std::sync::Arc;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -50,15 +49,15 @@ impl Clade {
         clade.name.clone().unwrap_or_default()
       } else {
         let mut newick = String::from("(");
-        if let Some(ref left) = clade.left {
+        if let Some(left) = &clade.left {
           newick.push_str(&recurse(&left.read()));
         }
         newick.push(',');
-        if let Some(ref right) = clade.right {
+        if let Some(right) = &clade.right {
           newick.push_str(&recurse(&right.read()));
         }
         newick.push(')');
-        if let Some(ref name) = clade.name {
+        if let Some(name) = &clade.name {
           newick.push_str(name);
         }
         newick
@@ -66,7 +65,7 @@ impl Clade {
     }
 
     let newick = recurse(self);
-    format!("{};", newick)
+    format!("{newick};")
   }
 }
 
@@ -74,23 +73,21 @@ pub fn postorder<T, F>(clade: &Arc<RwLock<Clade>>, f: F) -> Vec<T>
 where
   F: Fn(&Clade) -> T,
 {
-  let mut result = vec![];
-
-  fn recurr<T, F>(clade: &Arc<RwLock<Clade>>, result: &mut Vec<T>, f: &F) -> ()
+  fn recurse<T, F>(clade: &Arc<RwLock<Clade>>, result: &mut Vec<T>, f: &F) -> ()
   where
     F: Fn(&Clade) -> T,
   {
-    if let Some(ref left) = clade.read().left {
-      recurr(left, result, f);
+    if let Some(left) = &clade.read().left {
+      recurse(left, result, f);
     }
-    if let Some(ref right) = clade.read().right {
-      recurr(right, result, f);
+    if let Some(right) = &clade.read().right {
+      recurse(right, result, f);
     }
     result.push(f(&clade.read()));
   }
 
-  recurr(clade, &mut result, &f);
-
+  let mut result = vec![];
+  recurse(clade, &mut result, &f);
   result
 }
 

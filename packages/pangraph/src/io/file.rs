@@ -10,7 +10,7 @@ use crate::io::compression::{Compressor, Decompressor};
 #[cfg(not(target_arch = "wasm32"))]
 use atty::{is as is_tty, Stream};
 
-const TTY_WARNING: &str = r#"Reading from standard input which is a TTY (e.g. an interactive terminal). This is likely not what you meant. Instead:
+const TTY_WARNING: &str = "Reading from standard input which is a TTY (e.g. an interactive terminal). This is likely not what you meant. Instead:
 
  - if you want to read fasta from the output of another program, try:
 
@@ -19,7 +19,7 @@ const TTY_WARNING: &str = r#"Reading from standard input which is a TTY (e.g. an
  - if you want to read from file(s), don't forget to provide a path:
 
     pangraph /path/to/file
-"#;
+";
 
 /// Open stdin
 pub fn open_stdin() -> Result<Box<dyn BufRead>, Report> {

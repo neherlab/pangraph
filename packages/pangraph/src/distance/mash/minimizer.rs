@@ -93,7 +93,7 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
           minimizer.push(window[i].clone());
         }
       }
-      for i in 0..(bi + 1) {
+      for i in 0..=bi {
         if min.value == window[i].value && min.position != window[i].position {
           minimizer.push(window[i].clone());
         }
@@ -119,7 +119,7 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
         }
       }
 
-      for i in 0..(bi + 1) {
+      for i in 0..=bi {
         if window[i].value < min.value {
           mi = i;
           min = window[i].clone();
@@ -132,7 +132,7 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
             minimizer.push(window[i].clone());
           }
         }
-        for i in 0..(bi + 1) {
+        for i in 0..=bi {
           if min.value == window[i].value && min.position != window[i].position {
             minimizer.push(window[i].clone());
           }
