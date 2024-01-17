@@ -43,6 +43,31 @@ impl Clade {
   pub fn is_root(&self) -> bool {
     self.parent.is_none()
   }
+
+  pub fn to_newick(&self) -> String {
+    fn recurse(clade: &Clade) -> String {
+      if clade.is_leaf() {
+        clade.name.clone().unwrap_or_default()
+      } else {
+        let mut newick = String::from("(");
+        if let Some(ref left) = clade.left {
+          newick.push_str(&recurse(&left.read()));
+        }
+        newick.push(',');
+        if let Some(ref right) = clade.right {
+          newick.push_str(&recurse(&right.read()));
+        }
+        newick.push(')');
+        if let Some(ref name) = clade.name {
+          newick.push_str(name);
+        }
+        newick
+      }
+    }
+
+    let newick = recurse(self);
+    format!("{};", newick)
+  }
 }
 
 pub fn postorder<T, F>(clade: &Arc<RwLock<Clade>>, f: F) -> Vec<T>
@@ -50,16 +75,22 @@ where
   F: Fn(&Clade) -> T,
 {
   let mut result = vec![];
-  let mut stack = VecDeque::from([Arc::clone(clade)]);
-  while let Some(current) = stack.pop_front() {
-    result.push(f(&current.read_arc()));
-    if let Some(right) = current.read_arc().right.as_ref() {
-      stack.push_front(Arc::clone(right));
+
+  fn recurr<T, F>(clade: &Arc<RwLock<Clade>>, result: &mut Vec<T>, f: &F) -> ()
+  where
+    F: Fn(&Clade) -> T,
+  {
+    if let Some(ref left) = clade.read().left {
+      recurr(left, result, f);
     }
-    if let Some(left) = current.read_arc().left.as_ref() {
-      stack.push_front(Arc::clone(left));
+    if let Some(ref right) = clade.read().right {
+      recurr(right, result, f);
     }
+    result.push(f(&clade.read()));
   }
+
+  recurr(clade, &mut result, &f);
+
   result
 }
 
@@ -94,7 +125,10 @@ mod tests {
     let abcd = Arc::new(RwLock::new(Clade::from_children(&ab, &cd)));
     let root = Arc::new(RwLock::new(Clade::from_children(&abcd, &gh)));
 
+    let nwk = root.read().to_newick();
+    assert_eq!(nwk, "(((A,B),(C,D)),(G,H));");
+
     let result: Vec<String> = postorder(&root, |clade| clade.name.clone().unwrap_or_default());
-    assert_eq!(result, vec!["", "", "", "A", "B", "", "C", "D", "", "G", "H",]);
+    assert_eq!(result, vec!["A", "B", "", "C", "D", "", "", "G", "H", "", ""]);
   }
 }
