@@ -1,6 +1,6 @@
 use crate::io::compression::Decompressor;
 use crate::io::concat::concat;
-use crate::io::file::{create_file, open_file_or_stdin, open_stdin};
+use crate::io::file::{create_file_or_stdout, open_file_or_stdin, open_stdin};
 use crate::make_error;
 use eyre::Report;
 use log::info;
@@ -156,11 +156,11 @@ impl FastaWriter {
   }
 
   pub fn from_path(filepath: impl AsRef<Path>) -> Result<Self, Report> {
-    Ok(Self::new(create_file(filepath)?))
+    Ok(Self::new(create_file_or_stdout(filepath)?))
   }
 
-  pub fn write(&mut self, seq_name: &str, seq: &str) -> Result<(), Report> {
-    write!(self.writer, ">{seq_name}\n{seq}\n")?;
+  pub fn write(&mut self, seq_name: impl AsRef<str>, seq: impl AsRef<str>) -> Result<(), Report> {
+    write!(self.writer, ">{}\n{}\n", seq_name.as_ref(), seq.as_ref())?;
     Ok(())
   }
 
@@ -173,4 +173,13 @@ impl FastaWriter {
 #[derive(Clone, Debug, Serialize)]
 struct OutputTranslationsTemplateContext<'a> {
   gene: &'a str,
+}
+
+pub fn write_one_fasta(
+  filepath: impl AsRef<Path>,
+  seq_name: impl AsRef<str>,
+  seq: impl AsRef<str>,
+) -> Result<(), Report> {
+  let mut writer = FastaWriter::from_path(&filepath)?;
+  writer.write(seq_name, seq)
 }

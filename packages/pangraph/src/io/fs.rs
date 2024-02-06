@@ -1,9 +1,18 @@
 use crate::io::file::open_file_or_stdin;
+use crate::make_report;
 use eyre::{eyre, Report, WrapErr};
 use std::ffi::{OsStr, OsString};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 use std::{env, fs};
+
+pub fn path_to_str(p: &Path) -> Result<String, Report> {
+  Ok(
+    p.to_str()
+      .ok_or_else(|| make_report!("Unable to convert path to string: {p:#?}"))?
+      .to_owned(),
+  )
+}
 
 pub fn absolute_path(path: impl AsRef<Path>) -> Result<PathBuf, Report> {
   let path = path.as_ref();

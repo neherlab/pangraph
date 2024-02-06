@@ -1,4 +1,5 @@
 pub mod assert;
+pub mod collections;
 pub mod datetime;
 pub mod error;
 pub mod float_fmt;
