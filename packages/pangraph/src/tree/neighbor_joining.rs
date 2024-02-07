@@ -2,14 +2,13 @@
 
 use crate::make_error;
 use crate::tree::clade::Clade;
+use crate::utils::lock::Lock;
 use crate::utils::ndarray::broadcast;
 use eyre::Report;
 use itertools::Itertools;
 use ndarray::{array, s, Array1, Array2, AssignElem, Axis};
 use ndarray_stats::QuantileExt;
-use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 /// Generate a tree from a matrix of pairwise distances `distance` using neighbor joining method.
 /// The names of leafs are given by an array of strings `names`.
@@ -21,10 +20,7 @@ pub fn build_tree_using_neighbor_joining(distance: &Array2<f64>, names: &[&str])
     return make_error!("Expected at least 2 samples, but found {}", names.len());
   }
 
-  let mut nodes = names
-    .iter()
-    .map(|name| Arc::new(RwLock::new(Clade::new(name))))
-    .collect_vec();
+  let mut nodes = names.iter().map(|name| Lock::new(Clade::new(name))).collect_vec();
 
   let mut distance = distance.clone(); // TODO: should we avoid copying here?
 
@@ -91,14 +87,14 @@ fn dist(D: &Array2<f64>, i: usize, j: usize) -> Array1<f64> {
   dn
 }
 
-fn join_in_place(D: &mut Array2<f64>, nodes: &mut Vec<Arc<RwLock<Clade>>>) -> Result<(), Report> {
+fn join_in_place(D: &mut Array2<f64>, nodes: &mut Vec<Lock<Clade>>) -> Result<(), Report> {
   let q = create_Q_matrix(D).unwrap();
   let (i, j) = pair(&q)?;
 
-  let node = Arc::new(RwLock::new(Clade::from_children(&nodes[i], &nodes[j])));
-  nodes[i].write().parent = Some(Arc::clone(&node)); // TODO: is this assignment redundant? (node[i] is overwritten below)
-  nodes[j].write().parent = Some(Arc::clone(&node));
-  nodes[i] = Arc::clone(&node);
+  let node = Lock::new(Clade::from_children(&nodes[i], &nodes[j]));
+  nodes[i].write().parent = Some(node.clone()); // TODO: is this assignment redundant? (node[i] is overwritten below)
+  nodes[j].write().parent = Some(node.clone());
+  nodes[i] = node;
   nodes.remove(j);
 
   let dn = dist(D, i, j);
@@ -195,7 +191,7 @@ mod tests {
   fn test_join() {
     let mut nodes = vec!["A", "B", "C", "D", "E"]
       .into_iter()
-      .map(|name| Arc::new(RwLock::new(Clade::new(name))))
+      .map(|name| Lock::new(Clade::new(name)))
       .collect_vec();
 
     #[rustfmt::skip]
@@ -257,9 +253,7 @@ mod tests {
     let nwk = tree.to_newick();
     assert_eq!(nwk, "((((A,B),C),D),E);");
 
-    let nodes: Vec<String> = postorder(&Arc::new(RwLock::new(tree)), |clade| {
-      clade.name.clone().unwrap_or_default()
-    });
+    let nodes: Vec<String> = postorder(&Lock::new(tree), |clade| clade.name.clone().unwrap_or_default());
 
     let nodes_expected: Vec<String> = vec_of_owned!["A", "B", "", "C", "", "D", "", "E", ""];
     assert_eq!(nodes, nodes_expected);
@@ -306,9 +300,7 @@ mod tests {
     let nwk = tree.to_newick();
     assert_eq!(nwk, "(((A,H),(((B,E),D),(C,G))),F);");
 
-    let nodes: Vec<String> = postorder(&Arc::new(RwLock::new(tree)), |clade| {
-      clade.name.clone().unwrap_or_default()
-    });
+    let nodes: Vec<String> = postorder(&Lock::new(tree), |clade| clade.name.clone().unwrap_or_default());
 
     let nodes_expected: Vec<String> = vec_of_owned!["A", "H", "", "B", "E", "", "D", "", "C", "G", "", "", "", "F", ""];
     assert_eq!(nodes, nodes_expected);

@@ -1,15 +1,15 @@
 use crate::utils::id::random_id;
-use parking_lot::RwLock;
+use crate::utils::lock::Lock;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::hash::{Hash, Hasher};
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Clade {
   pub id: usize,
   pub name: Option<String>,
-  pub parent: Option<Arc<RwLock<Clade>>>,
-  pub left: Option<Arc<RwLock<Clade>>>,
-  pub right: Option<Arc<RwLock<Clade>>>,
+  pub parent: Option<Lock<Clade>>,
+  pub left: Option<Lock<Clade>>,
+  pub right: Option<Lock<Clade>>,
 }
 
 impl Clade {
@@ -23,13 +23,13 @@ impl Clade {
     }
   }
 
-  pub fn from_children(left: &Arc<RwLock<Clade>>, right: &Arc<RwLock<Clade>>) -> Self {
+  pub fn from_children(left: &Lock<Clade>, right: &Lock<Clade>) -> Self {
     Self {
       id: random_id(),
       name: None,
       parent: None,
-      left: Some(Arc::clone(left)),
-      right: Some(Arc::clone(right)),
+      left: Some(Lock::clone(left)),
+      right: Some(Lock::clone(right)),
     }
   }
 
@@ -69,11 +69,11 @@ impl Clade {
   }
 }
 
-pub fn postorder<T, F>(clade: &Arc<RwLock<Clade>>, f: F) -> Vec<T>
+pub fn postorder<T, F>(clade: &Lock<Clade>, f: F) -> Vec<T>
 where
   F: Fn(&Clade) -> T,
 {
-  fn recurse<T, F>(clade: &Arc<RwLock<Clade>>, result: &mut Vec<T>, f: &F) -> ()
+  fn recurse<T, F>(clade: &Lock<Clade>, result: &mut Vec<T>, f: &F) -> ()
   where
     F: Fn(&Clade) -> T,
   {
@@ -101,26 +101,24 @@ mod tests {
 
   #[rstest]
   fn test_postorder_more_irregular_tree() {
-    let a = Arc::new(RwLock::new(Clade::new("A")));
-    let b = Arc::new(RwLock::new(Clade::new("B")));
-    let c = Arc::new(RwLock::new(Clade::new("C")));
-    let d = Arc::new(RwLock::new(Clade::new("D")));
-    let e = Arc::new(RwLock::new(Clade::new("E")));
-    let f = Arc::new(RwLock::new(Clade::new("F")));
-    let g = Arc::new(RwLock::new(Clade::new("G")));
-    let h = Arc::new(RwLock::new(Clade::new("H")));
-    let i = Arc::new(RwLock::new(Clade::new("I")));
-    let j = Arc::new(RwLock::new(Clade::new("J")));
-    let k = Arc::new(RwLock::new(Clade::new("K")));
+    let a = Lock::new(Clade::new("A"));
+    let b = Lock::new(Clade::new("B"));
+    let c = Lock::new(Clade::new("C"));
+    let d = Lock::new(Clade::new("D"));
+    let e = Lock::new(Clade::new("E"));
+    let f = Lock::new(Clade::new("F"));
+    let g = Lock::new(Clade::new("G"));
+    let h = Lock::new(Clade::new("H"));
+    let i = Lock::new(Clade::new("I"));
+    let j = Lock::new(Clade::new("J"));
+    let k = Lock::new(Clade::new("K"));
 
-    let ab = Arc::new(RwLock::new(Clade::from_children(&a, &b)));
-    let cd = Arc::new(RwLock::new(Clade::from_children(&c, &d)));
-    let ef = Arc::new(RwLock::new(Clade::from_children(&e, &f)));
-    let gh = Arc::new(RwLock::new(Clade::from_children(&g, &h)));
-    let jk = Arc::new(RwLock::new(Clade::from_children(&j, &k)));
+    let ab = Lock::new(Clade::from_children(&a, &b));
+    let cd = Lock::new(Clade::from_children(&c, &d));
+    let gh = Lock::new(Clade::from_children(&g, &h));
 
-    let abcd = Arc::new(RwLock::new(Clade::from_children(&ab, &cd)));
-    let root = Arc::new(RwLock::new(Clade::from_children(&abcd, &gh)));
+    let abcd = Lock::new(Clade::from_children(&ab, &cd));
+    let root = Lock::new(Clade::from_children(&abcd, &gh));
 
     let nwk = root.read().to_newick();
     assert_eq!(nwk, "(((A,B),(C,D)),(G,H));");

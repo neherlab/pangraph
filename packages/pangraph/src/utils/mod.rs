@@ -5,6 +5,7 @@ pub mod error;
 pub mod float_fmt;
 pub mod global_init;
 pub mod id;
+pub mod lock;
 pub mod ndarray;
 pub mod number_min_max;
 pub mod random;
