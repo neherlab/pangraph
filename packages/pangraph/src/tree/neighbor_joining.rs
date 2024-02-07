@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 /// Generate a tree from a matrix of pairwise distances `distance` using neighbor joining method.
 /// The names of leafs are given by an array of strings `names`.
-pub fn build_tree_using_neighbor_joining(distance: &Array2<f64>, names: &[&str]) -> Result<Clade, Report> {
+pub fn build_tree_using_neighbor_joining(distance: &Array2<f64>, names: &[String]) -> Result<Lock<Clade>, Report> {
   assert_eq!(names.len(), distance.len_of(Axis(0)));
   assert_eq!(distance.len_of(Axis(0)), distance.len_of(Axis(1)));
 
@@ -28,7 +28,7 @@ pub fn build_tree_using_neighbor_joining(distance: &Array2<f64>, names: &[&str])
     join_in_place(&mut distance, &mut nodes)?;
   }
 
-  Ok(Clade::from_children(&nodes[0], &nodes[1]))
+  Ok(Lock::new(Clade::from_children(&nodes[0], &nodes[1])))
 }
 
 fn create_Q_matrix(D: &Array2<f64>) -> Result<Array2<f64>, Report> {
@@ -237,7 +237,7 @@ mod tests {
 
   #[rstest]
   fn test_build_tree_using_neighbor_joining() {
-    let names = vec!["A", "B", "C", "D", "E"];
+    let names = vec_of_owned!["A", "B", "C", "D", "E"];
 
     #[rustfmt::skip]
     let D = array![
@@ -250,10 +250,10 @@ mod tests {
 
     let tree = build_tree_using_neighbor_joining(&D, &names).unwrap();
 
-    let nwk = tree.to_newick();
+    let nwk = tree.read().to_newick();
     assert_eq!(nwk, "((((A,B),C),D),E);");
 
-    let nodes: Vec<String> = postorder(&Lock::new(tree), |clade| clade.name.clone().unwrap_or_default());
+    let nodes: Vec<String> = postorder(&tree, |clade| clade.name.clone().unwrap_or_default());
 
     let nodes_expected: Vec<String> = vec_of_owned!["A", "B", "", "C", "", "D", "", "E", ""];
     assert_eq!(nodes, nodes_expected);
@@ -261,7 +261,7 @@ mod tests {
 
   #[rstest]
   fn test_build_tree_using_neighbor_joining_2() {
-    let names = vec!["A", "B", "C", "D", "E", "F", "G", "H"];
+    let names = vec_of_owned!["A", "B", "C", "D", "E", "F", "G", "H"];
 
     // expected tree:
     //               __ A
@@ -297,10 +297,10 @@ mod tests {
 
     let tree = build_tree_using_neighbor_joining(&D, &names).unwrap();
 
-    let nwk = tree.to_newick();
+    let nwk = tree.read().to_newick();
     assert_eq!(nwk, "(((A,H),(((B,E),D),(C,G))),F);");
 
-    let nodes: Vec<String> = postorder(&Lock::new(tree), |clade| clade.name.clone().unwrap_or_default());
+    let nodes: Vec<String> = postorder(&tree, |clade| clade.name.clone().unwrap_or_default());
 
     let nodes_expected: Vec<String> = vec_of_owned!["A", "H", "", "B", "E", "", "D", "", "C", "G", "", "", "", "F", ""];
     assert_eq!(nodes, nodes_expected);
