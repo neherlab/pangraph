@@ -1,3 +1,6 @@
+pub mod align_graphs;
+pub mod align_pair;
+pub mod align_self;
 pub mod alignment;
 pub mod bam;
 pub mod minimap2;

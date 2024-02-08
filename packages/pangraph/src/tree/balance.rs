@@ -66,17 +66,17 @@ mod tests {
     //  |____________ F
 
     let root = {
-      let a = Lock::new(Clade::new("A"));
-      let b = Lock::new(Clade::new("B"));
-      let c = Lock::new(Clade::new("C"));
-      let d = Lock::new(Clade::new("D"));
-      let e = Lock::new(Clade::new("E"));
-      let f = Lock::new(Clade::new("F"));
-      let g = Lock::new(Clade::new("G"));
-      let h = Lock::new(Clade::new("H"));
-      let i = Lock::new(Clade::new("I"));
-      let j = Lock::new(Clade::new("J"));
-      let k = Lock::new(Clade::new("K"));
+      let a = Lock::new(Clade::new("A", None));
+      let b = Lock::new(Clade::new("B", None));
+      let c = Lock::new(Clade::new("C", None));
+      let d = Lock::new(Clade::new("D", None));
+      let e = Lock::new(Clade::new("E", None));
+      let f = Lock::new(Clade::new("F", None));
+      let g = Lock::new(Clade::new("G", None));
+      let h = Lock::new(Clade::new("H", None));
+      let i = Lock::new(Clade::new("I", None));
+      let j = Lock::new(Clade::new("J", None));
+      let k = Lock::new(Clade::new("K", None));
 
       let ah = Lock::new(Clade::from_children(&a, &h));
       let be = Lock::new(Clade::from_children(&b, &e));

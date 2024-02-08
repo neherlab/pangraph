@@ -1,25 +1,28 @@
+use crate::pangraph::pangraph::Pangraph;
 use crate::utils::id::random_id;
 use crate::utils::lock::Lock;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
-#[derive(Clone, Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Clade {
   pub id: usize,
   pub name: Option<String>,
   pub parent: Option<Lock<Clade>>,
   pub left: Option<Lock<Clade>>,
   pub right: Option<Lock<Clade>>,
+  pub graph: Option<Pangraph>,
 }
 
 impl Clade {
-  pub fn new(name: &str) -> Self {
+  pub fn new(name: &str, graph: Option<Pangraph>) -> Self {
     Self {
       id: random_id(),
       name: Some(name.to_owned()),
       parent: None,
       left: None,
       right: None,
+      graph,
     }
   }
 
@@ -30,6 +33,7 @@ impl Clade {
       parent: None,
       left: Some(Lock::clone(left)),
       right: Some(Lock::clone(right)),
+      graph: None,
     }
   }
 
@@ -71,11 +75,11 @@ impl Clade {
 
 pub fn postorder<T, F>(clade: &Lock<Clade>, f: F) -> Vec<T>
 where
-  F: Fn(&Clade) -> T,
+  F: Fn(&mut Clade) -> T,
 {
   fn recurse<T, F>(clade: &Lock<Clade>, result: &mut Vec<T>, f: &F) -> ()
   where
-    F: Fn(&Clade) -> T,
+    F: Fn(&mut Clade) -> T,
   {
     if let Some(left) = &clade.read().left {
       recurse(left, result, f);
@@ -83,7 +87,7 @@ where
     if let Some(right) = &clade.read().right {
       recurse(right, result, f);
     }
-    result.push(f(&clade.read()));
+    result.push(f(&mut clade.write()));
   }
 
   let mut result = vec![];
@@ -101,17 +105,17 @@ mod tests {
 
   #[rstest]
   fn test_postorder_more_irregular_tree() {
-    let a = Lock::new(Clade::new("A"));
-    let b = Lock::new(Clade::new("B"));
-    let c = Lock::new(Clade::new("C"));
-    let d = Lock::new(Clade::new("D"));
-    let e = Lock::new(Clade::new("E"));
-    let f = Lock::new(Clade::new("F"));
-    let g = Lock::new(Clade::new("G"));
-    let h = Lock::new(Clade::new("H"));
-    let i = Lock::new(Clade::new("I"));
-    let j = Lock::new(Clade::new("J"));
-    let k = Lock::new(Clade::new("K"));
+    let a = Lock::new(Clade::new("A", None));
+    let b = Lock::new(Clade::new("B", None));
+    let c = Lock::new(Clade::new("C", None));
+    let d = Lock::new(Clade::new("D", None));
+    let e = Lock::new(Clade::new("E", None));
+    let f = Lock::new(Clade::new("F", None));
+    let g = Lock::new(Clade::new("G", None));
+    let h = Lock::new(Clade::new("H", None));
+    let i = Lock::new(Clade::new("I", None));
+    let j = Lock::new(Clade::new("J", None));
+    let k = Lock::new(Clade::new("K", None));
 
     let ab = Lock::new(Clade::from_children(&a, &b));
     let cd = Lock::new(Clade::from_children(&c, &d));

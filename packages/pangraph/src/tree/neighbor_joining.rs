@@ -1,9 +1,10 @@
 #![allow(non_snake_case)]
 
-use crate::make_error;
+use crate::pangraph::pangraph::Pangraph;
 use crate::tree::clade::Clade;
 use crate::utils::lock::Lock;
 use crate::utils::ndarray::broadcast;
+use crate::{make_error, make_internal_report};
 use eyre::Report;
 use itertools::Itertools;
 use ndarray::{array, s, Array1, Array2, AssignElem, Axis};
@@ -12,7 +13,12 @@ use serde::{Deserialize, Serialize};
 
 /// Generate a tree from a matrix of pairwise distances `distance` using neighbor joining method.
 /// The names of leafs are given by an array of strings `names`.
-pub fn build_tree_using_neighbor_joining(distance: &Array2<f64>, names: &[String]) -> Result<Lock<Clade>, Report> {
+pub fn build_tree_using_neighbor_joining(
+  distance: &Array2<f64>,
+  names: &[String],
+  graphs: &[Pangraph],
+) -> Result<Lock<Clade>, Report> {
+  assert_eq!(names.len(), graphs.len());
   assert_eq!(names.len(), distance.len_of(Axis(0)));
   assert_eq!(distance.len_of(Axis(0)), distance.len_of(Axis(1)));
 
@@ -20,7 +26,19 @@ pub fn build_tree_using_neighbor_joining(distance: &Array2<f64>, names: &[String
     return make_error!("Expected at least 2 samples, but found {}", names.len());
   }
 
-  let mut nodes = names.iter().map(|name| Lock::new(Clade::new(name))).collect_vec();
+  let mut nodes = names
+    .iter()
+    .map(|name| {
+      // TODO: try to restructure the code such that there is no need to store graphs and names in
+      // separate arrays and do fallible lookups. The relation is 1:1 and there should be no need for that.
+      let graph = graphs
+        .iter()
+        .find(|graph| &graph.paths[0].name == name)
+        .ok_or_else(|| make_internal_report!("Graph not found for clade '{name}'"))?;
+
+      Ok(Lock::new(Clade::new(name, Some(graph.clone()))))
+    })
+    .collect::<Result<Vec<_>, Report>>()?;
 
   let mut distance = distance.clone(); // TODO: should we avoid copying here?
 
@@ -191,7 +209,7 @@ mod tests {
   fn test_join() {
     let mut nodes = vec!["A", "B", "C", "D", "E"]
       .into_iter()
-      .map(|name| Lock::new(Clade::new(name)))
+      .map(|name| Lock::new(Clade::new(name, None)))
       .collect_vec();
 
     #[rustfmt::skip]
@@ -238,6 +256,13 @@ mod tests {
   #[rstest]
   fn test_build_tree_using_neighbor_joining() {
     let names = vec_of_owned!["A", "B", "C", "D", "E"];
+    let graphs = names
+      .iter()
+      .map(|name| Pangraph {
+        paths: vec![],
+        blocks: vec![],
+      })
+      .collect_vec();
 
     #[rustfmt::skip]
     let D = array![
@@ -248,7 +273,7 @@ mod tests {
       [8.0,  9.0,  7.0,  3.0, 0.0],
     ];
 
-    let tree = build_tree_using_neighbor_joining(&D, &names).unwrap();
+    let tree = build_tree_using_neighbor_joining(&D, &names, &graphs).unwrap();
 
     let nwk = tree.read().to_newick();
     assert_eq!(nwk, "((((A,B),C),D),E);");
@@ -262,6 +287,13 @@ mod tests {
   #[rstest]
   fn test_build_tree_using_neighbor_joining_2() {
     let names = vec_of_owned!["A", "B", "C", "D", "E", "F", "G", "H"];
+    let graphs = names
+      .iter()
+      .map(|name| Pangraph {
+        paths: vec![],
+        blocks: vec![],
+      })
+      .collect_vec();
 
     // expected tree:
     //               __ A
@@ -295,7 +327,7 @@ mod tests {
       [ 1.0, 46.0, 37.0, 46.0, 46.0, 14.0, 37.0,  0.0],  // H
     ];
 
-    let tree = build_tree_using_neighbor_joining(&D, &names).unwrap();
+    let tree = build_tree_using_neighbor_joining(&D, &names, &graphs).unwrap();
 
     let nwk = tree.read().to_newick();
     assert_eq!(nwk, "(((A,H),(((B,E),D),(C,G))),F);");
