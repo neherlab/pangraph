@@ -50,6 +50,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
   let names = fastas.iter().map(|fasta| fasta.seq_name.clone()).collect_vec();
 
   // Build singleton graphs from input sequences
+  // TODO: initial graphs can potentially be constructed when initializing tree clades. This could avoid a lot of boilerplate code.
   let graphs = fastas
     .into_iter()
     .map(|fasta| Pangraph::singleton(fasta, args.circular))
@@ -57,6 +58,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
 
   // Calculate pairwise distances between future guide tree nodes
   let distance = match args.distance_backend {
+    // TODO: this function only needs sequences, and not graphs
     DistanceBackend::Native => mash_distance(&graphs, &MinimizersParams::default()),
     DistanceBackend::Mash => {
       // FIXME: what's the difference between Native and Mash?

@@ -31,6 +31,8 @@ pub fn build_tree_using_neighbor_joining(
     .map(|name| {
       // TODO: try to restructure the code such that there is no need to store graphs and names in
       // separate arrays and do fallible lookups. The relation is 1:1 and there should be no need for that.
+      // Also external names are unreliable and are not guaranteed to uniquely identify the sequences.
+      // TODO: Looking up names in the paths make testing setup of this function harder.
       let graph = graphs
         .iter()
         .find(|graph| &graph.paths[0].name == name)
