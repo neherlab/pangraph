@@ -45,25 +45,9 @@ impl Alignment {
       remove_exactly_one(records?)?
     };
 
-    let (qstart, qend, strand) = {
-      let q1 = paf.qstart;
-      let q2 = paf.qend;
-      if q1 < q2 {
-        (q1, q2, Strand::Forward)
-      } else {
-        (q2, q1, Strand::Reverse)
-      }
-    };
+    let (qstart, qend, strand) = order_range(paf.qstart, paf.qend);
 
-    let (tstart, tend) = {
-      let t1 = paf.tstart;
-      let t2 = paf.tend;
-      if t1 < t2 {
-        (t1, t2)
-      } else {
-        (t2, t1)
-      }
-    };
+    let (tstart, tend, _) = order_range(paf.tstart, paf.tend);
 
     Ok(Alignment {
       qry: Hit {
@@ -88,6 +72,14 @@ impl Alignment {
       divergence: Some(1.0 - paf.fident),
       align: Some(paf.raw),
     })
+  }
+}
+
+fn order_range(start: usize, end: usize) -> (usize, usize, Strand) {
+  if start < end {
+    (start, end, Strand::Forward)
+  } else {
+    (end, start, Strand::Reverse)
   }
 }
 
