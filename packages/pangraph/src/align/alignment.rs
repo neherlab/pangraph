@@ -3,7 +3,7 @@ use noodles::sam::record::Cigar;
 use serde::{Deserialize, Serialize};
 
 /// Hit is one side of a pairwise alignment between homologous sequences.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Hit {
   pub name: String,
   pub length: usize,
@@ -13,7 +13,7 @@ pub struct Hit {
 }
 
 /// Alignment is a pairwise homologous alignment between two sequences.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Alignment {
   pub qry: Hit,
   pub reff: Hit,

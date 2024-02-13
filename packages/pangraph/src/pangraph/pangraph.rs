@@ -38,17 +38,11 @@ impl Pangraph {
     Ok(tree_str)
   }
 
-  pub fn sequences(&self) {
-    
-  }
-  
-  pub fn names(&self) {
-    
-  }
-  
-  pub fn sequence_map(&self) {
-    
-  }
+  pub fn sequences(&self) {}
+
+  pub fn names(&self) {}
+
+  pub fn sequence_map(&self) {}
 }
 
 impl FromStr for Pangraph {
@@ -59,7 +53,7 @@ impl FromStr for Pangraph {
   }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, SmartDefault)]
+#[derive(Clone, Serialize, Deserialize, Debug, SmartDefault, PartialEq)]
 pub enum Strand {
   #[default]
   Forward,

@@ -55,6 +55,16 @@ impl Alignment {
       }
     };
 
+    let (tstart, tend) = {
+      let t1 = paf.tstart;
+      let t2 = paf.tend;
+      if t1 < t2 {
+        (t1, t2)
+      } else {
+        (t2, t1)
+      }
+    };
+
     Ok(Alignment {
       qry: Hit {
         name: paf.query,
@@ -66,8 +76,8 @@ impl Alignment {
       reff: Hit {
         name: paf.target,
         length: paf.tlen,
-        start: paf.tstart,
-        stop: paf.tend,
+        start: tstart,
+        stop: tend,
         seq: None,
       },
       matches: paf.nident,
@@ -78,5 +88,70 @@ impl Alignment {
       divergence: Some(1.0 - paf.fident),
       align: Some(paf.raw),
     })
+  }
+}
+
+#[cfg(test)]
+mod tests {
+
+  use super::*;
+  use pretty_assertions::assert_eq;
+  use rstest::rstest;
+
+  #[rstest]
+  fn test_paf_parse() {
+    // forward alignment
+    let paf_content = "qry	507	1	497	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
+    let aln = Alignment {
+      qry: Hit {
+        name: "qry".to_string(),
+        length: 507,
+        start: 1,
+        stop: 497,
+        seq: None,
+      },
+      reff: Hit {
+        name: "ref".to_string(),
+        length: 500,
+        start: 24,
+        stop: 500,
+        seq: None,
+      },
+      matches: 440,
+      length: 508,
+      quality: 622,
+      orientation: Strand::Forward,
+      cigar: parse_cigar_str("67M10D18M20I235M10I22M1I5M1D119M").unwrap(),
+      divergence: Some(0.134),
+      align: Some(693.0),
+    };
+    assert_eq!(Alignment::from_paf_str(paf_content).unwrap(), aln);
+
+    // reverse alignment
+    let paf_content = "rev_qry	507	507	11	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
+    let aln = Alignment {
+      qry: Hit {
+        name: "rev_qry".to_string(),
+        length: 507,
+        start: 11,
+        stop: 507,
+        seq: None,
+      },
+      reff: Hit {
+        name: "ref".to_string(),
+        length: 500,
+        start: 24,
+        stop: 500,
+        seq: None,
+      },
+      matches: 440,
+      length: 508,
+      quality: 622,
+      orientation: Strand::Reverse,
+      cigar: parse_cigar_str("67M10D18M20I235M10I22M1I5M1D119M").unwrap(),
+      divergence: Some(0.134),
+      align: Some(693.0),
+    };
+    assert_eq!(Alignment::from_paf_str(paf_content).unwrap(), aln);
   }
 }
