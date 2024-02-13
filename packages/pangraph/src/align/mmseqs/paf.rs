@@ -91,7 +91,7 @@ mod tests {
   use rstest::rstest;
 
   #[rstest]
-  fn test_paf_parse() {
+  fn test_paf_parse_forward() {
     // forward alignment
     let paf_content = "qry	507	1	497	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = Alignment {
@@ -118,7 +118,10 @@ mod tests {
       align: Some(693.0),
     };
     assert_eq!(Alignment::from_paf_str(paf_content).unwrap(), aln);
+  }
 
+  #[rstest]
+  fn test_paf_parse_reverse() {
     // reverse alignment
     let paf_content = "rev_qry	507	507	11	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = Alignment {
