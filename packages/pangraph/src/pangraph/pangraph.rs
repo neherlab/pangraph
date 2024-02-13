@@ -53,7 +53,7 @@ impl FromStr for Pangraph {
   }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, SmartDefault, PartialEq)]
+#[derive(Clone, Serialize, Deserialize, Debug, SmartDefault, PartialEq, Eq)]
 pub enum Strand {
   #[default]
   Forward,

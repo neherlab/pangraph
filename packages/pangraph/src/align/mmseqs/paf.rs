@@ -87,6 +87,7 @@ fn order_range(start: usize, end: usize) -> (usize, usize, Strand) {
 mod tests {
 
   use super::*;
+  use crate::o;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 
@@ -96,14 +97,14 @@ mod tests {
     let paf_content = "qry	507	1	497	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = Alignment {
       qry: Hit {
-        name: "qry".to_string(),
+        name: o!("qry"),
         length: 507,
         start: 1,
         stop: 497,
         seq: None,
       },
       reff: Hit {
-        name: "ref".to_string(),
+        name: o!("ref"),
         length: 500,
         start: 24,
         stop: 500,
@@ -126,14 +127,14 @@ mod tests {
     let paf_content = "rev_qry	507	507	11	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = Alignment {
       qry: Hit {
-        name: "rev_qry".to_string(),
+        name: o!("rev_qry"),
         length: 507,
         start: 11,
         stop: 507,
         seq: None,
       },
       reff: Hit {
-        name: "ref".to_string(),
+        name: o!("ref"),
         length: 500,
         start: 24,
         stop: 500,
