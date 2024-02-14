@@ -214,6 +214,7 @@ rustflags = [
   "-Aclippy::integer_division",
   "-Aclippy::iter_nth_zero",
   "-Aclippy::large_digit_groups",
+  "-Aclippy::len_zero",
   "-Aclippy::let_underscore_must_use",
   "-Aclippy::manual-string-new",
   "-Aclippy::match_same_arms",
