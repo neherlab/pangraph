@@ -58,3 +58,12 @@ where
 
   Ok(String::from_utf8(output.stdout)?)
 }
+
+/// Creates an argument for Command::arg from name and value.
+/// Conditionally added argument need to be a vec of 0, 1 or 2 strings.
+pub fn create_arg_optional(name: impl AsRef<str>, value: &Option<impl ToString>) -> Vec<String> {
+  value
+    .as_ref()
+    .map(|kmer_len| vec![name.as_ref().to_owned(), kmer_len.to_string()])
+    .unwrap_or_default()
+}

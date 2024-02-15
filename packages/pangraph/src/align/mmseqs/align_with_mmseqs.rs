@@ -4,7 +4,9 @@ use crate::io::fasta::{write_one_fasta, FastaRecord};
 use crate::io::file::open_file_or_stdin;
 use crate::io::fs::path_to_str;
 use crate::o;
-use crate::utils::subprocess::{subprocess, subprocess_with_args};
+use crate::utils::subprocess::{create_arg_optional, subprocess, subprocess_with_args};
+use clap::Args;
+use cmd_lib::run_cmd;
 use color_eyre::{Section, SectionExt};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
@@ -13,8 +15,9 @@ use std::io::Read;
 use std::str::FromStr;
 use tempfile::Builder as TempDirBuilder;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Args, Serialize, Deserialize)]
 pub struct MmseqsParams {
+  #[clap(long, short = 'k')]
   kmer_len: Option<usize>,
 }
 
@@ -23,6 +26,8 @@ pub fn align_with_mmseqs(
   qry: impl AsRef<str>,
   params: &MmseqsParams,
 ) -> Result<Alignment, Report> {
+  // TODO: This uses a global resource - filesystem.
+  // Need to ensure that there are no data races when running concurrently.
   let temp_dir = TempDirBuilder::new().tempdir()?;
   let temp_dir_path = temp_dir.path();
   let qry_path = path_to_str(&temp_dir_path.join("qry.fa"))?;
@@ -33,26 +38,20 @@ pub fn align_with_mmseqs(
   write_one_fasta(&qry_path, "qry", &qry)?;
   write_one_fasta(&ref_path, "ref", &reff)?;
 
-  #[rustfmt::skip]
-  let mut args: Vec<String> = vec![
-    "easy-search",
-    &qry_path, &ref_path, &res_path, &tmp_path,
-    "--threads", "1",
-    "--max-seq-len", "10000",
-    "-a",
-    "--search-type", "3",
-    "--format-output", &PafTsvRecord::fields_names().join(","),
-  ].into_iter().map(ToOwned::to_owned).collect_vec();
+  let output_column_names = PafTsvRecord::fields_names().join(",");
+  let k = create_arg_optional("-k", &params.kmer_len);
 
-  if let Some(kmer_len) = params.kmer_len {
-    if kmer_len > 0 {
-      args.extend(vec![o!("-k"), kmer_len.to_string()]);
-    }
-  }
-
-  let args_ref: Vec<&str> = args.iter().map(AsRef::as_ref).collect_vec();
-
-  subprocess_with_args("mmseqs", args_ref).wrap_err("When trying to align sequences using mmseqs")?;
+  run_cmd!(
+    mmseqs easy-search
+    $qry_path $ref_path $res_path $tmp_path
+    --threads 1
+    --max-seq-len 10000
+    -a
+    --search-type 3
+    --format-output $output_column_names
+    $[k]
+  )
+  .wrap_err("When trying to align sequences using mmseqs")?;
 
   let mut paf_str = String::new();
   open_file_or_stdin(&Some(res_path))?.read_to_string(&mut paf_str)?;
@@ -79,7 +78,9 @@ mod tests {
     let ref_seq = o!("CTTGGAGGTTCCGTGGCTAGATAACAGAACATTCTTGGAATGCTGATCTTTATAAGCTCATGCGACACTTCGCATGGTGAGCCTTTGT");
     let qry_seq = o!("CTTGGAGGTTCCGTGGCTATAAAGATAACAGAACATTCTTGGAATGCTGATCAAGCTCATGGGACANNNNNCATGGTGGACAGCCTTTGT");
 
-    let actual = align_with_mmseqs(ref_seq, qry_seq, &MmseqsParams::default())?;
+    let params = MmseqsParams { kmer_len: Some(12) };
+
+    let actual = align_with_mmseqs(ref_seq, qry_seq, &params)?;
 
     let expected = Alignment {
       qry: Hit {
