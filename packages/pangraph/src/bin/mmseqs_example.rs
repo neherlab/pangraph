@@ -13,7 +13,7 @@ fn main() -> Result<(), Report> {
   let ref_seq = read_one_fasta("data/smol_01_ref.fa")?;
   let qry_seq = read_one_fasta("data/smol_01.fa")?;
 
-  let results = align_with_mmseqs(&ref_seq, &qry_seq, &MmseqsParams::default())?;
+  let results = align_with_mmseqs(ref_seq.seq, qry_seq.seq, &MmseqsParams::default())?;
   dbg!(&results);
   Ok(())
 }
