@@ -217,6 +217,11 @@ RUN set -euxo pipefail >/dev/null \
 && curl -fsSL "https://github.com/soedinglab/MMseqs2/releases/download/${MMSEQS_VERSION}/mmseqs-linux-sse2.tar.gz" | tar -C "/usr/bin/" -xz --strip-components=2 "mmseqs/bin/mmseqs" \
 && mmseqs --help | grep "Version"
 
+RUN set -euxo pipefail >/dev/null \
+&& export MINIMAP2_VERSION="2.26" \
+&& curl -fsSL "https://github.com/lh3/minimap2/releases/download/v${MINIMAP2_VERSION}/minimap2-${MINIMAP2_VERSION}_x64-linux.tar.bz2" | tar -C "/usr/bin/" -xj --strip-components=1 "minimap2-${MINIMAP2_VERSION}_x64-linux/minimap2" \
+&& minimap2 --version
+
 # Install mash
 RUN set -euxo pipefail >/dev/null \
 && curl -fsSL "https://github.com/marbl/Mash/releases/download/v2.2/mash-Linux64-v2.2.tar" | tar -C "/usr/bin/" -x --strip-components=1 "mash-Linux64-v2.2/mash" \
