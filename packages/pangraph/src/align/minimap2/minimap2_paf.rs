@@ -15,17 +15,25 @@ pub struct MinimapPafTsvRecord {
   /* 02 */ qlen: usize,
   /* 03 */ qstart: usize,
   /* 04 */ qend: usize,
-  /* 05 */ empty: String,
+  /* 05 */ strand: String,
   /* 06 */ target: String,
   /* 07 */ tlen: usize,
   /* 08 */ tstart: usize,
   /* 09 */ tend: usize,
   /* 10 */ nident: usize,
   /* 11 */ alnlen: usize,
-  /* 12 */ bits: usize,
-  /* 13 */ cigar: String,
-  /* 14 */ fident: f64,
-  /* 15 */ raw: f64,
+  /* 12 */ mapq: usize,
+  /* 13 */ nm: String,
+  /* 14 */ ms: String,
+  /* 15 */ ascore: String,
+  /* 16 */ nn: String,
+  /* 17 */ tp: String,
+  /* 18 */ cm: String,
+  /* 19 */ s1: String,
+  /* 20 */ s2: String,
+  /* 21 */ de: String,
+  /* 22 */ rl: String,
+  /* 23 */ cg: String,
 }
 
 impl MinimapPafTsvRecord {
@@ -45,41 +53,45 @@ impl Alignment {
       remove_exactly_one(records?)?
     };
 
-    let (qstart, qend, strand) = order_range(paf.qstart, paf.qend);
+    let strand = match paf.strand.as_str() {
+      "+" => Strand::Forward,
+      "-" => Strand::Reverse,
+      _ => return Err(eyre::eyre!("Invalid strand")),
+    };
 
-    let (tstart, tend, _) = order_range(paf.tstart, paf.tend);
+    // strip divergence prefix and then parse as float
+    let div = paf.de.strip_prefix("de:f:").unwrap_or_default().parse::<f64>()?;
+
+    // strip prefix from alignment score and then parse
+    let aln_score = paf.ascore.strip_prefix("AS:i:").unwrap_or_default().parse::<f64>()?;
+
+    // strip prefix from cigar string and then parse
+    let cigar = paf.cg.strip_prefix("cg:Z:").unwrap_or_default();
+    let cigar = parse_cigar_str(cigar)?;
 
     Ok(Alignment {
       qry: Hit {
         name: paf.query,
         length: paf.qlen,
-        start: qstart,
-        stop: qend,
+        start: paf.qstart,
+        stop: paf.qend,
         seq: None,
       },
       reff: Hit {
         name: paf.target,
         length: paf.tlen,
-        start: tstart,
-        stop: tend,
+        start: paf.tstart,
+        stop: paf.tend,
         seq: None,
       },
       matches: paf.nident,
       length: paf.alnlen,
-      quality: paf.bits,
+      quality: paf.mapq,
       orientation: strand,
-      cigar: parse_cigar_str(paf.cigar)?,
-      divergence: Some(1.0 - paf.fident),
-      align: Some(paf.raw),
+      cigar,
+      divergence: Some(div),
+      align: Some(aln_score),
     })
-  }
-}
-
-fn order_range(start: usize, end: usize) -> (usize, usize, Strand) {
-  if start < end {
-    (start, end, Strand::Forward)
-  } else {
-    (end, start, Strand::Reverse)
   }
 }
 
@@ -94,29 +106,29 @@ mod tests {
   #[rstest]
   fn test_minimap2_paf_parse_forward() {
     // forward alignment
-    let paf_content = "qry	507	1	497	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
+    let paf_content = "qry_0	998	0	996	+	ref_0	1000	0	998	969	998	60	NM:i:29	ms:i:845	AS:i:845	nn:i:0	tp:A:P	cm:i:145	s1:i:808	s2:i:0	de:f:0.0291	rl:i:0	cg:Z:545M1D225M1D226M";
     let aln = Alignment {
       qry: Hit {
-        name: o!("qry"),
-        length: 507,
-        start: 1,
-        stop: 497,
+        name: o!("qry_0"),
+        length: 998,
+        start: 0,
+        stop: 996,
         seq: None,
       },
       reff: Hit {
-        name: o!("ref"),
-        length: 500,
-        start: 24,
-        stop: 500,
+        name: o!("ref_0"),
+        length: 1000,
+        start: 0,
+        stop: 998,
         seq: None,
       },
-      matches: 440,
-      length: 508,
-      quality: 622,
+      matches: 969,
+      length: 998,
+      quality: 60,
       orientation: Strand::Forward,
-      cigar: parse_cigar_str("67M10D18M20I235M10I22M1I5M1D119M").unwrap(),
-      divergence: Some(0.134),
-      align: Some(693.0),
+      cigar: parse_cigar_str("545M1D225M1D226M").unwrap(),
+      divergence: Some(0.0291),
+      align: Some(845.),
     };
     assert_eq!(Alignment::from_minimap_paf_str(paf_content).unwrap(), aln);
   }
@@ -124,29 +136,29 @@ mod tests {
   #[rstest]
   fn test_minimap2_paf_parse_reverse() {
     // reverse alignment
-    let paf_content = "rev_qry	507	507	11	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
+    let paf_content = "qry_3	997	0	980	-	ref_3	1000	18	1000	965	982	60	NM:i:17	ms:i:889	AS:i:889	nn:i:0	tp:A:P	cm:i:151	s1:i:815	s2:i:0	de:f:0.0173	rl:i:0	cg:Z:124M1D416M1D440M";
     let aln = Alignment {
       qry: Hit {
-        name: o!("rev_qry"),
-        length: 507,
-        start: 11,
-        stop: 507,
+        name: o!("qry_3"),
+        length: 997,
+        start: 0,
+        stop: 980,
         seq: None,
       },
       reff: Hit {
-        name: o!("ref"),
-        length: 500,
-        start: 24,
-        stop: 500,
+        name: o!("ref_3"),
+        length: 1000,
+        start: 18,
+        stop: 1000,
         seq: None,
       },
-      matches: 440,
-      length: 508,
-      quality: 622,
+      matches: 965,
+      length: 982,
+      quality: 60,
       orientation: Strand::Reverse,
-      cigar: parse_cigar_str("67M10D18M20I235M10I22M1I5M1D119M").unwrap(),
-      divergence: Some(0.134),
-      align: Some(693.0),
+      cigar: parse_cigar_str("124M1D416M1D440M").unwrap(),
+      divergence: Some(0.0173),
+      align: Some(889.0),
     };
     assert_eq!(Alignment::from_minimap_paf_str(paf_content).unwrap(), aln);
   }
