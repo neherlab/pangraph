@@ -2,7 +2,7 @@ use crate::align::nextclade::align::align::align_nuc;
 use crate::align::nextclade::align::backtrace::AlignmentOutput;
 use crate::align::nextclade::align::gap_open::get_gap_open_close_scores_flat;
 use crate::align::nextclade::align::insertions_strip::{insertions_strip, Insertion};
-use crate::align::nextclade::align::params::NextalignParams;
+pub use crate::align::nextclade::align::params::NextalignParams;
 use crate::align::nextclade::align::seed_match::CodonSpacedIndex;
 use crate::align::nextclade::alphabet::nuc::{from_nuc_seq, to_nuc_seq, Nuc};
 use crate::align::nextclade::analyze::nuc_changes::{find_nuc_changes, FindNucChangesOutput};
