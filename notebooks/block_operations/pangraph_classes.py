@@ -32,7 +32,10 @@ class Edits:
     """
 
     def __init__(
-        self, ins: list[Insertion], dels: list[Deletion], subs: list[Substitution]
+        self,
+        ins: list[Insertion] = [],
+        dels: list[Deletion] = [],
+        subs: list[Substitution] = [],
     ):
         self.ins = ins
         self.dels = dels
@@ -76,7 +79,11 @@ class Block:
         self.alignment = alignment
 
     def __str__(self):
-        return f"Block(block_id={self.id}, consensus={self.consensus}, alignment={self.alignment})"
+        msg = f"Block(\nblock_id={self.id}\nconsensus={self.consensus}\nalignment:"
+        for k, v in self.alignment.items():
+            msg += f"\n{k} -> {v}"
+        msg += "\n)"
+        return msg
 
 
 class Path:
