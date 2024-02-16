@@ -1,45 +1,34 @@
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True, order=True)
 class Insertion:
-    def __init__(self, pos: int, ins: str):
-        self.pos = pos
-        self.ins = ins
-
-    def __str__(self):
-        return f"Insertion(pos={self.pos}, ins={self.ins})"
+    pos: int
+    ins: str
 
 
+@dataclass(frozen=True, order=True)
 class Deletion:
-    def __init__(self, pos: int, length: int):
-        self.pos = pos
-        self.length = length
-
-    def __str__(self):
-        return f"Deletion(pos={self.pos}, length={self.length})"
+    pos: int
+    length: int
 
 
+@dataclass(frozen=True, order=True)
 class Substitution:
-    def __init__(self, pos: int, alt: str):
-        self.pos = pos
-        self.alt = alt
-
-    def __str__(self):
-        return f"Substitution(pos={self.pos}, alt={self.alt})"
+    pos: int
+    alt: str
 
 
+@dataclass()
 class Edits:
     """
     any query sequence can be transformed into the reference sequence by applying
     a set of edits.
     """
 
-    def __init__(
-        self,
-        ins: list[Insertion] = [],
-        dels: list[Deletion] = [],
-        subs: list[Substitution] = [],
-    ):
-        self.ins = ins
-        self.dels = dels
-        self.subs = subs
+    ins: list[Insertion] = field(default_factory=list)
+    dels: list[Deletion] = field(default_factory=list)
+    subs: list[Substitution] = field(default_factory=list)
 
     def __str__(self):
         msg = "Edits("
