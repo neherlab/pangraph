@@ -21,7 +21,7 @@ pub struct Pangraph {
 
 impl Pangraph {
   pub fn singleton(fasta: FastaRecord, circular: bool) -> Self {
-    let block = PangraphBlock::new(fasta.seq);
+    let block = PangraphBlock::from_consensus(fasta.seq);
     let path = PangraphPath::new(fasta.seq_name, block.id, circular);
     Self {
       blocks: vec![block],

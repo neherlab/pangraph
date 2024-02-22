@@ -71,7 +71,7 @@ mod tests {
   use std::collections::BTreeMap;
 
   fn create_fake_graph(seq: impl AsRef<str>) -> Pangraph {
-    let block = PangraphBlock::new(seq.as_ref().to_owned());
+    let block = PangraphBlock::from_consensus(seq.as_ref().to_owned());
     let path = PangraphPath::new(o!(""), block.id, false);
     Pangraph {
       blocks: vec![block],

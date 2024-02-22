@@ -57,11 +57,7 @@ mod tests {
       ),
     ]);
 
-    let mut block_A = PangraphBlock {
-      id: random_id(),
-      consensus: cons_A,
-      alignments: aln_A,
-    };
+    let mut block_A = PangraphBlock::new(cons_A, aln_A);
 
     let cons_B = o!("GACCAAACCTGTCCGCTGAAACTGCGGGGTACTGCAGC");
     let aln_B = BTreeMap::from([
@@ -82,11 +78,7 @@ mod tests {
         },
       ),
     ]);
-    let block_B = PangraphBlock {
-      id: random_id(),
-      consensus: cons_B,
-      alignments: aln_B,
-    };
+    let block_B = PangraphBlock::new(cons_B, aln_B);
 
     let new_block = merge_blocks_inplace(&mut block_A, &block_B)?;
 

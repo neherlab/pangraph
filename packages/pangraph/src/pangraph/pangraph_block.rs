@@ -14,11 +14,19 @@ pub struct PangraphBlock {
 }
 
 impl PangraphBlock {
-  pub fn new(consensus: String) -> Self {
+  pub fn from_consensus(consensus: impl AsRef<str>) -> Self {
     Self {
       id: random_id(),
-      consensus,
+      consensus: consensus.as_ref().to_owned(),
       alignments: BTreeMap::new(),
+    }
+  }
+
+  pub fn new(consensus: impl AsRef<str>, alignments: BTreeMap<usize, Edits>) -> Self {
+    Self {
+      id: random_id(),
+      consensus: consensus.as_ref().to_owned(),
+      alignments,
     }
   }
 
