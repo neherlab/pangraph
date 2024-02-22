@@ -6,20 +6,20 @@ use std::ops::Range;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Sub {
-  pos: usize,
-  alt: u8,
+  pub pos: usize,
+  pub alt: char,
 }
 
 impl Sub {
-  pub fn new(pos: usize, alt: u8) -> Self {
+  pub fn new(pos: usize, alt: char) -> Self {
     Self { pos, alt }
   }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Del {
-  pos: usize,
-  len: usize,
+  pub pos: usize,
+  pub len: usize,
 }
 
 impl Del {
@@ -38,8 +38,8 @@ impl Del {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Ins {
-  pos: usize,
-  seq: String,
+  pub pos: usize,
+  pub seq: String,
 }
 
 impl Ins {
@@ -53,15 +53,16 @@ impl Ins {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Edits {
-  subs: Vec<Sub>,
-  dels: Vec<Del>,
-  inss: Vec<Ins>,
+  pub subs: Vec<Sub>,
+  pub dels: Vec<Del>,
+  pub inss: Vec<Ins>,
 }
 
 impl Edits {
   /// Apply the edits to the reference to obtain the query sequence
   pub fn apply(&self, reff: impl AsRef<str>) -> Result<String, Report> {
-    let mut qry: Vec<u8> = reff.as_ref().to_owned().into();
+    // TODO: decide whether it's best to use chars, bytes of something else entirely
+    let mut qry: Vec<char> = reff.as_ref().chars().into_iter().collect_vec();
 
     for sub in &self.subs {
       qry[sub.pos] = sub.alt;
@@ -72,10 +73,12 @@ impl Edits {
     }
 
     for ins in &self.inss {
-      insert_at_inplace(&mut qry, ins.pos, ins.seq.as_bytes());
+      // TODO: avoid copy
+      let seq = ins.seq.chars().collect_vec();
+      insert_at_inplace(&mut qry, ins.pos, &seq);
     }
 
-    let qry = String::from_utf8(qry)?;
+    let qry = String::from_iter(&qry);
     Ok(qry)
   }
 }
@@ -96,7 +99,7 @@ mod tests {
 
     let inss = vec![Ins::new(1, "G")];
     let dels = vec![Del::new(6, 1)];
-    let subs = vec![Sub::new(8, b'A')];
+    let subs = vec![Sub::new(8, 'A')];
     let edits = Edits { subs, dels, inss };
 
     let actual = edits.apply(r).unwrap();
@@ -111,7 +114,7 @@ mod tests {
     //          s
 
     let edits = Edits {
-      subs: vec![Sub::new(3, b'A')],
+      subs: vec![Sub::new(3, 'A')],
       dels: vec![],
       inss: vec![],
     };

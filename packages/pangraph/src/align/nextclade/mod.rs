@@ -1,6 +1,6 @@
 pub mod align_with_nextclade;
 
-mod align;
-mod alphabet;
-mod analyze;
-mod coord;
+pub mod align;
+pub mod alphabet;
+pub mod analyze;
+pub mod coord;
