@@ -2,6 +2,9 @@ use crate::io::fasta::FastaRecord;
 use crate::io::file::open_file_or_stdin;
 use crate::io::fs::read_reader_to_string;
 use crate::io::json::json_parse;
+use crate::pangraph::pangraph_block::PangraphBlock;
+use crate::pangraph::pangraph_node::PangraphNode;
+use crate::pangraph::strand::Strand;
 use crate::utils::id::random_id;
 use eyre::{Report, WrapErr};
 use serde::{Deserialize, Serialize};
@@ -53,19 +56,6 @@ impl FromStr for Pangraph {
   }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, SmartDefault, PartialEq, Eq)]
-pub enum Strand {
-  #[default]
-  Forward,
-  Reverse,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct PangraphNode {
-  block_id: usize,
-  strand: Strand,
-}
-
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PangraphPath {
   pub name: String,
@@ -80,84 +70,15 @@ impl PangraphPath {
     Self {
       name,
       nodes: vec![PangraphNode {
+        id: 0,
         block_id,
+        path_id: 0,
         strand: Strand::default(), // FIXME: should we assume forward strand here?
+        position: (0, 0),
       }],
       offset: circular.then_some(0),
       circular,
       position: vec![],
     }
   }
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct PangraphBlock {
-  pub id: usize,
-  pub sequence: String,
-  pub gaps: BTreeMap<String, usize>,
-  pub mutate: Vec<PangraphMutate>,
-  pub insert: Vec<PangraphInsert>,
-  pub delete: Vec<PangraphDelete>,
-  pub positions: Vec<PangraphPositions>,
-}
-
-impl PangraphBlock {
-  pub fn new(sequence: String) -> Self {
-    Self {
-      id: random_id(),
-      sequence,
-      gaps: BTreeMap::default(),
-      mutate: vec![],
-      insert: vec![],
-      delete: vec![],
-      positions: vec![],
-    }
-  }
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct PangraphBlockEntry {
-  pub name: String,
-  pub number: usize,
-  pub strand: bool,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct PangraphMutate {
-  #[serde(flatten)]
-  pub entry: PangraphBlockEntry,
-  pub muts: Vec<Mutation>,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Mutation {
-  pub pos: usize,
-  pub nuc: char,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct PangraphInsert {
-  #[serde(flatten)]
-  pub entry: PangraphBlockEntry,
-  pub inss: Vec<Insertion>,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Insertion;
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct PangraphDelete {
-  #[serde(flatten)]
-  pub entry: PangraphBlockEntry,
-  pub dels: Vec<Insertion>,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct Deletion;
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct PangraphPositions {
-  #[serde(flatten)]
-  pub entry: PangraphBlockEntry,
-  pub poss: Vec<usize>,
 }

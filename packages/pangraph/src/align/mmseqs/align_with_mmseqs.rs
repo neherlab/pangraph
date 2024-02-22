@@ -63,7 +63,7 @@ pub fn align_with_mmseqs(
 mod tests {
   use super::*;
   use crate::align::alignment::Hit;
-  use crate::pangraph::pangraph::Strand;
+  use crate::pangraph::strand::Strand;
   use eyre::Report;
   use noodles::sam::record::cigar::op::Kind;
   use noodles::sam::record::cigar::Op;

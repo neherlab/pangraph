@@ -14,7 +14,7 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<f
 
   let sequences = graphs
     .iter()
-    .flat_map(|graph| graph.blocks.iter().map(|block| &block.sequence));
+    .flat_map(|graph| graph.blocks.iter().map(|block| &block.consensus));
 
   let minimizers = sequences
     .enumerate()
@@ -62,31 +62,17 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<f
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::pangraph::pangraph::{PangraphBlock, PangraphPath};
+  use crate::o;
+  use crate::pangraph::pangraph::PangraphPath;
+  use crate::pangraph::pangraph_block::PangraphBlock;
   use ndarray::array;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
   use std::collections::BTreeMap;
 
   fn create_fake_graph(seq: impl AsRef<str>) -> Pangraph {
-    let block = PangraphBlock {
-      id: 0,
-      sequence: seq.as_ref().to_owned(),
-      gaps: BTreeMap::default(),
-      mutate: vec![],
-      insert: vec![],
-      delete: vec![],
-      positions: vec![],
-    };
-
-    let path = PangraphPath {
-      name: "".to_owned(),
-      nodes: vec![],
-      offset: None,
-      circular: false,
-      position: vec![],
-    };
-
+    let block = PangraphBlock::new(seq.as_ref().to_owned());
+    let path = PangraphPath::new(o!(""), block.id, false);
     Pangraph {
       blocks: vec![block],
       paths: vec![path],

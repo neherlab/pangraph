@@ -1,6 +1,6 @@
 use crate::align::alignment::{Alignment, Hit};
 use crate::align::bam::cigar::parse_cigar_str;
-use crate::pangraph::pangraph::Strand;
+use crate::pangraph::strand::Strand;
 use crate::utils::collections::remove_exactly_one;
 use csv::ReaderBuilder as CsvReaderBuilder;
 use eyre::Report;
