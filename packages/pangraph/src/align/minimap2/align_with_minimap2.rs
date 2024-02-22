@@ -1,4 +1,5 @@
 use crate::align::alignment::Alignment;
+use crate::align::bam::cigar::parse_cigar_str;
 use crate::align::minimap2::minimap2_paf::MinimapPafTsvRecord;
 use crate::io::fasta::write_one_fasta;
 use crate::io::file::{create_file_or_stdout, open_file_or_stdin};
@@ -13,8 +14,10 @@ use tempfile::Builder as TempDirBuilder;
 
 #[derive(Clone, Debug, Default, Args, Serialize, Deserialize)]
 pub struct Minimap2Params {
-  #[clap(long, short = 'd')]
-  dummy: Option<usize>,
+  #[clap(long, short = 'k')]
+  kmersize: Option<usize>,
+  #[clap(long, short = 'x')]
+  preset: Option<String>,
 }
 
 pub fn align_with_minimap2(
@@ -29,33 +32,26 @@ pub fn align_with_minimap2(
   let qry_path = path_to_str(&temp_dir_path.join("qry.fa"))?;
   let ref_path = path_to_str(&temp_dir_path.join("reff.fa"))?;
   let res_path = path_to_str(&temp_dir_path.join("res.paf"))?;
-  let tmp_path = path_to_str(&temp_dir_path.join("tmp"))?;
 
   write_one_fasta(&qry_path, "qry", &qry)?;
   write_one_fasta(&ref_path, "ref", &reff)?;
 
   let output_column_names = MinimapPafTsvRecord::fields_names().join(",");
-  let dummy = create_arg_optional("--dummy", &params.dummy);
+  let kmer_size = create_arg_optional("-k", &params.kmersize);
+  let preset = create_arg_optional("-x", &params.preset);
 
   // TODO: implement proper minimap2 call
   #[rustfmt::skip]
   run_cmd!(
     minimap2
-    --version
-    --query $qry_path
-    --ref $ref_path
-    $[dummy]
+    -c
+    $ref_path
+    $qry_path
+    $[kmer_size]
+    $[preset]
+    > $res_path
+    2> /dev/null
   ).wrap_err("When trying to align sequences using minimap2")?;
-
-  // Write fake data to the output file
-  // TODO: remove this once minimap2 call is implemented
-  {
-    let mut f = create_file_or_stdout(&res_path)?;
-    write!(
-      f,
-      "qry	507	1	497	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693"
-    )?;
-  }
 
   let mut paf_str = String::new();
   open_file_or_stdin(&Some(res_path))?.read_to_string(&mut paf_str)?;
@@ -78,45 +74,74 @@ mod tests {
 
   #[rstest]
   fn test_align_with_minimap2_general_case() -> Result<(), Report> {
-    //                0         1         2         3         4         5         6         7         8         9
-    //                0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
-    let ref_seq = o!("CTTGGAGGTTCCGTGGCTAGATAACAGAACATTCTTGGAATGCTGATCTTTATAAGCTCATGCGACACTTCGCATGGTGAGCCTTTGT");
-    let qry_seq = o!("CTTGGAGGTTCCGTGGCTATAAAGATAACAGAACATTCTTGGAATGCTGATCAAGCTCATGGGACANNNNNCATGGTGGACAGCCTTTGT");
+    let ref_seq = "GTAGTTTTTGTACCCCCCGACTGTACGTCCTCCGTCGATAGAAGCAATAAAGGTGACGTC
+    TGACTACTTTTGGGTGTATATGAAATTCAACACACAAGGTAGCCAAGGCAACGATTTGTT
+    CAGCACTCCTATGGTGCGGTCCGGTGGCAAACGATTTCTGACTAACATCCGCATCCGGCT
+    AACAGCAAGGAAGCCAGGTTTCGGTTCTGTGCACTTCAGGGGTCGCGCATCATGTTGACT
+    TGCTTCGCCAGAAATAAATCTTTACAGTCGTAGCGAAGCATGGTATGGCTCGTCCTACTT
+    CATCATTTGGATACTTATACTAGCTTGGGCGCTGACTAGTAGTGGCTGCTTGAGCCCCCT
+    CACACGCAATCAACCAAGTCCATCTGTCATCATGACTATCGCTGAGCTGGATGAGCGCCC
+    TACACACCGTCTGATTTCCACATTCCTGCAGGAGCTTACCCGGACCACCGTCAATACACG
+    GGATAATAAGGCATTTGATCTGTCTTAAACCTGTTTGCGAATAACTATTCACTATACCAC
+    CATCGTTTCATACATGCAAAAGGTTTGGGTGTACCTTATGCTAGGCAGGACCTTTTTAGG
+    TGTATAGATAGGCCCCAGTAAATAAATGCAATATGGAGATACAACCAATAAACCAAATAT
+    CGTCTACTATAGGTAAATAGTCCGTTATACATCTCAATTGGAGCGGTTGATGAGCTGACA
+    TGTTGGTTACTGTCGACGTCTAAGATGGCCGCGCAGAATATCCCGCACTTCTAATCATGA
+    AAGATAAAGCTGCTGGTCTGGTGGGATTCTGGCGATCTCACCACTGATGCGAGGTCCGTG
+    CAATCCAGATGACGAAAGCGCTCCCGCCAACGATGACGCAAATAATCGTGCGGTAGGGAG
+    TCCTCGTCCCGCACTTTCGGGGACACGTACCCGAAGGGTGTAACGGATGCCCTATGTGAG
+    GTGGCGCACATTTGATGGTGACTAAGCTGCCAAACTGATT";
+    let qry_seq = "GTAGTTCTTGTACCCCCCGACTGTACGTACTCCGTCGATTGAATCAATAAAGGTGACGTC
+    TGACTACTATTGGGTGTATATGAAATTCAACACACAAGGTAGCCAAGGCAACGATTTGTT
+    CAGCACTCCTATGGTGCGGTCCGGTGGCAAACGATTTCTGACTTACATCCGCATCCGGCT
+    AACAGCAAGGAAGCCAGGTTTCCGTGCTGTGCACTTCAGGGGTCGCGCATCATGTTGACT
+    TGCTTCGCCAGAAATAAATCTTTACAGTCGTAGCGAAGCATGGTATGGCTCGTCCCACTT
+    CATCATTTGGATACTTATACTAGATTGGGCGCTGACTAGTGGTGGCTGCTTGAGCCCCCT
+    CACACGCAATCAACCAAGTCCATCTGTCATCATGACTATCGCTGAGCTGGATGCGCGCCC
+    TACACACCGTCTGACTTCCATATTGCAGCAGGAGCTTACCCGGACCACCGTCAATACACG
+    GGATAAGAAGGCATTTGATCTGTCTTAAACCTGTTTGCGAATAACTATTCACTATACCAC
+    CATCGCTCATACCTGCAAAAGGTTTGAGTGTACCTTATGCTAGGCAGGGCCTTTTTAGGT
+    GTATAGATAGGCCCCAGTAAATAAATGCAATATGGAGATACAACCAATAAACCAAATATC
+    GTCTACCATAGGTAAATAGTCCGTTATACATCTTAATTGGAGCGGTTGATGAGCTGACAT
+    GTTGGTTACTGTTGACGTCTAAGATGGCCGCGCAGAATATCCCGCACTTCAATCATGAAA
+    GACAAAGCTGCTGGTCTGGTGGGATTCTGGCGATCTCACCACTGATGCGAGGTCCGTGCA
+    ATCCAGATGACGAAAGCGCTCCCGCCCACGATGACGCAAATAATCGTGCGGTAGGGAGTC
+    CTCGTCCCGCACTTTCGGGGACACGTACCCGAAGGGTGTAACGGATGCCCTATGTGAGGT
+    GGCGCAGATTTGATGGTGACTAAGCTGCCAAACTGAGT";
 
-    let params = Minimap2Params::default();
+    // remove newline characters and spaces
+    let ref_seq = ref_seq.replace("\n", "").replace(" ", "");
+    let qry_seq = qry_seq.replace("\n", "").replace(" ", "");
+
+    let params = Minimap2Params {
+      kmersize: Some(10),
+      preset: Some("asm20".to_string()),
+    };
 
     let actual = align_with_minimap2(ref_seq, qry_seq, &params)?;
 
     let expected = Alignment {
       qry: Hit {
         name: o!("qry"),
-        length: 90,
-        start: 1,
-        stop: 90,
+        length: 998,
+        start: 0,
+        stop: 996,
         seq: None,
       },
       reff: Hit {
         name: o!("ref"),
-        length: 88,
-        start: 1,
-        stop: 88,
+        length: 1000,
+        start: 0,
+        stop: 998,
         seq: None,
       },
-      matches: 77,
-      length: 95,
-      quality: 102,
+      matches: 969,
+      length: 998,
+      quality: 60,
       orientation: Strand::Forward,
-      cigar: Cigar::try_from(vec![
-        Op::new(Kind::Match, 18),
-        Op::new(Kind::Insertion, 4),
-        Op::new(Kind::Match, 30),
-        Op::new(Kind::Deletion, 5),
-        Op::new(Kind::Match, 26),
-        Op::new(Kind::Insertion, 3),
-        Op::new(Kind::Match, 9),
-      ])?,
-      divergence: Some(0.18999999999999995),
-      align: Some(112.0),
+      cigar: parse_cigar_str("545M1D225M1D226M").unwrap(),
+      divergence: Some(0.0291),
+      align: Some(845.0),
     };
 
     assert_eq!(expected, actual);
