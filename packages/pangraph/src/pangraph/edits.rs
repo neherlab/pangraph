@@ -69,7 +69,10 @@ impl Edits {
     }
 
     for del in &self.dels {
-      qry.drain(del.range());
+      // Replace deleted nucs with character `-`, to avoid frame shift
+      for pos in del.range() {
+        qry[pos] = '-';
+      }
     }
 
     for ins in &self.inss {
@@ -77,6 +80,9 @@ impl Edits {
       let seq = ins.seq.chars().collect_vec();
       insert_at_inplace(&mut qry, ins.pos, &seq);
     }
+
+    // Strip gaps introduced when applying deletions
+    qry.retain(|c| c != &'-');
 
     let qry = String::from_iter(&qry);
     Ok(qry)
