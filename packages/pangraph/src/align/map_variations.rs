@@ -25,12 +25,13 @@ pub fn map_variations(ref_seq: impl AsRef<str>, qry_seq: impl AsRef<str>) -> Res
 
   let dels = deletions
     .iter()
-    .map(|d| Del::new(d.range().begin.inner as usize, d.range().end.inner as usize))
+    .map(|d| Del::new(d.range().begin.inner as usize, d.range().len()))
     .collect_vec();
 
+  // pangraph convention: location of insertion is the position *after* the insertion -> increment pos by 1
   let inss = insertions
     .iter()
-    .map(|s| Ins::new(s.pos as usize, from_nuc_seq(&s.ins)))
+    .map(|s| Ins::new((s.pos + 1) as usize, from_nuc_seq(&s.ins)))
     .collect_vec();
 
   Ok(Edits { subs, dels, inss })
@@ -45,28 +46,33 @@ mod tests {
 
   #[rstest]
   fn test_map_variations_simple_case() {
-    // # example alignment
-    // #        0            1
-    // #        012   3456789012345678
-    // # ref = "ACT---TTGCGTATTTACTATA"
-    // # qry = "ACTAGATTGAGTATCT---ATA"
-    // # sub =           x    x
-    // # ins =     xxx
-    // # del =                  xxx
-    //
-    let r = "ACTTTGCGTATTTACTATA";
-    let q = "ACTAGATTGAGTATCTATA";
+    // example alignment
+    //        0            1         2         3
+    //        012   345678901234567890123456789012345
+    // ref = "ACT---TTGCGTCTGATAGCTTAGCGGATATTGACTGTA"
+    // qry = "ACTAGATTGAGTCTGATAGCTTAGCGGATATT----GTA"
+    // sub =           x
+    // ins =     xxx
+    // del =                                  xxxx
+
+    let r = "ACTTTGCGTCTGATAGCTTAGCGGATATTTACTGTA";
+    let q = "ACTAGATTGAGTCTGATAGCTTAGCGGATATTGTA";
 
     let actual = map_variations(r, q).unwrap();
 
     let expected = Edits {
-      subs: vec![Sub::new(6, 'A'), Sub::new(11, 'C')],
-      dels: vec![Del::new(13, 3)],
+      subs: vec![Sub::new(6, 'A')],
+      dels: vec![Del::new(29, 4)],
       inss: vec![Ins::new(3, "AGA")],
     };
 
+    // test that our example is correct
+    assert_eq!(q, expected.apply(r).unwrap());
+
+    // test that the aligner reconstructs the variations correctly
     assert_eq!(expected, actual);
 
-    assert_eq!(r, expected.apply(r).unwrap());
+    // test that the reconstructed variations are correct
+    assert_eq!(q, actual.apply(r).unwrap());
   }
 }
