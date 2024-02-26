@@ -51,7 +51,6 @@ num = "=0.4.0"
 num-integer = "=0.1.45"
 num-traits = "=0.2.15"
 num_cpus = "=1.13.1"
-openblas-src = { version = "=0.10.8", features = ["static"] }
 parking_lot = { version = "=0.12.1", features = ["deadlock_detection", "hardware-lock-elision", "serde", "arc_lock"] }
 pretty_dtoa = "=0.3.0"
 rand = { version = "=0.8.5", features = ["serde1", "log"] }
