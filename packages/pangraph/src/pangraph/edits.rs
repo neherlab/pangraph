@@ -36,7 +36,7 @@ impl Del {
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Ins {
   pub pos: usize,
   pub seq: String,
@@ -72,7 +72,7 @@ impl Edits {
       qry.drain(del.range());
     }
 
-    for ins in &self.inss {
+    for ins in self.inss.iter().sorted().rev() {
       // TODO: avoid copy
       let seq = ins.seq.chars().collect_vec();
       insert_at_inplace(&mut qry, ins.pos, &seq);
