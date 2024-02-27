@@ -75,4 +75,33 @@ mod tests {
     // test that the reconstructed variations are correct
     assert_eq!(q, actual.apply(r).unwrap());
   }
+
+  #[rstest]
+  fn test_map_variations_initial_final_deletions() {
+    //       0         1         2         3
+    //       012345678901234567890   1234567890123456789
+    // ref = ACACTGATTTCGTCCCTTAGG---TACTCTACACTGTAGCCTA
+    // qry = ---CTGATTTAGTCCCTTAGGGGTTACTCTACACTGTAG----
+    // sub =           x
+
+    let r = "ACACTGATTTCGTCCCTTAGGTACTCTACACTGTAGCCTA";
+    let q = "CTGATTTAGTCCCTTAGGGGTTACTCTACACTGTAG";
+
+    let actual = map_variations(r, q).unwrap();
+
+    let expected = Edits {
+      subs: vec![Sub::new(10, 'A')],
+      dels: vec![Del::new(0, 3), Del::new(36, 4)],
+      inss: vec![Ins::new(21, "GGT")],
+    };
+
+    // test that our example is correct
+    assert_eq!(q, expected.apply(r).unwrap());
+
+    // test that the aligner reconstructs the variations correctly
+    assert_eq!(expected, actual);
+
+    // test that the reconstructed variations are correct
+    assert_eq!(q, actual.apply(r).unwrap());
+  }
 }

@@ -35,13 +35,28 @@ pub fn align_with_nextclade(
   let alignment =
     align_nuc(0, "", &qry_seq, &ref_seq, &seed_index, &gap_open_close, params).wrap_err("When aligning sequences")?;
 
+  // println!("{:?}", alignment);
   let stripped = insertions_strip(&alignment.qry_seq, &alignment.ref_seq);
 
   let FindNucChangesOutput {
     substitutions,
     deletions,
-    ..
+    alignment_range,
   } = find_nuc_changes(&stripped.qry_seq, &ref_seq);
+
+  // NB: in nextclade aligner initial/final gaps are not saved as deletions,
+  // but they are recorded as limits in the alignment range.
+  // We need to add them manually.
+  let mut deletions = deletions;
+  if alignment_range.begin.inner > 0 {
+    deletions.push(NucDelRange::from_usize(0, alignment_range.begin.inner as usize));
+  }
+  if (alignment_range.end.inner as usize) < ref_seq.len() {
+    deletions.push(NucDelRange::from_usize(
+      alignment_range.end.inner as usize,
+      ref_seq.len(),
+    ));
+  }
 
   Ok(AlignWithNextcladeOutput {
     qry_aln: from_nuc_seq(&stripped.qry_seq),
