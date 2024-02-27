@@ -29,7 +29,7 @@ mod tests {
 
   #[rstest]
   fn test_merge_blocks_simple_case() -> Result<(), Report> {
-    let cons_A = o!("GACTAAACCTGTCCGCTGAAACTGAGCGGGGTACTGCAGC");
+    let cons_A = o!("GACTAAACCTGTCCGCTGAAACTGATCGGGGTACTGCAGC");
     let aln_A = BTreeMap::from([
       (
         0,
@@ -82,7 +82,7 @@ mod tests {
 
     let new_block = merge_blocks_inplace(&mut block_A, &block_B)?;
 
-    let new_cons = o!("GACTAAACCTGTCCGCTGAAACTGAGCGGGGTACTGCAGC");
+    let new_cons = o!("GACTAAACCTGTCCGCTGAAACTGATCGGGGTACTGCAGC");
     let new_aln = BTreeMap::from([
       (
         0,
@@ -112,15 +112,15 @@ mod tests {
         3,
         Edits {
           inss: vec![],
-          dels: vec![Del::new(13, 3), Del::new(23, 2)],
-          subs: vec![Sub::new(4, 'T')],
+          dels: vec![Del::new(13, 3), Del::new(24, 2)],
+          subs: vec![Sub::new(3, 'C'), Sub::new(4, 'T')],
         },
       ),
       (
         4,
         Edits {
           inss: vec![Ins::new(28, "AAA")],
-          dels: vec![Del::new(23, 2)],
+          dels: vec![Del::new(24, 2)],
           subs: vec![],
         },
       ),
