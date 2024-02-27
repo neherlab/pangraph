@@ -131,4 +131,32 @@ mod tests {
     // test that the reconstructed variations are correct
     assert_eq!(q, actual.apply(r).unwrap());
   }
+
+  #[rstest]
+  fn test_map_variations_overlapping_indels() {
+    //       0         1         2                      3         4         5
+    //       012345678901234567890             123456789012345678901234567890
+    // ref = CGCCCTACTACAAGAGGGAAC-------------TTTTTTTTTAAGTATAGCCACAATAGCTGG
+    // qry = CGCCCTACTACAAGAGGGAACGGGGGGGGGGGGG---------AAGTATAGCCACAATAGCTGG
+
+    let r = "CGCCCTACTACAAGAGGGAACTTTTTTTTTAAGTATAGCCACAATAGCTGG";
+    let q = "CGCCCTACTACAAGAGGGAACGGGGGGGGGGGGGAAGTATAGCCACAATAGCTGG";
+
+    let actual = map_variations(r, q).unwrap();
+
+    let expected = Edits {
+      subs: vec![],
+      dels: vec![Del::new(21, 9)],
+      inss: vec![Ins::new(21, "GGGGGGGGGGGGG")],
+    };
+
+    // test that our example is correct
+    assert_eq!(q, expected.apply(r).unwrap());
+
+    // test that the aligner reconstructs the variations correctly
+    assert_eq!(expected, actual);
+
+    // test that the reconstructed variations are correct
+    assert_eq!(q, actual.apply(r).unwrap());
+  }
 }
