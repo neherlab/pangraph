@@ -41,6 +41,7 @@ intervallum = "=1.4.0"
 itertools = "=0.10.3"
 lazy_static = "=1.4.0"
 log = "=0.4.20"
+maplit = "=1.0.2"
 minimap2 = "=0.1.16"
 ndarray = { version = "=0.15.6", features = ["rayon", "serde", "approx-0_5", "blas"] }
 ndarray-rand = "=0.14.0"
@@ -50,6 +51,7 @@ num = "=0.4.0"
 num-integer = "=0.1.45"
 num-traits = "=0.2.15"
 num_cpus = "=1.13.1"
+ordered-float = "=4.2.0"
 parking_lot = { version = "=0.12.1", features = ["deadlock_detection", "hardware-lock-elision", "serde", "arc_lock"] }
 pretty_dtoa = "=0.3.0"
 rand = { version = "=0.8.5", features = ["serde1", "log"] }

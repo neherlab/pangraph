@@ -1,4 +1,5 @@
 pub mod edits;
+pub mod graph_merging;
 pub mod merge_blocks;
 pub mod pangraph;
 pub mod pangraph_block;

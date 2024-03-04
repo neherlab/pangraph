@@ -123,7 +123,7 @@ dependencies = [
  "newtype_derive",
  "num-integer",
  "num-traits",
- "ordered-float",
+ "ordered-float 3.9.2",
  "petgraph",
  "rand",
  "regex",
@@ -1089,6 +1089,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "maplit"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3e2e65a1a2e43cfcb47a895c4c8b10d1f4a61097f9f254f183aee60cad9c651d"
+
+[[package]]
 name = "matrixmultiply"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1444,6 +1450,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ordered-float"
+version = "4.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a76df7075c7d4d01fdcb46c912dd17fba5b60c78ea480b475f2b6ab6f666584e"
+dependencies = [
+ "num-traits",
+]
+
+[[package]]
 name = "os_pipe"
 version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1501,6 +1516,7 @@ dependencies = [
  "itertools 0.10.3",
  "lazy_static",
  "log",
+ "maplit",
  "mimalloc",
  "minimap2",
  "ndarray",
@@ -1511,6 +1527,7 @@ dependencies = [
  "num-integer",
  "num-traits",
  "num_cpus",
+ "ordered-float 4.2.0",
  "parking_lot",
  "pretty_assertions",
  "pretty_dtoa",
