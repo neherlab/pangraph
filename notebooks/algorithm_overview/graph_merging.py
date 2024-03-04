@@ -112,8 +112,6 @@ def find_matches(blocks: dict[str, Block]) -> list[Alignment]:
 def aligner(seqs: list[str]) -> list[Alignment]:
     # use minimap2 or other aligners to find matches between the consensus
     # sequences of the blocks.
-    # TODO: minimap2 should be called with -X option to avoid self-maps,
-    # see https://lh3.github.io/minimap2/minimap2.html
     pass
 
 
