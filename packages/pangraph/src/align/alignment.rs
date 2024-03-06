@@ -14,7 +14,6 @@ pub struct Hit {
   pub length: usize, // TODO: having all of {start, stop, length, seq.length} seems redundant. Some of these can be functions.
   pub start: usize,
   pub stop: usize,
-  pub seq: Option<Vec<u8>>,
 }
 
 /// Alignment is a pairwise homologous alignment between two sequences.
