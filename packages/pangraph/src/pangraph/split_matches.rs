@@ -1,8 +1,12 @@
 use crate::align::alignment::Alignment;
+use crate::make_internal_error;
 use clap::{Args, ValueHint};
 use eyre::Report;
+use noodles::sam::record::cigar::op::Kind;
+use noodles::sam::record::Cigar;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
+use std::cmp::max;
 
 #[derive(Clone, Debug, SmartDefault, Args, Serialize, Deserialize)]
 pub struct SplitMatchesArgs {
@@ -18,6 +22,74 @@ pub fn split_matches(aln: &Alignment, args: &SplitMatchesArgs) -> Result<Vec<Ali
   Ok(vec![])
 }
 
+/// Given a cigar string, returns a list of tuples (start_index, end_index) of cigar elements to keep.
+/// A kept group must:
+///   - always start and end with a match.
+///   - have at least `threshold` matches.
+///   - have no indels longer than `threshold`.
+#[allow(non_snake_case)]
+pub fn keep_groups(cigar: &Cigar, args: &SplitMatchesArgs) -> Result<Vec<(usize, usize)>, Report> {
+  let mut groups = vec![];
+  let mut g_start = None;
+  let mut last_match = None;
+  let mut M_sum = 0;
+  let mut I_sum = 0;
+  let mut D_sum = 0;
+  for (i, op) in cigar.iter().enumerate() {
+    // Discard leading indels (skip to the first match?)
+    if g_start.is_none() {
+      if !matches!(op.kind(), Kind::Match | Kind::SequenceMatch | Kind::SequenceMismatch) {
+        continue;
+      }
+      g_start = Some(i);
+    }
+
+    match op.kind() {
+      Kind::Match | Kind::SequenceMatch | Kind::SequenceMismatch => {
+        M_sum += op.len();
+        // Reset n. indels from last match
+        I_sum = 0;
+        D_sum = 0;
+        last_match = Some(i);
+      }
+      Kind::Insertion => {
+        I_sum += op.len();
+      }
+      Kind::Deletion => {
+        D_sum += op.len();
+      }
+      Kind::SoftClip | Kind::HardClip | Kind::Pad | Kind::Skip => {
+        // TODO: Should these cases also be handled?
+        return make_internal_error!("Unexpected CIGAR operation: '{:#}'", op.kind());
+      }
+    }
+
+    // Of indel is longer than threshold, split groups
+    if max(I_sum, D_sum) >= args.indel_len_threshold {
+      if let (Some(g_start), Some(last_match)) = (g_start, last_match) {
+        if M_sum >= args.indel_len_threshold {
+          // Add only if matches longer than "threshold"
+          groups.push((g_start, last_match));
+        }
+      }
+      g_start = None;
+      last_match = None;
+      M_sum = 0;
+      I_sum = 0;
+      D_sum = 0;
+    }
+  }
+
+  // Add last one
+  if let (Some(g_start), Some(last_match)) = (g_start, last_match) {
+    if M_sum >= args.indel_len_threshold {
+      groups.push((g_start, last_match));
+    }
+  }
+
+  Ok(groups)
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -27,6 +99,23 @@ mod tests {
   use crate::pangraph::strand::Strand;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
+
+  #[rstest]
+  fn test_keep_groups_simple_case() {
+    //        | no                   | keep                 | no      | keep              | no   | keep
+    let cig = "10I 20D 10M 20I 190D   40M 1D 1I 40M 1I 40M   1D 100I   200M 60I 60D 140M   200D   40M 2I 70M";
+    //           0   1   2   3    4     5  6  7   8  9  10   11   12     13  14  15   16     17    18 19  20
+
+    let expected = vec![(5, 10), (13, 16), (18, 20)];
+
+    let cig = parse_cigar_str(cig.replace(' ', "")).unwrap();
+    let args = SplitMatchesArgs {
+      indel_len_threshold: 100,
+    };
+    let actual = keep_groups(&cig, &args).unwrap();
+
+    assert_eq!(expected, actual);
+  }
 
   #[rstest]
   fn test_split_matches_simple_case_forward() {
