@@ -58,11 +58,8 @@ SeqIO.write(qrys, f"test_data/qry.fa", "fasta")
 
 # align with minimap
 import subprocess
-import os
 
 subprocess.run(
     "minimap2 -c -x asm20 -k 10 test_data/ref.fa test_data/qry.fa > test_data/aln.paf",
     shell=True,
 )
-
-# %%
