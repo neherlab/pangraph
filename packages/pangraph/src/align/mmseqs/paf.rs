@@ -1,7 +1,6 @@
 use crate::align::alignment::{Alignment, Hit};
 use crate::align::bam::cigar::parse_cigar_str;
 use crate::pangraph::strand::Strand;
-use crate::utils::collections::remove_exactly_one;
 use csv::ReaderBuilder as CsvReaderBuilder;
 use eyre::Report;
 use serde::Deserialize;
@@ -34,42 +33,46 @@ impl PafTsvRecord {
   }
 }
 
+#[allow(clippy::multiple_inherent_impl)]
 impl Alignment {
-  pub fn from_paf_str(paf_str: impl AsRef<str>) -> Result<Self, Report> {
-    let paf = {
-      let mut rdr = CsvReaderBuilder::new()
-        .delimiter(b'\t')
-        .has_headers(false)
-        .from_reader(Cursor::new(paf_str.as_ref()));
-      let records: Result<Vec<PafTsvRecord>, _> = rdr.deserialize().collect();
-      remove_exactly_one(records?)?
-    };
+  pub fn from_paf_str(paf_str: impl AsRef<str>) -> Result<Vec<Self>, Report> {
+    let mut rdr = CsvReaderBuilder::new()
+      .delimiter(b'\t')
+      .has_headers(false)
+      .from_reader(Cursor::new(paf_str.as_ref()));
 
-    let (qstart, qend, strand) = order_range(paf.qstart, paf.qend);
+    rdr
+      .deserialize()
+      .map(|paf| {
+        let paf: PafTsvRecord = paf?;
 
-    let (tstart, tend, _) = order_range(paf.tstart, paf.tend);
+        let (qstart, qend, strand) = order_range(paf.qstart, paf.qend);
 
-    Ok(Alignment {
-      qry: Hit {
-        name: paf.query,
-        length: paf.qlen,
-        start: qstart,
-        stop: qend,
-      },
-      reff: Hit {
-        name: paf.target,
-        length: paf.tlen,
-        start: tstart,
-        stop: tend,
-      },
-      matches: paf.nident,
-      length: paf.alnlen,
-      quality: paf.bits,
-      orientation: strand,
-      cigar: parse_cigar_str(paf.cigar)?,
-      divergence: Some(1.0 - paf.fident),
-      align: Some(paf.raw),
-    })
+        let (tstart, tend, _) = order_range(paf.tstart, paf.tend);
+
+        Ok(Alignment {
+          qry: Hit {
+            name: paf.query,
+            length: paf.qlen,
+            start: qstart,
+            stop: qend,
+          },
+          reff: Hit {
+            name: paf.target,
+            length: paf.tlen,
+            start: tstart,
+            stop: tend,
+          },
+          matches: paf.nident,
+          length: paf.alnlen,
+          quality: paf.bits,
+          orientation: strand,
+          cigar: parse_cigar_str(paf.cigar)?,
+          divergence: Some(1.0 - paf.fident),
+          align: Some(paf.raw),
+        })
+      })
+      .collect()
   }
 }
 
@@ -93,7 +96,7 @@ mod tests {
   fn test_paf_parse_forward() {
     // forward alignment
     let paf_content = "qry	507	1	497	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
-    let aln = Alignment {
+    let aln = vec![Alignment {
       qry: Hit {
         name: o!("qry"),
         length: 507,
@@ -113,7 +116,7 @@ mod tests {
       cigar: parse_cigar_str("67M10D18M20I235M10I22M1I5M1D119M").unwrap(),
       divergence: Some(0.134),
       align: Some(693.0),
-    };
+    }];
     assert_eq!(Alignment::from_paf_str(paf_content).unwrap(), aln);
   }
 
@@ -121,7 +124,7 @@ mod tests {
   fn test_paf_parse_reverse() {
     // reverse alignment
     let paf_content = "rev_qry	507	507	11	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
-    let aln = Alignment {
+    let aln = vec![Alignment {
       qry: Hit {
         name: o!("rev_qry"),
         length: 507,
@@ -141,7 +144,7 @@ mod tests {
       cigar: parse_cigar_str("67M10D18M20I235M10I22M1I5M1D119M").unwrap(),
       divergence: Some(0.134),
       align: Some(693.0),
-    };
+    }];
     assert_eq!(Alignment::from_paf_str(paf_content).unwrap(), aln);
   }
 }

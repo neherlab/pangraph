@@ -1,6 +1,6 @@
 use crate::align::alignment::Alignment;
 use crate::align::mmseqs::paf::PafTsvRecord;
-use crate::io::fasta::{write_one_fasta, FastaRecord};
+use crate::io::fasta::{write_one_fasta, FastaRecord, FastaWriter};
 use crate::io::file::open_file_or_stdin;
 use crate::io::fs::path_to_str;
 use crate::o;
@@ -22,10 +22,10 @@ pub struct MmseqsParams {
 }
 
 pub fn align_with_mmseqs(
-  reff: impl AsRef<str>,
-  qry: impl AsRef<str>,
+  refs: &[impl AsRef<str>],
+  qrys: &[impl AsRef<str>],
   params: &MmseqsParams,
-) -> Result<Alignment, Report> {
+) -> Result<Vec<Alignment>, Report> {
   // TODO: This uses a global resource - filesystem.
   // Need to ensure that there are no data races when running concurrently.
   let temp_dir = TempDirBuilder::new().tempdir()?;
@@ -35,8 +35,21 @@ pub fn align_with_mmseqs(
   let res_path = path_to_str(&temp_dir_path.join("res.paf"))?;
   let tmp_path = path_to_str(&temp_dir_path.join("tmp"))?;
 
-  write_one_fasta(&qry_path, "qry", &qry)?;
-  write_one_fasta(&ref_path, "ref", &reff)?;
+  {
+    let mut writer = FastaWriter::from_path(&qry_path)?;
+    qrys
+      .iter()
+      .enumerate()
+      .try_for_each(|(i, seq)| writer.write(format!("qry_{i}"), seq))?;
+  }
+
+  {
+    let mut writer = FastaWriter::from_path(&ref_path)?;
+    refs
+      .iter()
+      .enumerate()
+      .try_for_each(|(i, seq)| writer.write(format!("ref_{i}"), seq))?;
+  }
 
   let output_column_names = PafTsvRecord::fields_names().join(",");
   let k = create_arg_optional("-k", &params.kmer_len);
@@ -80,17 +93,17 @@ mod tests {
 
     let params = MmseqsParams { kmer_len: Some(12) };
 
-    let actual = align_with_mmseqs(ref_seq, qry_seq, &params)?;
+    let actual = align_with_mmseqs(&[ref_seq], &[qry_seq], &params)?;
 
-    let expected = Alignment {
+    let expected = vec![Alignment {
       qry: Hit {
-        name: o!("qry"),
+        name: o!("qry_0"),
         length: 90,
         start: 1,
         stop: 90,
       },
       reff: Hit {
-        name: o!("ref"),
+        name: o!("ref_0"),
         length: 88,
         start: 1,
         stop: 88,
@@ -110,7 +123,7 @@ mod tests {
       ])?,
       divergence: Some(0.18999999999999995),
       align: Some(112.0),
-    };
+    }];
 
     assert_eq!(expected, actual);
     Ok(())

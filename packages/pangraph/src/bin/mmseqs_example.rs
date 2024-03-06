@@ -1,9 +1,9 @@
-use clap::{ArgEnum, Parser, ValueHint};
+use clap::{Parser, ValueHint};
 use ctor::ctor;
 use eyre::Report;
+use itertools::Itertools;
 use pangraph::align::mmseqs::align_with_mmseqs::{align_with_mmseqs, MmseqsParams};
-use pangraph::io::fasta::{read_many_fasta, read_one_fasta};
-use pangraph::o;
+use pangraph::io::fasta::read_many_fasta;
 use pangraph::utils::global_init::global_init;
 use std::path::PathBuf;
 
@@ -14,10 +14,6 @@ fn init() {
 
 #[derive(Parser, Debug)]
 struct Args {
-  #[clap(long, short = 'r')]
-  #[clap(value_hint = ValueHint::FilePath)]
-  pub input_ref_fasta: PathBuf,
-
   #[clap(value_hint = ValueHint::FilePath)]
   pub input_query_fastas: Vec<PathBuf>,
 
@@ -27,19 +23,17 @@ struct Args {
 
 fn main() -> Result<(), Report> {
   let Args {
-    input_ref_fasta: input_ref_fastas,
     input_query_fastas,
     params,
   } = Args::parse();
 
-  let ref_record = read_one_fasta(input_ref_fastas)?;
+  let qrys = read_many_fasta(&input_query_fastas)?
+    .into_iter()
+    .map(|r| r.seq)
+    .collect_vec();
 
-  let qry_records = read_many_fasta(&input_query_fastas)?;
-
-  for qry_record in qry_records {
-    let result = align_with_mmseqs(&ref_record.seq, &qry_record.seq, &params)?;
-    dbg!(&result);
-  }
+  let result = align_with_mmseqs(&qrys, &qrys, &params)?;
+  dbg!(&result);
 
   Ok(())
 }
