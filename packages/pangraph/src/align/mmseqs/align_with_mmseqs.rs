@@ -18,7 +18,7 @@ use tempfile::Builder as TempDirBuilder;
 #[derive(Clone, Debug, Default, Args, Serialize, Deserialize)]
 pub struct MmseqsParams {
   #[clap(long, short = 'k')]
-  kmer_len: Option<usize>,
+  pub kmer_len: Option<usize>,
 }
 
 pub fn align_with_mmseqs(

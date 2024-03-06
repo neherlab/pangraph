@@ -15,9 +15,9 @@ use tempfile::Builder as TempDirBuilder;
 #[derive(Clone, Debug, Default, Args, Serialize, Deserialize)]
 pub struct Minimap2Params {
   #[clap(long, short = 'k')]
-  kmersize: Option<usize>,
+  pub kmersize: Option<usize>,
   #[clap(long, short = 'x')]
-  preset: Option<String>,
+  pub preset: Option<String>,
 }
 
 pub fn align_with_minimap2(

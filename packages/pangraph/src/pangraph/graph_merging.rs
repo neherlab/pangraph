@@ -1,5 +1,7 @@
 use crate::align::alignment::Alignment;
-use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::align::minimap2::align_with_minimap2::{align_with_minimap2, Minimap2Params};
+use crate::align::mmseqs::align_with_mmseqs::{align_with_mmseqs, MmseqsParams};
+use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
 use crate::o;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::PangraphBlock;
@@ -41,13 +43,14 @@ fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
 fn self_merge(graph: &Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, bool), Report> {
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
-  let matches = find_matches(&graph.blocks);
+  let matches = find_matches(&graph.blocks, args);
 
   // split matches:
   // - whenever an alignment contains an in/del longer than the threshold length
   //   (parameter - default 100 bp) we want to split the alignment in two)
   let matches = matches
     .iter()
+    .flatten()
     .map(|m| split_matches(m, &args.split_matches_args))
     .collect::<Result<Vec<Vec<Alignment>>, Report>>()?
     .into_iter()
@@ -85,18 +88,29 @@ fn self_merge(graph: &Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, b
   Ok((consolidate(graph), true))
 }
 
-fn find_matches(blocks: &[PangraphBlock]) -> Vec<Alignment> {
+fn find_matches(blocks: &[PangraphBlock], args: &PangraphBuildArgs) -> Result<Vec<Alignment>, Report> {
   // This function calls an aligner (default: minimap2) to find matches
   // between the consensus sequences of the blocks. It returns a list of
   // alignment objects.
   let seqs = blocks.iter().map(|block| block.consensus.as_str()).collect_vec();
-  aligner(&seqs)
-}
 
-fn aligner(seqs: &[impl AsRef<str>]) -> Vec<Alignment> {
-  // use minimap2 or other aligners to find matches between the consensus
-  // sequences of the blocks.
-  vec![]
+  match args.alignment_kernel {
+    AlignmentBackend::Minimap2 => align_with_minimap2(
+      &seqs,
+      &seqs,
+      &Minimap2Params {
+        kmersize: args.kmer_length,
+        preset: Some(format!("asm{}", args.sensitivity)),
+      },
+    ),
+    AlignmentBackend::Mmseqs => align_with_mmseqs(
+      &seqs,
+      &seqs,
+      &MmseqsParams {
+        kmer_len: args.kmer_length,
+      },
+    ),
+  }
 }
 
 fn filter_matches(alns: &[Alignment]) -> Vec<Alignment> {
