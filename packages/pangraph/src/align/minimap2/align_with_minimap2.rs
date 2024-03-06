@@ -1,7 +1,7 @@
 use crate::align::alignment::Alignment;
 use crate::align::bam::cigar::parse_cigar_str;
 use crate::align::minimap2::minimap2_paf::MinimapPafTsvRecord;
-use crate::io::fasta::write_one_fasta;
+use crate::io::fasta::{write_one_fasta, FastaWriter};
 use crate::io::file::{create_file_or_stdout, open_file_or_stdin};
 use crate::io::fs::path_to_str;
 use crate::utils::subprocess::create_arg_optional;
@@ -21,10 +21,10 @@ pub struct Minimap2Params {
 }
 
 pub fn align_with_minimap2(
-  reff: impl AsRef<str>,
-  qry: impl AsRef<str>,
+  refs: &[impl AsRef<str>],
+  qrys: &[impl AsRef<str>],
   params: &Minimap2Params,
-) -> Result<Alignment, Report> {
+) -> Result<Vec<Alignment>, Report> {
   // TODO: This uses a global resource - filesystem.
   // Need to ensure that there are no data races when running concurrently.
   let temp_dir = TempDirBuilder::new().tempdir()?;
@@ -33,8 +33,21 @@ pub fn align_with_minimap2(
   let ref_path = path_to_str(&temp_dir_path.join("reff.fa"))?;
   let res_path = path_to_str(&temp_dir_path.join("res.paf"))?;
 
-  write_one_fasta(&qry_path, "qry", &qry)?;
-  write_one_fasta(&ref_path, "ref", &reff)?;
+  {
+    let mut writer = FastaWriter::from_path(&qry_path)?;
+    qrys
+      .iter()
+      .enumerate()
+      .try_for_each(|(i, seq)| writer.write(format!("qry_{i}"), seq))?;
+  }
+
+  {
+    let mut writer = FastaWriter::from_path(&ref_path)?;
+    refs
+      .iter()
+      .enumerate()
+      .try_for_each(|(i, seq)| writer.write(format!("ref_{i}"), seq))?;
+  }
 
   let output_column_names = MinimapPafTsvRecord::fields_names().join(",");
   let kmer_size = create_arg_optional("-k", &params.kmersize);
@@ -66,14 +79,13 @@ mod tests {
   use crate::o;
   use crate::pangraph::strand::Strand;
   use eyre::Report;
-  use noodles::sam::record::cigar::op::Kind;
-  use noodles::sam::record::cigar::Op;
-  use noodles::sam::record::Cigar;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 
+  // TODO: add test cases for alignment of multiple sequences at once
+
   #[rstest]
-  fn test_align_with_minimap2_general_case() -> Result<(), Report> {
+  fn test_align_with_minimap2_one_general_case() -> Result<(), Report> {
     let ref_seq = "GTAGTTTTTGTACCCCCCGACTGTACGTCCTCCGTCGATAGAAGCAATAAAGGTGACGTC
     TGACTACTTTTGGGTGTATATGAAATTCAACACACAAGGTAGCCAAGGCAACGATTTGTT
     CAGCACTCCTATGGTGCGGTCCGGTGGCAAACGATTTCTGACTAACATCCGCATCCGGCT
@@ -110,25 +122,25 @@ mod tests {
     GGCGCAGATTTGATGGTGACTAAGCTGCCAAACTGAGT";
 
     // remove newline characters and spaces
-    let ref_seq = ref_seq.replace("\n", "").replace(" ", "");
-    let qry_seq = qry_seq.replace("\n", "").replace(" ", "");
+    let refs = vec![ref_seq.replace(['\n', ' '], "")];
+    let qrys = vec![qry_seq.replace(['\n', ' '], "")];
 
     let params = Minimap2Params {
       kmersize: Some(10),
-      preset: Some("asm20".to_string()),
+      preset: Some(o!("asm20")),
     };
 
-    let actual = align_with_minimap2(ref_seq, qry_seq, &params)?;
+    let actual = align_with_minimap2(&refs, &qrys, &params)?;
 
-    let expected = Alignment {
+    let expected = vec![Alignment {
       qry: Hit {
-        name: o!("qry"),
+        name: o!("qry_0"),
         length: 998,
         start: 0,
         stop: 996,
       },
       reff: Hit {
-        name: o!("ref"),
+        name: o!("ref_0"),
         length: 1000,
         start: 0,
         stop: 998,
@@ -140,7 +152,7 @@ mod tests {
       cigar: parse_cigar_str("545M1D225M1D226M").unwrap(),
       divergence: Some(0.0291),
       align: Some(845.0),
-    };
+    }];
 
     assert_eq!(expected, actual);
     Ok(())
