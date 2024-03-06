@@ -1,5 +1,6 @@
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
+use noodles::sam::record::cigar::op::Kind;
 use noodles::sam::record::cigar::Op;
 use noodles::sam::record::Cigar;
 use std::str::FromStr;
@@ -8,6 +9,18 @@ pub fn parse_cigar_str(cigar_str: impl AsRef<str>) -> Result<Cigar, Report> {
   let cigar_str = cigar_str.as_ref();
   let cigar_str_fixed: String = cigar_str.chars().filter(|c| !"\t ".contains(*c)).collect();
   Cigar::from_str(&cigar_str_fixed).wrap_err_with(|| format!("When parsing CIGAR string '{cigar_str}'"))
+}
+
+pub fn cigar_matches_len(cigar: &Cigar) -> usize {
+  cigar
+    .iter()
+    .filter(|op| matches!(op.kind(), Kind::Match | Kind::SequenceMatch | Kind::SequenceMismatch))
+    .map(|op| op.len())
+    .sum()
+}
+
+pub fn cigar_total_len(cigar: &Cigar) -> usize {
+  cigar.iter().map(|op| op.len()).sum()
 }
 
 #[cfg(test)]
