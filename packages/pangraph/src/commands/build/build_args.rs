@@ -1,3 +1,4 @@
+use crate::pangraph::split_matches::SplitMatchesArgs;
 use clap::{ArgEnum, Parser, ValueHint};
 use smart_default::SmartDefault;
 use std::fmt::Debug;
@@ -35,10 +36,8 @@ pub struct PangraphBuildArgs {
   #[clap(display_order = 1)]
   pub input_fastas: Vec<PathBuf>,
 
-  /// Minimum block size for alignment graph (in nucleotides)
-  #[clap(long, short = 'l', default_value_t = 100)]
-  #[clap(value_hint = ValueHint::Other)]
-  pub len: usize,
+  #[clap(flatten)]
+  pub split_matches_args: SplitMatchesArgs,
 
   /// Energy cost for introducing junction due to alignment merger
   #[clap(long, short = 'a', default_value_t = 100.0)]

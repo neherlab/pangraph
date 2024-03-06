@@ -14,20 +14,7 @@ use eyre::{Report, WrapErr};
 use itertools::Itertools;
 
 pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
-  let PangraphBuildArgs {
-    input_fastas,
-    len,
-    alpha,
-    beta,
-    circular,
-    upper_case,
-    sensitivity,
-    max_self_map,
-    distance_backend,
-    alignment_kernel,
-    kmer_length,
-    seed,
-  } = &args;
+  let PangraphBuildArgs { input_fastas, seed, .. } = &args;
 
   let rng = get_random_number_generator(seed);
 

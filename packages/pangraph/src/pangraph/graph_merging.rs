@@ -1,14 +1,17 @@
 use crate::align::alignment::Alignment;
+use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::o;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::PangraphBlock;
+use crate::pangraph::split_matches::split_matches;
+use eyre::Report;
 use itertools::{chain, Itertools};
 use maplit::btreemap;
 use ordered_float::OrderedFloat;
 
 /// This is the function that is called when a node of the guide tree is visited.
 /// Take two graphs and merge them into a single one. The merged graph is passed to the parent node.
-fn merge_graphs(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
+fn merge_graphs(left_graph: &Pangraph, right_graph: &Pangraph, args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
   // put the two graphs in a single one, by simply joining
   // the two sets of blocks and paths. No merging is performed
   let graph = graph_join(left_graph, right_graph);
@@ -18,10 +21,10 @@ fn merge_graphs(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
   // blocks in which we find matches. We iterate this until no more merging
   // is possible.
   loop {
-    let (graph, has_changed) = self_merge(&graph);
+    let (graph, has_changed) = self_merge(&graph, args)?;
     // stop when no more mergers are possible
     if !has_changed {
-      break graph;
+      break Ok(graph);
     }
   }
 }
@@ -35,7 +38,7 @@ fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
   }
 }
 
-fn self_merge(graph: &Pangraph) -> (Pangraph, bool) {
+fn self_merge(graph: &Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, bool), Report> {
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
   let matches = find_matches(&graph.blocks);
@@ -43,7 +46,13 @@ fn self_merge(graph: &Pangraph) -> (Pangraph, bool) {
   // split matches:
   // - whenever an alignment contains an in/del longer than the threshold length
   //   (parameter - default 100 bp) we want to split the alignment in two)
-  let matches = split_matches(&matches);
+  let matches = matches
+    .iter()
+    .map(|m| split_matches(m, &args.split_matches_args))
+    .collect::<Result<Vec<Vec<Alignment>>, Report>>()?
+    .into_iter()
+    .flatten()
+    .collect_vec();
 
   // filter matches:
   // - calculate energy and keep only matches with E < 0
@@ -73,7 +82,7 @@ fn self_merge(graph: &Pangraph) -> (Pangraph, bool) {
   // we might need this step for some final updates and consistency checks.
   // TODO: here we could also take care of transitive edges, which is useful
   // in the case of circular paths.
-  (consolidate(graph), true)
+  Ok((consolidate(graph), true))
 }
 
 fn find_matches(blocks: &[PangraphBlock]) -> Vec<Alignment> {
@@ -87,15 +96,6 @@ fn find_matches(blocks: &[PangraphBlock]) -> Vec<Alignment> {
 fn aligner(seqs: &[impl AsRef<str>]) -> Vec<Alignment> {
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks.
-  vec![]
-}
-
-fn split_matches(alns: &[Alignment]) -> Vec<Alignment> {
-  // TODO: split the alignments whenever an alignment contains an in/del
-  // longer than the threshold length (parameter - default 100 bp).
-  // There are some edge cases that we might need to consider here
-  // (eg. 1000M 200 D 1M 100I 200 M)
-  // returns the updated list of alignments.
   vec![]
 }
 
