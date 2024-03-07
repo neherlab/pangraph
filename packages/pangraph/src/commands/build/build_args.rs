@@ -1,4 +1,4 @@
-use crate::pangraph::split_matches::SplitMatchesArgs;
+use crate::align::alignment_args::AlignmentArgs;
 use clap::{ArgEnum, Parser, ValueHint};
 use smart_default::SmartDefault;
 use std::fmt::Debug;
@@ -36,18 +36,8 @@ pub struct PangraphBuildArgs {
   #[clap(display_order = 1)]
   pub input_fastas: Vec<PathBuf>,
 
-  #[clap(flatten)]
-  pub split_matches_args: SplitMatchesArgs,
-
-  /// Energy cost for introducing junction due to alignment merger
-  #[clap(long, short = 'a', default_value_t = 100.0)]
-  #[clap(value_hint = ValueHint::Other)]
-  pub alpha: f64,
-
-  /// Energy cost for interblock diversity due to alignment merger
-  #[clap(long, short = 'b', default_value_t = 10.0)]
-  #[clap(value_hint = ValueHint::Other)]
-  pub beta: f64,
+  #[clap(flatten, next_help_heading = "  Alignment")]
+  pub aln_args: AlignmentArgs,
 
   /// Toggle if input genomes are circular
   #[clap(long, short = 'c')]
@@ -56,11 +46,6 @@ pub struct PangraphBuildArgs {
   /// Transforms all sequences to upper case
   #[clap(long, short = 'u')]
   pub upper_case: bool,
-
-  /// Used to set pairwise alignment sensitivity
-  #[clap(long, short = 's', possible_values(&["5", "10", "20"]), default_value_t = 10)]
-  #[clap(value_hint = ValueHint::Other)]
-  pub sensitivity: usize,
 
   /// Maximum number of self mappings to consider per pairwise graph merger
   #[clap(long, short = 'x', default_value_t = 100)]
@@ -76,10 +61,6 @@ pub struct PangraphBuildArgs {
   #[clap(long, short = 'k', arg_enum, default_value_t = AlignmentBackend::default())]
   #[clap(value_hint = ValueHint::Other)]
   pub alignment_kernel: AlignmentBackend,
-
-  #[clap(long, short = 'K')]
-  #[clap(value_hint = ValueHint::Other)]
-  pub kmer_length: Option<usize>,
 
   /// Random seed
   #[clap(long)]

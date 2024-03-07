@@ -1,29 +1,21 @@
 use crate::align::alignment::Alignment;
+use crate::align::alignment_args::AlignmentArgs;
 use crate::align::bam::cigar::parse_cigar_str;
 use crate::align::minimap2::minimap2_paf::MinimapPafTsvRecord;
 use crate::io::fasta::{write_one_fasta, FastaWriter};
 use crate::io::file::{create_file_or_stdout, open_file_or_stdin};
 use crate::io::fs::path_to_str;
 use crate::utils::subprocess::create_arg_optional;
-use clap::Args;
 use cmd_lib::run_cmd;
 use eyre::{Report, WrapErr};
 use serde::{Deserialize, Serialize};
 use std::io::Write;
 use tempfile::Builder as TempDirBuilder;
 
-#[derive(Clone, Debug, Default, Args, Serialize, Deserialize)]
-pub struct Minimap2Params {
-  #[clap(long, short = 'k')]
-  pub kmersize: Option<usize>,
-  #[clap(long, short = 'x')]
-  pub preset: Option<String>,
-}
-
 pub fn align_with_minimap2(
   refs: &[impl AsRef<str>],
   qrys: &[impl AsRef<str>],
-  params: &Minimap2Params,
+  params: &AlignmentArgs,
 ) -> Result<Vec<Alignment>, Report> {
   // TODO: This uses a global resource - filesystem.
   // Need to ensure that there are no data races when running concurrently.
@@ -50,8 +42,8 @@ pub fn align_with_minimap2(
   }
 
   let output_column_names = MinimapPafTsvRecord::fields_names().join(",");
-  let kmer_size = create_arg_optional("-k", &params.kmersize);
-  let preset = create_arg_optional("-x", &params.preset);
+  let kmer_size = create_arg_optional("-k", &params.kmer_length);
+  let preset = create_arg_optional("-x", &Some(format!("asm{}", &params.sensitivity)));
 
   // TODO: implement proper minimap2 call
   #[rustfmt::skip]
@@ -125,9 +117,10 @@ mod tests {
     let refs = vec![ref_seq.replace(['\n', ' '], "")];
     let qrys = vec![qry_seq.replace(['\n', ' '], "")];
 
-    let params = Minimap2Params {
-      kmersize: Some(10),
-      preset: Some(o!("asm20")),
+    let params = AlignmentArgs {
+      kmer_length: Some(10),
+      sensitivity: 20,
+      ..AlignmentArgs::default()
     };
 
     let actual = align_with_minimap2(&refs, &qrys, &params)?;

@@ -1,27 +1,17 @@
 use crate::align::alignment::{Alignment, Hit};
+use crate::align::alignment_args::AlignmentArgs;
 use crate::align::bam::cigar::{cigar_matches_len, cigar_total_len};
 use crate::pangraph::strand::Strand;
 use crate::{make_internal_error, o};
-use clap::{Args, ValueHint};
 use eyre::Report;
 use itertools::Itertools;
 use noodles::sam::record::cigar::op::Kind;
 use noodles::sam::record::Cigar;
 use serde::{Deserialize, Serialize};
-use smart_default::SmartDefault;
 use std::cmp::max;
 
-#[derive(Clone, Debug, SmartDefault, Args, Serialize, Deserialize)]
-pub struct SplitMatchesArgs {
-  /// Minimum block size for alignment graph (in nucleotides)
-  #[default = 100]
-  #[clap(long = "len", short = 'l', default_value_t = SplitMatchesArgs::default().indel_len_threshold)]
-  #[clap(value_hint = ValueHint::Other)]
-  pub indel_len_threshold: usize, // Pass `PangraphBuildArgs::len` here
-}
-
 /// Split the alignments whenever an alignment contains an in/del longer than the threshold length.
-pub fn split_matches(aln: &Alignment, args: &SplitMatchesArgs) -> Result<Vec<Alignment>, Report> {
+pub fn split_matches(aln: &Alignment, args: &AlignmentArgs) -> Result<Vec<Alignment>, Report> {
   let groups = keep_groups(&aln.cigar, args)?;
   let alns = groups
     .into_iter()
@@ -38,7 +28,7 @@ pub fn split_matches(aln: &Alignment, args: &SplitMatchesArgs) -> Result<Vec<Ali
 ///   - have at least `threshold` matches.
 ///   - have no indels longer than `threshold`.
 #[allow(non_snake_case)]
-pub fn keep_groups(cigar: &Cigar, args: &SplitMatchesArgs) -> Result<Vec<(usize, usize)>, Report> {
+pub fn keep_groups(cigar: &Cigar, args: &AlignmentArgs) -> Result<Vec<(usize, usize)>, Report> {
   let mut groups = vec![];
   let mut g_start = None;
   let mut last_match = None;
@@ -222,8 +212,9 @@ mod tests {
     let expected = vec![(5, 10), (13, 16), (18, 20)];
 
     let cig = parse_cigar_str(cig.replace(' ', "")).unwrap();
-    let args = SplitMatchesArgs {
+    let args = AlignmentArgs {
       indel_len_threshold: 100,
+      ..AlignmentArgs::default()
     };
     let actual = keep_groups(&cig, &args).unwrap();
 
@@ -256,8 +247,9 @@ mod tests {
 
     let actual = split_matches(
       &aln,
-      &SplitMatchesArgs {
+      &AlignmentArgs {
         indel_len_threshold: 10,
+        ..AlignmentArgs::default()
       },
     )
     .unwrap();
@@ -336,8 +328,9 @@ mod tests {
 
     let actual = split_matches(
       &aln,
-      &SplitMatchesArgs {
+      &AlignmentArgs {
         indel_len_threshold: 10,
+        ..AlignmentArgs::default()
       },
     )
     .unwrap();

@@ -2,6 +2,7 @@ pub mod align_graphs;
 pub mod align_pair;
 pub mod align_self;
 pub mod alignment;
+pub mod alignment_args;
 pub mod bam;
 pub mod map_variations;
 pub mod minimap2;

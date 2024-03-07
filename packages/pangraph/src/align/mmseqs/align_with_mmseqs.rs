@@ -1,11 +1,11 @@
 use crate::align::alignment::Alignment;
+use crate::align::alignment_args::AlignmentArgs;
 use crate::align::mmseqs::paf::PafTsvRecord;
 use crate::io::fasta::{write_one_fasta, FastaRecord, FastaWriter};
 use crate::io::file::open_file_or_stdin;
 use crate::io::fs::path_to_str;
 use crate::o;
 use crate::utils::subprocess::{create_arg_optional, subprocess, subprocess_with_args};
-use clap::Args;
 use cmd_lib::run_cmd;
 use color_eyre::{Section, SectionExt};
 use eyre::{Report, WrapErr};
@@ -15,16 +15,10 @@ use std::io::Read;
 use std::str::FromStr;
 use tempfile::Builder as TempDirBuilder;
 
-#[derive(Clone, Debug, Default, Args, Serialize, Deserialize)]
-pub struct MmseqsParams {
-  #[clap(long, short = 'k')]
-  pub kmer_len: Option<usize>,
-}
-
 pub fn align_with_mmseqs(
   refs: &[impl AsRef<str>],
   qrys: &[impl AsRef<str>],
-  params: &MmseqsParams,
+  params: &AlignmentArgs,
 ) -> Result<Vec<Alignment>, Report> {
   // TODO: This uses a global resource - filesystem.
   // Need to ensure that there are no data races when running concurrently.
@@ -52,7 +46,7 @@ pub fn align_with_mmseqs(
   }
 
   let output_column_names = PafTsvRecord::fields_names().join(",");
-  let k = create_arg_optional("-k", &params.kmer_len);
+  let k = create_arg_optional("-k", &params.kmer_length);
 
   run_cmd!(
     mmseqs easy-search
@@ -91,7 +85,10 @@ mod tests {
     let ref_seq = o!("CTTGGAGGTTCCGTGGCTAGATAACAGAACATTCTTGGAATGCTGATCTTTATAAGCTCATGCGACACTTCGCATGGTGAGCCTTTGT");
     let qry_seq = o!("CTTGGAGGTTCCGTGGCTATAAAGATAACAGAACATTCTTGGAATGCTGATCAAGCTCATGGGACANNNNNCATGGTGGACAGCCTTTGT");
 
-    let params = MmseqsParams { kmer_len: Some(12) };
+    let params = AlignmentArgs {
+      kmer_length: Some(12),
+      ..AlignmentArgs::default()
+    };
 
     let actual = align_with_mmseqs(&[ref_seq], &[qry_seq], &params)?;
 

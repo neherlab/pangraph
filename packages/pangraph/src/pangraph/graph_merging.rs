@@ -1,6 +1,7 @@
 use crate::align::alignment::Alignment;
-use crate::align::minimap2::align_with_minimap2::{align_with_minimap2, Minimap2Params};
-use crate::align::mmseqs::align_with_mmseqs::{align_with_mmseqs, MmseqsParams};
+use crate::align::alignment_args::AlignmentArgs;
+use crate::align::minimap2::align_with_minimap2::align_with_minimap2;
+use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
 use crate::o;
 use crate::pangraph::pangraph::Pangraph;
@@ -51,7 +52,7 @@ fn self_merge(graph: &Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, b
   let matches = matches
     .iter()
     .flatten()
-    .map(|m| split_matches(m, &args.split_matches_args))
+    .map(|m| split_matches(m, &args.aln_args))
     .collect::<Result<Vec<Vec<Alignment>>, Report>>()?
     .into_iter()
     .flatten()
@@ -61,7 +62,7 @@ fn self_merge(graph: &Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, b
   // - calculate energy and keep only matches with E < 0
   // - sort them by energy
   // - discard incompatible matches (the ones that have overlapping regions)
-  let matches = filter_matches(&matches);
+  let matches = filter_matches(&matches, &args.aln_args);
 
   // complex function: takes the list of desired matches and the two
   // graphs. It splits blocks and re-weaves paths through them. Paths
@@ -95,25 +96,12 @@ fn find_matches(blocks: &[PangraphBlock], args: &PangraphBuildArgs) -> Result<Ve
   let seqs = blocks.iter().map(|block| block.consensus.as_str()).collect_vec();
 
   match args.alignment_kernel {
-    AlignmentBackend::Minimap2 => align_with_minimap2(
-      &seqs,
-      &seqs,
-      &Minimap2Params {
-        kmersize: args.kmer_length,
-        preset: Some(format!("asm{}", args.sensitivity)),
-      },
-    ),
-    AlignmentBackend::Mmseqs => align_with_mmseqs(
-      &seqs,
-      &seqs,
-      &MmseqsParams {
-        kmer_len: args.kmer_length,
-      },
-    ),
+    AlignmentBackend::Minimap2 => align_with_minimap2(&seqs, &seqs, &args.aln_args),
+    AlignmentBackend::Mmseqs => align_with_mmseqs(&seqs, &seqs, &args.aln_args),
   }
 }
 
-fn filter_matches(alns: &[Alignment]) -> Vec<Alignment> {
+fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
   // - evaluates the energy of the alignments
   // - keeps only matches with E < 0
   // - sorts them by energy

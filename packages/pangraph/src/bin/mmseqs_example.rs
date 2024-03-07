@@ -2,7 +2,8 @@ use clap::{Parser, ValueHint};
 use ctor::ctor;
 use eyre::Report;
 use itertools::Itertools;
-use pangraph::align::mmseqs::align_with_mmseqs::{align_with_mmseqs, MmseqsParams};
+use pangraph::align::alignment_args::AlignmentArgs;
+use pangraph::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use pangraph::io::fasta::read_many_fasta;
 use pangraph::utils::global_init::global_init;
 use std::path::PathBuf;
@@ -18,7 +19,7 @@ struct Args {
   pub input_query_fastas: Vec<PathBuf>,
 
   #[clap(flatten)]
-  pub params: MmseqsParams,
+  pub params: AlignmentArgs,
 }
 
 fn main() -> Result<(), Report> {
