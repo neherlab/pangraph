@@ -4,6 +4,7 @@ pub mod align_self;
 pub mod alignment;
 pub mod alignment_args;
 pub mod bam;
+pub mod energy;
 pub mod map_variations;
 pub mod minimap2;
 pub mod mmseqs;

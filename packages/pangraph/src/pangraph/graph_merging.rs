@@ -1,5 +1,6 @@
 use crate::align::alignment::Alignment;
 use crate::align::alignment_args::AlignmentArgs;
+use crate::align::energy::alignment_energy;
 use crate::align::minimap2::align_with_minimap2::align_with_minimap2;
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
@@ -111,7 +112,7 @@ fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
   // Consider calculating it earlier and making it a property to simplify filtering and sorting.
   let alns = alns
     .iter()
-    .map(|aln| (aln, alignment_energy(aln)))
+    .map(|aln| (aln, alignment_energy(aln, args)))
     .filter(|(_, energy)| energy < &0.0)
     .sorted_by_key(|(_, energy)| OrderedFloat(*energy))
     .map(|(aln, _)| aln)
@@ -126,13 +127,6 @@ fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
   }
 
   alns_keep
-}
-
-fn alignment_energy(aln: &Alignment) -> f64 {
-  // TODO: calculate the energy of the alignment
-  // this is a function of alignment length, identity, and whether it will
-  // create a block split.
-  0.0
 }
 
 fn is_match_compatible(aln: &Alignment, alns_keep: &[Alignment]) -> bool {
