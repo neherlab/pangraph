@@ -6,7 +6,7 @@
 - length: int - sequence length
 - start: int - mapping start position (0-based indexing)
 - stop: int - mapping end position (0-based indexing, right-end excluded, same as minimap paf output)
-- seq: str - optional, sequence
+- seq: str - optional, sequence. **removed**.
 
 ## Alignment
 
