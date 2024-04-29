@@ -1,6 +1,6 @@
 use crate::align::alignment::Alignment;
 use crate::align::alignment_args::AlignmentArgs;
-use crate::align::energy::{alignment_energy, alignment_energy2};
+use crate::align::energy::alignment_energy2;
 use crate::align::minimap2::align_with_minimap2::align_with_minimap2;
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
