@@ -136,12 +136,12 @@ fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
 
 fn is_match_compatible(aln: &Alignment, accepted_intervals: &BTreeMap<String, Vec<Interval>>) -> bool {
   let ref_compatible = have_no_overlap(
-    &accepted_intervals[&aln.reff.name],
+    accepted_intervals.get(&aln.reff.name).unwrap_or(&vec![]),
     &Interval::new(aln.reff.start, aln.reff.stop), // TODO: store interval and use directly
   );
 
   let qry_compatible = have_no_overlap(
-    &accepted_intervals[&aln.qry.name],
+    accepted_intervals.get(&aln.qry.name).unwrap_or(&vec![]),
     &Interval::new(aln.qry.start, aln.qry.stop), // TODO: store interval and use directly
   );
 
