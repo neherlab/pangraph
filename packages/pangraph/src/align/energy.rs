@@ -24,6 +24,37 @@ fn cuts(hit: &Hit, args: &AlignmentArgs) -> usize {
   (hit.start > minblock) as usize + ((hit.length - hit.stop) > minblock) as usize
 }
 
+/// Calculate the energy of the alignment
+///
+/// The formula for the energy is:
+///
+/// $ E = -L + \alpha C + \beta M $
+///
+/// where:
+/// - `L` is the alignment length. We can measure it as number of matches, to avoid counting indels.
+/// - `C` is the number of *cuts* we need to make if we want to merge the block on this alignment. This depend on whether the alignment extends to the beginning/end of the query/reference sequences. If not we need to introduce a cut. This number is between 0 and 4.
+/// - `M` is the number of mismatches in the alignment. It can be estimated from the divergence.
+/// - `alpha` and `beta` are the CLI parameters of pangraph. They act as weight, and control how much penalty is given for each mismatch and each cut.
+#[allow(non_snake_case)]
+pub fn alignment_energy2(aln: &Alignment, args: &AlignmentArgs) -> f64 {
+  let L = aln.matches;
+  let M = aln.divergence.unwrap_or_default() * L as f64;
+  let mut C = 4;
+  if aln.qry.start == 0 {
+    C -= 1;
+  }
+  if aln.qry.stop == aln.qry.length {
+    C -= 1;
+  }
+  if aln.reff.start == 0 {
+    C -= 1;
+  }
+  if aln.reff.stop == aln.reff.length {
+    C -= 1;
+  }
+  -(L as f64) + (C as f64) * args.alpha + M * args.beta
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -62,5 +93,38 @@ mod tests {
     let args = AlignmentArgs::default();
 
     assert_ulps_eq!(alignment_energy(&aln, &args), -812.114);
+  }
+
+  #[rstest]
+  fn test_alignment_energy2_simple_case() {
+    let aln = Alignment {
+      qry: Hit {
+        name: o!("bl_1"),
+        length: 100,
+        start: 0,
+        stop: 50,
+      },
+      reff: Hit {
+        name: o!("bl_2"),
+        length: 200,
+        start: 120,
+        stop: 200,
+      },
+      matches: 40,
+      length: 60,
+      quality: 100,
+      orientation: Strand::Forward,
+      cigar: parse_cigar_str("10I40M10D").unwrap(),
+      divergence: Some(0.02),
+      align: Some(0.1),
+    };
+
+    let args = AlignmentArgs {
+      alpha: 10.0,
+      beta: 10.0,
+      ..Default::default()
+    };
+
+    assert_ulps_eq!(alignment_energy2(&aln, &args), -12.0);
   }
 }
