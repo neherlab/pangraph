@@ -1,32 +1,31 @@
-#[derive(Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Interval {
-  start: i32,
-  end: i32,
+  pub start: usize,
+  pub end: usize,
 }
 
 impl Interval {
-  fn overlaps(&self, i: &Interval) -> bool {
-    // self |-----|       or   |--------|
-    // i        |-----|          |----|
-    if (i.start >= self.start) && (i.start <= self.end) {
-      return true;
-    }
-    // self     |-----|
-    // i     |-----|
-    else if (i.end >= self.start) && (i.end <= self.end) {
-      return true;
-    }
-    // self     |---|
-    // i     |----------|
-    else if (self.start >= i.start) && (self.start <= i.end) {
-      return true;
-    }
-    false
+  pub fn new(start: usize, end: usize) -> Self {
+    Self { start, end }
+  }
+
+  pub fn len(&self) -> usize {
+    self.end.saturating_sub(self.start)
+  }
+
+  pub fn is_empty(&self) -> bool {
+    self.len() == 0
+  }
+
+  pub fn has_overlap_with(&self, other: &Interval) -> bool {
+    self.end > other.start && self.start < other.end
   }
 }
 
-fn no_overlap(intervals: &[Interval], candidate: &Interval) -> bool {
-  !intervals.iter().any(|interval| interval.overlaps(candidate))
+fn have_no_overlap(intervals: &[Interval], candidate: &Interval) -> bool {
+  !intervals.iter().any(|interval| interval.has_overlap_with(candidate))
 }
 
 #[cfg(test)]
@@ -35,19 +34,19 @@ mod tests {
 
   #[test]
   fn test_overlap() {
-    assert!(!Interval { start: 100, end: 200 }.overlaps(&Interval { start: 210, end: 390 }));
-    assert!(Interval { start: 100, end: 220 }.overlaps(&Interval { start: 210, end: 390 }));
+    assert!(!Interval::new(100, 200).has_overlap_with(&Interval::new(210, 390)));
+    assert!(Interval::new(100, 220).has_overlap_with(&Interval::new(210, 390)));
   }
 
   #[test]
-  fn test_overlap_no_overlap() {
-    assert!(no_overlap(
-      &[Interval { start: 100, end: 200 }, Interval { start: 300, end: 400 }],
-      &Interval { start: 210, end: 290 }
+  fn test_no_overlap() {
+    assert!(have_no_overlap(
+      &[Interval::new(100, 200), Interval::new(300, 400)],
+      &Interval::new(210, 290)
     ));
-    assert!(!no_overlap(
-      &[Interval { start: 100, end: 200 }, Interval { start: 300, end: 400 }],
-      &Interval { start: 210, end: 390 }
+    assert!(!have_no_overlap(
+      &[Interval::new(100, 200), Interval::new(300, 400)],
+      &Interval::new(210, 390)
     ));
   }
 }
