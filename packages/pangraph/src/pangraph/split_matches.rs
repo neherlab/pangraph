@@ -6,6 +6,7 @@ use crate::{make_internal_error, o};
 use eyre::Report;
 use itertools::Itertools;
 use noodles::sam::record::cigar::op::Kind;
+use noodles::sam::record::cigar::Op;
 use noodles::sam::record::Cigar;
 use serde::{Deserialize, Serialize};
 use std::cmp::max;
@@ -13,12 +14,14 @@ use std::cmp::max;
 /// Split the alignments whenever an alignment contains an in/del longer than the threshold length.
 pub fn split_matches(aln: &Alignment, args: &AlignmentArgs) -> Result<Vec<Alignment>, Report> {
   let groups = keep_groups(&aln.cigar, args)?;
-  let alns = groups
+
+  let mut alns = groups
     .into_iter()
     .map(|group| generate_subalignment(aln, &group))
-    .collect::<Result<Vec<_>, Report>>()?
-    .into_iter()
-    .collect_vec();
+    .collect::<Result<Vec<Alignment>, Report>>()?;
+
+  alns.iter_mut().try_for_each(|aln| side_patches(aln, args))?;
+
   Ok(alns)
 }
 
@@ -191,6 +194,59 @@ fn generate_subalignment(aln: &Alignment, group: &(usize, usize)) -> Result<Alig
     divergence: aln.divergence,
     align: aln.align,
   })
+}
+
+#[allow(non_snake_case)]
+pub fn side_patches(aln: &mut Alignment, args: &AlignmentArgs) -> Result<(), Report> {
+  let mut ops = aln.cigar.to_vec();
+
+  // Check reference
+  let (rs, re, rL) = (aln.reff.start, aln.reff.stop, aln.reff.length);
+  if (rs > 0) && (rs < args.indel_len_threshold) {
+    // Append left side reference patch
+    let delta_l = rs;
+    aln.reff.start = 0;
+    aln.length += delta_l;
+    ops.insert(0, Op::new(Kind::Deletion, delta_l));
+  }
+  if (re < rL) && (rL - re < args.indel_len_threshold) {
+    // Append right reference patch
+    let delta_l = rL - re;
+    aln.reff.stop = rL;
+    aln.length += delta_l;
+    ops.push(Op::new(Kind::Deletion, delta_l));
+  }
+
+  // Check query
+  let (qs, qe, qL) = (aln.qry.start, aln.qry.stop, aln.qry.length);
+  if (qs > 0) && (qs < args.indel_len_threshold) {
+    // Append query start
+    let delta_l = qs;
+    aln.qry.start = 0;
+    aln.length += delta_l;
+    let extra_ins = Op::new(Kind::Insertion, delta_l);
+    if aln.orientation == Strand::Forward {
+      ops.push(extra_ins);
+    } else {
+      ops.insert(0, extra_ins);
+    }
+  }
+  if (qe < qL) && (qL - qe < args.indel_len_threshold) {
+    // Append query end
+    let delta_l = qL - qe;
+    aln.qry.stop = qL;
+    aln.length += delta_l;
+    let extra_ins = Op::new(Kind::Insertion, delta_l);
+    if aln.orientation == Strand::Forward {
+      ops.push(extra_ins);
+    } else {
+      ops.insert(0, extra_ins);
+    }
+  }
+
+  aln.cigar = Cigar::try_from(ops)?;
+
+  Ok(())
 }
 
 #[cfg(test)]
