@@ -24,7 +24,7 @@ impl Interval {
   }
 }
 
-fn have_no_overlap(intervals: &[Interval], candidate: &Interval) -> bool {
+pub fn have_no_overlap(intervals: &[Interval], candidate: &Interval) -> bool {
   !intervals.iter().any(|interval| interval.has_overlap_with(candidate))
 }
 

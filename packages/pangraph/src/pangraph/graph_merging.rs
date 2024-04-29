@@ -1,6 +1,6 @@
 use crate::align::alignment::Alignment;
 use crate::align::alignment_args::AlignmentArgs;
-use crate::align::energy::alignment_energy;
+use crate::align::energy::{alignment_energy, alignment_energy2};
 use crate::align::minimap2::align_with_minimap2::align_with_minimap2;
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
@@ -8,10 +8,12 @@ use crate::o;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::PangraphBlock;
 use crate::pangraph::split_matches::split_matches;
+use crate::utils::interval::{have_no_overlap, Interval};
 use eyre::Report;
 use itertools::{chain, Itertools};
 use maplit::btreemap;
 use ordered_float::OrderedFloat;
+use std::collections::BTreeMap;
 
 /// This is the function that is called when a node of the guide tree is visited.
 /// Take two graphs and merge them into a single one. The merged graph is passed to the parent node.
@@ -112,27 +114,50 @@ fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
   // Consider calculating it earlier and making it a property to simplify filtering and sorting.
   let alns = alns
     .iter()
-    .map(|aln| (aln, alignment_energy(aln, args)))
+    .map(|aln| (aln, alignment_energy2(aln, args)))
     .filter(|(_, energy)| energy < &0.0)
     .sorted_by_key(|(_, energy)| OrderedFloat(*energy))
     .map(|(aln, _)| aln)
     .collect_vec();
 
-  // discard incompatible matches
-  let mut alns_keep = vec![];
+  // Iteratively accept alignments if they do not overlap with previously accepted ones
+  let mut accepted_alns = vec![];
+  let mut accepted_intervals = btreemap![];
+
   for aln in alns {
-    if is_match_compatible(aln, &alns_keep) {
-      alns_keep.push(aln.clone());
+    if is_match_compatible(aln, &accepted_intervals) {
+      accepted_alns.push(aln.clone());
+      update_intervals(aln, &mut accepted_intervals);
     }
   }
 
-  alns_keep
+  accepted_alns
 }
 
-fn is_match_compatible(aln: &Alignment, alns_keep: &[Alignment]) -> bool {
-  // TODO: check that the new match does not overlap with any of the
-  // matches that we already have.
-  true
+fn is_match_compatible(aln: &Alignment, accepted_intervals: &BTreeMap<String, Vec<Interval>>) -> bool {
+  let ref_compatible = have_no_overlap(
+    &accepted_intervals[&aln.reff.name],
+    &Interval::new(aln.reff.start, aln.reff.stop), // TODO: store interval and use directly
+  );
+
+  let qry_compatible = have_no_overlap(
+    &accepted_intervals[&aln.qry.name],
+    &Interval::new(aln.qry.start, aln.qry.stop), // TODO: store interval and use directly
+  );
+
+  ref_compatible && qry_compatible
+}
+
+fn update_intervals(aln: &Alignment, accepted_intervals: &mut BTreeMap<String, Vec<Interval>>) {
+  accepted_intervals
+    .entry(aln.reff.name.clone())
+    .or_default()
+    .push(Interval::new(aln.reff.start, aln.reff.stop));
+
+  accepted_intervals
+    .entry(aln.qry.name.clone())
+    .or_default()
+    .push(Interval::new(aln.qry.start, aln.qry.stop));
 }
 
 fn reweave_graph(graph: &Pangraph, alns: &[Alignment]) -> (Pangraph, Vec<Merger>) {
@@ -190,4 +215,186 @@ fn consolidate(graph: Pangraph) -> Pangraph {
   //   lengths and path lengths are conserved, and optionally check that we can
   //   reconstruct the full genomes exactly.
   graph
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::align::alignment::Hit;
+  use crate::align::bam::cigar::parse_cigar_str;
+  use crate::pangraph::strand::Strand;
+  use eyre::Report;
+  use pretty_assertions::assert_eq;
+  use rstest::rstest;
+
+  #[rstest]
+  fn test_is_match_compatible() -> Result<(), Report> {
+    let accepted_intervals = btreemap! {
+      o!("block_0") => vec![Interval::new(100,200), Interval::new(300,400)],
+      o!("block_1") => vec![Interval::new(200,300), Interval::new(400,500)],
+    };
+
+    let aln = Alignment {
+      qry: Hit {
+        name: o!("block_0"),
+        length: 1000,
+        start: 210,
+        stop: 290,
+      },
+      reff: Hit {
+        name: o!("block_1"),
+        length: 1000,
+        start: 310,
+        stop: 390,
+      },
+      matches: 80,
+      length: 80,
+      quality: 10,
+      orientation: Strand::Reverse,
+      cigar: parse_cigar_str("90M").unwrap(),
+      divergence: Some(0.05),
+      align: None,
+    };
+
+    assert!(is_match_compatible(&aln, &accepted_intervals));
+
+    Ok(())
+  }
+
+  #[rstest]
+  fn test_is_match_compatible_not() -> Result<(), Report> {
+    let accepted_intervals = btreemap! {
+      o!("block_0") => vec![Interval::new(100,200), Interval::new(300,400)],
+      o!("block_1") => vec![Interval::new(200,300), Interval::new(400,500)],
+    };
+
+    let aln = Alignment {
+      qry: Hit {
+        name: o!("block_0"),
+        length: 1000,
+        start: 310,
+        stop: 390,
+      },
+      reff: Hit {
+        name: o!("block_1"),
+        length: 1000,
+        start: 310,
+        stop: 390,
+      },
+      matches: 80,
+      length: 80,
+      quality: 10,
+      orientation: Strand::Reverse,
+      cigar: parse_cigar_str("90M").unwrap(),
+      divergence: Some(0.05),
+      align: None,
+    };
+
+    assert!(!is_match_compatible(&aln, &accepted_intervals));
+
+    Ok(())
+  }
+
+  #[rstest]
+  fn test_filter_matches() -> Result<(), Report> {
+    let aln_0 = Alignment {
+      qry: Hit {
+        name: o!("bl0"),
+        length: 500,
+        start: 100,
+        stop: 200,
+      },
+      reff: Hit {
+        name: o!("bl1"),
+        length: 500,
+        start: 200,
+        stop: 300,
+      },
+      matches: 100,
+      length: 0,
+      quality: 0,
+      orientation: Strand::default(),
+      cigar: parse_cigar_str("100M").unwrap(),
+      divergence: Some(0.05),
+      align: None,
+    };
+
+    let aln_1 = Alignment {
+      qry: Hit {
+        name: o!("bl2"),
+        length: 500,
+        start: 100,
+        stop: 200,
+      },
+      reff: Hit {
+        name: o!("bl3"),
+        length: 500,
+        start: 200,
+        stop: 300,
+      },
+      matches: 100,
+      length: 0,
+      quality: 0,
+      orientation: Strand::default(),
+      cigar: parse_cigar_str("100M").unwrap(),
+      divergence: Some(0.02),
+      align: None,
+    };
+
+    let aln_2 = Alignment {
+      qry: Hit {
+        name: o!("bl2"),
+        length: 500,
+        start: 150,
+        stop: 250,
+      },
+      reff: Hit {
+        name: o!("bl4"),
+        length: 500,
+        start: 200,
+        stop: 300,
+      },
+      matches: 100,
+      length: 0,
+      quality: 0,
+      orientation: Strand::default(),
+      cigar: parse_cigar_str("100M").unwrap(),
+      divergence: Some(0.05),
+      align: None,
+    };
+
+    let aln_3 = Alignment {
+      qry: Hit {
+        name: o!("bl5"),
+        length: 500,
+        start: 100,
+        stop: 200,
+      },
+      reff: Hit {
+        name: o!("bl6"),
+        length: 500,
+        start: 200,
+        stop: 300,
+      },
+      matches: 100,
+      length: 0,
+      quality: 0,
+      orientation: Strand::default(),
+      cigar: parse_cigar_str("100M").unwrap(),
+      divergence: Some(0.1),
+      align: None,
+    };
+
+    let args = AlignmentArgs {
+      alpha: 10.0,
+      beta: 10.0,
+      ..Default::default()
+    };
+
+    let alns = [aln_0.clone(), aln_1.clone(), aln_2, aln_3];
+
+    assert_eq!(filter_matches(&alns, &args), vec![aln_1, aln_0]);
+
+    Ok(())
+  }
 }
