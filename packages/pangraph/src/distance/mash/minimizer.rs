@@ -43,6 +43,7 @@ impl Minimizer {
 ///  - `k` sets the k-mer size.
 ///  - `w` sets the number of contiguous k-mers that will be used in the window minimizer comparison.
 ///  - `id` is a unique integer that corresponds to the sequence. It will be bit-packed into the minimizer position.
+#[allow(clippy::needless_range_loop)]
 pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParams) -> Vec<Minimizer> {
   let MinimizersParams { k, w } = params;
 

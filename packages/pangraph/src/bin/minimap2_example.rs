@@ -34,7 +34,7 @@ fn main() -> Result<(), Report> {
     .collect_vec();
 
   let result = align_with_minimap2(&qrys, &qrys, &params)?;
-  dbg!(&result);
+  println!("{:#?}", &result);
 
   Ok(())
 }

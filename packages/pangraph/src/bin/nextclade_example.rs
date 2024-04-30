@@ -1,9 +1,8 @@
-use clap::{ArgEnum, Parser, ValueHint};
+use clap::{Parser, ValueHint};
 use ctor::ctor;
 use eyre::Report;
 use pangraph::align::nextclade::align_with_nextclade::{align_with_nextclade, NextalignParams};
 use pangraph::io::fasta::{read_many_fasta, read_one_fasta};
-use pangraph::o;
 use pangraph::utils::global_init::global_init;
 use std::path::PathBuf;
 
@@ -34,7 +33,7 @@ fn main() -> Result<(), Report> {
 
   for qry_record in qry_records {
     let result = align_with_nextclade(&ref_record.seq, &qry_record.seq, &NextalignParams::default())?;
-    dbg!(&result);
+    println!("{:#?}", &result);
   }
 
   Ok(())

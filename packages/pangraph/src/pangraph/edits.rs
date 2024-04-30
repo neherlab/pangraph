@@ -62,7 +62,7 @@ impl Edits {
   /// Apply the edits to the reference to obtain the query sequence
   pub fn apply(&self, reff: impl AsRef<str>) -> Result<String, Report> {
     // TODO: decide whether it's best to use chars, bytes of something else entirely
-    let mut qry: Vec<char> = reff.as_ref().chars().into_iter().collect_vec();
+    let mut qry: Vec<char> = reff.as_ref().chars().collect_vec();
 
     for sub in &self.subs {
       qry[sub.pos] = sub.alt;

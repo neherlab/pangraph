@@ -79,7 +79,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
       }
       (None, Some(child)) | (Some(child), None) => {
         // Case: internal node with one child. Action: ???
-        todo!("What to do if there's only one child?");
+        unimplemented!("What to do if there's only one child?");
       }
     }
   })

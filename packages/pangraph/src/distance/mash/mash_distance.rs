@@ -68,10 +68,9 @@ mod tests {
   use ndarray::array;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
-  use std::collections::BTreeMap;
 
   fn create_fake_graph(seq: impl AsRef<str>) -> Pangraph {
-    let block = PangraphBlock::from_consensus(seq.as_ref().to_owned());
+    let block = PangraphBlock::from_consensus(seq);
     let path = PangraphPath::new(o!(""), block.id, false);
     Pangraph {
       blocks: vec![block],
