@@ -9,10 +9,6 @@ use pangraph::commands::polish::polish_run::polish_run;
 use pangraph::commands::root_args::{generate_shell_completions, parse_cli_args, PangraphCommands};
 use pangraph::utils::global_init::global_init;
 
-#[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-#[global_allocator]
-static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
-
 #[ctor]
 fn init() {
   global_init();
