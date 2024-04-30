@@ -21,7 +21,7 @@ pub fn alignment_energy(aln: &Alignment, args: &AlignmentArgs) -> f64 {
 fn cuts(hit: &Hit, args: &AlignmentArgs) -> usize {
   let minblock = args.indel_len_threshold;
   // FIXME: Addition of booleans?
-  (hit.start > minblock) as usize + ((hit.length - hit.stop) > minblock) as usize
+  (hit.interval.start > minblock) as usize + ((hit.length - hit.interval.end) > minblock) as usize
 }
 
 /// Calculate the energy of the alignment
@@ -40,16 +40,16 @@ pub fn alignment_energy2(aln: &Alignment, args: &AlignmentArgs) -> f64 {
   let L = aln.matches;
   let M = aln.divergence.unwrap_or_default() * L as f64;
   let mut C = 4;
-  if aln.qry.start == 0 {
+  if aln.qry.interval.start == 0 {
     C -= 1;
   }
-  if aln.qry.stop == aln.qry.length {
+  if aln.qry.interval.end == aln.qry.length {
     C -= 1;
   }
-  if aln.reff.start == 0 {
+  if aln.reff.interval.start == 0 {
     C -= 1;
   }
-  if aln.reff.stop == aln.reff.length {
+  if aln.reff.interval.end == aln.reff.length {
     C -= 1;
   }
   -(L as f64) + (C as f64) * args.alpha + M * args.beta
@@ -61,6 +61,7 @@ mod tests {
   use crate::align::bam::cigar::parse_cigar_str;
   use crate::o;
   use crate::pangraph::strand::Strand;
+  use crate::utils::interval::Interval;
   use approx::assert_ulps_eq;
   use eyre::Report;
   use pretty_assertions::assert_eq;
@@ -72,14 +73,12 @@ mod tests {
       qry: Hit {
         name: o!("qry_3"),
         length: 997,
-        start: 0,
-        stop: 980,
+        interval: Interval::new(0, 980),
       },
       reff: Hit {
         name: o!("ref_3"),
         length: 1000,
-        start: 18,
-        stop: 1000,
+        interval: Interval::new(18, 1000),
       },
       matches: 965,
       length: 982,
@@ -101,14 +100,12 @@ mod tests {
       qry: Hit {
         name: o!("bl_1"),
         length: 100,
-        start: 0,
-        stop: 50,
+        interval: Interval::new(0, 50),
       },
       reff: Hit {
         name: o!("bl_2"),
         length: 200,
-        start: 120,
-        stop: 200,
+        interval: Interval::new(120, 200),
       },
       matches: 40,
       length: 60,

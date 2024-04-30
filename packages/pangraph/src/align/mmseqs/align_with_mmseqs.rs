@@ -71,6 +71,7 @@ mod tests {
   use super::*;
   use crate::align::alignment::Hit;
   use crate::pangraph::strand::Strand;
+  use crate::utils::interval::Interval;
   use eyre::Report;
   use noodles::sam::record::cigar::op::Kind;
   use noodles::sam::record::cigar::Op;
@@ -96,14 +97,12 @@ mod tests {
       qry: Hit {
         name: o!("qry_0"),
         length: 90,
-        start: 1,
-        stop: 90,
+        interval: Interval::new(1, 90),
       },
       reff: Hit {
         name: o!("ref_0"),
         length: 88,
-        start: 1,
-        stop: 88,
+        interval: Interval::new(1, 88),
       },
       matches: 77,
       length: 95,

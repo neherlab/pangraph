@@ -2,6 +2,7 @@ use crate::align::alignment::{Alignment, Hit};
 use crate::align::alignment_args::AlignmentArgs;
 use crate::align::bam::cigar::{cigar_matches_len, cigar_total_len};
 use crate::pangraph::strand::Strand;
+use crate::utils::interval::Interval;
 use crate::{make_internal_error, o};
 use eyre::Report;
 use itertools::Itertools;
@@ -158,26 +159,24 @@ fn generate_subalignment(aln: &Alignment, group: &(usize, usize)) -> Result<Alig
     ref_end: re,
   } = group_positions(&aln.cigar, group.0, group.1);
 
-  let rs = aln.reff.start + rs;
-  let re = aln.reff.start + re;
+  let rs = aln.reff.interval.start + rs;
+  let re = aln.reff.interval.start + re;
 
   let (qs, qe) = match aln.orientation {
-    Strand::Forward => (aln.qry.start + qs, aln.qry.start + qe),
-    Strand::Reverse => (aln.qry.stop - qe, aln.qry.stop - qs),
+    Strand::Forward => (aln.qry.interval.start + qs, aln.qry.interval.start + qe),
+    Strand::Reverse => (aln.qry.interval.end - qe, aln.qry.interval.end - qs),
   };
 
   let qry = Hit {
     name: aln.qry.name.clone(),
     length: aln.qry.length,
-    start: qs,
-    stop: qe,
+    interval: Interval::new(qs, qe),
   };
 
   let reff = Hit {
     name: aln.reff.name.clone(),
     length: aln.reff.length,
-    start: rs,
-    stop: re,
+    interval: Interval::new(rs, re),
   };
 
   let ops = aln.cigar[group.0..=group.1].iter().copied().collect_vec();
@@ -201,28 +200,28 @@ pub fn side_patches(aln: &mut Alignment, args: &AlignmentArgs) -> Result<(), Rep
   let mut ops = aln.cigar.to_vec();
 
   // Check reference
-  let (rs, re, rL) = (aln.reff.start, aln.reff.stop, aln.reff.length);
+  let (rs, re, rL) = (aln.reff.interval.start, aln.reff.interval.end, aln.reff.length);
   if (rs > 0) && (rs < args.indel_len_threshold) {
     // Append left side reference patch
     let delta_l = rs;
-    aln.reff.start = 0;
+    aln.reff.interval.start = 0;
     aln.length += delta_l;
     ops.insert(0, Op::new(Kind::Deletion, delta_l));
   }
   if (re < rL) && (rL - re < args.indel_len_threshold) {
     // Append right reference patch
     let delta_l = rL - re;
-    aln.reff.stop = rL;
+    aln.reff.interval.end = rL;
     aln.length += delta_l;
     ops.push(Op::new(Kind::Deletion, delta_l));
   }
 
   // Check query
-  let (qs, qe, qL) = (aln.qry.start, aln.qry.stop, aln.qry.length);
+  let (qs, qe, qL) = (aln.qry.interval.start, aln.qry.interval.end, aln.qry.length);
   if (qs > 0) && (qs < args.indel_len_threshold) {
     // Append query start
     let delta_l = qs;
-    aln.qry.start = 0;
+    aln.qry.interval.start = 0;
     aln.length += delta_l;
     let extra_ins = Op::new(Kind::Insertion, delta_l);
     if aln.orientation == Strand::Forward {
@@ -234,7 +233,7 @@ pub fn side_patches(aln: &mut Alignment, args: &AlignmentArgs) -> Result<(), Rep
   if (qe < qL) && (qL - qe < args.indel_len_threshold) {
     // Append query end
     let delta_l = qL - qe;
-    aln.qry.stop = qL;
+    aln.qry.interval.end = qL;
     aln.length += delta_l;
     let extra_ins = Op::new(Kind::Insertion, delta_l);
     if aln.orientation == Strand::Forward {
@@ -283,14 +282,12 @@ mod tests {
       qry: Hit {
         name: o!("qry"),
         length: 500,
-        start: 200,
-        stop: 255,
+        interval: Interval::new(200, 255),
       },
       reff: Hit {
         name: o!("ref"),
         length: 500,
-        start: 100,
-        stop: 140,
+        interval: Interval::new(100, 140),
       },
       matches: 0,
       length: 0,
@@ -315,14 +312,12 @@ mod tests {
         qry: Hit {
           name: o!("qry"),
           length: 500,
-          start: 203,
-          stop: 220,
+          interval: Interval::new(203, 220),
         },
         reff: Hit {
           name: o!("ref"),
           length: 500,
-          start: 100,
-          stop: 118,
+          interval: Interval::new(100, 118),
         },
         matches: 14,
         length: 21,
@@ -336,14 +331,12 @@ mod tests {
         qry: Hit {
           name: o!("qry"),
           length: 500,
-          start: 234,
-          stop: 253,
+          interval: Interval::new(234, 253),
         },
         reff: Hit {
           name: o!("ref"),
           length: 500,
-          start: 118,
-          stop: 141,
+          interval: Interval::new(118, 141),
         },
         matches: 15,
         length: 27,
@@ -364,14 +357,12 @@ mod tests {
       qry: Hit {
         name: o!("qry"),
         length: 500,
-        start: 200,
-        stop: 256,
+        interval: Interval::new(200, 256),
       },
       reff: Hit {
         name: o!("ref"),
         length: 500,
-        start: 100,
-        stop: 141,
+        interval: Interval::new(100, 141),
       },
       matches: 0,
       length: 0,
@@ -396,14 +387,12 @@ mod tests {
         qry: Hit {
           name: o!("qry"),
           length: 500,
-          start: 236,
-          stop: 253,
+          interval: Interval::new(236, 253),
         },
         reff: Hit {
           name: o!("ref"),
           length: 500,
-          start: 100,
-          stop: 118,
+          interval: Interval::new(100, 118),
         },
         matches: 14,
         length: 21,
@@ -417,14 +406,12 @@ mod tests {
         qry: Hit {
           name: o!("qry"),
           length: 500,
-          start: 203,
-          stop: 222,
+          interval: Interval::new(203, 222),
         },
         reff: Hit {
           name: o!("ref"),
           length: 500,
-          start: 118,
-          stop: 141,
+          interval: Interval::new(118, 141),
         },
         matches: 15,
         length: 27,

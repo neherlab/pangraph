@@ -1,5 +1,6 @@
 use crate::align::bam::cigar::parse_cigar_str;
 use crate::pangraph::strand::Strand;
+use crate::utils::interval::Interval;
 use color_eyre::{Section, SectionExt};
 use eyre::WrapErr;
 use noodles::sam::record::Cigar;
@@ -11,9 +12,8 @@ use std::str::FromStr;
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Hit {
   pub name: String,
-  pub length: usize, // TODO: having all of {start, stop, length, seq.length} seems redundant. Some of these can be functions.
-  pub start: usize,
-  pub stop: usize,
+  pub length: usize,
+  pub interval: Interval,
 }
 
 /// Alignment is a pairwise homologous alignment between two sequences.

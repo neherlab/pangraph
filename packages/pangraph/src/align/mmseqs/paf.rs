@@ -1,6 +1,7 @@
 use crate::align::alignment::{Alignment, Hit};
 use crate::align::bam::cigar::parse_cigar_str;
 use crate::pangraph::strand::Strand;
+use crate::utils::interval::Interval;
 use csv::ReaderBuilder as CsvReaderBuilder;
 use eyre::Report;
 use serde::Deserialize;
@@ -54,14 +55,12 @@ impl Alignment {
           qry: Hit {
             name: paf.query,
             length: paf.qlen,
-            start: qstart,
-            stop: qend,
+            interval: Interval::new(qstart, qend),
           },
           reff: Hit {
             name: paf.target,
             length: paf.tlen,
-            start: tstart,
-            stop: tend,
+            interval: Interval::new(tstart, tend),
           },
           matches: paf.nident,
           length: paf.alnlen,
@@ -100,14 +99,12 @@ mod tests {
       qry: Hit {
         name: o!("qry"),
         length: 507,
-        start: 1,
-        stop: 497,
+        interval: Interval::new(1, 497),
       },
       reff: Hit {
         name: o!("ref"),
         length: 500,
-        start: 24,
-        stop: 500,
+        interval: Interval::new(24, 500),
       },
       matches: 440,
       length: 508,
@@ -128,14 +125,12 @@ mod tests {
       qry: Hit {
         name: o!("rev_qry"),
         length: 507,
-        start: 11,
-        stop: 507,
+        interval: Interval::new(11, 507),
       },
       reff: Hit {
         name: o!("ref"),
         length: 500,
-        start: 24,
-        stop: 500,
+        interval: Interval::new(24, 500),
       },
       matches: 440,
       length: 508,

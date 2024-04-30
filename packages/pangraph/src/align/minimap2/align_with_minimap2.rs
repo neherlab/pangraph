@@ -70,6 +70,7 @@ mod tests {
   use crate::align::alignment::Hit;
   use crate::o;
   use crate::pangraph::strand::Strand;
+  use crate::utils::interval::Interval;
   use eyre::Report;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
@@ -129,14 +130,12 @@ mod tests {
       qry: Hit {
         name: o!("qry_0"),
         length: 998,
-        start: 0,
-        stop: 996,
+        interval: Interval::new(0, 996),
       },
       reff: Hit {
         name: o!("ref_0"),
         length: 1000,
-        start: 0,
-        stop: 998,
+        interval: Interval::new(0, 998),
       },
       matches: 969,
       length: 998,

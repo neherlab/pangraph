@@ -137,12 +137,12 @@ fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
 fn is_match_compatible(aln: &Alignment, accepted_intervals: &BTreeMap<String, Vec<Interval>>) -> bool {
   let ref_compatible = have_no_overlap(
     accepted_intervals.get(&aln.reff.name).unwrap_or(&vec![]),
-    &Interval::new(aln.reff.start, aln.reff.stop), // TODO: store interval and use directly
+    &aln.reff.interval,
   );
 
   let qry_compatible = have_no_overlap(
     accepted_intervals.get(&aln.qry.name).unwrap_or(&vec![]),
-    &Interval::new(aln.qry.start, aln.qry.stop), // TODO: store interval and use directly
+    &aln.qry.interval,
   );
 
   ref_compatible && qry_compatible
@@ -152,12 +152,12 @@ fn update_intervals(aln: &Alignment, accepted_intervals: &mut BTreeMap<String, V
   accepted_intervals
     .entry(aln.reff.name.clone())
     .or_default()
-    .push(Interval::new(aln.reff.start, aln.reff.stop));
+    .push(aln.reff.interval.clone());
 
   accepted_intervals
     .entry(aln.qry.name.clone())
     .or_default()
-    .push(Interval::new(aln.qry.start, aln.qry.stop));
+    .push(aln.qry.interval.clone());
 }
 
 fn reweave_graph(graph: &Pangraph, alns: &[Alignment]) -> (Pangraph, Vec<Merger>) {
@@ -238,14 +238,12 @@ mod tests {
       qry: Hit {
         name: o!("block_0"),
         length: 1000,
-        start: 210,
-        stop: 290,
+        interval: Interval::new(210, 290),
       },
       reff: Hit {
         name: o!("block_1"),
         length: 1000,
-        start: 310,
-        stop: 390,
+        interval: Interval::new(310, 390),
       },
       matches: 80,
       length: 80,
@@ -272,14 +270,12 @@ mod tests {
       qry: Hit {
         name: o!("block_0"),
         length: 1000,
-        start: 310,
-        stop: 390,
+        interval: Interval::new(310, 390),
       },
       reff: Hit {
         name: o!("block_1"),
         length: 1000,
-        start: 310,
-        stop: 390,
+        interval: Interval::new(310, 390),
       },
       matches: 80,
       length: 80,
@@ -301,14 +297,12 @@ mod tests {
       qry: Hit {
         name: o!("bl0"),
         length: 500,
-        start: 100,
-        stop: 200,
+        interval: Interval::new(100, 200),
       },
       reff: Hit {
         name: o!("bl1"),
         length: 500,
-        start: 200,
-        stop: 300,
+        interval: Interval::new(200, 300),
       },
       matches: 100,
       length: 0,
@@ -323,14 +317,12 @@ mod tests {
       qry: Hit {
         name: o!("bl2"),
         length: 500,
-        start: 100,
-        stop: 200,
+        interval: Interval::new(100, 200),
       },
       reff: Hit {
         name: o!("bl3"),
         length: 500,
-        start: 200,
-        stop: 300,
+        interval: Interval::new(200, 300),
       },
       matches: 100,
       length: 0,
@@ -345,14 +337,12 @@ mod tests {
       qry: Hit {
         name: o!("bl2"),
         length: 500,
-        start: 150,
-        stop: 250,
+        interval: Interval::new(150, 250),
       },
       reff: Hit {
         name: o!("bl4"),
         length: 500,
-        start: 200,
-        stop: 300,
+        interval: Interval::new(200, 300),
       },
       matches: 100,
       length: 0,
@@ -367,14 +357,12 @@ mod tests {
       qry: Hit {
         name: o!("bl5"),
         length: 500,
-        start: 100,
-        stop: 200,
+        interval: Interval::new(100, 200),
       },
       reff: Hit {
         name: o!("bl6"),
         length: 500,
-        start: 200,
-        stop: 300,
+        interval: Interval::new(200, 300),
       },
       matches: 100,
       length: 0,
