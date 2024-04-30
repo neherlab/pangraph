@@ -1,9 +1,8 @@
 use crate::align::alignment::{Alignment, Hit};
 use crate::align::alignment_args::AlignmentArgs;
 use crate::align::bam::cigar::{cigar_matches_len, cigar_total_len};
+use crate::make_internal_error;
 use crate::pangraph::strand::Strand;
-use crate::utils::interval::Interval;
-use crate::{make_internal_error, o};
 use eyre::Report;
 use itertools::Itertools;
 use noodles::sam::record::cigar::op::Kind;
@@ -167,18 +166,8 @@ fn generate_subalignment(aln: &Alignment, group: &(usize, usize)) -> Result<Alig
     Strand::Reverse => (aln.qry.interval.end - qe, aln.qry.interval.end - qs),
   };
 
-  let qry = Hit {
-    name: aln.qry.name.clone(),
-    length: aln.qry.length,
-    interval: Interval::new(qs, qe),
-  };
-
-  let reff = Hit {
-    name: aln.reff.name.clone(),
-    length: aln.reff.length,
-    interval: Interval::new(rs, re),
-  };
-
+  let qry = Hit::new(aln.qry.name.clone(), aln.qry.length, (qs, qe));
+  let reff = Hit::new(aln.reff.name.clone(), aln.reff.length, (rs, re));
   let ops = aln.cigar[group.0..=group.1].iter().copied().collect_vec();
   let cigar = Cigar::try_from(ops)?;
 
@@ -253,7 +242,6 @@ mod tests {
   use super::*;
   use crate::align::alignment::Hit;
   use crate::align::bam::cigar::parse_cigar_str;
-  use crate::o;
   use crate::pangraph::strand::Strand;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
@@ -279,16 +267,8 @@ mod tests {
   #[rstest]
   fn test_split_matches_simple_case_forward() {
     let aln = Alignment {
-      qry: Hit {
-        name: o!("qry"),
-        length: 500,
-        interval: Interval::new(200, 255),
-      },
-      reff: Hit {
-        name: o!("ref"),
-        length: 500,
-        interval: Interval::new(100, 140),
-      },
+      qry: Hit::new("qry", 500, (200, 255)),
+      reff: Hit::new("ref", 500, (100, 140)),
       matches: 0,
       length: 0,
       quality: 10,
@@ -309,16 +289,8 @@ mod tests {
 
     let expected = vec![
       Alignment {
-        qry: Hit {
-          name: o!("qry"),
-          length: 500,
-          interval: Interval::new(203, 220),
-        },
-        reff: Hit {
-          name: o!("ref"),
-          length: 500,
-          interval: Interval::new(100, 118),
-        },
+        qry: Hit::new("qry", 500, (203, 220)),
+        reff: Hit::new("ref", 500, (100, 118)),
         matches: 14,
         length: 21,
         quality: 10,
@@ -328,16 +300,8 @@ mod tests {
         align: None,
       },
       Alignment {
-        qry: Hit {
-          name: o!("qry"),
-          length: 500,
-          interval: Interval::new(234, 253),
-        },
-        reff: Hit {
-          name: o!("ref"),
-          length: 500,
-          interval: Interval::new(118, 141),
-        },
+        qry: Hit::new("qry", 500, (234, 253)),
+        reff: Hit::new("ref", 500, (118, 141)),
         matches: 15,
         length: 27,
         quality: 10,
@@ -354,16 +318,8 @@ mod tests {
   #[rstest]
   fn test_split_matches_simple_case_reverse() {
     let aln = Alignment {
-      qry: Hit {
-        name: o!("qry"),
-        length: 500,
-        interval: Interval::new(200, 256),
-      },
-      reff: Hit {
-        name: o!("ref"),
-        length: 500,
-        interval: Interval::new(100, 141),
-      },
+      qry: Hit::new("qry", 500, (200, 256)),
+      reff: Hit::new("ref", 500, (100, 141)),
       matches: 0,
       length: 0,
       quality: 10,
@@ -384,16 +340,8 @@ mod tests {
 
     let expected = vec![
       Alignment {
-        qry: Hit {
-          name: o!("qry"),
-          length: 500,
-          interval: Interval::new(236, 253),
-        },
-        reff: Hit {
-          name: o!("ref"),
-          length: 500,
-          interval: Interval::new(100, 118),
-        },
+        qry: Hit::new("qry", 500, (236, 253)),
+        reff: Hit::new("ref", 500, (100, 118)),
         matches: 14,
         length: 21,
         quality: 10,
@@ -403,16 +351,8 @@ mod tests {
         align: None,
       },
       Alignment {
-        qry: Hit {
-          name: o!("qry"),
-          length: 500,
-          interval: Interval::new(203, 222),
-        },
-        reff: Hit {
-          name: o!("ref"),
-          length: 500,
-          interval: Interval::new(118, 141),
-        },
+        qry: Hit::new("qry", 500, (203, 222)),
+        reff: Hit::new("ref", 500, (118, 141)),
         matches: 15,
         length: 27,
         quality: 10,

@@ -70,16 +70,8 @@ mod tests {
   #[rstest]
   fn test_alignment_energy_simple_case() {
     let aln = Alignment {
-      qry: Hit {
-        name: o!("qry_3"),
-        length: 997,
-        interval: Interval::new(0, 980),
-      },
-      reff: Hit {
-        name: o!("ref_3"),
-        length: 1000,
-        interval: Interval::new(18, 1000),
-      },
+      qry: Hit::new("qry_3", 997, (0, 980)),
+      reff: Hit::new("ref_3", 1000, (18, 1000)),
       matches: 965,
       length: 982,
       quality: 60,
@@ -97,16 +89,8 @@ mod tests {
   #[rstest]
   fn test_alignment_energy2_simple_case() {
     let aln = Alignment {
-      qry: Hit {
-        name: o!("bl_1"),
-        length: 100,
-        interval: Interval::new(0, 50),
-      },
-      reff: Hit {
-        name: o!("bl_2"),
-        length: 200,
-        interval: Interval::new(120, 200),
-      },
+      qry: Hit::new("bl_1", 100, (0, 50)),
+      reff: Hit::new("bl_2", 200, (120, 200)),
       matches: 40,
       length: 60,
       quality: 100,

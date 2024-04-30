@@ -94,16 +94,8 @@ mod tests {
     let actual = align_with_mmseqs(&[ref_seq], &[qry_seq], &params)?;
 
     let expected = vec![Alignment {
-      qry: Hit {
-        name: o!("qry_0"),
-        length: 90,
-        interval: Interval::new(1, 90),
-      },
-      reff: Hit {
-        name: o!("ref_0"),
-        length: 88,
-        interval: Interval::new(1, 88),
-      },
+      qry: Hit::new("qry_0", 90, (1, 90)),
+      reff: Hit::new("ref_0", 88, (1, 88)),
       matches: 77,
       length: 95,
       quality: 102,

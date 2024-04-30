@@ -16,6 +16,16 @@ pub struct Hit {
   pub interval: Interval,
 }
 
+impl Hit {
+  pub fn new(name: impl AsRef<str>, length: usize, (start, end): (usize, usize)) -> Self {
+    Self {
+      name: name.as_ref().to_owned(),
+      length,
+      interval: Interval::new(start, end),
+    }
+  }
+}
+
 /// Alignment is a pairwise homologous alignment between two sequences.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Alignment {

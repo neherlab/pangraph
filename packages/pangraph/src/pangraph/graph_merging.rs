@@ -235,16 +235,8 @@ mod tests {
     };
 
     let aln = Alignment {
-      qry: Hit {
-        name: o!("block_0"),
-        length: 1000,
-        interval: Interval::new(210, 290),
-      },
-      reff: Hit {
-        name: o!("block_1"),
-        length: 1000,
-        interval: Interval::new(310, 390),
-      },
+      qry: Hit::new("block_0", 1000, (210, 290)),
+      reff: Hit::new("block_1", 1000, (310, 390)),
       matches: 80,
       length: 80,
       quality: 10,
@@ -267,16 +259,8 @@ mod tests {
     };
 
     let aln = Alignment {
-      qry: Hit {
-        name: o!("block_0"),
-        length: 1000,
-        interval: Interval::new(310, 390),
-      },
-      reff: Hit {
-        name: o!("block_1"),
-        length: 1000,
-        interval: Interval::new(310, 390),
-      },
+      qry: Hit::new("block_0", 1000, (310, 390)),
+      reff: Hit::new("block_1", 1000, (310, 390)),
       matches: 80,
       length: 80,
       quality: 10,
@@ -294,16 +278,8 @@ mod tests {
   #[rstest]
   fn test_filter_matches() -> Result<(), Report> {
     let aln_0 = Alignment {
-      qry: Hit {
-        name: o!("bl0"),
-        length: 500,
-        interval: Interval::new(100, 200),
-      },
-      reff: Hit {
-        name: o!("bl1"),
-        length: 500,
-        interval: Interval::new(200, 300),
-      },
+      qry: Hit::new("bl0", 500, (100, 200)),
+      reff: Hit::new("bl1", 500, (200, 300)),
       matches: 100,
       length: 0,
       quality: 0,
@@ -314,16 +290,8 @@ mod tests {
     };
 
     let aln_1 = Alignment {
-      qry: Hit {
-        name: o!("bl2"),
-        length: 500,
-        interval: Interval::new(100, 200),
-      },
-      reff: Hit {
-        name: o!("bl3"),
-        length: 500,
-        interval: Interval::new(200, 300),
-      },
+      qry: Hit::new("bl2", 500, (100, 200)),
+      reff: Hit::new("bl3", 500, (200, 300)),
       matches: 100,
       length: 0,
       quality: 0,
@@ -334,16 +302,8 @@ mod tests {
     };
 
     let aln_2 = Alignment {
-      qry: Hit {
-        name: o!("bl2"),
-        length: 500,
-        interval: Interval::new(150, 250),
-      },
-      reff: Hit {
-        name: o!("bl4"),
-        length: 500,
-        interval: Interval::new(200, 300),
-      },
+      qry: Hit::new("bl2", 500, (150, 250)),
+      reff: Hit::new("bl4", 500, (200, 300)),
       matches: 100,
       length: 0,
       quality: 0,
@@ -354,16 +314,8 @@ mod tests {
     };
 
     let aln_3 = Alignment {
-      qry: Hit {
-        name: o!("bl5"),
-        length: 500,
-        interval: Interval::new(100, 200),
-      },
-      reff: Hit {
-        name: o!("bl6"),
-        length: 500,
-        interval: Interval::new(200, 300),
-      },
+      qry: Hit::new("bl5", 500, (100, 200)),
+      reff: Hit::new("bl6", 500, (200, 300)),
       matches: 100,
       length: 0,
       quality: 0,

@@ -52,16 +52,8 @@ impl Alignment {
         let (tstart, tend, _) = order_range(paf.tstart, paf.tend);
 
         Ok(Alignment {
-          qry: Hit {
-            name: paf.query,
-            length: paf.qlen,
-            interval: Interval::new(qstart, qend),
-          },
-          reff: Hit {
-            name: paf.target,
-            length: paf.tlen,
-            interval: Interval::new(tstart, tend),
-          },
+          qry: Hit::new(paf.query, paf.qlen, (qstart, qend)),
+          reff: Hit::new(paf.target, paf.tlen, (tstart, tend)),
           matches: paf.nident,
           length: paf.alnlen,
           quality: paf.bits,
@@ -96,16 +88,8 @@ mod tests {
     // forward alignment
     let paf_content = "qry	507	1	497	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = vec![Alignment {
-      qry: Hit {
-        name: o!("qry"),
-        length: 507,
-        interval: Interval::new(1, 497),
-      },
-      reff: Hit {
-        name: o!("ref"),
-        length: 500,
-        interval: Interval::new(24, 500),
-      },
+      qry: Hit::new("qry", 507, (1, 497)),
+      reff: Hit::new("ref", 500, (24, 500)),
       matches: 440,
       length: 508,
       quality: 622,
@@ -122,16 +106,8 @@ mod tests {
     // reverse alignment
     let paf_content = "rev_qry	507	507	11	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = vec![Alignment {
-      qry: Hit {
-        name: o!("rev_qry"),
-        length: 507,
-        interval: Interval::new(11, 507),
-      },
-      reff: Hit {
-        name: o!("ref"),
-        length: 500,
-        interval: Interval::new(24, 500),
-      },
+      qry: Hit::new("rev_qry", 507, (11, 507)),
+      reff: Hit::new("ref", 500, (24, 500)),
       matches: 440,
       length: 508,
       quality: 622,

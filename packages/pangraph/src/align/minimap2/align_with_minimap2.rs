@@ -127,16 +127,8 @@ mod tests {
     let actual = align_with_minimap2(&refs, &qrys, &params)?;
 
     let expected = vec![Alignment {
-      qry: Hit {
-        name: o!("qry_0"),
-        length: 998,
-        interval: Interval::new(0, 996),
-      },
-      reff: Hit {
-        name: o!("ref_0"),
-        length: 1000,
-        interval: Interval::new(0, 998),
-      },
+      qry: Hit::new("qry_0", 998, (0, 996)),
+      reff: Hit::new("ref_0", 1000, (0, 998)),
       matches: 969,
       length: 998,
       quality: 60,

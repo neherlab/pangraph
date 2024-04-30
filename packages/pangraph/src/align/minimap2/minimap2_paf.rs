@@ -72,16 +72,8 @@ impl Alignment {
         let cigar = parse_cigar_str(cigar)?;
 
         Ok(Alignment {
-          qry: Hit {
-            name: paf.query,
-            length: paf.qlen,
-            interval: Interval::new(paf.qstart, paf.qend),
-          },
-          reff: Hit {
-            name: paf.target,
-            length: paf.tlen,
-            interval: Interval::new(paf.tstart, paf.tend),
-          },
+          qry: Hit::new(paf.query, paf.qlen, (paf.qstart, paf.qend)),
+          reff: Hit::new(paf.target, paf.tlen, (paf.tstart, paf.tend)),
           matches: paf.nident,
           length: paf.alnlen,
           quality: paf.mapq,
@@ -110,16 +102,8 @@ mod tests {
     // forward alignment
     let paf_content = "qry_0	998	0	996	+	ref_0	1000	0	998	969	998	60	NM:i:29	ms:i:845	AS:i:845	nn:i:0	tp:A:P	cm:i:145	s1:i:808	s2:i:0	de:f:0.0291	rl:i:0	cg:Z:545M1D225M1D226M";
     let aln = vec![Alignment {
-      qry: Hit {
-        name: o!("qry_0"),
-        length: 998,
-        interval: Interval::new(0, 996),
-      },
-      reff: Hit {
-        name: o!("ref_0"),
-        length: 1000,
-        interval: Interval::new(0, 998),
-      },
+      qry: Hit::new("qry_0", 998, (0, 996)),
+      reff: Hit::new("ref_0", 1000, (0, 998)),
       matches: 969,
       length: 998,
       quality: 60,
@@ -136,16 +120,8 @@ mod tests {
     // reverse alignment
     let paf_content = "qry_3	997	0	980	-	ref_3	1000	18	1000	965	982	60	NM:i:17	ms:i:889	AS:i:889	nn:i:0	tp:A:P	cm:i:151	s1:i:815	s2:i:0	de:f:0.0173	rl:i:0	cg:Z:124M1D416M1D440M";
     let aln = vec![Alignment {
-      qry: Hit {
-        name: o!("qry_3"),
-        length: 997,
-        interval: Interval::new(0, 980),
-      },
-      reff: Hit {
-        name: o!("ref_3"),
-        length: 1000,
-        interval: Interval::new(18, 1000),
-      },
+      qry: Hit::new("qry_3", 997, (0, 980)),
+      reff: Hit::new("ref_3", 1000, (18, 1000)),
       matches: 965,
       length: 982,
       quality: 60,
