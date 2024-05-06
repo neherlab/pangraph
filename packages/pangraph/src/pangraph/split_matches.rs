@@ -184,6 +184,7 @@ fn generate_subalignment(aln: &Alignment, group: &(usize, usize)) -> Result<Alig
   })
 }
 
+/// If lateral overhangs are shorter than threshold, add them to the alignment to avoid excessive fragmentation
 #[allow(non_snake_case)]
 pub fn side_patches(aln: &mut Alignment, args: &AlignmentArgs) -> Result<(), Report> {
   let mut ops = aln.cigar.to_vec();
@@ -266,6 +267,14 @@ mod tests {
 
   #[rstest]
   fn test_split_matches_simple_case_forward() {
+    // CG      3I  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  3I
+    //
+    // 100 +       0                      17                18                            40
+    // ref     --- MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---
+    // qry     III MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM III
+    // 200 +       3                      19                34                            52
+    // groups      |-----------------------|                |------------------------------|
+
     let aln = Alignment {
       qry: Hit::new("qry", 500, (200, 255)),
       reff: Hit::new("ref", 500, (100, 140)),
@@ -317,6 +326,14 @@ mod tests {
 
   #[rstest]
   fn test_split_matches_simple_case_reverse() {
+    // CG      3I  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  3I
+    //
+    // 100 +       0                      17                18                            40
+    // ref     --- MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---
+    // qry     III MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM III
+    // 200 +       52                     36                21                             3
+    // groups      |-----------------------|                |------------------------------|
+
     let aln = Alignment {
       qry: Hit::new("qry", 500, (200, 256)),
       reff: Hit::new("ref", 500, (100, 141)),
@@ -357,6 +374,126 @@ mod tests {
         length: 27,
         quality: 10,
         cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M".replace(' ', "")).unwrap(),
+        orientation: Strand::Reverse,
+        divergence: Some(0.1),
+        align: None,
+      },
+    ];
+
+    assert_eq!(expected, actual);
+  }
+
+  #[rstest]
+  fn test_split_matches_with_side_patches_forward() {
+    // CG      3I  3D  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  4I   12D
+    //
+    //             0   3                      20                21                            43                55
+    // ref     --- DDD MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---- DDDDDDDDDDDD
+    // qry     III --- MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM IIII ------------
+    // 200 +           3                      19                34                            52   56
+    // groups          |-----------------------|                |------------------------------|
+    // side patch  |---------------------------|                |-----------------------------------|
+
+    let aln = Alignment {
+      qry: Hit::new("qry", 257, (200, 257)),
+      reff: Hit::new("ref", 56, (0, 56)),
+      matches: 29,
+      length: 84,
+      quality: 10,
+      cigar: parse_cigar_str("3I 3D 6M 3I 3M 4D 5M 14I 7M 3D 4I 5M 5D 3M 4I 12D".replace(' ', "")).unwrap(),
+      orientation: Strand::Forward,
+      divergence: Some(0.1),
+      align: None,
+    };
+
+    let actual = split_matches(
+      &aln,
+      &AlignmentArgs {
+        indel_len_threshold: 10,
+        ..AlignmentArgs::default()
+      },
+    )
+    .unwrap();
+
+    let expected = vec![
+      Alignment {
+        qry: Hit::new("qry", 257, (203, 220)),
+        reff: Hit::new("ref", 56, (0, 21)),
+        matches: 14,
+        length: 24,
+        quality: 10,
+        cigar: parse_cigar_str("3D 6M 3I 3M 4D 5M".replace(' ', "")).unwrap(),
+        orientation: Strand::Forward,
+        divergence: Some(0.1),
+        align: None,
+      },
+      Alignment {
+        qry: Hit::new("qry", 257, (234, 257)),
+        reff: Hit::new("ref", 56, (21, 44)),
+        matches: 15,
+        length: 31,
+        quality: 10,
+        cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M 4I".replace(' ', "")).unwrap(),
+        orientation: Strand::Forward,
+        divergence: Some(0.1),
+        align: None,
+      },
+    ];
+
+    assert_eq!(expected, actual);
+  }
+
+  #[rstest]
+  fn test_split_matches_with_side_patches_reverse() {
+    // CG          3I  3D  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  4I   5D
+    //
+    //                 0   3                      20                21                            43         48
+    // ref         --- DDD MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---- DDDDD
+    // qry         III --- MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM IIII -----
+    // 300 +       56      53                     37                22                             4    0
+    // groups              |-----------------------|                |------------------------------|
+    // side patch  |-------------------------------|                |-------------------------------      -----|
+
+    let aln = Alignment {
+      qry: Hit::new("qry", 257, (200, 257)),
+      reff: Hit::new("ref", 49, (0, 49)),
+      matches: 29,
+      length: 77,
+      quality: 10,
+      cigar: parse_cigar_str("3I 3D 6M 3I 3M 4D 5M 14I 7M 3D 4I 5M 5D 3M 4I 5D".replace(' ', "")).unwrap(),
+      orientation: Strand::Reverse,
+      divergence: Some(0.1),
+      align: None,
+    };
+
+    let actual = split_matches(
+      &aln,
+      &AlignmentArgs {
+        indel_len_threshold: 10,
+        ..AlignmentArgs::default()
+      },
+    )
+    .unwrap();
+
+    let expected = vec![
+      Alignment {
+        qry: Hit::new("qry", 257, (237, 257)),
+        reff: Hit::new("ref", 49, (0, 21)),
+        matches: 14,
+        length: 27,
+        quality: 10,
+        cigar: parse_cigar_str("3I 3D 6M 3I 3M 4D 5M".replace(' ', "")).unwrap(),
+        orientation: Strand::Reverse,
+        divergence: Some(0.1),
+        align: None,
+      },
+      Alignment {
+        qry: Hit::new("qry", 257, (204, 223)),
+        reff: Hit::new("ref", 49, (21, 49)),
+        matches: 15,
+        length: 32,
+        quality: 10,
+        cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M 5D".replace(' ', "")).unwrap(),
         orientation: Strand::Reverse,
         divergence: Some(0.1),
         align: None,
