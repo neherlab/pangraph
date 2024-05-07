@@ -60,9 +60,9 @@ impl FromStr for Pangraph {
 pub struct PangraphPath {
   pub name: String,
   pub nodes: Vec<PangraphNode>,
-  pub offset: Option<isize>,
+  // pub offset: Option<isize>,
   pub circular: bool,
-  pub position: Vec<usize>,
+  // pub position: Vec<usize>,
 }
 
 impl PangraphPath {
@@ -76,9 +76,9 @@ impl PangraphPath {
         strand: Strand::default(), // FIXME: should we assume forward strand here?
         position: (0, 0),
       }],
-      offset: circular.then_some(0),
+      // offset: circular.then_some(0),
       circular,
-      position: vec![],
+      // position: vec![],
     }
   }
 }

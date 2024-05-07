@@ -6,12 +6,13 @@ use eyre::Report;
 pub fn merge_blocks_inplace<'l>(
   left: &'l mut PangraphBlock,
   right: &PangraphBlock,
+  new_id: usize,
 ) -> Result<&'l PangraphBlock, Report> {
   // Append new sequences to left block
   for (node_id, edits) in &right.alignments {
     let seq = edits.apply(&right.consensus)?;
     left.append_sequence(&seq, *node_id)?;
-    left.id = random_id();
+    left.id = new_id;
   }
   Ok(left)
 }
@@ -79,8 +80,8 @@ mod tests {
       ),
     ]);
     let block_B = PangraphBlock::new(cons_B, aln_B);
-
-    let new_block = merge_blocks_inplace(&mut block_A, &block_B)?;
+    let new_id = random_id();
+    let new_block = merge_blocks_inplace(&mut block_A, &block_B, new_id)?;
 
     let new_cons = o!("GACTAAACCTGTCCGCTGAAACTGATCGGGGTACTGCAGC");
     let new_aln = BTreeMap::from([
@@ -127,7 +128,7 @@ mod tests {
     ]);
 
     let expected_new_block = PangraphBlock {
-      id: 3,
+      id: new_id,
       consensus: new_cons,
       alignments: new_aln,
     };

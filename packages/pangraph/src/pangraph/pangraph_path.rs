@@ -7,7 +7,7 @@ pub struct PangraphPath {
   pub id: usize,
   pub nodes: Vec<PangraphNode>,
   pub tot_len: usize, // TODO: potentially can be calculated from other fields?
-  pub offset: isize,
+  // pub offset: isize,
   pub circular: bool,
-  pub positions: BTreeMap<String, usize>,
+  // pub positions: BTreeMap<String, usize>,
 }
