@@ -1,4 +1,4 @@
-from classes import *
+from functions import *
 import unittest
 
 
@@ -107,6 +107,7 @@ class TestTargetBlocks(unittest.TestCase):
             cigar=None,
             divergence=None,
             align=None,
+            id=None,
         )
 
         h1 = new_hit(1)
@@ -126,6 +127,54 @@ class TestTargetBlocks(unittest.TestCase):
         TB = target_blocks([a1, a2, a3, a4])
 
         self.assertEqual(TB, {1: [a1, a3], 2: [a1, a4], 3: [a2, a4], 4: [a2, a3]})
+
+
+class TestIntervals(unittest.TestCase):
+    def example(self):
+        block_L = 1000
+        bid = 1
+        hits = [
+            ((1, "reff"), Hit(name=bid, length=None, start=10, stop=100)),
+            ((2, "qry"), Hit(name=bid, length=None, start=200, stop=300)),
+            ((3, "reff"), Hit(name=bid, length=None, start=310, stop=500)),
+            ((1, "qry"), Hit(name=bid, length=None, start=600, stop=900)),
+        ]
+        return hits, block_L, bid
+
+    def test_create_intervals(self):
+        hits, block_L, bid = self.example()
+        I = create_intervals(hits, block_L)
+        self.assertEqual(
+            I,
+            [
+                Interval(start=0, end=10, aligned=False),
+                Interval(start=10, end=100, aligned=True, match_id=(1, "reff")),
+                Interval(start=100, end=200, aligned=False),
+                Interval(start=200, end=300, aligned=True, match_id=(2, "qry")),
+                Interval(start=300, end=310, aligned=False),
+                Interval(start=310, end=500, aligned=True, match_id=(3, "reff")),
+                Interval(start=500, end=600, aligned=False),
+                Interval(start=600, end=900, aligned=True, match_id=(1, "qry")),
+                Interval(start=900, end=1000, aligned=False),
+            ],
+        )
+
+    def test_refine_intervals(self):
+        hits, block_L, bid = self.example()
+        thr_len = 50
+        I = extract_intervals(hits, block_L, thr_len=thr_len)
+        self.assertEqual(
+            I,
+            [
+                Interval(start=0, end=100, aligned=True, match_id=(1, "reff")),
+                Interval(start=100, end=200, aligned=False),
+                Interval(start=200, end=300, aligned=True, match_id=(2, "qry")),
+                Interval(start=300, end=500, aligned=True, match_id=(3, "reff")),
+                Interval(start=500, end=600, aligned=False),
+                Interval(start=600, end=900, aligned=True, match_id=(1, "qry")),
+                Interval(start=900, end=1000, aligned=False),
+            ],
+        )
 
 
 if __name__ == "__main__":

@@ -134,15 +134,15 @@ class Pangraph:
             self.nodes.update({n.id: n for n in new_nodes})
 
 
-def target_blocks(mergers: list[Alignment]) -> dict[int, list[Alignment]]:
-    """
-    given a list of mergers, returns a dictionary of target blocks to
-    the alignments that target them.
-    """
-    target_blocks = defaultdict(list)
-    for merger in mergers:
-        qry = merger.qry.name
-        reff = merger.reff.name
-        target_blocks[qry].append(merger)
-        target_blocks[reff].append(merger)
-    return target_blocks
+@dataclass
+class Interval:
+    start: int
+    end: int
+    aligned: bool
+    match_id: int = None
+
+    def __len__(self) -> int:
+        assert (
+            self.end >= self.start
+        ), f"end position {self.end} is before start position {self.start}"
+        return self.end - self.start
