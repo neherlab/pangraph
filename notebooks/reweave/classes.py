@@ -139,7 +139,7 @@ class Interval:
     start: int
     end: int
     aligned: bool
-    match_id: int = None
+    match_id: tuple[int, str] = None
 
     def __len__(self) -> int:
         assert (
