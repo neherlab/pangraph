@@ -2,6 +2,33 @@ from classes import *
 from collections import defaultdict
 
 
+def assign_new_block_ids(mergers: list[Alignment]):
+    """assigns new block id to each merger inplace"""
+    for i, a in enumerate(mergers):
+        # this could also be done with a sequential counter if we do not parallelize the tree traversal
+        q = a.qry
+        r = a.reff
+        vec = (q.name, q.start, q.stop, r.name, r.start, r.stop, i)
+        a.new_block_id = hash(vec)
+
+
+def assign_deep_block(mergers: list[Alignment], graph: Pangraph):
+    """
+    Decide whether ref or qry is the deep block.
+    We will append sequences to this block, and it will not be flipped if
+    the match is on the reverse strand.
+    """
+    for m in mergers:
+        ref_block = graph.blocks[m.reff.name]
+        qry_block = graph.blocks[m.qry.name]
+        ref_depth = ref_block.depth()
+        qry_depth = qry_block.depth()
+        if ref_depth >= qry_depth:
+            m.deep_block = "reff"
+        else:
+            m.deep_block = "qry"
+
+
 def target_blocks(mergers: list[Alignment]) -> dict[int, list[Alignment]]:
     """
     given a list of mergers, returns a dictionary of target blocks to
@@ -16,16 +43,32 @@ def target_blocks(mergers: list[Alignment]) -> dict[int, list[Alignment]]:
     return target_blocks
 
 
-def extract_hits(bid: int, M: list[Alignment]) -> list[tuple[tuple[int, str], Hit]]:
-    """Collect all of the hits on the block, and returns a list of tuples (id, hit) for each hit.
-    Hits are returned sorted by start position.
-    Nb: can be more than a single hit per alignment, in case of a self-map."""
+def extract_hits(bid: int, M: list[Alignment]) -> list[dict]:
+    """Given a block id and list of alignments, returns a list of hits
+    on that block, with information on strandedness and whether the block is
+    the deepest one of the pair."""
     hits = []
     for m in M:
-        if m.qry.name == bid:
-            hits.append(((m.id, "qry"), m.qry))
         if m.reff.name == bid:
-            hits.append(((m.id, "reff"), m.reff))
+            deep = m.deep_block == "reff"
+            hits.append(
+                {
+                    "new_block_id": m.new_block_id,
+                    "deep": deep,
+                    "orientation": m.orientation,
+                    "hit": m.reff,
+                }
+            )
+        if m.qry.name == bid:
+            deep = m.deep_block == "qry"
+            hits.append(
+                {
+                    "new_block_id": m.new_block_id,
+                    "deep": deep,
+                    "orientation": m.orientation,
+                    "hit": m.qry,
+                }
+            )
     return hits
 
 
@@ -45,29 +88,52 @@ def intervals_sanity_checks(I: list[Interval], L: int) -> None:
         ), f"two consecutive unaligned intervals: {n-1} and {n}"
 
 
+def __unaligned_interval(start: int, end: int, block_id: int):
+    return Interval(
+        start=start,
+        end=end,
+        aligned=False,
+        new_block_id=hash((block_id, start, end)),
+    )
+
+
+def __aligned_interval(hit_dict: dict):
+    return Interval(
+        start=hit_dict["hit"].start,
+        end=hit_dict["hit"].stop,
+        aligned=True,
+        new_block_id=hit_dict["new_block_id"],
+        deep=hit_dict["deep"],
+        orientation=hit_dict["orientation"],
+    )
+
+
 def create_intervals(
-    hits: list[tuple[tuple[int, str], Hit]],
+    hits: list[dict],
     block_L: int,
 ) -> list[Interval]:
     """Create intervals from the list of hits. This split the block in alternated
-    aligned and unaligned intervals."""
+    aligned and unaligned intervals.
+    Assigns new block ids to non-merged intervals."""
 
     # sort hits by start position
-    hits.sort(key=lambda x: x[1].start)
+    hits.sort(key=lambda x: x["hit"].start)
 
     I = []  # list of intervals
     cursor = 0
-    for match_id, h in hits:
+    for h_dict in hits:
+        h = h_dict["hit"]
         if h.start > cursor:
             # unaligned interval
-            I.append(Interval(cursor, h.start, False))
+            I.append(__unaligned_interval(start=cursor, end=h.start, block_id=h.name))
             cursor = h.start
         # aligned interval
-        I.append(Interval(h.start, h.stop, True, match_id))
+        I.append(__aligned_interval(h_dict))
         cursor = h.stop
     if cursor < block_L:
         # final unaligned interval
-        I.append(Interval(cursor, block_L, False))
+        I.append(__unaligned_interval(start=cursor, end=block_L, block_id=h.name))
+
     return I
 
 

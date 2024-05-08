@@ -8,7 +8,12 @@ class Node:
     block_id: int  # block id
     path_id: int  # path id
     position: tuple[int]  # start/end position on the genome
-    strandedness: str  # strandedness of the node
+    strandedness: bool  # strandedness of the node
+
+    def calculate_id(self) -> int:
+        """the id of the node is given by the hash of the tuple (block_id, path_id, start, end)"""
+        nid = hash((self.block_id, self.path_id, self.position[0], self.position[1]))
+        return nid
 
 
 @dataclass
@@ -49,6 +54,12 @@ class Block:
     consensus: str  # consensus sequence of the block
     alignment: dict[int, Edit]  # dict of node id to edit
 
+    def depth(self) -> int:
+        return len(self.alignment)
+
+    def consensus_len(self) -> int:
+        return len(self.consensus)
+
 
 @dataclass
 class Hit:
@@ -60,10 +71,11 @@ class Hit:
 
 @dataclass
 class Alignment:
-    id: int
     qry: Hit
     reff: Hit
-    orientation: str
+    orientation: bool  # fwd/rev match orientation
+    new_block_id: int = None  # id of the newly-created block. Also alignment id.
+    deep_block: str = None  # decide whether qry or ref is the deepest block.
     matches: int = None
     length: int = None
     quality: int = None
@@ -75,8 +87,7 @@ class Alignment:
 @dataclass
 class MergePromise:
     b_deep: Block  # deep block
-    b_shallow: Block  # shallow block
-    new_bid: int  # new block id
+    b_shallow: Block  # shallow block (can be reverse-complemented)
     orientation: bool  # fwd/rev match orientation
 
 
@@ -139,10 +150,12 @@ class Interval:
     start: int
     end: int
     aligned: bool
-    match_id: tuple[int, str] = None  # match id and qry/reff
+    new_block_id: int
+    deep: bool = None
+    orientation: bool = None
 
     def __len__(self) -> int:
         assert (
             self.end >= self.start
-        ), f"end position {self.end} is before start position {self.start}"
+        ), f"end position {self.end} < start position {self.start}"
         return self.end - self.start

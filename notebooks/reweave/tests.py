@@ -100,7 +100,6 @@ class TestTargetBlocks(unittest.TestCase):
         new_aln = lambda qry, reff: Alignment(
             qry=qry,
             reff=reff,
-            id=None,
             orientation=None,
         )
 
@@ -126,38 +125,46 @@ class TestTargetBlocks(unittest.TestCase):
 class TestExtractHits(unittest.TestCase):
     def test_extract_hits(self):
         bid = 1
-
-        new_hit = lambda name: Hit(name=name, length=None, start=None, stop=None)
-        new_aln = lambda id, qry, reff: Alignment(
-            qry=qry,
+        new_hit = lambda name, start: Hit(
+            name=name, length=None, start=start, stop=None
+        )
+        create_hit = lambda new_bid, deep, strand, hit: {
+            "new_block_id": new_bid,
+            "deep": deep,
+            "orientation": strand,
+            "hit": hit,
+        }
+        new_aln = lambda id, reff, qry, strand, deep: Alignment(
             reff=reff,
-            id=id,
-            orientation=None,
+            qry=qry,
+            new_block_id=id,
+            orientation=strand,
+            deep_block=deep,
         )
 
-        h1_a = new_hit(1)
-        h1_b = new_hit(1)
-        h1_c = new_hit(1)
-        h1_d = new_hit(1)
-        h2_e = new_hit(2)
-        h2_f = new_hit(2)
-        h2_g = new_hit(2)
-        h2_h = new_hit(2)
+        h1_a = new_hit(1, 10)
+        h1_b = new_hit(1, 20)
+        h1_c = new_hit(1, 30)
+        h1_d = new_hit(1, 40)
+        h2_e = new_hit(2, 50)
+        h2_f = new_hit(2, 60)
+        h2_g = new_hit(2, 70)
+        h2_h = new_hit(2, 80)
 
-        a1 = new_aln(1, h1_a, h1_b)  # a1 : 1 -- 1
-        a2 = new_aln(2, h1_c, h2_e)  # a2 : 1 -- 2
-        a3 = new_aln(3, h2_f, h1_d)  # a3 : 2 -- 1
-        a4 = new_aln(4, h2_g, h2_h)  # a4 : 2 -- 2
+        a1 = new_aln(3, h1_a, h1_b, True, "reff")  # 1 -- 1
+        a2 = new_aln(4, h1_c, h2_e, True, "qry")  # 1 -- 2
+        a3 = new_aln(5, h2_f, h1_d, False, "reff")  # 2 -- 1
+        a4 = new_aln(6, h2_g, h2_h, False, "qry")  # 2 -- 2
 
         hits = extract_hits(bid, [a1, a2, a3, a4])
 
         self.assertEqual(
             hits,
             [
-                ((1, "qry"), h1_a),
-                ((1, "reff"), h1_b),
-                ((2, "qry"), h1_c),
-                ((3, "reff"), h1_d),
+                create_hit(3, True, True, h1_a),
+                create_hit(3, False, True, h1_b),
+                create_hit(4, False, True, h1_c),
+                create_hit(5, False, False, h1_d),
             ],
         )
 
@@ -165,12 +172,18 @@ class TestExtractHits(unittest.TestCase):
 class TestIntervals(unittest.TestCase):
     def example(self):
         block_L = 1000
-        bid = 1
+        bid = 0
+        create_hit = lambda new_bid, deep, strand, start, stop: {
+            "new_block_id": new_bid,
+            "deep": deep,
+            "orientation": strand,
+            "hit": Hit(name=bid, length=None, start=start, stop=stop),
+        }
         hits = [
-            ((1, "reff"), Hit(name=bid, length=None, start=10, stop=100)),
-            ((2, "qry"), Hit(name=bid, length=None, start=200, stop=300)),
-            ((3, "reff"), Hit(name=bid, length=None, start=310, stop=500)),
-            ((1, "qry"), Hit(name=bid, length=None, start=600, stop=900)),
+            create_hit(1, True, True, 10, 100),
+            create_hit(2, False, True, 200, 300),
+            create_hit(3, True, True, 310, 500),
+            create_hit(4, False, True, 600, 900),
         ]
         return hits, block_L, bid
 
@@ -180,15 +193,65 @@ class TestIntervals(unittest.TestCase):
         self.assertEqual(
             I,
             [
-                Interval(start=0, end=10, aligned=False),
-                Interval(start=10, end=100, aligned=True, match_id=(1, "reff")),
-                Interval(start=100, end=200, aligned=False),
-                Interval(start=200, end=300, aligned=True, match_id=(2, "qry")),
-                Interval(start=300, end=310, aligned=False),
-                Interval(start=310, end=500, aligned=True, match_id=(3, "reff")),
-                Interval(start=500, end=600, aligned=False),
-                Interval(start=600, end=900, aligned=True, match_id=(1, "qry")),
-                Interval(start=900, end=1000, aligned=False),
+                Interval(
+                    start=0, end=10, aligned=False, new_block_id=hash((bid, 0, 10))
+                ),
+                Interval(
+                    start=10,
+                    end=100,
+                    aligned=True,
+                    new_block_id=1,
+                    deep=True,
+                    orientation=True,
+                ),
+                Interval(
+                    start=100,
+                    end=200,
+                    aligned=False,
+                    new_block_id=hash((bid, 100, 200)),
+                ),
+                Interval(
+                    start=200,
+                    end=300,
+                    aligned=True,
+                    new_block_id=2,
+                    deep=False,
+                    orientation=True,
+                ),
+                Interval(
+                    start=300,
+                    end=310,
+                    aligned=False,
+                    new_block_id=hash((bid, 300, 310)),
+                ),
+                Interval(
+                    start=310,
+                    end=500,
+                    aligned=True,
+                    new_block_id=3,
+                    deep=True,
+                    orientation=True,
+                ),
+                Interval(
+                    start=500,
+                    end=600,
+                    aligned=False,
+                    new_block_id=hash((bid, 500, 600)),
+                ),
+                Interval(
+                    start=600,
+                    end=900,
+                    aligned=True,
+                    new_block_id=4,
+                    deep=False,
+                    orientation=True,
+                ),
+                Interval(
+                    start=900,
+                    end=1000,
+                    aligned=False,
+                    new_block_id=hash((bid, 900, 1000)),
+                ),
             ],
         )
 
@@ -199,13 +262,56 @@ class TestIntervals(unittest.TestCase):
         self.assertEqual(
             I,
             [
-                Interval(start=0, end=100, aligned=True, match_id=(1, "reff")),
-                Interval(start=100, end=200, aligned=False),
-                Interval(start=200, end=300, aligned=True, match_id=(2, "qry")),
-                Interval(start=300, end=500, aligned=True, match_id=(3, "reff")),
-                Interval(start=500, end=600, aligned=False),
-                Interval(start=600, end=900, aligned=True, match_id=(1, "qry")),
-                Interval(start=900, end=1000, aligned=False),
+                Interval(
+                    start=0,
+                    end=100,
+                    aligned=True,
+                    new_block_id=1,
+                    deep=True,
+                    orientation=True,
+                ),
+                Interval(
+                    start=100,
+                    end=200,
+                    aligned=False,
+                    new_block_id=hash((bid, 100, 200)),
+                ),
+                Interval(
+                    start=200,
+                    end=300,
+                    aligned=True,
+                    new_block_id=2,
+                    deep=False,
+                    orientation=True,
+                ),
+                Interval(
+                    start=300,
+                    end=500,
+                    aligned=True,
+                    new_block_id=3,
+                    deep=True,
+                    orientation=True,
+                ),
+                Interval(
+                    start=500,
+                    end=600,
+                    aligned=False,
+                    new_block_id=hash((bid, 500, 600)),
+                ),
+                Interval(
+                    start=600,
+                    end=900,
+                    aligned=True,
+                    new_block_id=4,
+                    deep=False,
+                    orientation=True,
+                ),
+                Interval(
+                    start=900,
+                    end=1000,
+                    aligned=False,
+                    new_block_id=hash((bid, 900, 1000)),
+                ),
             ],
         )
 
