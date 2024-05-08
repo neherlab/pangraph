@@ -100,14 +100,8 @@ class TestTargetBlocks(unittest.TestCase):
         new_aln = lambda qry, reff: Alignment(
             qry=qry,
             reff=reff,
-            matches=None,
-            length=None,
-            quality=None,
-            orientation=None,
-            cigar=None,
-            divergence=None,
-            align=None,
             id=None,
+            orientation=None,
         )
 
         h1 = new_hit(1)
@@ -127,6 +121,45 @@ class TestTargetBlocks(unittest.TestCase):
         TB = target_blocks([a1, a2, a3, a4])
 
         self.assertEqual(TB, {1: [a1, a3], 2: [a1, a4], 3: [a2, a4], 4: [a2, a3]})
+
+
+class TestExtractHits(unittest.TestCase):
+    def test_extract_hits(self):
+        bid = 1
+
+        new_hit = lambda name: Hit(name=name, length=None, start=None, stop=None)
+        new_aln = lambda id, qry, reff: Alignment(
+            qry=qry,
+            reff=reff,
+            id=id,
+            orientation=None,
+        )
+
+        h1_a = new_hit(1)
+        h1_b = new_hit(1)
+        h1_c = new_hit(1)
+        h1_d = new_hit(1)
+        h2_e = new_hit(2)
+        h2_f = new_hit(2)
+        h2_g = new_hit(2)
+        h2_h = new_hit(2)
+
+        a1 = new_aln(1, h1_a, h1_b)  # a1 : 1 -- 1
+        a2 = new_aln(2, h1_c, h2_e)  # a2 : 1 -- 2
+        a3 = new_aln(3, h2_f, h1_d)  # a3 : 2 -- 1
+        a4 = new_aln(4, h2_g, h2_h)  # a4 : 2 -- 2
+
+        hits = extract_hits(bid, [a1, a2, a3, a4])
+
+        self.assertEqual(
+            hits,
+            [
+                ((1, "qry"), h1_a),
+                ((1, "reff"), h1_b),
+                ((2, "qry"), h1_c),
+                ((3, "reff"), h1_d),
+            ],
+        )
 
 
 class TestIntervals(unittest.TestCase):

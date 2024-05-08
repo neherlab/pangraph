@@ -63,13 +63,13 @@ class Alignment:
     id: int
     qry: Hit
     reff: Hit
-    matches: int
-    length: int
-    quality: int
     orientation: str
-    cigar: str
-    divergence: float
-    align: float
+    matches: int = None
+    length: int = None
+    quality: int = None
+    cigar: str = None
+    divergence: float = None
+    align: float = None
 
 
 @dataclass
@@ -139,7 +139,7 @@ class Interval:
     start: int
     end: int
     aligned: bool
-    match_id: tuple[int, str] = None
+    match_id: tuple[int, str] = None  # match id and qry/reff
 
     def __len__(self) -> int:
         assert (

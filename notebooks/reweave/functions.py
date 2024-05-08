@@ -16,16 +16,16 @@ def target_blocks(mergers: list[Alignment]) -> dict[int, list[Alignment]]:
     return target_blocks
 
 
-def extract_hits(bid: int, M: list[Alignment]) -> list[tuple[int, Hit]]:
+def extract_hits(bid: int, M: list[Alignment]) -> list[tuple[tuple[int, str], Hit]]:
     """Collect all of the hits on the block, and returns a list of tuples (id, hit) for each hit.
     Hits are returned sorted by start position.
     Nb: can be more than a single hit per alignment, in case of a self-map."""
     hits = []
     for m in M:
         if m.qry.name == bid:
-            hits.append((m.id, m.qry, "qry"))
+            hits.append(((m.id, "qry"), m.qry))
         if m.reff.name == bid:
-            hits.append((m.id, m.reff, "reff"))
+            hits.append(((m.id, "reff"), m.reff))
     return hits
 
 
@@ -45,7 +45,10 @@ def intervals_sanity_checks(I: list[Interval], L: int) -> None:
         ), f"two consecutive unaligned intervals: {n-1} and {n}"
 
 
-def create_intervals(hits: list[tuple[int, Hit]], block_L: int) -> list[Interval]:
+def create_intervals(
+    hits: list[tuple[tuple[int, str], Hit]],
+    block_L: int,
+) -> list[Interval]:
     """Create intervals from the list of hits. This split the block in alternated
     aligned and unaligned intervals."""
 
@@ -68,23 +71,6 @@ def create_intervals(hits: list[tuple[int, Hit]], block_L: int) -> list[Interval
     return I
 
 
-def extract_intervals(
-    hits: list[tuple[int, Hit]], block_L: int, thr_len: int
-) -> list[Interval]:
-    """Split the block into intervals, according to the hits.
-    block_L is the total block consensus length."""
-    # create intervals
-    intervals = create_intervals(hits, block_L)
-
-    # refine intervals inplace: merges short unaligned intervals with the longest adjacent aligned interval
-    refine_intervals(intervals, thr_len)
-
-    # assertions for sanity checks
-    intervals_sanity_checks(intervals, block_L)
-
-    return intervals
-
-
 def refine_intervals(I: list[Interval], thr_len: int) -> list[Interval]:
     """Intervals shorter than the threshold length are joined to the longest adjacent aligned interval."""
     mergers = []
@@ -92,21 +78,19 @@ def refine_intervals(I: list[Interval], thr_len: int) -> list[Interval]:
         # unaligned intervals shorter than the threshold are joined to the longest adjacent aligned interval
         if len(i) < thr_len:
 
-            # sanity-check: aligned interval should always be longer than the threshold.
-            assert (
-                not i.aligned
-            ), f"aligned interval {n} is shorter than the threshold length"
-
             # find the longest adjacent aligned interval
             L_left = len(I[n - 1]) if n > 0 else 0
             L_right = len(I[n + 1]) if n + 1 < len(I) else 0
+
+            # sanity-check: aligned interval should always be longer than the threshold.
+            assert not i.aligned, f"aligned interval {n} shorter than the threshold len"
+            # sanity check: left and right intervals should be aligned and longer than threshold
             if n > 0:
                 assert I[n - 1].aligned, f"no adjacent aligned interval on the left"
+                assert L_left >= thr_len, f"left interval shorter than threshold len"
             if n + 1 < len(I):
                 assert I[n + 1].aligned, f"no adjacent aligned interval on the right"
-            assert (L_left > thr_len) or (
-                L_right > thr_len
-            ), f"no adjacent aligned interval longer than the threshold length"
+                assert L_right >= thr_len, f"right interval shorter than threshold len"
 
             # merge with the longest adjacent aligned interval
             # if same length: merge with the left interval
@@ -120,3 +104,20 @@ def refine_intervals(I: list[Interval], thr_len: int) -> list[Interval]:
         else:
             I[n_to].end = I[n_from].end
         del I[n_from]
+
+
+def extract_intervals(
+    hits: list[tuple[tuple[int, str], Hit]], block_L: int, thr_len: int
+) -> list[Interval]:
+    """Split the block into intervals, according to the hits.
+    block_L is the total block consensus length."""
+    # create intervals
+    intervals = create_intervals(hits, block_L)
+
+    # refine intervals inplace: merges short unaligned intervals with the longest adjacent aligned interval
+    refine_intervals(intervals, thr_len)
+
+    # assertions for sanity checks
+    intervals_sanity_checks(intervals, block_L)
+
+    return intervals
