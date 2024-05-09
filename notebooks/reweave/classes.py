@@ -159,3 +159,25 @@ class Interval:
             self.end >= self.start
         ), f"end position {self.end} < start position {self.start}"
         return self.end - self.start
+
+    def position_is_in(self, pos: int) -> bool:
+        """Checks whether the position is on the interval."""
+        return self.start <= pos < self.end
+
+    def overlap_len(self, start: int, L: int) -> int:
+        """Given the start and length of a second interval, returns the length of the overlap."""
+        if self.position_is_in(start):
+            return min(self.end, start + L) - start
+        else:
+            return 0
+
+    def insertion_overlap(self, ins_pos: int, block_L: int) -> bool:
+        """Decides whether an insertion overlaps with the interval.
+        insertions are left-inclusive, except for the one at the righ-edge of the block, which is always included.
+        """
+        if self.position_is_in(ins_pos):
+            return True
+        elif (ins_pos == block_L) and (self.end == block_L):
+            return True
+        else:
+            return False
