@@ -164,12 +164,16 @@ class Interval:
         """Checks whether the position is on the interval."""
         return self.start <= pos < self.end
 
-    def overlap_len(self, start: int, L: int) -> int:
-        """Given the start and length of a second interval, returns the length of the overlap."""
-        if self.position_is_in(start):
-            return min(self.end, start + L) - start
-        else:
-            return 0
+    def overlap(self, s: int, l: int) -> bool:
+        """Given the start and length of an interval, returns whether there is an overlap."""
+        if self.position_is_in(s):
+            return True
+        if s < self.start:
+            if s + l > self.start:
+                return True
+            else:
+                return False
+        return False
 
     def insertion_overlap(self, ins_pos: int, block_L: int) -> bool:
         """Decides whether an insertion overlaps with the interval.

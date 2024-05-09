@@ -7,7 +7,7 @@ def slice_substitutions(i: Interval, S: Substitution):
     new_S = []
     for s in filter(lambda s: i.position_is_in(s.pos), S):
         new_pos = s.pos - i.start
-        new_S.append(Substitution(pos=new_pos, base=s.base))
+        new_S.append(Substitution(pos=new_pos, alt=s.alt))
     return new_S
 
 
@@ -15,11 +15,11 @@ def slice_deletions(i: Interval, D: Deletion):
     """Given a set of deletions and an interval, returns the reduced set of
     deletions relative to the interval."""
     new_D = []
-    for d in D:
-        overlap_L = i.overlap_length(d.pos, d.length)
-        if overlap_L > 0:
-            new_pos = d.pos - i.start
-            new_D.append(Deletion(pos=new_pos, length=overlap_L))
+    for d in filter(lambda d: i.overlap(d.pos, d.length), D):
+        new_start = max(d.pos, i.start) - i.start
+        new_end = min(d.pos + d.length, i.end) - i.start
+        new_len = new_end - new_start
+        new_D.append(Deletion(pos=new_start, length=new_len))
     return new_D
 
 
