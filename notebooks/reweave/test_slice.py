@@ -106,6 +106,17 @@ class TestSlice(unittest.TestCase):
             ],
         )
 
+    def test_interval_node_coords(self):
+        seq, ed = self.generate_example()
+
+        i = Interval(start=6, end=14, aligned=True, new_block_id=0)
+        new_pos = interval_node_coords(i, ed, len(seq))
+        self.assertEqual(new_pos, (5, 14))
+
+        i = Interval(start=15, end=21, aligned=True, new_block_id=0)
+        new_pos = interval_node_coords(i, ed, len(seq))
+        self.assertEqual(new_pos, (16, 19))
+
 
 if __name__ == "__main__":
     unittest.main()
