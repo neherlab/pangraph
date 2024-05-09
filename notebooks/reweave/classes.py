@@ -173,7 +173,8 @@ class Interval:
 
     def insertion_overlap(self, ins_pos: int, block_L: int) -> bool:
         """Decides whether an insertion overlaps with the interval.
-        insertions are left-inclusive, except for the one at the righ-edge of the block, which is always included.
+        insertions are left-inclusive with one exception:
+        the one at the righ-edge of the block is included if self.end == block_L.
         """
         if self.position_is_in(ins_pos):
             return True
