@@ -3,6 +3,7 @@ from test_slice import *
 from test_intervals import *
 import unittest
 import numpy as np
+from copy import deepcopy
 
 
 class TestGraphUpdate(unittest.TestCase):
@@ -367,7 +368,7 @@ class TestReweave(unittest.TestCase):
             40: 500,
             50: 250,
         }
-        Bseq = {k: np.random.choice(list("ACGT"), l) for k, l in Bl.items()}
+        Bseq = {k: "".join(np.random.choice(list("ACGT"), l)) for k, l in Bl.items()}
 
         # nodes
         n = lambda idx, bid, path, pos, s: Node(idx, bid, path, pos, s)
@@ -424,23 +425,23 @@ class TestReweave(unittest.TestCase):
         # alignments
         M = [
             Alignment(
-                qry=Hit(10, 200, 10, 200),
+                qry=Hit(10, 200, 10, 200),  # deep
                 reff=Hit(40, 500, 10, 200),
                 orientation=True,
             ),
             Alignment(
                 qry=Hit(20, 400, 0, 200),
-                reff=Hit(40, 500, 300, 500),
-                orientation=True,
-            ),
-            Alignment(
-                qry=Hit(20, 400, 300, 400),
-                reff=Hit(50, 250, 0, 100),
+                reff=Hit(40, 500, 300, 500),  # deep
                 orientation=False,
             ),
             Alignment(
+                qry=Hit(20, 400, 300, 400),
+                reff=Hit(50, 250, 0, 100),  # deep
+                orientation=True,
+            ),
+            Alignment(
                 qry=Hit(30, 100, 0, 100),
-                reff=Hit(50, 250, 150, 250),
+                reff=Hit(50, 250, 150, 250),  # deep
                 orientation=True,
             ),
         ]
@@ -448,9 +449,96 @@ class TestReweave(unittest.TestCase):
         return G, M
 
     def test_reweave(self):
+        i = lambda p, l, a: Insertion(p, a * l)
+        d = lambda p, l: Deletion(p, l)
+        s = lambda p, a: Substitution(p, a)
+
         G, M = self.generate_example()
+        O = deepcopy(G)
         thr_len = 90
-        reweave(M, G, thr_len)
+        G, P = reweave(M, G, thr_len=90)
+
+        # new paths
+        p1 = G.paths[100]
+        p2 = G.paths[200]
+        p3 = G.paths[300]
+
+        # new nodes
+        self.assertEqual(len(p1.nodes), 2)
+        nid_100_1, nid_100_2 = p1.nodes
+        self.assertEqual(len(p2.nodes), 5)
+        nid_200_1, nid_200_2, nid_200_3, nid_200_4, nid_200_5 = p2.nodes
+        self.assertEqual(len(p3.nodes), 7)
+        nid_300_1, nid_300_2, nid_300_3, nid_300_4, nid_300_5, nid_300_6, nid_300_7 = (
+            p3.nodes
+        )
+
+        # check node positions
+        self.assertEqual(G.nodes[nid_100_1].position, O.nodes[1].position)
+        self.assertEqual(G.nodes[nid_100_2].position, O.nodes[2].position)
+        self.assertEqual(G.nodes[nid_200_1].position, O.nodes[3].position)
+        self.assertEqual(G.nodes[nid_200_2].position, (180, 275))
+        self.assertEqual(G.nodes[nid_200_3].position, (275, 380))
+        self.assertEqual(G.nodes[nid_200_4].position, (380, 555))
+        self.assertEqual(G.nodes[nid_200_5].position, O.nodes[5].position)
+        self.assertEqual(G.nodes[nid_300_1].position, (600, 800))
+        self.assertEqual(G.nodes[nid_300_2].position, (800, 910))
+        self.assertEqual(G.nodes[nid_300_3].position, (910, 100))
+        self.assertEqual(G.nodes[nid_300_4].position, (100, 225))
+        self.assertEqual(G.nodes[nid_300_5].position, (225, 325))
+        self.assertEqual(G.nodes[nid_300_6].position, (325, 430))
+        self.assertEqual(G.nodes[nid_300_7].position, (430, 580))
+
+        # check node orientation
+        self.assertEqual(G.nodes[nid_100_1].strandedness, True)
+        self.assertEqual(G.nodes[nid_100_2].strandedness, True)
+        self.assertEqual(G.nodes[nid_200_1].strandedness, False)
+        self.assertEqual(G.nodes[nid_200_2].strandedness, False)
+        self.assertEqual(G.nodes[nid_200_3].strandedness, False)
+        self.assertEqual(G.nodes[nid_200_4].strandedness, True)
+        self.assertEqual(G.nodes[nid_200_5].strandedness, False)
+        self.assertEqual(G.nodes[nid_300_1].strandedness, True)
+        self.assertEqual(G.nodes[nid_300_2].strandedness, True)
+        self.assertEqual(G.nodes[nid_300_3].strandedness, True)
+        self.assertEqual(G.nodes[nid_300_4].strandedness, True)
+        self.assertEqual(G.nodes[nid_300_5].strandedness, True)
+        self.assertEqual(G.nodes[nid_300_6].strandedness, False)
+        self.assertEqual(G.nodes[nid_300_7].strandedness, False)
+
+        # block identity
+        bid10_1 = G.nodes[nid_100_1].block_id
+        self.assertEqual(G.nodes[nid_200_5].block_id, bid10_1)
+        self.assertNotIn(bid10_1, G.blocks)  # missing block key, it is in merge promise
+        self.assertIn(bid10_1, [p.b_deep.id for p in P])
+
+        bid20_2 = G.nodes[nid_200_3].block_id
+        self.assertIn(bid20_2, G.blocks)  # block is already in the graph
+        self.assertNotIn(
+            bid20_2, [p.b_deep.id for p in P] + [p.b_shallow.id for p in P]
+        )
+        ed20_2 = G.blocks[bid20_2].alignment[nid_200_3]
+        self.assertEqual(ed20_2, Edit(ins=[i(50, 5, "A")], dels=[], subs=[s(25, "T")]))
+
+        bid20_1 = G.nodes[nid_200_1].block_id
+        for n in [nid_100_2, nid_300_5, nid_300_6]:
+            self.assertEqual(G.nodes[n].block_id, bid20_1)
+
+        # merge promises
+        self.assertEqual(len(P), 4)
+        P_dict = {p.b_deep.id: p for p in P}
+
+        p1 = P_dict[bid10_1]
+        self.assertEqual(p1.orientation, True)
+        self.assertEqual(p1.b_deep.consensus, O.blocks[10].consensus)
+        self.assertEqual(p1.b_shallow.consensus, O.blocks[40].consensus[0:200])
+        self.assertEqual(p1.b_shallow.id, G.nodes[nid_300_1].block_id)
+
+        bid40_3 = G.nodes[nid_300_3].block_id
+        p2 = P_dict[bid40_3]
+        self.assertEqual(p2.orientation, False)
+        self.assertEqual(p2.b_deep.consensus, O.blocks[40].consensus[300:500])
+        self.assertEqual(p2.b_shallow.id, G.nodes[nid_200_4].block_id)
+        self.assertEqual(p2.b_shallow.consensus, O.blocks[20].consensus[0:200])
 
 
 if __name__ == "__main__":

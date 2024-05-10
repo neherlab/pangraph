@@ -66,6 +66,14 @@ def apply_edits_to_ref(edits: Edit, ref: str) -> str:
     return "".join(qry)
 
 
+def reverse_complement(seq: str) -> str:
+    """
+    Reverse complement a DNA sequence
+    """
+    complement = {"A": "T", "C": "G", "G": "C", "T": "A"}
+    return "".join(complement[base] for base in reversed(seq))
+
+
 @dataclass
 class Block:
     id: int  # block id
@@ -155,6 +163,29 @@ class Pangraph:
             # add new nodes to graph node dictionary
             self.nodes.update({n.id: n for n in new_nodes})
 
+    # def get_node_seq(self, nid):
+    #     """Get the sequence of a node.
+    #     The strandedness is the one of the block, not of the path.
+    #     It might be necessary to reverse-complement it to get the
+    #     path sequence."""
+    #     bid = self.nodes[nid].block_id
+    #     b = self.blocks[bid]
+    #     edit = b.alignment[nid]
+    #     return apply_edits_to_ref(edit, b.consensus)
+
+    # def get_path_seq(self, pid):
+    #     """Reconstruct the full sequence of a path."""
+    #     path = self.paths[pid]
+    #     seq = ""
+    #     for nid in path.nodes:
+    #         n = self.nodes[nid]
+    #         strand = n.strandedness
+    #         node_seq = self.get_node_seq(nid)
+    #         if not strand:
+    #             node_seq = reverse_complement(node_seq)
+    #         seq += node_seq
+    #     return seq
+
 
 @dataclass
 class Interval:
@@ -207,11 +238,3 @@ class ToMerge:
 
     def block_id(self) -> int:
         return self.block.id
-
-
-def reverse_complement(seq: str) -> str:
-    """
-    Reverse complement a DNA sequence
-    """
-    complement = {"A": "T", "C": "G", "G": "C", "T": "A"}
-    return "".join(complement[base] for base in reversed(seq))
