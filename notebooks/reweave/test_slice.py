@@ -119,7 +119,39 @@ class TestSlice(unittest.TestCase):
 
 
 class TestPosition(unittest.TestCase):
-    pass
+
+    def test_new_position(self):
+        path_L = 100
+
+        strandedness = True
+        node_coords = (10, 20)
+        old_position = (10, 40)
+        new_pos = new_position(old_position, node_coords, path_L, strandedness)
+        self.assertEqual(new_pos, (20, 30))
+
+        old_position = (95, 20)
+        new_pos = new_position(old_position, node_coords, path_L, strandedness)
+        self.assertEqual(new_pos, (5, 15))
+
+        strandedness = False
+        old_position = (10, 50)
+        new_pos = new_position(old_position, node_coords, path_L, strandedness)
+        self.assertEqual(new_pos, (30, 40))
+
+        old_position = (40, 5)
+        new_pos = new_position(old_position, node_coords, path_L, strandedness)
+        self.assertEqual(new_pos, (85, 95))
+
+    def test_node_coords(self):
+        i = Interval(start=10, end=20, aligned=True, new_block_id=0)
+        ed = Edit(
+            subs=[Substitution(2, "G"), Substitution(13, "T"), Substitution(24, "T")],
+            dels=[Deletion(18, 3)],
+            ins=[Insertion(7, "A"), Insertion(10, "AAAA"), Insertion(20, "TTTTTTTT")],
+        )
+        block_L = 100
+        new_pos = interval_node_coords(i, ed, block_L)
+        self.assertEqual(new_pos, (11, 23))
 
 
 class TestBlockSlice(unittest.TestCase):
@@ -271,9 +303,6 @@ class TestBlockSlice(unittest.TestCase):
             ins=[],
         )
         self.assertEqual(new_b.alignment[nn3.id], n3ed)
-
-    # TODO: test reverse shallow
-    # TODO: test interval coordinates
 
 
 if __name__ == "__main__":
