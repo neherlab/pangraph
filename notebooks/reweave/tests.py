@@ -1,5 +1,6 @@
-from functions import *
+from utils import *
 from test_slice import *
+from test_intervals import *
 import unittest
 
 
@@ -95,34 +96,6 @@ class TestGraphUpdate(unittest.TestCase):
         self.assertEqual(G.nodes, new_nodes)
 
 
-class TestTargetBlocks(unittest.TestCase):
-    def test_target_blocks(self):
-        new_hit = lambda name: Hit(name=name, length=None, start=None, stop=None)
-        new_aln = lambda qry, reff: Alignment(
-            qry=qry,
-            reff=reff,
-            orientation=None,
-        )
-
-        h1 = new_hit(1)
-        h2 = new_hit(2)
-        h3 = new_hit(3)
-        h4 = new_hit(4)
-        h5 = new_hit(1)
-        h6 = new_hit(2)
-        h7 = new_hit(3)
-        h8 = new_hit(4)
-
-        a1 = new_aln(h1, h2)  # a1 : 1 -- 2
-        a2 = new_aln(h3, h4)  # a2 : 3 -- 4
-        a3 = new_aln(h5, h8)  # a3 : 1 -- 4
-        a4 = new_aln(h6, h7)  # a4 : 2 -- 3
-
-        TB = target_blocks([a1, a2, a3, a4])
-
-        self.assertEqual(TB, {1: [a1, a3], 2: [a1, a4], 3: [a2, a4], 4: [a2, a3]})
-
-
 class TestExtractHits(unittest.TestCase):
     def test_extract_hits(self):
         bid = 1
@@ -170,149 +143,76 @@ class TestExtractHits(unittest.TestCase):
         )
 
 
-class TestIntervals(unittest.TestCase):
-    def example(self):
-        block_L = 1000
-        bid = 0
-        create_hit = lambda new_bid, deep, strand, start, stop: {
-            "new_block_id": new_bid,
-            "deep": deep,
-            "orientation": strand,
-            "hit": Hit(name=bid, length=None, start=start, stop=stop),
-        }
-        hits = [
-            create_hit(1, True, True, 10, 100),
-            create_hit(2, False, True, 200, 300),
-            create_hit(3, True, True, 310, 500),
-            create_hit(4, False, True, 600, 900),
-        ]
-        return hits, block_L, bid
+class TestMisc(unittest.TestCase):
 
-    def test_create_intervals(self):
-        hits, block_L, bid = self.example()
-        I = create_intervals(hits, block_L)
-        self.assertEqual(
-            I,
-            [
-                Interval(
-                    start=0, end=10, aligned=False, new_block_id=hash((bid, 0, 10))
-                ),
-                Interval(
-                    start=10,
-                    end=100,
-                    aligned=True,
-                    new_block_id=1,
-                    deep=True,
-                    orientation=True,
-                ),
-                Interval(
-                    start=100,
-                    end=200,
-                    aligned=False,
-                    new_block_id=hash((bid, 100, 200)),
-                ),
-                Interval(
-                    start=200,
-                    end=300,
-                    aligned=True,
-                    new_block_id=2,
-                    deep=False,
-                    orientation=True,
-                ),
-                Interval(
-                    start=300,
-                    end=310,
-                    aligned=False,
-                    new_block_id=hash((bid, 300, 310)),
-                ),
-                Interval(
-                    start=310,
-                    end=500,
-                    aligned=True,
-                    new_block_id=3,
-                    deep=True,
-                    orientation=True,
-                ),
-                Interval(
-                    start=500,
-                    end=600,
-                    aligned=False,
-                    new_block_id=hash((bid, 500, 600)),
-                ),
-                Interval(
-                    start=600,
-                    end=900,
-                    aligned=True,
-                    new_block_id=4,
-                    deep=False,
-                    orientation=True,
-                ),
-                Interval(
-                    start=900,
-                    end=1000,
-                    aligned=False,
-                    new_block_id=hash((bid, 900, 1000)),
-                ),
-            ],
+    def test_assign_deep_block(self):
+        b1 = Block(id=1, consensus="A", alignment={1: None, 2: None, 3: None})
+        b2 = Block(id=2, consensus="B", alignment={4: None, 5: None})
+        b3 = Block(id=3, consensus="C", alignment={6: None})
+        b4 = Block(id=4, consensus="D", alignment={7: None, 8: None, 9: None, 10: None})
+        G = Pangraph(paths={}, blocks={1: b1, 2: b2, 3: b3, 4: b4}, nodes={})
+
+        h = lambda name: Hit(name=name, length=None, start=None, stop=None)
+        a = lambda q, r: Alignment(qry=h(q), reff=h(r), orientation=None)
+        mergers = [
+            a(1, 2),
+            a(3, 4),
+            a(4, 1),
+        ]
+        assign_deep_block(mergers, G)
+
+        self.assertEqual(mergers[0].deep_block, "qry")
+        self.assertEqual(mergers[1].deep_block, "reff")
+        self.assertEqual(mergers[2].deep_block, "qry")
+
+    def test_target_blocks(self):
+        new_hit = lambda name: Hit(name=name, length=None, start=None, stop=None)
+        new_aln = lambda qry, reff: Alignment(
+            qry=qry,
+            reff=reff,
+            orientation=None,
         )
 
-    def test_refine_intervals(self):
-        hits, block_L, bid = self.example()
-        thr_len = 50
-        I = extract_intervals(hits, block_L, thr_len=thr_len)
+        h1 = new_hit(1)
+        h2 = new_hit(2)
+        h3 = new_hit(3)
+        h4 = new_hit(4)
+        h5 = new_hit(1)
+        h6 = new_hit(2)
+        h7 = new_hit(3)
+        h8 = new_hit(4)
+
+        a1 = new_aln(h1, h2)  # a1 : 1 -- 2
+        a2 = new_aln(h3, h4)  # a2 : 3 -- 4
+        a3 = new_aln(h5, h8)  # a3 : 1 -- 4
+        a4 = new_aln(h6, h7)  # a4 : 2 -- 3
+
+        TB = target_blocks([a1, a2, a3, a4])
+
+        self.assertEqual(TB, {1: [a1, a3], 2: [a1, a4], 3: [a2, a4], 4: [a2, a3]})
+
+    def test_group_promises(self):
+        b1_deep = Block(id=1, consensus="A", alignment={1: None, 2: None, 3: None})
+        b1_shallow = Block(id=1, consensus="B", alignment={4: None, 5: None})
+        b2_deep = Block(id=2, consensus="C", alignment={6: None, 7: None, 8: None})
+        b2_shallow = Block(id=2, consensus="D", alignment={7: None, 8: None})
+        b3_deep = Block(id=3, consensus="E", alignment={11: None, 12: None})
+        b3_shallow = Block(id=3, consensus="F", alignment={13: None})
+        H = [
+            (b1_deep, True, True),
+            (b1_shallow, False, True),
+            (b3_deep, True, False),
+            (b2_shallow, False, True),
+            (b2_deep, True, True),
+            (b3_shallow, False, False),
+        ]
+        promises = group_promises(H)
         self.assertEqual(
-            I,
+            promises,
             [
-                Interval(
-                    start=0,
-                    end=100,
-                    aligned=True,
-                    new_block_id=1,
-                    deep=True,
-                    orientation=True,
-                ),
-                Interval(
-                    start=100,
-                    end=200,
-                    aligned=False,
-                    new_block_id=hash((bid, 100, 200)),
-                ),
-                Interval(
-                    start=200,
-                    end=300,
-                    aligned=True,
-                    new_block_id=2,
-                    deep=False,
-                    orientation=True,
-                ),
-                Interval(
-                    start=300,
-                    end=500,
-                    aligned=True,
-                    new_block_id=3,
-                    deep=True,
-                    orientation=True,
-                ),
-                Interval(
-                    start=500,
-                    end=600,
-                    aligned=False,
-                    new_block_id=hash((bid, 500, 600)),
-                ),
-                Interval(
-                    start=600,
-                    end=900,
-                    aligned=True,
-                    new_block_id=4,
-                    deep=False,
-                    orientation=True,
-                ),
-                Interval(
-                    start=900,
-                    end=1000,
-                    aligned=False,
-                    new_block_id=hash((bid, 900, 1000)),
-                ),
+                MergePromise(b_deep=b1_deep, b_shallow=b1_shallow, orientation=True),
+                MergePromise(b_deep=b2_deep, b_shallow=b2_shallow, orientation=True),
+                MergePromise(b_deep=b3_deep, b_shallow=b3_shallow, orientation=False),
             ],
         )
 
