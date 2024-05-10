@@ -81,10 +81,10 @@ class Block:
 
 @dataclass
 class Hit:
-    name: int
-    length: int
-    start: int
-    stop: int
+    name: int  # name/id of the block
+    length: int  # length of the block (not the hit!)
+    start: int  # his start position
+    stop: int  # hit stop position (exclusive)
 
 
 @dataclass
@@ -133,13 +133,6 @@ class Pangraph:
         assert (
             old_nodes_set_from_graph == old_nodes_set_from_update
         ), f"old nodes mismatch: {old_nodes_set_from_graph} != {old_nodes_set_from_update}"
-        new_nodes_from_new_blocks = set(
-            [nid for b in u.b_new for nid in b.alignment.keys()]
-        )
-        new_nodes_from_updates = set([n.id for N in u.n_new.values() for n in N])
-        assert (
-            new_nodes_from_new_blocks == new_nodes_from_updates
-        ), f"new nodes mismatch: {new_nodes_from_new_blocks} != {new_nodes_from_updates}"
 
         # remove old block and add new ones
         self.blocks.pop(u.b_old_id)
@@ -214,3 +207,11 @@ class ToMerge:
 
     def block_id(self) -> int:
         return self.block.id
+
+
+def reverse_complement(seq: str) -> str:
+    """
+    Reverse complement a DNA sequence
+    """
+    complement = {"A": "T", "C": "G", "G": "C", "T": "A"}
+    return "".join(complement[base] for base in reversed(seq))

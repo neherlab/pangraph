@@ -165,3 +165,35 @@ def split_block(
             u.n_new[old_node_id] = list(reversed(nodes))
 
     return u, H
+
+
+def reweave(
+    mergers: list[Alignment], graph: Pangraph, thr_len: int
+) -> tuple[list[MergePromise], Pangraph]:
+    """
+    Given a list of mergers and a graph, it splits the blocks along the alignments,
+    updates the graph structure inplace creating new nodes and blocks,
+    and returns the updated graph and a list of merge promises.
+    """
+
+    assign_new_block_ids(mergers)  # creates new block ids
+    assign_deep_block(mergers, graph)  # decides which block is the deep one
+
+    # extract targeted blocks and corresponding mergers
+    TB = target_blocks(mergers)
+
+    # for every block, split it according to the mergers
+    U, H = [], []
+    # can be done in parallel: the graph and block are not modified at this stage
+    for bid, M in TB.items():
+        graph_update, to_merge = split_block(bid, M, graph, thr_len)
+        U.append(graph_update)
+        H += to_merge
+
+    # group ToMerge objects to create merge promises
+    merge_promises = group_promises(H)
+
+    for u in U:
+        graph.update(u)  #  inplace graph update
+
+    return graph, merge_promises

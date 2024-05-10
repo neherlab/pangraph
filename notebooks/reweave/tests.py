@@ -354,5 +354,104 @@ class TestSplitBlock(unittest.TestCase):
         self.assertEqual(set(b3.alignment.keys()), set(nodekeys_3))
 
 
+class TestReweave(unittest.TestCase):
+
+    def generate_example(self):
+        np.random.seed(0)
+
+        # block lengths
+        Bl = {
+            10: 200,
+            20: 400,
+            30: 100,
+            40: 500,
+            50: 250,
+        }
+        Bseq = {k: np.random.choice(list("ACGT"), l) for k, l in Bl.items()}
+
+        # nodes
+        n = lambda idx, bid, path, pos, s: Node(idx, bid, path, pos, s)
+        nodes = {
+            1: n(1, 10, 100, (700, 885), True),
+            2: n(2, 30, 100, (885, 988), True),
+            3: n(3, 30, 200, (100, 180), False),
+            4: n(4, 20, 200, (180, 555), False),
+            5: n(5, 10, 200, (555, 735), False),
+            6: n(6, 40, 300, (600, 100), True),
+            7: n(7, 50, 300, (100, 325), True),
+            8: n(8, 50, 300, (325, 580), False),
+        }
+
+        # paths
+        paths = {
+            100: Path(100, [1, 2], 1000),
+            200: Path(200, [3, 4, 5], 1000),
+            300: Path(300, [6, 7, 8], 1000),
+        }
+
+        # edits
+        i = lambda p, l, a: Insertion(p, a * l)
+        d = lambda p, l: Deletion(p, l)
+        s = lambda p, a: Substitution(p, a)
+        ed = {
+            1: Edit(ins=[i(150, 10, "T")], dels=[d(50, 25)], subs=[s(125, "G")]),
+            2: Edit(ins=[i(50, 3, "G")], dels=[], subs=[]),
+            3: Edit(ins=[i(25, 5, "G")], dels=[d(50, 25)], subs=[]),
+            4: Edit(
+                ins=[i(250, 5, "A"), i(300, 5, "A")],
+                dels=[d(100, 25), d(350, 10)],
+                subs=[s(50, "G"), s(225, "T")],
+            ),
+            5: Edit(ins=[i(200, 5, "A")], dels=[d(100, 25)], subs=[s(25, "T")]),
+            6: Edit(ins=[i(200, 10, "T")], dels=[d(350, 10)], subs=[s(100, "T")]),
+            7: Edit(ins=[], dels=[d(100, 25)], subs=[s(50, "G")]),
+            8: Edit(ins=[i(150, 5, "T")], dels=[], subs=[]),
+        }
+
+        # blocks
+        b = lambda bid, nids: Block(bid, Bseq[bid], {nid: ed[nid] for nid in nids})
+        blocks = {
+            10: b(10, [1, 5]),
+            20: b(20, [4]),
+            30: b(30, [2, 3]),
+            40: b(40, [6]),
+            50: b(50, [7, 8]),
+        }
+
+        # graph
+        G = Pangraph(paths, blocks, nodes)
+
+        # alignments
+        M = [
+            Alignment(
+                qry=Hit(10, 200, 10, 200),
+                reff=Hit(40, 500, 10, 200),
+                orientation=True,
+            ),
+            Alignment(
+                qry=Hit(20, 400, 0, 200),
+                reff=Hit(40, 500, 300, 500),
+                orientation=True,
+            ),
+            Alignment(
+                qry=Hit(20, 400, 300, 400),
+                reff=Hit(50, 250, 0, 100),
+                orientation=False,
+            ),
+            Alignment(
+                qry=Hit(30, 100, 0, 100),
+                reff=Hit(50, 250, 150, 250),
+                orientation=True,
+            ),
+        ]
+
+        return G, M
+
+    def test_reweave(self):
+        G, M = self.generate_example()
+        thr_len = 90
+        reweave(M, G, thr_len)
+
+
 if __name__ == "__main__":
     unittest.main()
