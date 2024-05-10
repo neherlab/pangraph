@@ -304,6 +304,31 @@ class TestBlockSlice(unittest.TestCase):
         )
         self.assertEqual(new_b.alignment[nn3.id], n3ed)
 
+    def test_sequence_reconstruction(self):
+        b, G = self.generate_example()
+        s1 = apply_edits_to_ref(b.alignment[1], b.consensus)
+        s2 = apply_edits_to_ref(b.alignment[2], b.consensus)
+        s3 = apply_edits_to_ref(b.alignment[3], b.consensus)
+        i1 = Interval(
+            start=0, end=10, aligned=True, new_block_id=2, orientation=True, deep=True
+        )
+        i2 = Interval(
+            start=10, end=20, aligned=True, new_block_id=2, orientation=True, deep=True
+        )
+        i3 = Interval(
+            start=20, end=27, aligned=True, new_block_id=2, orientation=True, deep=True
+        )
+        nb1, nn1 = block_slice(b, i1, G)
+        nb2, nn2 = block_slice(b, i2, G)
+        nb3, nn3 = block_slice(b, i3, G)
+
+        for i_old, s_old in [(1, s1), (2, s2), (3, s3)]:
+            s_new_1 = apply_edits_to_ref(nb1.alignment[nn1[i_old].id], nb1.consensus)
+            s_new_2 = apply_edits_to_ref(nb2.alignment[nn2[i_old].id], nb2.consensus)
+            s_new_3 = apply_edits_to_ref(nb3.alignment[nn3[i_old].id], nb3.consensus)
+
+            self.assertEqual(s_old, s_new_1 + s_new_2 + s_new_3)
+
 
 if __name__ == "__main__":
     unittest.main()

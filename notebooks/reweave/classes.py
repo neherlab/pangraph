@@ -48,6 +48,24 @@ class Edit:
     subs: list[Substitution] = field(default_factory=list)
 
 
+def apply_edits_to_ref(edits: Edit, ref: str) -> str:
+    """
+    Apply the edits to the reference to obtain the query sequence
+    """
+    qry = list(ref)
+    for S in edits.subs:
+        qry[S.pos] = S.alt
+    for D in edits.dels:
+        for l in range(D.length):
+            qry[D.pos + l] = ""
+    for I in edits.ins:
+        if I.pos > 0:
+            qry[I.pos - 1] += I.ins
+        elif I.pos == 0:
+            qry[0] = I.ins + qry[0]
+    return "".join(qry)
+
+
 @dataclass
 class Block:
     id: int  # block id
