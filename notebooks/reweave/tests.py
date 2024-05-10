@@ -2,6 +2,7 @@ from utils import *
 from test_slice import *
 from test_intervals import *
 import unittest
+import numpy as np
 
 
 class TestGraphUpdate(unittest.TestCase):
@@ -220,6 +221,137 @@ class TestMisc(unittest.TestCase):
         TB = target_blocks([a1, a2, a3, a4])
 
         self.assertEqual(TB, {1: [a1, a3], 2: [a1, a4], 3: [a2, a4], 4: [a2, a3]})
+
+
+class TestSplitBlock(unittest.TestCase):
+
+    def generate_example(self):
+        bid = 1
+        nid1 = 1000
+        nid2 = 2000
+        nid3 = 3000
+
+        # nodes
+        n1 = Node(
+            id=nid1, block_id=bid, path_id=100, strandedness=True, position=(100, 230)
+        )
+        n2 = Node(
+            id=2000,
+            block_id=bid,
+            path_id=200,
+            strandedness=False,
+            position=(1000, 1130),
+        )
+        n3 = Node(
+            id=nid2, block_id=bid, path_id=300, strandedness=False, position=(180, 110)
+        )
+
+        # block
+        np.random.seed(1)
+        gseq = lambda l: "".join([np.random.choice(list("ACGT")) for _ in range(l)])
+        ed1 = Edit(ins=[], dels=[], subs=[])
+        ed2 = Edit(ins=[], dels=[], subs=[])
+        ed3 = Edit(ins=[], dels=[], subs=[])
+        b1 = Block(
+            id=bid, consensus=gseq(130), alignment={nid1: ed1, nid2: ed2, nid3: ed3}
+        )
+
+        # paths
+        p1 = Path(id=100, nodes=[nid1], L=2000)
+        p2 = Path(id=200, nodes=[nid2], L=2000)
+        p3 = Path(id=300, nodes=[nid3], L=200)
+        G = Pangraph(
+            paths={100: p1, 200: p2, 300: p3},
+            blocks={bid: b1},
+            nodes={nid1: n1, nid2: n2, nid3: n3},
+        )
+
+        # alignments
+        h = lambda name, start, stop: Hit(
+            name=name, length=None, start=start, stop=stop
+        )
+        a = lambda q, r, strand, nid, deep: Alignment(
+            qry=q, reff=r, orientation=strand, new_block_id=nid, deep_block=deep
+        )
+        M = [
+            a(h(1, 10, 50), h(2, 100, 150), True, 42, "qry"),
+            a(h(3, 1000, 1050), h(1, 80, 130), False, 43, "qry"),
+        ]
+
+        return G, M, bid
+
+    def test_split_block(self):
+
+        thr_len = 20
+        G, M, bid = self.generate_example()
+        u, H = split_block(bid, M, G, thr_len)
+
+        # check graph update
+        self.assertEqual(u.b_old_id, bid)
+
+        # check node updates
+        nodekeys_1 = []
+        nodekeys_2 = []
+        nodekeys_3 = []
+        n1, n2, n3 = u.n_new[1000]
+        nodekeys_1.append(n1.id)
+        nodekeys_2.append(n2.id)
+        nodekeys_3.append(n3.id)
+        self.assertEqual(n1.block_id, 42)
+        self.assertEqual(n1.strandedness, True)
+        self.assertEqual(n1.position, (100, 150))
+        self.assertEqual(n2.strandedness, True)
+        self.assertEqual(n2.position, (150, 180))
+        self.assertEqual(n3.block_id, 43)
+        self.assertEqual(n3.strandedness, False)
+        self.assertEqual(n3.position, (180, 230))
+
+        n1, n2, n3 = u.n_new[2000]
+        nodekeys_1.append(n3.id)
+        nodekeys_2.append(n2.id)
+        nodekeys_3.append(n1.id)
+        self.assertEqual(n1.block_id, 43)
+        self.assertEqual(n1.strandedness, True)
+        self.assertEqual(n1.position, (1000, 1050))
+        self.assertEqual(n2.strandedness, False)
+        self.assertEqual(n2.position, (1050, 1080))
+        self.assertEqual(n3.block_id, 42)
+        self.assertEqual(n3.strandedness, False)
+        self.assertEqual(n3.position, (1080, 1130))
+
+        n1, n2, n3 = u.n_new[3000]
+        nodekeys_1.append(n3.id)
+        nodekeys_2.append(n2.id)
+        nodekeys_3.append(n1.id)
+        self.assertEqual(n1.block_id, 43)
+        self.assertEqual(n1.strandedness, True)
+        self.assertEqual(n1.position, (180, 30))
+        self.assertEqual(n2.strandedness, False)
+        self.assertEqual(n2.position, (30, 60))
+        self.assertEqual(n3.block_id, 42)
+        self.assertEqual(n3.strandedness, False)
+        self.assertEqual(n3.position, (60, 110))
+
+        # check block updates
+        self.assertEqual(len(u.b_new), 1)
+        b = u.b_new[0]
+        self.assertEqual(b.consensus, G.blocks[bid].consensus[50:80])
+        self.assertSetEqual(set(b.alignment.keys()), set(nodekeys_2))
+
+        # check ToMerge objects
+        self.assertEqual(len(H), 2)
+        H1, H2 = H
+        self.assertEqual(H1.block.id, 42)
+        self.assertEqual(H1.deep, True)
+        self.assertEqual(H1.orientation, True)
+        self.assertEqual(H2.block.id, 43)
+        self.assertEqual(H2.deep, False)
+        self.assertEqual(H2.orientation, False)
+        b1, b3 = H1.block, H2.block
+        self.assertEqual(b1.consensus, G.blocks[bid].consensus[0:50])
+        self.assertEqual(b3.consensus, G.blocks[bid].consensus[80:130])
+        self.assertEqual(set(b1.alignment.keys()), set(nodekeys_1))
+        self.assertEqual(set(b3.alignment.keys()), set(nodekeys_3))
 
 
 if __name__ == "__main__":

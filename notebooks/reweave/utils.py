@@ -143,7 +143,6 @@ def split_block(
         b_slice, n_dict = block_slice(b, i, graph)
 
         # update graph update object
-        u.b_new.append(b_slice)
         for old_nid, new_node in n_dict.items():
             u.n_new[old_nid].append(new_node)
 
@@ -156,6 +155,8 @@ def split_block(
                     orientation=i.orientation,
                 )
             )
+        else:
+            u.b_new.append(b_slice)
 
     # flip order in node lists for paths that are inverted
     for old_node_id, nodes in u.n_new.items():

@@ -125,7 +125,13 @@ def block_slice(b: Block, i: Interval, G: Pangraph) -> tuple[Block, dict[int, No
     for old_node_id, edits in b.alignment.items():
         old_node = G.nodes[old_node_id]
         old_strandedness = old_node.strandedness
-        new_strand = new_strandedness(old_strandedness, i.orientation, i.deep)
+
+        # new node strandedness
+        if i.aligned:
+            new_strand = new_strandedness(old_strandedness, i.orientation, i.deep)
+        else:
+            new_strand = old_strandedness
+
         path_L = G.paths[old_node.path_id].L
         node_coords = interval_node_coords(i, edits, block_L)
         new_pos = new_position(
