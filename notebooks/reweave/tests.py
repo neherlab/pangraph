@@ -143,6 +143,36 @@ class TestExtractHits(unittest.TestCase):
         )
 
 
+class TestGroupPromises(unittest.TestCase):
+    def test_group_promises(self):
+        b1_deep = Block(id=1, consensus="A", alignment={1: None, 2: None, 3: None})
+        b1_shallow = Block(id=1, consensus="B", alignment={4: None, 5: None})
+        b2_deep = Block(id=2, consensus="C", alignment={6: None, 7: None, 8: None})
+        b2_shallow = Block(id=2, consensus="D", alignment={7: None, 8: None})
+        b3_deep = Block(id=3, consensus="E", alignment={11: None, 12: None})
+        b3_shallow = Block(id=3, consensus="F", alignment={13: None})
+
+        t = lambda b, d, o: ToMerge(block=b, orientation=o, deep=d)
+
+        H = [
+            t(b1_deep, True, True),
+            t(b1_shallow, False, True),
+            t(b3_deep, True, False),
+            t(b2_shallow, False, True),
+            t(b2_deep, True, True),
+            t(b3_shallow, False, False),
+        ]
+        promises = group_promises(H)
+        self.assertEqual(
+            promises,
+            [
+                MergePromise(b_deep=b1_deep, b_shallow=b1_shallow, orientation=True),
+                MergePromise(b_deep=b2_deep, b_shallow=b2_shallow, orientation=True),
+                MergePromise(b_deep=b3_deep, b_shallow=b3_shallow, orientation=False),
+            ],
+        )
+
+
 class TestMisc(unittest.TestCase):
 
     def test_assign_deep_block(self):
@@ -190,31 +220,6 @@ class TestMisc(unittest.TestCase):
         TB = target_blocks([a1, a2, a3, a4])
 
         self.assertEqual(TB, {1: [a1, a3], 2: [a1, a4], 3: [a2, a4], 4: [a2, a3]})
-
-    def test_group_promises(self):
-        b1_deep = Block(id=1, consensus="A", alignment={1: None, 2: None, 3: None})
-        b1_shallow = Block(id=1, consensus="B", alignment={4: None, 5: None})
-        b2_deep = Block(id=2, consensus="C", alignment={6: None, 7: None, 8: None})
-        b2_shallow = Block(id=2, consensus="D", alignment={7: None, 8: None})
-        b3_deep = Block(id=3, consensus="E", alignment={11: None, 12: None})
-        b3_shallow = Block(id=3, consensus="F", alignment={13: None})
-        H = [
-            (b1_deep, True, True),
-            (b1_shallow, False, True),
-            (b3_deep, True, False),
-            (b2_shallow, False, True),
-            (b2_deep, True, True),
-            (b3_shallow, False, False),
-        ]
-        promises = group_promises(H)
-        self.assertEqual(
-            promises,
-            [
-                MergePromise(b_deep=b1_deep, b_shallow=b1_shallow, orientation=True),
-                MergePromise(b_deep=b2_deep, b_shallow=b2_shallow, orientation=True),
-                MergePromise(b_deep=b3_deep, b_shallow=b3_shallow, orientation=False),
-            ],
-        )
 
 
 if __name__ == "__main__":

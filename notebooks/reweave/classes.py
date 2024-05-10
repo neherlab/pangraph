@@ -204,3 +204,13 @@ class Interval:
             return True
         else:
             return False
+
+
+@dataclass
+class ToMerge:
+    block: Block
+    deep: bool
+    orientation: bool
+
+    def block_id(self) -> int:
+        return self.block.id
