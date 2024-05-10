@@ -41,7 +41,7 @@ def slice_edits(i: Interval, ed: Edit, block_L: int):
     edits relative to the interval, together with the start/end coordinates
     of the interval on the node."""
     new_edits = Edit(
-        ins=i.position_is_in(ed.ins.pos),
+        ins=slice_insertions(i, ed.ins, block_L),
         dels=slice_deletions(i, ed.dels),
         subs=slice_substitutions(i, ed.subs),
     )
@@ -50,11 +50,12 @@ def slice_edits(i: Interval, ed: Edit, block_L: int):
 
 def new_strandedness(old_strandedness, orientation, deep):
     """Given the strandedness of the previous node, the orientation of the match,
-    and whether the block is the deep one, returns the strandedness of the new node."""
-    if deep:
+    and whether the block is the deep one, returns the strandedness of the new node.
+    Inverted only if the block is shallow and the match orientation is inverted."""
+    if deep or orientation:
         return old_strandedness
     else:
-        return old_strandedness ^ orientation
+        return not old_strandedness
 
 
 def new_position(
@@ -116,7 +117,7 @@ def block_slice(b: Block, i: Interval, G: Pangraph) -> tuple[Block, dict[int, No
     """
 
     # extract new consensus (always forward strand)
-    new_consensus = b.consensus[i.start : i.stop]
+    new_consensus = b.consensus[i.start : i.end]
     block_L = b.consensus_len()
 
     node_updates = {}
@@ -126,7 +127,7 @@ def block_slice(b: Block, i: Interval, G: Pangraph) -> tuple[Block, dict[int, No
         old_strandedness = old_node.strandedness
         new_strand = new_strandedness(old_strandedness, i.orientation, i.deep)
         path_L = G.paths[old_node.path_id].L
-        node_coords = interval_node_coords(i, old_node.position, path_L, block_L)
+        node_coords = interval_node_coords(i, edits, block_L)
         new_pos = new_position(
             old_position=old_node.position,
             node_coords=node_coords,
@@ -142,7 +143,7 @@ def block_slice(b: Block, i: Interval, G: Pangraph) -> tuple[Block, dict[int, No
             strandedness=new_strand,
             position=new_pos,
         )
-        new_node.id = Node.calculate_id()
+        new_node.id = new_node.calculate_id()
         node_updates[old_node_id] = new_node
 
         # create new edits for alignment

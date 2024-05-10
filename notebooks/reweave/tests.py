@@ -1,4 +1,5 @@
 from functions import *
+from test_slice import *
 import unittest
 
 

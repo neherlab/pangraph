@@ -118,5 +118,163 @@ class TestSlice(unittest.TestCase):
         self.assertEqual(new_pos, (16, 19))
 
 
+class TestPosition(unittest.TestCase):
+    pass
+
+
+class TestBlockSlice(unittest.TestCase):
+
+    def generate_example(self):
+        seq = "ACTTGATCCTTATATTTATCCGATCAT"
+        bid = 1
+        s = lambda pos, base: Substitution(pos, base)
+        d = lambda pos, length: Deletion(pos, length)
+        i = lambda pos, ins: Insertion(pos, ins)
+        ed1 = Edit(
+            subs=[s(2, "G"), s(13, "T"), s(24, "T")],
+            dels=[d(18, 3)],
+            ins=[i(7, "A"), i(10, "A")],
+        )
+        ed2 = Edit(
+            subs=[s(4, "T"), s(19, "G"), s(20, "G")],
+            dels=[d(6, 2), d(13, 2)],
+            ins=[i(17, "T"), i(25, "A")],
+        )
+        ed3 = Edit(
+            subs=[],
+            dels=[d(2, 4), d(9, 3), d(24, 2)],
+            ins=[i(20, "T")],
+        )
+        n1 = Node(1, bid, path_id=1, position=(100, 125), strandedness=True)
+        n2 = Node(2, bid, path_id=2, position=(1000, 1025), strandedness=False)
+        n3 = Node(3, bid, path_id=3, position=(90, 9), strandedness=False)
+        p1 = Path(1, [1, 4], L=2000)
+        p2 = Path(2, [2, 5], L=2000)
+        p3 = Path(3, [3, 6], L=100)
+        b1 = Block(id=bid, consensus=seq, alignment={1: ed1, 2: ed2, 3: ed3})
+        G = Pangraph(
+            paths={1: p1, 2: p2, 3: p3}, blocks={bid: b1}, nodes={1: n1, 2: n2, 3: n3}
+        )
+        return b1, G
+
+    def test_new_strandedness(self):
+        ns = lambda d, o, s: new_strandedness(old_strandedness=s, orientation=o, deep=d)
+        self.assertEqual(ns(True, True, True), True)
+        self.assertEqual(ns(True, True, False), False)
+        self.assertEqual(ns(True, False, True), True)
+        self.assertEqual(ns(True, False, False), False)
+        self.assertEqual(ns(False, True, True), True)
+        self.assertEqual(ns(False, True, False), False)
+        self.assertEqual(ns(False, False, True), False)
+        self.assertEqual(ns(False, False, False), True)
+
+    def test_block_slice_fwd_deep(self):
+        b, G = self.generate_example()
+        new_bid = 42
+        i = Interval(
+            start=10,
+            end=20,
+            aligned=True,
+            new_block_id=new_bid,
+            orientation=True,
+            deep=True,
+        )
+
+        new_b, new_nodes = block_slice(b, i, G)
+
+        # block consensus
+        self.assertEqual(new_b.consensus, "TATATTTATC")
+
+        # new nodes and genome position
+        pos1 = (111, 120)
+        nn1 = Node(None, block_id=new_bid, path_id=1, position=pos1, strandedness=True)
+        nn1.id = nn1.calculate_id()
+        self.assertEqual(new_nodes[1], nn1)
+        pos2 = (1008, 1017)
+        nn2 = Node(None, block_id=new_bid, path_id=2, position=pos2, strandedness=False)
+        nn2.id = nn2.calculate_id()
+        self.assertEqual(new_nodes[2], nn2)
+        pos3 = (96, 4)
+        nn3 = Node(None, block_id=new_bid, path_id=3, position=pos3, strandedness=False)
+        nn3.id = nn3.calculate_id()
+        self.assertEqual(new_nodes[3], nn3)
+        self.assertEqual(new_nodes, {1: nn1, 2: nn2, 3: nn3})
+
+        # block edits
+        n1ed = Edit(
+            subs=[Substitution(3, "T")],
+            dels=[Deletion(8, 2)],
+            ins=[Insertion(0, "A")],
+        )
+        self.assertEqual(new_b.alignment[nn1.id], n1ed)
+        n2ed = Edit(
+            subs=[Substitution(9, "G")],
+            dels=[Deletion(3, 2)],
+            ins=[Insertion(7, "T")],
+        )
+        self.assertEqual(new_b.alignment[nn2.id], n2ed)
+        n3ed = Edit(
+            subs=[],
+            dels=[Deletion(0, 2)],
+            ins=[],
+        )
+        self.assertEqual(new_b.alignment[nn3.id], n3ed)
+
+    def test_block_slice_rev_shallow(self):
+        b, G = self.generate_example()
+        new_bid = 42
+        i = Interval(
+            start=10,
+            end=20,
+            aligned=True,
+            new_block_id=new_bid,
+            orientation=False,
+            deep=False,
+        )
+
+        new_b, new_nodes = block_slice(b, i, G)
+
+        # block consensus
+        self.assertEqual(new_b.consensus, "TATATTTATC")
+
+        # new nodes and genome position
+        pos1 = (111, 120)
+        nn1 = Node(None, block_id=new_bid, path_id=1, position=pos1, strandedness=False)
+        nn1.id = nn1.calculate_id()
+        self.assertEqual(new_nodes[1], nn1)
+        pos2 = (1008, 1017)
+        nn2 = Node(None, block_id=new_bid, path_id=2, position=pos2, strandedness=True)
+        nn2.id = nn2.calculate_id()
+        self.assertEqual(new_nodes[2], nn2)
+        pos3 = (96, 4)
+        nn3 = Node(None, block_id=new_bid, path_id=3, position=pos3, strandedness=True)
+        nn3.id = nn3.calculate_id()
+        self.assertEqual(new_nodes[3], nn3)
+        self.assertEqual(new_nodes, {1: nn1, 2: nn2, 3: nn3})
+
+        # block edits
+        n1ed = Edit(
+            subs=[Substitution(3, "T")],
+            dels=[Deletion(8, 2)],
+            ins=[Insertion(0, "A")],
+        )
+        self.assertEqual(new_b.alignment[nn1.id], n1ed)
+        n2ed = Edit(
+            subs=[Substitution(9, "G")],
+            dels=[Deletion(3, 2)],
+            ins=[Insertion(7, "T")],
+        )
+        self.assertEqual(new_b.alignment[nn2.id], n2ed)
+        n3ed = Edit(
+            subs=[],
+            dels=[Deletion(0, 2)],
+            ins=[],
+        )
+        self.assertEqual(new_b.alignment[nn3.id], n3ed)
+
+    # TODO: test reverse shallow
+    # TODO: test interval coordinates
+
+
 if __name__ == "__main__":
     unittest.main()
