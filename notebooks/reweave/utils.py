@@ -15,9 +15,10 @@ def assign_new_block_ids(mergers: list[Alignment]):
         a.new_block_id = hash(vec)
 
 
-def assign_deep_block(mergers: list[Alignment], graph: Pangraph):
+def assign_anchor_block(mergers: list[Alignment], graph: Pangraph):
     """
-    Decide whether ref or qry is the deep block.
+    Decide whether ref or qry is the anchor block.
+    This is the one with higher depth, and in case of tie it is the reference block.
     We will append sequences to this block, and it will not be flipped if
     the match is on the reverse strand.
     """
@@ -27,9 +28,9 @@ def assign_deep_block(mergers: list[Alignment], graph: Pangraph):
         ref_depth = ref_block.depth()
         qry_depth = qry_block.depth()
         if ref_depth >= qry_depth:
-            m.deep_block = "reff"
+            m.anchor_block = "reff"
         else:
-            m.deep_block = "qry"
+            m.anchor_block = "qry"
 
 
 def target_blocks(mergers: list[Alignment]) -> dict[int, list[Alignment]]:
@@ -49,25 +50,25 @@ def target_blocks(mergers: list[Alignment]) -> dict[int, list[Alignment]]:
 def extract_hits(bid: int, M: list[Alignment]) -> list[dict]:
     """Given a block id and list of alignments, returns a list of hits
     on that block, with information on strandedness and whether the block is
-    the deepest one of the pair."""
+    the anchor one of the pair."""
     hits = []
     for m in M:
         if m.reff.name == bid:
-            deep = m.deep_block == "reff"
+            is_anchor = m.anchor_block == "reff"
             hits.append(
                 {
                     "new_block_id": m.new_block_id,
-                    "deep": deep,
+                    "is_anchor": is_anchor,
                     "orientation": m.orientation,
                     "hit": m.reff,
                 }
             )
         if m.qry.name == bid:
-            deep = m.deep_block == "qry"
+            is_anchor = m.anchor_block == "qry"
             hits.append(
                 {
                     "new_block_id": m.new_block_id,
-                    "deep": deep,
+                    "is_anchor": is_anchor,
                     "orientation": m.orientation,
                     "hit": m.qry,
                 }
@@ -79,9 +80,6 @@ def group_promises(H: list[ToMerge]) -> list[MergePromise]:
     """
     Given a list of blocks to merge, it groups them by block-id and
     returns a list of merge promises.
-    Nb: the deep attribute is needed in case the two blocks have the same depth,
-    then the tie is resolved by using the reference block as the deep one.
-    This is done by the assign_deep_block function.
     """
     promises = []
     for new_bid, Bs in groupby(
@@ -92,12 +90,16 @@ def group_promises(H: list[ToMerge]) -> list[MergePromise]:
         Bs = list(Bs)
         assert len(Bs) == 2, "Only two blocks can be merged"
         b1, b2 = Bs
-        assert b1.deep ^ b2.deep, "One block must be deep and the other shallow"
+        assert b1.is_anchor ^ b2.is_anchor, "Only one block is the anchor"
         assert b1.orientation == b2.orientation, "orientation must be the same"
-        b_deep = b1.block if b1.deep else b2.block
-        b_shallow = b2.block if b1.deep else b1.block
+        anchor_block = b1.block if b1.is_anchor else b2.block
+        append_block = b2.block if b1.is_anchor else b1.block
         promises.append(
-            MergePromise(b_deep=b_deep, b_shallow=b_shallow, orientation=b1.orientation)
+            MergePromise(
+                anchor_block=anchor_block,
+                append_block=append_block,
+                orientation=b1.orientation,
+            )
         )
     return promises
 
@@ -151,7 +153,7 @@ def split_block(
             H.append(
                 ToMerge(
                     block=b_slice,
-                    deep=i.deep,
+                    is_anchor=i.is_anchor,
                     orientation=i.orientation,
                 )
             )
@@ -177,7 +179,7 @@ def reweave(
     """
 
     assign_new_block_ids(mergers)  # creates new block ids
-    assign_deep_block(mergers, graph)  # decides which block is the deep one
+    assign_anchor_block(mergers, graph)  # decides which block is the anchor one
 
     # extract targeted blocks and corresponding mergers
     TB = target_blocks(mergers)

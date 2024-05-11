@@ -101,7 +101,7 @@ class Alignment:
     reff: Hit
     orientation: bool  # fwd/rev match orientation
     new_block_id: int = None  # id of the newly-created block. Also alignment id.
-    deep_block: str = None  # decide whether qry or ref is the deepest block.
+    anchor_block: str = None  # block used as anchor in a merger
     matches: int = None
     length: int = None
     quality: int = None
@@ -112,8 +112,8 @@ class Alignment:
 
 @dataclass
 class MergePromise:
-    b_deep: Block  # deep block
-    b_shallow: Block  # shallow block (can be reverse-complemented)
+    anchor_block: Block  # anchor block
+    append_block: Block  # block that is appended to the anchor in the merge.
     orientation: bool  # fwd/rev match orientation
 
 
@@ -193,7 +193,7 @@ class Interval:
     end: int
     aligned: bool
     new_block_id: int
-    deep: bool = None
+    is_anchor: bool = None
     orientation: bool = None
 
     def __len__(self) -> int:
@@ -233,7 +233,7 @@ class Interval:
 @dataclass
 class ToMerge:
     block: Block
-    deep: bool
+    is_anchor: bool
     orientation: bool
 
     def block_id(self) -> int:

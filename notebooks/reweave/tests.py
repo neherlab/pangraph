@@ -104,18 +104,18 @@ class TestExtractHits(unittest.TestCase):
         new_hit = lambda name, start: Hit(
             name=name, length=None, start=start, stop=None
         )
-        create_hit = lambda new_bid, deep, strand, hit: {
+        create_hit = lambda new_bid, is_anchor, strand, hit: {
             "new_block_id": new_bid,
-            "deep": deep,
+            "is_anchor": is_anchor,
             "orientation": strand,
             "hit": hit,
         }
-        new_aln = lambda id, reff, qry, strand, deep: Alignment(
+        new_aln = lambda id, reff, qry, strand, anc: Alignment(
             reff=reff,
             qry=qry,
             new_block_id=id,
             orientation=strand,
-            deep_block=deep,
+            anchor_block=anc,
         )
 
         h1_a = new_hit(1, 10)
@@ -147,37 +147,43 @@ class TestExtractHits(unittest.TestCase):
 
 class TestGroupPromises(unittest.TestCase):
     def test_group_promises(self):
-        b1_deep = Block(id=1, consensus="A", alignment={1: None, 2: None, 3: None})
-        b1_shallow = Block(id=1, consensus="B", alignment={4: None, 5: None})
-        b2_deep = Block(id=2, consensus="C", alignment={6: None, 7: None, 8: None})
-        b2_shallow = Block(id=2, consensus="D", alignment={7: None, 8: None})
-        b3_deep = Block(id=3, consensus="E", alignment={11: None, 12: None})
-        b3_shallow = Block(id=3, consensus="F", alignment={13: None})
+        b1_anchor = Block(id=1, consensus="A", alignment={1: None, 2: None, 3: None})
+        b1_append = Block(id=1, consensus="B", alignment={4: None, 5: None})
+        b2_anchor = Block(id=2, consensus="C", alignment={6: None, 7: None, 8: None})
+        b2_append = Block(id=2, consensus="D", alignment={7: None, 8: None})
+        b3_anchor = Block(id=3, consensus="E", alignment={11: None, 12: None})
+        b3_append = Block(id=3, consensus="F", alignment={13: None})
 
-        t = lambda b, d, o: ToMerge(block=b, orientation=o, deep=d)
+        t = lambda b, a, o: ToMerge(block=b, orientation=o, is_anchor=a)
 
         H = [
-            t(b1_deep, True, True),
-            t(b1_shallow, False, True),
-            t(b3_deep, True, False),
-            t(b2_shallow, False, True),
-            t(b2_deep, True, True),
-            t(b3_shallow, False, False),
+            t(b1_anchor, True, True),
+            t(b1_append, False, True),
+            t(b3_anchor, True, False),
+            t(b2_append, False, True),
+            t(b2_anchor, True, True),
+            t(b3_append, False, False),
         ]
         promises = group_promises(H)
         self.assertEqual(
             promises,
             [
-                MergePromise(b_deep=b1_deep, b_shallow=b1_shallow, orientation=True),
-                MergePromise(b_deep=b2_deep, b_shallow=b2_shallow, orientation=True),
-                MergePromise(b_deep=b3_deep, b_shallow=b3_shallow, orientation=False),
+                MergePromise(
+                    anchor_block=b1_anchor, append_block=b1_append, orientation=True
+                ),
+                MergePromise(
+                    anchor_block=b2_anchor, append_block=b2_append, orientation=True
+                ),
+                MergePromise(
+                    anchor_block=b3_anchor, append_block=b3_append, orientation=False
+                ),
             ],
         )
 
 
 class TestMisc(unittest.TestCase):
 
-    def test_assign_deep_block(self):
+    def test_assign_anchor_block(self):
         b1 = Block(id=1, consensus="A", alignment={1: None, 2: None, 3: None})
         b2 = Block(id=2, consensus="B", alignment={4: None, 5: None})
         b3 = Block(id=3, consensus="C", alignment={6: None})
@@ -191,11 +197,11 @@ class TestMisc(unittest.TestCase):
             a(3, 4),
             a(4, 1),
         ]
-        assign_deep_block(mergers, G)
+        assign_anchor_block(mergers, G)
 
-        self.assertEqual(mergers[0].deep_block, "qry")
-        self.assertEqual(mergers[1].deep_block, "reff")
-        self.assertEqual(mergers[2].deep_block, "qry")
+        self.assertEqual(mergers[0].anchor_block, "qry")
+        self.assertEqual(mergers[1].anchor_block, "reff")
+        self.assertEqual(mergers[2].anchor_block, "qry")
 
     def test_target_blocks(self):
         new_hit = lambda name: Hit(name=name, length=None, start=None, stop=None)
@@ -271,8 +277,8 @@ class TestSplitBlock(unittest.TestCase):
         h = lambda name, start, stop: Hit(
             name=name, length=None, start=start, stop=stop
         )
-        a = lambda q, r, strand, nid, deep: Alignment(
-            qry=q, reff=r, orientation=strand, new_block_id=nid, deep_block=deep
+        a = lambda q, r, strand, nid, anc: Alignment(
+            qry=q, reff=r, orientation=strand, new_block_id=nid, anchor_block=anc
         )
         M = [
             a(h(1, 10, 50), h(2, 100, 150), True, 42, "qry"),
@@ -343,10 +349,10 @@ class TestSplitBlock(unittest.TestCase):
         self.assertEqual(len(H), 2)
         H1, H2 = H
         self.assertEqual(H1.block.id, 42)
-        self.assertEqual(H1.deep, True)
+        self.assertEqual(H1.is_anchor, True)
         self.assertEqual(H1.orientation, True)
         self.assertEqual(H2.block.id, 43)
-        self.assertEqual(H2.deep, False)
+        self.assertEqual(H2.is_anchor, False)
         self.assertEqual(H2.orientation, False)
         b1, b3 = H1.block, H2.block
         self.assertEqual(b1.consensus, G.blocks[bid].consensus[0:50])
@@ -425,23 +431,23 @@ class TestReweave(unittest.TestCase):
         # alignments
         M = [
             Alignment(
-                qry=Hit(10, 200, 10, 200),  # deep
+                qry=Hit(10, 200, 10, 200),  # anchor
                 reff=Hit(40, 500, 10, 200),
                 orientation=True,
             ),
             Alignment(
                 qry=Hit(20, 400, 0, 200),
-                reff=Hit(40, 500, 300, 500),  # deep
+                reff=Hit(40, 500, 300, 500),  # anchor
                 orientation=False,
             ),
             Alignment(
                 qry=Hit(20, 400, 300, 400),
-                reff=Hit(50, 250, 0, 100),  # deep
+                reff=Hit(50, 250, 0, 100),  # anchor
                 orientation=True,
             ),
             Alignment(
                 qry=Hit(30, 100, 0, 100),
-                reff=Hit(50, 250, 150, 250),  # deep
+                reff=Hit(50, 250, 150, 250),  # anchor
                 orientation=True,
             ),
         ]
@@ -509,12 +515,12 @@ class TestReweave(unittest.TestCase):
         bid10_1 = G.nodes[nid_100_1].block_id
         self.assertEqual(G.nodes[nid_200_5].block_id, bid10_1)
         self.assertNotIn(bid10_1, G.blocks)  # missing block key, it is in merge promise
-        self.assertIn(bid10_1, [p.b_deep.id for p in P])
+        self.assertIn(bid10_1, [p.anchor_block.id for p in P])
 
         bid20_2 = G.nodes[nid_200_3].block_id
         self.assertIn(bid20_2, G.blocks)  # block is already in the graph
         self.assertNotIn(
-            bid20_2, [p.b_deep.id for p in P] + [p.b_shallow.id for p in P]
+            bid20_2, [p.anchor_block.id for p in P] + [p.append_block.id for p in P]
         )
         ed20_2 = G.blocks[bid20_2].alignment[nid_200_3]
         self.assertEqual(ed20_2, Edit(ins=[i(50, 5, "A")], dels=[], subs=[s(25, "T")]))
@@ -525,20 +531,20 @@ class TestReweave(unittest.TestCase):
 
         # merge promises
         self.assertEqual(len(P), 4)
-        P_dict = {p.b_deep.id: p for p in P}
+        P_dict = {p.anchor_block.id: p for p in P}
 
         p1 = P_dict[bid10_1]
         self.assertEqual(p1.orientation, True)
-        self.assertEqual(p1.b_deep.consensus, O.blocks[10].consensus)
-        self.assertEqual(p1.b_shallow.consensus, O.blocks[40].consensus[0:200])
-        self.assertEqual(p1.b_shallow.id, G.nodes[nid_300_1].block_id)
+        self.assertEqual(p1.anchor_block.consensus, O.blocks[10].consensus)
+        self.assertEqual(p1.append_block.consensus, O.blocks[40].consensus[0:200])
+        self.assertEqual(p1.append_block.id, G.nodes[nid_300_1].block_id)
 
         bid40_3 = G.nodes[nid_300_3].block_id
         p2 = P_dict[bid40_3]
         self.assertEqual(p2.orientation, False)
-        self.assertEqual(p2.b_deep.consensus, O.blocks[40].consensus[300:500])
-        self.assertEqual(p2.b_shallow.id, G.nodes[nid_200_4].block_id)
-        self.assertEqual(p2.b_shallow.consensus, O.blocks[20].consensus[0:200])
+        self.assertEqual(p2.anchor_block.consensus, O.blocks[40].consensus[300:500])
+        self.assertEqual(p2.append_block.id, G.nodes[nid_200_4].block_id)
+        self.assertEqual(p2.append_block.consensus, O.blocks[20].consensus[0:200])
 
 
 if __name__ == "__main__":

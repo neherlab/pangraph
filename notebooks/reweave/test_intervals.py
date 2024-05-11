@@ -6,9 +6,9 @@ class TestIntervals(unittest.TestCase):
     def example(self):
         block_L = 1000
         bid = 0
-        create_hit = lambda new_bid, deep, strand, start, stop: {
+        create_hit = lambda new_bid, is_anchor, strand, start, stop: {
             "new_block_id": new_bid,
-            "deep": deep,
+            "is_anchor": is_anchor,
             "orientation": strand,
             "hit": Hit(name=bid, length=None, start=start, stop=stop),
         }
@@ -34,7 +34,7 @@ class TestIntervals(unittest.TestCase):
                     end=100,
                     aligned=True,
                     new_block_id=1,
-                    deep=True,
+                    is_anchor=True,
                     orientation=True,
                 ),
                 Interval(
@@ -48,7 +48,7 @@ class TestIntervals(unittest.TestCase):
                     end=300,
                     aligned=True,
                     new_block_id=2,
-                    deep=False,
+                    is_anchor=False,
                     orientation=True,
                 ),
                 Interval(
@@ -62,7 +62,7 @@ class TestIntervals(unittest.TestCase):
                     end=500,
                     aligned=True,
                     new_block_id=3,
-                    deep=True,
+                    is_anchor=True,
                     orientation=True,
                 ),
                 Interval(
@@ -76,7 +76,7 @@ class TestIntervals(unittest.TestCase):
                     end=900,
                     aligned=True,
                     new_block_id=4,
-                    deep=False,
+                    is_anchor=False,
                     orientation=True,
                 ),
                 Interval(
@@ -100,7 +100,7 @@ class TestIntervals(unittest.TestCase):
                     end=100,
                     aligned=True,
                     new_block_id=1,
-                    deep=True,
+                    is_anchor=True,
                     orientation=True,
                 ),
                 Interval(
@@ -114,7 +114,7 @@ class TestIntervals(unittest.TestCase):
                     end=300,
                     aligned=True,
                     new_block_id=2,
-                    deep=False,
+                    is_anchor=False,
                     orientation=True,
                 ),
                 Interval(
@@ -122,7 +122,7 @@ class TestIntervals(unittest.TestCase):
                     end=500,
                     aligned=True,
                     new_block_id=3,
-                    deep=True,
+                    is_anchor=True,
                     orientation=True,
                 ),
                 Interval(
@@ -136,7 +136,7 @@ class TestIntervals(unittest.TestCase):
                     end=900,
                     aligned=True,
                     new_block_id=4,
-                    deep=False,
+                    is_anchor=False,
                     orientation=True,
                 ),
                 Interval(

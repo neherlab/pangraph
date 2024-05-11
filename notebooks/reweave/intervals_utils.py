@@ -32,7 +32,7 @@ def __aligned_interval(hit_dict: dict):
         end=hit_dict["hit"].stop,
         aligned=True,
         new_block_id=hit_dict["new_block_id"],
-        deep=hit_dict["deep"],
+        is_anchor=hit_dict["is_anchor"],
         orientation=hit_dict["orientation"],
     )
 

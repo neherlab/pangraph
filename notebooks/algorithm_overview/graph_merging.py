@@ -162,7 +162,7 @@ def compatible_match(match: Alignment, matches: list[Alignment]) -> bool:
 @dataclass()
 class Merger:
     merged_block_id: str
-    deep_block: Block
+    anchor_block: Block
     shallow_block: Block
     alignment: Alignment
 

@@ -48,11 +48,11 @@ def slice_edits(i: Interval, ed: Edit, block_L: int):
     return new_edits
 
 
-def new_strandedness(old_strandedness, orientation, deep):
+def new_strandedness(old_strandedness, orientation, is_anchor):
     """Given the strandedness of the previous node, the orientation of the match,
-    and whether the block is the deep one, returns the strandedness of the new node.
-    Inverted only if the block is shallow and the match orientation is inverted."""
-    if deep or orientation:
+    and whether the block is the anchor one, returns the strandedness of the new node.
+    Inverted only if the block is not anchor and the match orientation is inverted."""
+    if is_anchor or orientation:
         return old_strandedness
     else:
         return not old_strandedness
@@ -128,7 +128,7 @@ def block_slice(b: Block, i: Interval, G: Pangraph) -> tuple[Block, dict[int, No
 
         # new node strandedness
         if i.aligned:
-            new_strand = new_strandedness(old_strandedness, i.orientation, i.deep)
+            new_strand = new_strandedness(old_strandedness, i.orientation, i.is_anchor)
         else:
             new_strand = old_strandedness
 

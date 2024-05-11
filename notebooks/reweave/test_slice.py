@@ -190,7 +190,9 @@ class TestBlockSlice(unittest.TestCase):
         return b1, G
 
     def test_new_strandedness(self):
-        ns = lambda d, o, s: new_strandedness(old_strandedness=s, orientation=o, deep=d)
+        ns = lambda d, o, s: new_strandedness(
+            old_strandedness=s, orientation=o, is_anchor=d
+        )
         self.assertEqual(ns(True, True, True), True)
         self.assertEqual(ns(True, True, False), False)
         self.assertEqual(ns(True, False, True), True)
@@ -200,7 +202,7 @@ class TestBlockSlice(unittest.TestCase):
         self.assertEqual(ns(False, False, True), False)
         self.assertEqual(ns(False, False, False), True)
 
-    def test_block_slice_fwd_deep(self):
+    def test_block_slice_fwd_anchor(self):
         b, G = self.generate_example()
         new_bid = 42
         i = Interval(
@@ -209,7 +211,7 @@ class TestBlockSlice(unittest.TestCase):
             aligned=True,
             new_block_id=new_bid,
             orientation=True,
-            deep=True,
+            is_anchor=True,
         )
 
         new_b, new_nodes = block_slice(b, i, G)
@@ -252,7 +254,7 @@ class TestBlockSlice(unittest.TestCase):
         )
         self.assertEqual(new_b.alignment[nn3.id], n3ed)
 
-    def test_block_slice_rev_shallow(self):
+    def test_block_slice_rev_append(self):
         b, G = self.generate_example()
         new_bid = 42
         i = Interval(
@@ -261,7 +263,7 @@ class TestBlockSlice(unittest.TestCase):
             aligned=True,
             new_block_id=new_bid,
             orientation=False,
-            deep=False,
+            is_anchor=False,
         )
 
         new_b, new_nodes = block_slice(b, i, G)
@@ -310,13 +312,28 @@ class TestBlockSlice(unittest.TestCase):
         s2 = apply_edits_to_ref(b.alignment[2], b.consensus)
         s3 = apply_edits_to_ref(b.alignment[3], b.consensus)
         i1 = Interval(
-            start=0, end=10, aligned=True, new_block_id=2, orientation=True, deep=True
+            start=0,
+            end=10,
+            aligned=True,
+            new_block_id=2,
+            orientation=True,
+            is_anchor=True,
         )
         i2 = Interval(
-            start=10, end=20, aligned=True, new_block_id=2, orientation=True, deep=True
+            start=10,
+            end=20,
+            aligned=True,
+            new_block_id=2,
+            orientation=True,
+            is_anchor=True,
         )
         i3 = Interval(
-            start=20, end=27, aligned=True, new_block_id=2, orientation=True, deep=True
+            start=20,
+            end=27,
+            aligned=True,
+            new_block_id=2,
+            orientation=True,
+            is_anchor=True,
         )
         nb1, nn1 = block_slice(b, i1, G)
         nb2, nn2 = block_slice(b, i2, G)
