@@ -11,7 +11,7 @@ def assign_new_block_ids(mergers: list[Alignment]):
         # this could also be done with a sequential counter if we do not parallelize the tree traversal
         q = a.qry
         r = a.reff
-        vec = (q.name, q.start, q.stop, r.name, r.start, r.stop, i)
+        vec = (q.name, q.start, q.stop, r.name, r.start, r.stop)
         a.new_block_id = hash(vec)
 
 

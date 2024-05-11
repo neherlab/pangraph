@@ -101,9 +101,7 @@ def refine_intervals(I: list[Interval], thr_len: int) -> list[Interval]:
         del I[n_from]
 
 
-def extract_intervals(
-    hits: list[tuple[tuple[int, str], Hit]], block_L: int, thr_len: int
-) -> list[Interval]:
+def extract_intervals(hits: list[dict], block_L: int, thr_len: int) -> list[Interval]:
     """Split the block into intervals, according to the hits.
     block_L is the total block consensus length."""
     # create intervals

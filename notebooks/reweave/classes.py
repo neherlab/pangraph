@@ -21,6 +21,7 @@ class Path:
     id: int  # path id
     nodes: list[int]  # list of node ids
     L: int  # total length of the genome
+    circular: bool = None  # whether the genome is circular
 
 
 @dataclass
@@ -174,7 +175,9 @@ class Pangraph:
     #     return apply_edits_to_ref(edit, b.consensus)
 
     # def get_path_seq(self, pid):
-    #     """Reconstruct the full sequence of a path."""
+    #     """Reconstruct the full sequence of a path.
+    #     Nb: with periodic boundary conditions, to get the exact input
+    #     sequence the output might still need to be rotated."""
     #     path = self.paths[pid]
     #     seq = ""
     #     for nid in path.nodes:
