@@ -47,12 +47,12 @@ pub struct PangraphBuildArgs {
   #[clap(long, short = 'u')]
   pub upper_case: bool,
 
-  /// Maximum number of self mappings to consider per pairwise graph merger
+  /// Maximum number of alignment rounds to consider per pairwise graph merger
   #[clap(long, short = 'x', default_value_t = 100)]
   #[clap(value_hint = ValueHint::Other)]
   pub max_self_map: usize,
 
-  /// Backend to use for pairwise genome alignment
+  /// Backend to use for genome similarity estimation. Similarity impacts the guide tree.
   #[clap(long, short = 'd', arg_enum, default_value_t = DistanceBackend::default())]
   #[clap(value_hint = ValueHint::Other)]
   pub distance_backend: DistanceBackend,
@@ -62,7 +62,7 @@ pub struct PangraphBuildArgs {
   #[clap(value_hint = ValueHint::Other)]
   pub alignment_kernel: AlignmentBackend,
 
-  /// Random seed
+  /// Random seed for block id generation
   #[clap(long)]
   pub seed: Option<u64>,
 }
