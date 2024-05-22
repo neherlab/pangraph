@@ -9,10 +9,7 @@ pub fn polish_run(args: &PangraphPolishArgs) -> Result<(), Report> {
     input_json,
     length,
     circular,
-    seed,
   } = &args;
-
-  let rng = get_random_number_generator(seed);
 
   let input_pangraph_json = Pangraph::from_path(input_json)?;
   let output_pangraph_json = polish(&input_pangraph_json, args)?;
