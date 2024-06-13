@@ -13,6 +13,7 @@ use eyre::Report;
 use itertools::{chain, Itertools};
 use maplit::btreemap;
 use ordered_float::OrderedFloat;
+use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 /// This is the function that is called when a node of the guide tree is visited.
@@ -20,7 +21,7 @@ use std::collections::BTreeMap;
 fn merge_graphs(left_graph: &Pangraph, right_graph: &Pangraph, args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
   // put the two graphs in a single one, by simply joining
   // the two sets of blocks and paths. No merging is performed
-  let graph = graph_join(left_graph, right_graph);
+  let graph = Cow::Owned(graph_join(left_graph, right_graph));
 
   // iteratively try to merge homologous regions in blocks.
   // We map the consensus sequences of blocks to each other and merge
@@ -30,7 +31,7 @@ fn merge_graphs(left_graph: &Pangraph, right_graph: &Pangraph, args: &PangraphBu
     let (graph, has_changed) = self_merge(&graph, args)?;
     // stop when no more mergers are possible
     if !has_changed {
-      break Ok(graph);
+      break Ok(graph.into_owned());
     }
   }
 }
@@ -44,17 +45,16 @@ fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
   }
 }
 
-fn self_merge(graph: &Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, bool), Report> {
+fn self_merge<'a>(graph: &'a Cow<'a, Pangraph>, args: &PangraphBuildArgs) -> Result<(Cow<'a, Pangraph>, bool), Report> {
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
-  let matches = find_matches(&graph.blocks, args);
+  let matches = find_matches(&graph.blocks, args)?;
 
   // split matches:
   // - whenever an alignment contains an in/del longer than the threshold length
   //   (parameter - default 100 bp) we want to split the alignment in two)
   let matches = matches
     .iter()
-    .flatten()
     .map(|m| split_matches(m, &args.aln_args))
     .collect::<Result<Vec<Vec<Alignment>>, Report>>()?
     .into_iter()
@@ -66,6 +66,11 @@ fn self_merge(graph: &Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, b
   // - sort them by energy
   // - discard incompatible matches (the ones that have overlapping regions)
   let matches = filter_matches(&matches, &args.aln_args);
+
+  // If there's no changes, then break out of the loop
+  if matches.is_empty() {
+    return Ok((Cow::clone(graph), false));
+  }
 
   // complex function: takes the list of desired matches and the two
   // graphs. It splits blocks and re-weaves paths through them. Paths
@@ -89,7 +94,9 @@ fn self_merge(graph: &Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, b
   // we might need this step for some final updates and consistency checks.
   // TODO: here we could also take care of transitive edges, which is useful
   // in the case of circular paths.
-  Ok((consolidate(graph), true))
+  let graph = consolidate(graph);
+
+  Ok((Cow::Owned(graph), true))
 }
 
 fn find_matches(blocks: &[PangraphBlock], args: &PangraphBuildArgs) -> Result<Vec<Alignment>, Report> {

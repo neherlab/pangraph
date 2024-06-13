@@ -22,12 +22,13 @@ pub struct AlignmentArgs {
   #[clap(value_hint = ValueHint::Other)]
   pub beta: f64,
 
-  /// Used to set pairwise alignment sensitivity
+  /// Used to set pairwise alignment sensitivity for minimap aligner. Corresponds to option -x asm5/asm10/asm20 in minimap2
   #[default = 10]
   #[clap(long, short = 's', possible_values(&["5", "10", "20"]), default_value_t = AlignmentArgs::default().sensitivity)]
   #[clap(value_hint = ValueHint::Other)]
   pub sensitivity: usize,
 
+  /// Sets kmer length for mmseqs2 aligner
   #[clap(long, short = 'K')]
   #[clap(value_hint = ValueHint::Other)]
   pub kmer_length: Option<usize>,

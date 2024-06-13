@@ -24,8 +24,4 @@ pub struct PangraphPolishArgs {
   /// Preserve case: ensure case (upper/lower) is preserved after realignment
   #[clap(long, short = 'c')]
   pub circular: bool,
-
-  /// Random seed
-  #[clap(long)]
-  pub seed: Option<u64>,
 }
