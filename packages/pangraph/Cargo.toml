@@ -40,6 +40,7 @@ itertools = { workspace = true }
 lazy_static = { workspace = true }
 log = { workspace = true }
 maplit = { workspace = true }
+memoize = { workspace = true }
 ndarray = { workspace = true }
 ndarray-rand = { workspace = true }
 ndarray-stats = { workspace = true }
@@ -63,6 +64,7 @@ smart-default = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
 tempfile = { workspace = true }
+twox-hash = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 atty = { workspace = true }

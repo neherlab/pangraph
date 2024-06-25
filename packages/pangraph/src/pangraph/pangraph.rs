@@ -2,30 +2,34 @@ use crate::io::fasta::FastaRecord;
 use crate::io::file::open_file_or_stdin;
 use crate::io::fs::read_reader_to_string;
 use crate::io::json::json_parse;
-use crate::pangraph::pangraph_block::PangraphBlock;
-use crate::pangraph::pangraph_node::PangraphNode;
+use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
+use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
+use crate::pangraph::pangraph_path::{PangraphPath, PathId};
 use crate::pangraph::strand::Strand;
-use crate::utils::id::random_id;
+use crate::utils::id::Id;
 use eyre::{Report, WrapErr};
+use maplit::btreemap;
 use serde::{Deserialize, Serialize};
-use smart_default::SmartDefault;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::str::FromStr;
 
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Hash)]
 pub struct Pangraph {
-  pub paths: Vec<PangraphPath>,
-  pub blocks: Vec<PangraphBlock>,
+  pub paths: BTreeMap<PathId, PangraphPath>,
+  pub blocks: BTreeMap<BlockId, PangraphBlock>,
+  pub nodes: BTreeMap<NodeId, PangraphNode>,
 }
 
 impl Pangraph {
-  pub fn singleton(fasta: FastaRecord, circular: bool) -> Self {
+  pub fn singleton(fasta: FastaRecord, strand: Strand, circular: bool) -> Self {
     let block = PangraphBlock::from_consensus(fasta.seq);
-    let path = PangraphPath::new(fasta.seq_name, block.id, circular);
+    let path = PangraphPath::new(fasta.seq_name, block.id(), Strand::Forward, circular);
+    let node = PangraphNode::new(block.id(), path.id(), strand, (0, 0));
     Self {
-      blocks: vec![block],
-      paths: vec![path],
+      blocks: btreemap! {block.id() => block},
+      paths: btreemap! {path.id() => path},
+      nodes: btreemap! {node.id() => node},
     }
   }
 
@@ -41,7 +45,9 @@ impl Pangraph {
     Ok(tree_str)
   }
 
-  pub fn sequences(&self) {}
+  pub fn consensuses(&self) -> impl Iterator<Item = &str> {
+    self.blocks.values().map(|block| block.consensus.as_str())
+  }
 
   pub fn names(&self) {}
 
@@ -53,32 +59,5 @@ impl FromStr for Pangraph {
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     json_parse(s).wrap_err("When parsing Pangraph JSON contents")
-  }
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub struct PangraphPath {
-  pub name: String,
-  pub nodes: Vec<PangraphNode>,
-  // pub offset: Option<isize>,
-  pub circular: bool,
-  // pub position: Vec<usize>,
-}
-
-impl PangraphPath {
-  pub fn new(name: String, block_id: usize, circular: bool) -> Self {
-    Self {
-      name,
-      nodes: vec![PangraphNode {
-        id: 0,
-        block_id,
-        path_id: 0,
-        strand: Strand::default(), // FIXME: should we assume forward strand here?
-        position: (0, 0),
-      }],
-      // offset: circular.then_some(0),
-      circular,
-      // position: vec![],
-    }
   }
 }

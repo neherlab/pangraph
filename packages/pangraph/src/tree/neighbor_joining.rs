@@ -1,6 +1,7 @@
 #![allow(non_snake_case)]
 
 use crate::pangraph::pangraph::Pangraph;
+use crate::pangraph::pangraph_path::PathId;
 use crate::tree::clade::Clade;
 use crate::utils::lock::Lock;
 use crate::utils::ndarray::broadcast;
@@ -35,7 +36,7 @@ pub fn build_tree_using_neighbor_joining(
       // TODO: Looking up names in the paths make testing setup of this function harder.
       let graph = graphs
         .iter()
-        .find(|graph| &graph.paths[0].name == name)
+        .find(|graph| &graph.paths[&PathId(0)].name == name)
         .ok_or_else(|| make_internal_report!("Graph not found for clade '{name}'"))?;
 
       Ok(Lock::new(Clade::new(name, Some(graph.clone()))))
@@ -131,8 +132,7 @@ fn join_in_place(D: &mut Array2<f64>, nodes: &mut Vec<Lock<Clade>>) -> Result<()
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::tree::clade::postorder;
-  use crate::{o, vec_of_owned};
+  use crate::o;
   use itertools::Itertools;
   use ndarray::array;
   use pretty_assertions::assert_eq;

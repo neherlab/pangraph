@@ -1,12 +1,11 @@
 use crate::pangraph::pangraph::Pangraph;
-use crate::utils::id::random_id;
 use crate::utils::lock::Lock;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
+use crate::utils::id::Id;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 pub struct Clade {
-  pub id: usize,
   pub name: Option<String>,
   pub parent: Option<Lock<Clade>>,
   pub left: Option<Lock<Clade>>,
@@ -14,10 +13,11 @@ pub struct Clade {
   pub graph: Option<Pangraph>,
 }
 
+impl Id<usize> for Clade {}
+
 impl Clade {
   pub fn new(name: &str, graph: Option<Pangraph>) -> Self {
     Self {
-      id: random_id(),
       name: Some(name.to_owned()),
       parent: None,
       left: None,
@@ -28,7 +28,6 @@ impl Clade {
 
   pub fn from_children(left: &Lock<Clade>, right: &Lock<Clade>) -> Self {
     Self {
-      id: random_id(),
       name: None,
       parent: None,
       left: Some(Lock::clone(left)),

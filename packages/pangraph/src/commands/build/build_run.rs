@@ -5,6 +5,7 @@ use crate::distance::mash::minimizer::MinimizersParams;
 use crate::io::fasta::{read_many_fasta, FastaRecord};
 use crate::io::json::json_write;
 use crate::pangraph::pangraph::Pangraph;
+use crate::pangraph::strand::Strand;
 use crate::tree::balance::balance;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
@@ -40,7 +41,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
   // TODO: initial graphs can potentially be constructed when initializing tree clades. This could avoid a lot of boilerplate code.
   let graphs = fastas
     .into_iter()
-    .map(|fasta| Pangraph::singleton(fasta, args.circular))
+    .map(|fasta| Pangraph::singleton(fasta, Strand::Forward, args.circular)) // FIXME: strand hardcoded
     .collect_vec();
 
   // Calculate pairwise distances between future guide tree nodes

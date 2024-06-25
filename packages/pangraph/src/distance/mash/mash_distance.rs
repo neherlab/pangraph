@@ -12,9 +12,7 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<f
     return array![[]];
   }
 
-  let sequences = graphs
-    .iter()
-    .flat_map(|graph| graph.blocks.iter().map(|block| &block.consensus));
+  let sequences = graphs.iter().flat_map(Pangraph::consensuses);
 
   let minimizers = sequences
     .enumerate()
@@ -62,19 +60,24 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<f
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::o;
-  use crate::pangraph::pangraph::PangraphPath;
   use crate::pangraph::pangraph_block::PangraphBlock;
+  use crate::pangraph::pangraph_node::PangraphNode;
+  use crate::pangraph::pangraph_path::PangraphPath;
+  use crate::pangraph::strand::Strand;
+  use crate::utils::id::Id;
+  use maplit::btreemap;
   use ndarray::array;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 
   fn create_fake_graph(seq: impl AsRef<str>) -> Pangraph {
     let block = PangraphBlock::from_consensus(seq);
-    let path = PangraphPath::new(o!(""), block.id, false);
+    let path = PangraphPath::new("", block.id(), Strand::Forward, false);
+    let node = PangraphNode::new(block.id(), path.id(), Strand::Forward, (0, 0));
     Pangraph {
-      blocks: vec![block],
-      paths: vec![path],
+      blocks: btreemap! {block.id() => block},
+      paths: btreemap! {path.id() => path},
+      nodes: btreemap! {node.id() => node},
     }
   }
 

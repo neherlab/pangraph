@@ -4,7 +4,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Sub {
   pub pos: usize,
   pub alt: char,
@@ -16,7 +16,7 @@ impl Sub {
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Del {
   pub pos: usize,
   pub len: usize,
@@ -36,7 +36,7 @@ impl Del {
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct Ins {
   pub pos: usize,
   pub seq: String,
@@ -51,14 +51,14 @@ impl Ins {
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Edits {
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+pub struct Edit {
   pub subs: Vec<Sub>,
   pub dels: Vec<Del>,
   pub inss: Vec<Ins>,
 }
 
-impl Edits {
+impl Edit {
   /// Apply the edits to the reference to obtain the query sequence
   pub fn apply(&self, reff: impl AsRef<str>) -> Result<String, Report> {
     // TODO: decide whether it's best to use chars, bytes of something else entirely
@@ -92,7 +92,6 @@ impl Edits {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use eyre::Report;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 
@@ -106,7 +105,7 @@ mod tests {
     let inss = vec![Ins::new(1, "G")];
     let dels = vec![Del::new(6, 1)];
     let subs = vec![Sub::new(8, 'A')];
-    let edits = Edits { subs, dels, inss };
+    let edits = Edit { subs, dels, inss };
 
     let actual = edits.apply(r).unwrap();
     assert_eq!(q, actual);
@@ -119,7 +118,7 @@ mod tests {
     let q = "ACCAGGCTTT";
     //          s
 
-    let edits = Edits {
+    let edits = Edit {
       subs: vec![Sub::new(3, 'A')],
       dels: vec![],
       inss: vec![],
@@ -136,7 +135,7 @@ mod tests {
     let q = "ACCGCTTT";
     //          d
 
-    let edits = Edits {
+    let edits = Edit {
       subs: vec![],
       dels: vec![Del::new(3, 2)],
       inss: vec![],
@@ -154,7 +153,7 @@ mod tests {
     let q = "ACCTACGGCTTT";
     //           ii
 
-    let edits = Edits {
+    let edits = Edit {
       subs: vec![],
       dels: vec![],
       inss: vec![Ins::new(4, "AC")],

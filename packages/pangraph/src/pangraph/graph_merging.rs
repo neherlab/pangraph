@@ -8,9 +8,11 @@ use crate::o;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::PangraphBlock;
 use crate::pangraph::split_matches::split_matches;
+use crate::utils::id::Id;
 use crate::utils::interval::{have_no_overlap, Interval};
+use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::Report;
-use itertools::{chain, Itertools};
+use itertools::Itertools;
 use maplit::btreemap;
 use ordered_float::OrderedFloat;
 use std::borrow::Cow;
@@ -39,16 +41,16 @@ fn merge_graphs(left_graph: &Pangraph, right_graph: &Pangraph, args: &PangraphBu
 fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
   // simply join the two sets of blocks and paths
   Pangraph {
-    // TODO: restructure code to avoid copying
-    blocks: chain!(left_graph.blocks.iter().cloned(), right_graph.blocks.iter().cloned()).collect_vec(),
-    paths: chain!(left_graph.paths.iter().cloned(), right_graph.paths.iter().cloned()).collect_vec(),
+    blocks: map_merge(&left_graph.blocks, &right_graph.blocks, ConflictResolution::Left),
+    paths: map_merge(&left_graph.paths, &right_graph.paths, ConflictResolution::Left),
+    nodes: map_merge(&left_graph.nodes, &right_graph.nodes, ConflictResolution::Left),
   }
 }
 
 fn self_merge<'a>(graph: &'a Cow<'a, Pangraph>, args: &PangraphBuildArgs) -> Result<(Cow<'a, Pangraph>, bool), Report> {
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
-  let matches = find_matches(&graph.blocks, args)?;
+  let matches = find_matches(graph.blocks.values(), args)?;
 
   // split matches:
   // - whenever an alignment contains an in/del longer than the threshold length
@@ -86,10 +88,14 @@ fn self_merge<'a>(graph: &'a Cow<'a, Pangraph>, args: &PangraphBuildArgs) -> Res
   let (mut graph, mergers) = reweave_graph(graph, &matches);
 
   // this can be parallelized
-  let merged_blocks = mergers.into_iter().map(|merger| perform_merger(&merger)).collect_vec();
+  let merged_blocks = mergers
+    .into_iter()
+    .map(|merger| perform_merger(&merger))
+    .map(|block| (block.id(), block))
+    .collect();
 
   // add the new blocks to the graph
-  graph.blocks.extend(merged_blocks);
+  graph.blocks = map_merge(&graph.blocks, &merged_blocks, ConflictResolution::Right);
 
   // we might need this step for some final updates and consistency checks.
   // TODO: here we could also take care of transitive edges, which is useful
@@ -99,11 +105,14 @@ fn self_merge<'a>(graph: &'a Cow<'a, Pangraph>, args: &PangraphBuildArgs) -> Res
   Ok((Cow::Owned(graph), true))
 }
 
-fn find_matches(blocks: &[PangraphBlock], args: &PangraphBuildArgs) -> Result<Vec<Alignment>, Report> {
+fn find_matches<'a>(
+  blocks: impl IntoIterator<Item = &'a PangraphBlock>,
+  args: &PangraphBuildArgs,
+) -> Result<Vec<Alignment>, Report> {
   // This function calls an aligner (default: minimap2) to find matches
   // between the consensus sequences of the blocks. It returns a list of
   // alignment objects.
-  let seqs = blocks.iter().map(|block| block.consensus.as_str()).collect_vec();
+  let seqs = blocks.into_iter().map(|block| block.consensus.as_str()).collect_vec();
 
   match args.alignment_kernel {
     AlignmentBackend::Minimap2 => align_with_minimap2(&seqs, &seqs, &args.aln_args),
@@ -180,8 +189,9 @@ fn reweave_graph(graph: &Pangraph, alns: &[Alignment]) -> (Pangraph, Vec<Merger>
   // TODO: this function should also update the position of all of the nodes!
 
   let graph = Pangraph {
-    paths: vec![],
-    blocks: vec![],
+    paths: btreemap! {},
+    blocks: btreemap! {},
+    nodes: btreemap! {},
   };
 
   let mergers = vec![];
@@ -206,7 +216,6 @@ fn perform_merger(merger: &Merger) -> PangraphBlock {
   // consensus sequence, updating it with indels or substitutions that might
   // have become present in the majority of sequences.
   PangraphBlock {
-    id: 0,
     consensus: o!(""),
     alignments: btreemap! {},
   }

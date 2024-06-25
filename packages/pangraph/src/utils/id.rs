@@ -1,7 +1,18 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::hash::{Hash, Hasher};
+use twox_hash::XxHash64;
 
-static ID_COUNTER: AtomicUsize = AtomicUsize::new(0);
+pub trait Id<T: From<usize>>: Hash {
+  fn id(&self) -> T {
+    id(self)
+  }
+}
 
-pub fn random_id() -> usize {
-  ID_COUNTER.fetch_add(1, Ordering::SeqCst)
+fn id<In, Out>(x: In) -> Out
+where
+  In: Hash,
+  Out: From<usize>,
+{
+  let mut hasher = XxHash64::with_seed(0);
+  x.hash(&mut hasher);
+  Out::from(hasher.finish() as usize)
 }

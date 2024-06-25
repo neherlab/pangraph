@@ -7,6 +7,7 @@ pub mod global_init;
 pub mod id;
 pub mod interval;
 pub mod lock;
+pub mod map_merge;
 pub mod ndarray;
 pub mod number_min_max;
 pub mod random;

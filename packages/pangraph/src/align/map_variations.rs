@@ -1,11 +1,11 @@
 use crate::align::nextclade::align::params::GapAlignmentSide;
 use crate::align::nextclade::align_with_nextclade::{align_with_nextclade, AlignWithNextcladeOutput, NextalignParams};
 use crate::align::nextclade::alphabet::nuc::{from_nuc, from_nuc_seq};
-use crate::pangraph::edits::{Del, Edits, Ins, Sub};
+use crate::pangraph::edits::{Del, Edit, Ins, Sub};
 use eyre::Report;
 use itertools::Itertools;
 
-pub fn map_variations(ref_seq: impl AsRef<str>, qry_seq: impl AsRef<str>) -> Result<Edits, Report> {
+pub fn map_variations(ref_seq: impl AsRef<str>, qry_seq: impl AsRef<str>) -> Result<Edit, Report> {
   let params = NextalignParams {
     min_length: 3,
     ..NextalignParams::default()
@@ -34,7 +34,7 @@ pub fn map_variations(ref_seq: impl AsRef<str>, qry_seq: impl AsRef<str>) -> Res
     .map(|s| Ins::new((s.pos + 1) as usize, from_nuc_seq(&s.ins)))
     .collect_vec();
 
-  Ok(Edits { subs, dels, inss })
+  Ok(Edit { subs, dels, inss })
 }
 
 #[cfg(test)]
@@ -58,7 +58,7 @@ mod tests {
 
     let actual = map_variations(r, q).unwrap();
 
-    let expected = Edits {
+    let expected = Edit {
       subs: vec![Sub::new(6, 'A')],
       dels: vec![Del::new(29, 4)],
       inss: vec![Ins::new(3, "AGA")],
@@ -87,7 +87,7 @@ mod tests {
 
     let actual = map_variations(r, q).unwrap();
 
-    let expected = Edits {
+    let expected = Edit {
       subs: vec![Sub::new(10, 'A')],
       dels: vec![Del::new(0, 3), Del::new(36, 4)],
       inss: vec![Ins::new(21, "GGT")],
@@ -116,7 +116,7 @@ mod tests {
 
     let actual = map_variations(r, q).unwrap();
 
-    let expected = Edits {
+    let expected = Edit {
       subs: vec![Sub::new(10, 'A'), Sub::new(31, 'C')],
       dels: vec![Del::new(15, 2)],
       inss: vec![Ins::new(0, "CCTG"), Ins::new(21, "GGT"), Ins::new(40, "GCCGCCG")],
@@ -144,7 +144,7 @@ mod tests {
 
     let actual = map_variations(r, q).unwrap();
 
-    let expected = Edits {
+    let expected = Edit {
       subs: vec![],
       dels: vec![Del::new(21, 9)],
       inss: vec![Ins::new(21, "GGGGGGGGGGGGG")],
