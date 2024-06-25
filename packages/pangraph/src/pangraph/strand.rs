@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, SmartDefault)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, SmartDefault)]
 pub enum Strand {
   #[default]
   #[serde(rename = "+")]
