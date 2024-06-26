@@ -43,11 +43,11 @@ impl PangraphBlock {
     Ok(())
   }
 
-  pub fn depth(self) -> usize {
+  pub fn depth(&self) -> usize {
     self.alignments.len()
   }
 
-  pub fn consensus_len(self) -> usize {
+  pub fn consensus_len(&self) -> usize {
     self.consensus.len()
   }
 }

@@ -1,4 +1,5 @@
 use crate::utils::collections::insert_at_inplace;
+use crate::utils::interval::Interval;
 use eyre::Report;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -33,6 +34,10 @@ impl Del {
 
   pub fn range(&self) -> Range<usize> {
     self.pos..self.end()
+  }
+
+  pub fn interval(&self) -> Interval {
+    Interval::new(self.pos, self.end())
   }
 }
 

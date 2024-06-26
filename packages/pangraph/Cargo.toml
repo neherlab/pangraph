@@ -35,6 +35,7 @@ env_logger = { workspace = true }
 eyre = { workspace = true }
 flate2 = { workspace = true }
 gcollections = { workspace = true }
+getset = { workspace = true }
 intervallum = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }

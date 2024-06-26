@@ -60,25 +60,23 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<f
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::pangraph::pangraph_block::PangraphBlock;
-  use crate::pangraph::pangraph_node::PangraphNode;
-  use crate::pangraph::pangraph_path::PangraphPath;
-  use crate::pangraph::strand::Strand;
+  use crate::io::fasta::FastaRecord;
+  use crate::o;
   use crate::utils::id::Id;
-  use maplit::btreemap;
   use ndarray::array;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 
   fn create_fake_graph(seq: impl AsRef<str>) -> Pangraph {
-    let block = PangraphBlock::from_consensus(seq);
-    let path = PangraphPath::new("", block.id(), Strand::Forward, false);
-    let node = PangraphNode::new(block.id(), path.id(), Strand::Forward, (0, 0));
-    Pangraph {
-      blocks: btreemap! {block.id() => block},
-      paths: btreemap! {path.id() => path},
-      nodes: btreemap! {node.id() => node},
-    }
+    Pangraph::singleton(
+      FastaRecord {
+        seq_name: o!(""),
+        seq: seq.as_ref().to_owned(),
+        index: 0,
+      },
+      true,
+      false,
+    )
   }
 
   #[rstest]

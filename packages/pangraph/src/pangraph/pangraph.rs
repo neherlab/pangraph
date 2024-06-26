@@ -5,7 +5,6 @@ use crate::io::json::json_parse;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::pangraph_path::{PangraphPath, PathId};
-use crate::pangraph::strand::Strand;
 use crate::utils::id::Id;
 use eyre::{Report, WrapErr};
 use maplit::btreemap;
@@ -22,10 +21,20 @@ pub struct Pangraph {
 }
 
 impl Pangraph {
-  pub fn singleton(fasta: FastaRecord, strand: Strand, circular: bool) -> Self {
+  pub fn singleton(fasta: FastaRecord, strand: bool, circular: bool) -> Self {
     let block = PangraphBlock::from_consensus(fasta.seq);
-    let path = PangraphPath::new(fasta.seq_name, block.id(), Strand::Forward, circular);
-    let node = PangraphNode::new(block.id(), path.id(), strand, (0, 0));
+
+    // FIXME: Paths and Nodes depend on ids of each other - chicken and egg problem. How to have simultaneously:
+    //
+    // - correct hash ids (without ad-hoc external id calculation and partially initialized objects)
+    //   AND
+    // - paths and nodes cross-reference each other
+    //
+    // Use pointers instead?
+    let path_id = PathId(0);
+    let node = PangraphNode::new(block.id(), path_id, strand, (0, 0));
+    let path = PangraphPath::new(fasta.seq_name, &[node.id()], circular);
+
     Self {
       blocks: btreemap! {block.id() => block},
       paths: btreemap! {path.id() => path},

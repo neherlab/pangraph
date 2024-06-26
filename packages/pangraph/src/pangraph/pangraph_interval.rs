@@ -1,5 +1,4 @@
 use crate::pangraph::pangraph_block::BlockId;
-use crate::pangraph::strand::Strand;
 use crate::utils::interval::Interval;
 use serde::{Deserialize, Serialize};
 use std::collections::hash_map::DefaultHasher;
@@ -11,7 +10,7 @@ pub struct PangraphInterval {
   pub aligned: bool,
   pub new_block_id: BlockId,
   pub is_anchor: Option<bool>,
-  pub orientation: Option<Strand>,
+  pub orientation: Option<bool>,
 }
 
 impl PangraphInterval {
@@ -27,8 +26,8 @@ impl PangraphInterval {
     self.interval.contains(pos)
   }
 
-  pub fn has_overlap_with(&self, other: &PangraphInterval) -> bool {
-    self.interval.has_overlap_with(&other.interval)
+  pub fn has_overlap_with(&self, other: &Interval) -> bool {
+    self.interval.has_overlap_with(other)
   }
 
   pub fn insertion_overlap(&self, ins_pos: usize, block_len: usize) -> bool {
@@ -37,7 +36,9 @@ impl PangraphInterval {
 }
 
 pub fn have_no_overlap(intervals: &[PangraphInterval], candidate: &PangraphInterval) -> bool {
-  !intervals.iter().any(|interval| interval.has_overlap_with(candidate))
+  !intervals
+    .iter()
+    .any(|interval| interval.has_overlap_with(&candidate.interval))
 }
 
 fn intervals_sanity_checks(intervals: &[PangraphInterval], block_length: usize) {
@@ -108,7 +109,7 @@ struct AnotherHit {
   hit: Hit,
   new_block_id: BlockId,
   is_anchor: bool,
-  orientation: Strand,
+  orientation: bool,
 }
 
 fn create_intervals(hits: &mut [AnotherHit], block_length: usize) -> Vec<PangraphInterval> {
@@ -190,7 +191,7 @@ mod tests {
     let block_length = 1000;
     let bid = BlockId(0);
 
-    let create_hit = |new_bid: BlockId, is_anchor: bool, strand: Strand, interval: Interval| -> AnotherHit {
+    let create_hit = |new_bid: BlockId, is_anchor: bool, strand: bool, interval: Interval| -> AnotherHit {
       AnotherHit {
         new_block_id: new_bid,
         is_anchor,
@@ -200,10 +201,10 @@ mod tests {
     };
 
     let hits = vec![
-      create_hit(BlockId(1), true, Strand::Forward, Interval::new(10, 100)),
-      create_hit(BlockId(2), false, Strand::Forward, Interval::new(200, 300)),
-      create_hit(BlockId(3), true, Strand::Forward, Interval::new(310, 500)),
-      create_hit(BlockId(4), false, Strand::Forward, Interval::new(600, 900)),
+      create_hit(BlockId(1), true, true, Interval::new(10, 100)),
+      create_hit(BlockId(2), false, true, Interval::new(200, 300)),
+      create_hit(BlockId(3), true, true, Interval::new(310, 500)),
+      create_hit(BlockId(4), false, true, Interval::new(600, 900)),
     ];
 
     (hits, block_length, bid)
@@ -229,7 +230,7 @@ mod tests {
           aligned: true,
           new_block_id: BlockId(1),
           is_anchor: Some(true),
-          orientation: Some(Strand::Forward)
+          orientation: Some(true)
         },
         PangraphInterval {
           interval: Interval::new(100, 200),
@@ -243,7 +244,7 @@ mod tests {
           aligned: true,
           new_block_id: BlockId(2),
           is_anchor: Some(false),
-          orientation: Some(Strand::Forward)
+          orientation: Some(true)
         },
         PangraphInterval {
           interval: Interval::new(300, 310),
@@ -257,7 +258,7 @@ mod tests {
           aligned: true,
           new_block_id: BlockId(3),
           is_anchor: Some(true),
-          orientation: Some(Strand::Forward)
+          orientation: Some(true)
         },
         PangraphInterval {
           interval: Interval::new(500, 600),
@@ -271,7 +272,7 @@ mod tests {
           aligned: true,
           new_block_id: BlockId(4),
           is_anchor: Some(false),
-          orientation: Some(Strand::Forward)
+          orientation: Some(true)
         },
         PangraphInterval {
           interval: Interval::new(900, 1000),
@@ -297,7 +298,7 @@ mod tests {
           aligned: true,
           new_block_id: BlockId(1),
           is_anchor: Some(true),
-          orientation: Some(Strand::Forward)
+          orientation: Some(true)
         },
         PangraphInterval {
           interval: Interval::new(100, 200),
@@ -311,14 +312,14 @@ mod tests {
           aligned: true,
           new_block_id: BlockId(2),
           is_anchor: Some(false),
-          orientation: Some(Strand::Forward)
+          orientation: Some(true)
         },
         PangraphInterval {
           interval: Interval::new(300, 500),
           aligned: true,
           new_block_id: BlockId(3),
           is_anchor: Some(true),
-          orientation: Some(Strand::Forward)
+          orientation: Some(true)
         },
         PangraphInterval {
           interval: Interval::new(500, 600),
@@ -332,7 +333,7 @@ mod tests {
           aligned: true,
           new_block_id: BlockId(4),
           is_anchor: Some(false),
-          orientation: Some(Strand::Forward)
+          orientation: Some(true)
         },
         PangraphInterval {
           interval: Interval::new(900, 1000),

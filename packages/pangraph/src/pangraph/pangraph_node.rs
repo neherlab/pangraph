@@ -1,8 +1,8 @@
 use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::pangraph_path::PathId;
-use crate::pangraph::strand::Strand;
 use crate::utils::id::Id;
 use derive_more::{Display, From};
+use getset::CopyGetters;
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::hash::{Hash, Hasher};
@@ -10,18 +10,19 @@ use std::hash::{Hash, Hasher};
 #[derive(Copy, Clone, Debug, Display, From, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct NodeId(pub usize);
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, CopyGetters)]
+#[get_copy = "pub"]
 pub struct PangraphNode {
   block_id: BlockId,
   path_id: PathId,
-  strand: Strand,
+  strand: bool,
   position: (usize, usize),
 }
 
 impl Id<NodeId> for PangraphNode {}
 
 impl PangraphNode {
-  pub fn new(block_id: BlockId, path_id: PathId, strand: Strand, position: (usize, usize)) -> Self {
+  pub fn new(block_id: BlockId, path_id: PathId, strand: bool, position: (usize, usize)) -> Self {
     Self {
       block_id,
       path_id,
@@ -29,6 +30,14 @@ impl PangraphNode {
       position,
     }
   }
+
+  // pub fn path_id(&self) -> PathId {
+  //   self.path_id
+  // }
+  //
+  // pub fn path_id(&self) -> PathId {
+  //   self.path_id
+  // }
 }
 
 // #[allow(clippy::wildcard_imports)]

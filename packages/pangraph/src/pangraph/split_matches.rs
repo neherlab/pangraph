@@ -177,7 +177,7 @@ fn generate_subalignment(aln: &Alignment, group: &(usize, usize)) -> Result<Alig
     matches: cigar_matches_len(&cigar),
     length: cigar_total_len(&cigar),
     quality: aln.quality,
-    orientation: aln.orientation.clone(),
+    orientation: aln.orientation,
     cigar,
     divergence: aln.divergence,
     align: aln.align,

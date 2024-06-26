@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::ops::Range;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Interval {
@@ -34,6 +35,13 @@ impl Interval {
     debug_assert!(self.is_valid());
     debug_assert!(other.is_valid());
     self.end > other.start && self.start < other.end
+  }
+
+  pub fn to_range(&self) -> Range<usize> {
+    Range {
+      start: self.start,
+      end: self.end,
+    }
   }
 }
 

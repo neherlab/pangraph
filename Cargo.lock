@@ -1490,6 +1490,7 @@ dependencies = [
  "eyre",
  "flate2",
  "gcollections",
+ "getset",
  "intervallum",
  "itertools 0.10.3",
  "lazy_static",
