@@ -1,4 +1,5 @@
 *.log
+*.pyc
 *.stTheme.cache
 *.sublime-project
 *.sublime-workspace
@@ -19,4 +20,5 @@
 /tests/out/
 /tmp*/
 Thumbs.db
+__pycache__/
 ehthumbs.db

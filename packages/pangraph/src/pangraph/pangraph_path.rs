@@ -8,7 +8,7 @@ pub struct PathId(pub usize);
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct PangraphPath {
-  pub name: String,
+  // pub name: BlockId,
   pub nodes: Vec<NodeId>,
   pub tot_len: usize,
   pub circular: bool,
@@ -17,11 +17,11 @@ pub struct PangraphPath {
 impl Id<PathId> for PangraphPath {}
 
 impl PangraphPath {
-  pub fn new(name: impl AsRef<str>, nodes: &[NodeId], circular: bool) -> Self {
+  pub fn new(/* name: BlockId, */ nodes: impl Into<Vec<NodeId>>, tot_len: usize, circular: bool) -> Self {
     Self {
-      name: name.as_ref().to_owned(),
-      nodes: nodes.to_owned(),
-      tot_len: 0,
+      // name,
+      nodes: nodes.into(),
+      tot_len,
       circular,
     }
   }

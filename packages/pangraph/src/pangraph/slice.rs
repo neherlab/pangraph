@@ -122,8 +122,8 @@ pub fn block_slice(
     let new_strand = if i.aligned {
       new_strandedness(
         old_strandedness,
-        i.orientation.unwrap_or(false),
-        i.is_anchor.unwrap_or(false),
+        i.orientation.unwrap(), // FIXME
+        i.is_anchor.unwrap(),   // FIXME
       )
     } else {
       old_strandedness
@@ -455,14 +455,9 @@ mod tests {
     let n2 = PangraphNode::new(bid, PathId(2), false, (1000, 1025));
     let n3 = PangraphNode::new(bid, PathId(3), false, (90, 9));
 
-    let mut p1 = PangraphPath::new("p1", &[NodeId(1), NodeId(4)], true);
-    p1.tot_len = 2000;
-
-    let mut p2 = PangraphPath::new("p2", &[NodeId(2), NodeId(5)], true);
-    p2.tot_len = 2000;
-
-    let mut p3 = PangraphPath::new("p3", &[NodeId(3), NodeId(6)], true);
-    p3.tot_len = 100;
+    let p1 = PangraphPath::new(/*"p1"*/ [NodeId(1), NodeId(4)], 2000, true);
+    let p2 = PangraphPath::new(/*"p2"*/ [NodeId(2), NodeId(5)], 2000, true);
+    let p3 = PangraphPath::new(/*"p3"*/ [NodeId(3), NodeId(6)], 100, true);
 
     let b1 = PangraphBlock {
       consensus: seq,

@@ -1,4 +1,5 @@
 use crate::align::bam::cigar::parse_cigar_str;
+use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::strand::Strand;
 use crate::utils::interval::Interval;
 use color_eyre::{Section, SectionExt};
@@ -9,7 +10,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 
 /// Hit is one side of a pairwise alignment between homologous sequences.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Hit {
   pub name: String,
   pub length: usize,
@@ -17,17 +18,32 @@ pub struct Hit {
 }
 
 impl Hit {
-  pub fn new(name: impl AsRef<str>, length: usize, (start, end): (usize, usize)) -> Self {
+  pub fn new(name: impl Into<String>, length: usize, (start, end): (usize, usize)) -> Self {
     Self {
-      name: name.as_ref().to_owned(),
+      name: name.into(),
       length,
       interval: Interval::new(start, end),
     }
   }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct Hit2 {
+  pub name: BlockId,
+  pub length: usize,
+  pub interval: Interval,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ExtractedHit {
+  pub hit: Hit2,
+  pub new_block_id: BlockId,
+  pub is_anchor: bool,
+  pub orientation: bool,
+}
+
 /// Alignment is a pairwise homologous alignment between two sequences.
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Alignment {
   pub qry: Hit,
   pub reff: Hit,
@@ -42,6 +58,33 @@ pub struct Alignment {
 
   pub divergence: Option<f64>,
   pub align: Option<f64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Alignment2 {
+  pub qry: Hit2,
+  pub reff: Hit2,
+  pub matches: usize,
+  pub length: usize,
+  pub quality: usize,
+  pub orientation: bool,
+
+  pub new_block_id: Option<BlockId>, // FIXME: it looks like this does not belong here and is a "partially-initialized object" anti-pattern
+  pub anchor_block: Option<AnchorBlock>, // FIXME: it looks like this does not belong here and is a "partially-initialized object" anti-pattern
+
+  #[serde(serialize_with = "serde_serialize_cigar")]
+  #[serde(deserialize_with = "serde_deserialize_cigar")]
+  pub cigar: Cigar, // TODO: We probably want Edits here instead?
+
+  pub divergence: Option<f64>,
+  pub align: Option<f64>,
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum AnchorBlock {
+  Ref,
+  Qry,
 }
 
 pub fn serde_serialize_cigar<S: Serializer>(cigar: &Cigar, s: S) -> Result<S::Ok, S::Error> {

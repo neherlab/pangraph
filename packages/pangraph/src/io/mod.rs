@@ -5,3 +5,4 @@ pub mod fasta;
 pub mod file;
 pub mod fs;
 pub mod json;
+pub mod seq;

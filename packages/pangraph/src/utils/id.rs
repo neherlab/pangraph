@@ -7,7 +7,7 @@ pub trait Id<T: From<usize>>: Hash {
   }
 }
 
-fn id<In, Out>(x: In) -> Out
+pub fn id<In, Out>(x: In) -> Out
 where
   In: Hash,
   Out: From<usize>,

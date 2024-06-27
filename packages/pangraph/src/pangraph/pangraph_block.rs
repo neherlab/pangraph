@@ -5,7 +5,7 @@ use crate::utils::id::Id;
 use derive_more::{Display, From};
 use eyre::Report;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::hash::Hash;
 
 #[derive(Copy, Clone, Debug, Display, From, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
@@ -49,6 +49,10 @@ impl PangraphBlock {
 
   pub fn consensus_len(&self) -> usize {
     self.consensus.len()
+  }
+
+  pub fn alignment_keys(&self) -> BTreeSet<NodeId> {
+    self.alignments.keys().copied().collect()
   }
 }
 

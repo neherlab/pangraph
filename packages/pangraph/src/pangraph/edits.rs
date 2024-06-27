@@ -56,7 +56,7 @@ impl Ins {
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Edit {
   pub subs: Vec<Sub>,
   pub dels: Vec<Del>,
@@ -64,6 +64,18 @@ pub struct Edit {
 }
 
 impl Edit {
+  pub fn empty() -> Self {
+    Self::default()
+  }
+
+  pub fn new(inss: impl Into<Vec<Ins>>, dels: impl Into<Vec<Del>>, subs: impl Into<Vec<Sub>>) -> Self {
+    Self {
+      subs: subs.into(),
+      dels: dels.into(),
+      inss: inss.into(),
+    }
+  }
+
   /// Apply the edits to the reference to obtain the query sequence
   pub fn apply(&self, reff: impl AsRef<str>) -> Result<String, Report> {
     // TODO: decide whether it's best to use chars, bytes of something else entirely

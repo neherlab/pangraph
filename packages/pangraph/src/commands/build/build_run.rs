@@ -2,7 +2,6 @@ use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::io::fasta::{read_many_fasta, FastaRecord};
 use crate::io::json::json_write;
 use crate::pangraph::pangraph::Pangraph;
-use crate::pangraph::strand::Strand;
 use crate::utils::random::get_random_number_generator;
 use eyre::Report;
 use itertools::Itertools;

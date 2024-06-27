@@ -1,7 +1,9 @@
+use crate::align::alignment::ExtractedHit;
 use crate::pangraph::pangraph_block::BlockId;
+use crate::utils::id::id;
 use crate::utils::interval::Interval;
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -80,7 +82,7 @@ fn unaligned_interval(interval: Interval, block_id: BlockId) -> PangraphInterval
   }
 }
 
-fn aligned_interval(h: &AnotherHit) -> PangraphInterval {
+fn aligned_interval(h: &ExtractedHit) -> PangraphInterval {
   // FIXME: partially initialized object in incorrect/unknown state.
   // We probably don't want to calculate this hash ad-hoc. Refactor code to avoid this.
   PangraphInterval {
@@ -94,31 +96,13 @@ fn aligned_interval(h: &AnotherHit) -> PangraphInterval {
 
 // FIXME: this should not exist
 fn calculate_hash(block_id: BlockId, interval: &Interval) -> BlockId {
-  let mut s = DefaultHasher::new();
-  (block_id, interval).hash(&mut s);
-  BlockId(s.finish() as usize)
+  BlockId(id((block_id, interval)))
 }
 
-#[derive(Debug)]
-struct Hit {
-  name: BlockId,
-  interval: Interval,
-}
-
-struct AnotherHit {
-  hit: Hit,
-  new_block_id: BlockId,
-  is_anchor: bool,
-  orientation: bool,
-}
-
-fn create_intervals(hits: &mut [AnotherHit], block_length: usize) -> Vec<PangraphInterval> {
-  hits.sort_by_key(|x| x.hit.interval.start);
-
+fn create_intervals(hits: &[ExtractedHit], block_length: usize) -> Vec<PangraphInterval> {
   let mut intervals = vec![];
   let mut cursor = 0;
-
-  for h in hits.iter() {
+  for h in hits.iter().sorted_by_key(|x| x.hit.interval.start) {
     let hit = &h.hit;
     if hit.interval.start > cursor {
       intervals.push(unaligned_interval(Interval::new(cursor, hit.interval.start), hit.name));
@@ -175,7 +159,7 @@ fn refine_intervals(intervals: &mut Vec<PangraphInterval>, thr_len: usize) {
   }
 }
 
-fn extract_intervals(hits: &mut [AnotherHit], block_length: usize, thr_len: usize) -> Vec<PangraphInterval> {
+pub fn extract_intervals(hits: &[ExtractedHit], block_length: usize, thr_len: usize) -> Vec<PangraphInterval> {
   let mut intervals = create_intervals(hits, block_length);
   refine_intervals(&mut intervals, thr_len);
   intervals_sanity_checks(&intervals, block_length);
@@ -185,18 +169,23 @@ fn extract_intervals(hits: &mut [AnotherHit], block_length: usize, thr_len: usiz
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::align::alignment::Hit2;
   use pretty_assertions::assert_eq;
 
-  fn example() -> (Vec<AnotherHit>, usize, BlockId) {
+  fn example() -> (Vec<ExtractedHit>, usize, BlockId) {
     let block_length = 1000;
     let bid = BlockId(0);
 
-    let create_hit = |new_bid: BlockId, is_anchor: bool, strand: bool, interval: Interval| -> AnotherHit {
-      AnotherHit {
+    let create_hit = |new_bid: BlockId, is_anchor: bool, strand: bool, interval: Interval| -> ExtractedHit {
+      ExtractedHit {
         new_block_id: new_bid,
         is_anchor,
         orientation: strand,
-        hit: Hit { name: bid, interval },
+        hit: Hit2 {
+          name: bid,
+          interval,
+          length: 0,
+        },
       }
     };
 
@@ -212,8 +201,8 @@ mod tests {
 
   #[test]
   fn test_create_intervals() {
-    let (mut hits, block_length, bid) = example();
-    let intervals = create_intervals(&mut hits, block_length);
+    let (hits, block_length, bid) = example();
+    let intervals = create_intervals(&hits, block_length);
 
     assert_eq!(
       intervals,
@@ -287,9 +276,9 @@ mod tests {
 
   #[test]
   fn test_refine_intervals() {
-    let (mut hits, block_length, bid) = example();
+    let (hits, block_length, bid) = example();
     let thr_len = 50;
-    let intervals = extract_intervals(&mut hits, block_length, thr_len);
+    let intervals = extract_intervals(&hits, block_length, thr_len);
     assert_eq!(
       intervals,
       vec![

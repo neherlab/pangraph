@@ -1,11 +1,10 @@
 #![allow(non_snake_case)]
 
+use crate::make_error;
 use crate::pangraph::pangraph::Pangraph;
-use crate::pangraph::pangraph_path::PathId;
 use crate::tree::clade::Clade;
 use crate::utils::lock::Lock;
 use crate::utils::ndarray::broadcast;
-use crate::{make_error, make_internal_report};
 use eyre::Report;
 use itertools::Itertools;
 use ndarray::{array, s, Array1, Array2, AssignElem, Axis};
@@ -30,14 +29,16 @@ pub fn build_tree_using_neighbor_joining(
   let mut nodes = names
     .iter()
     .map(|name| {
-      // TODO: try to restructure the code such that there is no need to store graphs and names in
-      // separate arrays and do fallible lookups. The relation is 1:1 and there should be no need for that.
-      // Also external names are unreliable and are not guaranteed to uniquely identify the sequences.
-      // TODO: Looking up names in the paths make testing setup of this function harder.
-      let graph = graphs
-        .iter()
-        .find(|graph| &graph.paths[&PathId(0)].name == name)
-        .ok_or_else(|| make_internal_report!("Graph not found for clade '{name}'"))?;
+      // // TODO: try to restructure the code such that there is no need to store graphs and names in
+      // // separate arrays and do fallible lookups. The relation is 1:1 and there should be no need for that.
+      // // Also external names are unreliable and are not guaranteed to uniquely identify the sequences.
+      // // TODO: Looking up names in the paths make testing setup of this function harder.
+
+      // let graph = graphs
+      //   .iter()
+      //   .find(|graph| &graph.paths[&PathId(0)].name == name)
+      //   .ok_or_else(|| make_internal_report!("Graph not found for clade '{name}'"))?;
+      let graph = &graphs[0]; // FIXME
 
       Ok(Lock::new(Clade::new(name, Some(graph.clone()))))
     })
