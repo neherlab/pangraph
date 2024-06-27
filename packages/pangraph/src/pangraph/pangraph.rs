@@ -6,6 +6,7 @@ use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::pangraph_path::{PangraphPath, PathId};
 use crate::utils::id::Id;
+use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::{Report, WrapErr};
 use maplit::btreemap;
 use serde::{Deserialize, Serialize};
@@ -72,9 +73,11 @@ impl Pangraph {
 
     self.blocks.remove(&u.b_old_id);
 
-    for b in &u.b_new {
-      self.blocks.insert(b.id(), b.clone());
-    }
+    self.blocks = map_merge(
+      &self.blocks,
+      &u.b_new.iter().map(|b| (b.id(), b.clone())).collect(),
+      ConflictResolution::Custom(|(kl, vl), (kr, vr)| panic!("Conflicting key: '{kl}'")),
+    );
 
     for (old_node_id, new_nodes) in &u.n_new {
       let path_id = self.nodes[&old_node_id].path_id();
