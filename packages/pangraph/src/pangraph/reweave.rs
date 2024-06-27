@@ -5,7 +5,7 @@ use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_interval::extract_intervals;
 use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::slice::block_slice;
-use crate::utils::id::{id, Id};
+use crate::utils::id::id;
 use eyre::Report;
 use itertools::Itertools;
 use std::collections::BTreeMap;
@@ -28,8 +28,8 @@ impl MergePromise {
   }
 
   fn solve_promise(&mut self) -> Result<PangraphBlock, Report> {
-    for (node_id, edits) in &self.append_block.alignments {
-      let mut seq = edits.apply(&self.append_block.consensus)?;
+    for (node_id, edits) in self.append_block.alignments() {
+      let mut seq = edits.apply(self.append_block.consensus())?;
       if self.orientation {
         seq = reverse_complement(&seq)?;
       };
@@ -169,7 +169,11 @@ fn split_block(bid: BlockId, mergers: &[Alignment2], graph: &Pangraph, thr_len: 
   let mut u = GraphUpdate {
     b_old_id: bid,
     b_new: Vec::new(),
-    n_new: graph.blocks[&bid].alignments.keys().map(|nid| (*nid, vec![])).collect(),
+    n_new: graph.blocks[&bid]
+      .alignment_keys()
+      .iter()
+      .map(|nid| (*nid, vec![]))
+      .collect(),
   };
 
   let mut h = Vec::new();
@@ -455,58 +459,37 @@ mod tests {
       let nid2 = NodeId(2000);
       let nid3 = NodeId(3000);
 
-      let n1 = PangraphNode::new(/* id: nid1, */ bid, PathId(100), true, (100, 230));
-      let n2 = PangraphNode::new(/* id: 2000, */ bid, PathId(200), false, (1000, 1130));
-      let n3 = PangraphNode::new(/* id: nid2, */ bid, PathId(300), false, (180, 110));
+      let n1 = PangraphNode::new(Some(nid1), bid, PathId(100), true, (100, 230));
+      let n2 = PangraphNode::new(Some(NodeId(2000)), bid, PathId(200), false, (1000, 1130)); // FIXME: mistake in node id?
+      let n3 = PangraphNode::new(Some(nid2), bid, PathId(300), false, (180, 110));
 
-      let ed1 = Edit::empty();
-      let ed2 = Edit::empty();
-      let ed3 = Edit::empty();
-
-      let b1 = PangraphBlock {
-        /* id: bid, */
+      let b1 = PangraphBlock::new(
+        Some(bid),
         consensus,
-        alignments: btreemap! {
-            nid1 => ed1,
-            nid2 => ed2,
-            nid3 => ed3,
+        btreemap! {
+          nid1 => Edit::empty(),
+          nid2 => Edit::empty(),
+          nid3 => Edit::empty(),
         },
-      };
+      );
 
-      let p1 = PangraphPath {
-        // id: 100,
-        nodes: vec![nid1],
-        tot_len: 2000,
-        circular: false,
-      };
-
-      let p2 = PangraphPath {
-        // id: 200,
-        nodes: vec![nid2],
-        tot_len: 2000,
-        circular: false,
-      };
-
-      let p3 = PangraphPath {
-        // id: 300,
-        nodes: vec![nid3],
-        tot_len: 200,
-        circular: false,
-      };
+      let p1 = PangraphPath::new(Some(PathId(100)), [nid1], 2000, false);
+      let p2 = PangraphPath::new(Some(PathId(200)), [nid2], 2000, false);
+      let p3 = PangraphPath::new(Some(PathId(300)), [nid3], 200, false);
 
       let g = Pangraph {
         paths: btreemap! {
-            PathId(100) => p1,
-            PathId(200) => p2,
-            PathId(300) => p3,
+          p1.id() => p1,
+          p2.id() => p2,
+          p3.id() => p3,
         },
         blocks: btreemap! {
-            bid => b1,
+          bid => b1,
         },
         nodes: btreemap! {
-            nid1 => n1,
-            nid2 => n2,
-            nid3 => n3,
+          nid1 => n1,
+          nid2 => n2,
+          nid3 => n3,
         },
       };
 
@@ -597,7 +580,7 @@ mod tests {
 
     assert_eq!(u.b_new.len(), 1);
     let b = &u.b_new[0];
-    assert_eq!(b.consensus, &G.blocks[&bid].consensus[50..80]);
+    assert_eq!(b.consensus(), &G.blocks[&bid].consensus()[50..80]);
     assert_eq!(b.alignment_keys(), node_keys_1);
 
     assert_eq!(h.len(), 2);
@@ -609,8 +592,8 @@ mod tests {
     assert_eq!(h[1].is_anchor, false);
     assert_eq!(h[1].orientation, false);
 
-    assert_eq!(h[0].block.consensus, &G.blocks[&bid].consensus[0..50]);
-    assert_eq!(h[1].block.consensus, &G.blocks[&bid].consensus[80..130]);
+    assert_eq!(h[0].block.consensus(), &G.blocks[&bid].consensus()[0..50]);
+    assert_eq!(h[1].block.consensus(), &G.blocks[&bid].consensus()[80..130]);
 
     assert_eq!(h[0].block.alignment_keys(), node_keys_0);
     assert_eq!(h[1].block.alignment_keys(), node_keys_2);
@@ -632,20 +615,20 @@ mod tests {
 
     fn generate_example() -> (Pangraph, Vec<Alignment2>) {
       let nodes = btreemap! {
-        NodeId(1) => PangraphNode::new(/*1,*/ BlockId(10), PathId(100), true, (700, 885)),
-        NodeId(2) => PangraphNode::new(/*2,*/ BlockId(30), PathId(100), true, (885, 988)),
-        NodeId(3) => PangraphNode::new(/*3,*/ BlockId(30), PathId(200), false, (100, 180)),
-        NodeId(4) => PangraphNode::new(/*4,*/ BlockId(20), PathId(200), false, (180, 555)),
-        NodeId(5) => PangraphNode::new(/*5,*/ BlockId(10), PathId(200), false, (555, 735)),
-        NodeId(6) => PangraphNode::new(/*6,*/ BlockId(40), PathId(300), true, (600, 100)),
-        NodeId(7) => PangraphNode::new(/*7,*/ BlockId(50), PathId(300), true, (100, 325)),
-        NodeId(8) => PangraphNode::new(/*8,*/ BlockId(50), PathId(300), false, (325, 580)),
+        NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(10), PathId(100), true, (700, 885)),
+        NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(30), PathId(100), true, (885, 988)),
+        NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(30), PathId(200), false, (100, 180)),
+        NodeId(4) => PangraphNode::new(Some(NodeId(4)), BlockId(20), PathId(200), false, (180, 555)),
+        NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(10), PathId(200), false, (555, 735)),
+        NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(40), PathId(300), true, (600, 100)),
+        NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(50), PathId(300), true, (100, 325)),
+        NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(50), PathId(300), false, (325, 580)),
       };
 
       let paths = btreemap! {
-        PathId(100) => PangraphPath::new(/* 100, */ [NodeId(1), NodeId(2)], 1000, false),
-        PathId(200) => PangraphPath::new(/* 200, */ [NodeId(3), NodeId(4), NodeId(5)], 1000, false),
-        PathId(300) => PangraphPath::new(/* 300, */ [NodeId(6), NodeId(7), NodeId(8)], 1000, false),
+        PathId(100) => PangraphPath::new(Some(PathId(100)), [NodeId(1), NodeId(2)], 1000, false),
+        PathId(200) => PangraphPath::new(Some(PathId(200)), [NodeId(3), NodeId(4), NodeId(5)], 1000, false),
+        PathId(300) => PangraphPath::new(Some(PathId(300)), [NodeId(6), NodeId(7), NodeId(8)], 1000, false),
       };
 
       #[rustfmt::skip]
@@ -672,7 +655,7 @@ mod tests {
 
       let b = |bid: usize, nids: &[usize]| -> PangraphBlock {
         PangraphBlock::new(
-          /* bid, */
+          Some(BlockId(bid)),
           &bseq[&BlockId(bid)],
           nids
             .iter()
@@ -799,7 +782,7 @@ mod tests {
     assert!(!P
       .iter()
       .any(|p| p.anchor_block.id() == bid20_2 || p.append_block.id() == bid20_2));
-    let ed20_2 = &G.blocks[&bid20_2].alignments[&nid_200_3];
+    let ed20_2 = &G.blocks[&bid20_2].alignments()[&nid_200_3];
     assert_eq!(ed20_2, &Edit::new([i(50, 5, "A")], [], [s(25, 'T')]));
 
     let bid20_1 = G.nodes[&nid_200_1].block_id();
@@ -813,15 +796,18 @@ mod tests {
 
     let p1 = &p_dict[&bid10_1];
     assert_eq!(p1.orientation, true);
-    assert_eq!(p1.anchor_block.consensus, O.blocks[&BlockId(10)].consensus);
-    assert_eq!(p1.append_block.consensus, &O.blocks[&BlockId(40)].consensus[0..200]);
+    assert_eq!(p1.anchor_block.consensus(), O.blocks[&BlockId(10)].consensus());
+    assert_eq!(p1.append_block.consensus(), &O.blocks[&BlockId(40)].consensus()[0..200]);
     assert_eq!(p1.append_block.id(), G.nodes[&nid_300_1].block_id());
 
     let bid40_3 = G.nodes[&nid_300_3].block_id();
     let p2 = &p_dict[&bid40_3];
     assert_eq!(p2.orientation, false);
-    assert_eq!(p2.anchor_block.consensus, &O.blocks[&BlockId(40)].consensus[300..500]);
+    assert_eq!(
+      p2.anchor_block.consensus(),
+      &O.blocks[&BlockId(40)].consensus()[300..500]
+    );
     assert_eq!(p2.append_block.id(), G.nodes[&nid_200_4].block_id());
-    assert_eq!(p2.append_block.consensus, &O.blocks[&BlockId(20)].consensus[0..200]);
+    assert_eq!(p2.append_block.consensus(), &O.blocks[&BlockId(20)].consensus()[0..200]);
   }
 }

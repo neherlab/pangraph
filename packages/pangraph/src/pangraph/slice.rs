@@ -5,7 +5,6 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::PangraphBlock;
 use crate::pangraph::pangraph_interval::PangraphInterval;
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
-use crate::utils::id::Id;
 use std::collections::BTreeMap;
 
 pub fn slice_substitutions(i: &PangraphInterval, S: &[Sub]) -> Vec<Sub> {
@@ -109,13 +108,13 @@ pub fn block_slice(
   G: &Pangraph,
 ) -> (PangraphBlock, BTreeMap<NodeId, PangraphNode>) {
   #[allow(clippy::string_slice)]
-  let new_consensus = b.consensus[i.interval.to_range()].to_owned();
+  let new_consensus = b.consensus()[i.interval.to_range()].to_owned();
   let block_L = b.consensus_len();
 
   let mut node_updates = BTreeMap::new();
   let mut new_alignment = BTreeMap::new();
 
-  for (old_node_id, edits) in &b.alignments {
+  for (old_node_id, edits) in b.alignments() {
     let old_node = &G.nodes[old_node_id];
     let old_strandedness = old_node.strand();
 
@@ -133,17 +132,14 @@ pub fn block_slice(
     let node_coords = interval_node_coords(i, edits, block_L);
     let new_pos = new_position(old_node.position(), node_coords, path_L, old_strandedness);
 
-    let new_node = PangraphNode::new(i.new_block_id, old_node.path_id(), new_strand, new_pos);
+    let new_node = PangraphNode::new(None, i.new_block_id, old_node.path_id(), new_strand, new_pos);
     node_updates.insert(*old_node_id, new_node.clone());
 
     let new_edits = slice_edits(i, edits, block_L);
     new_alignment.insert(new_node.id(), new_edits);
   }
 
-  let new_block = PangraphBlock {
-    consensus: new_consensus,
-    alignments: new_alignment,
-  };
+  let new_block = PangraphBlock::new(Some(i.new_block_id), new_consensus, new_alignment);
 
   (new_block, node_updates)
 }
@@ -379,15 +375,15 @@ mod tests {
     };
 
     let (new_b, new_nodes) = block_slice(&b, &i, &G);
-    assert_eq!(new_b.consensus, "TATATTTATC");
+    assert_eq!(new_b.consensus(), "TATATTTATC");
 
-    let nn1 = PangraphNode::new(new_bid, PathId(1), true, (111, 120));
+    let nn1 = PangraphNode::new(None, new_bid, PathId(1), true, (111, 120));
     assert_eq!(&new_nodes[&NodeId(1)], &nn1);
 
-    let nn2 = PangraphNode::new(new_bid, PathId(2), false, (1008, 1017));
+    let nn2 = PangraphNode::new(None, new_bid, PathId(2), false, (1008, 1017));
     assert_eq!(&new_nodes[&NodeId(2)], &nn2);
 
-    let nn3 = PangraphNode::new(new_bid, PathId(3), false, (96, 4));
+    let nn3 = PangraphNode::new(None, new_bid, PathId(3), false, (96, 4));
     assert_eq!(&new_nodes[&NodeId(3)], &nn3);
 
     assert_eq!(
@@ -404,21 +400,21 @@ mod tests {
       dels: vec![Del { pos: 8, len: 2 }],
       inss: vec![Ins { pos: 0, seq: o!("A") }],
     };
-    assert_eq!(&new_b.alignments[&nn1.id()], &n1ed);
+    assert_eq!(new_b.alignment(nn1.id()), &n1ed);
 
     let n2ed = Edit {
       subs: vec![Sub { pos: 9, alt: 'G' }],
       dels: vec![Del { pos: 3, len: 2 }],
       inss: vec![Ins { pos: 7, seq: o!("T") }],
     };
-    assert_eq!(&new_b.alignments[&nn2.id()], &n2ed);
+    assert_eq!(new_b.alignment(nn2.id()), &n2ed);
 
     let n3ed = Edit {
       subs: vec![],
       dels: vec![Del { pos: 0, len: 2 }],
       inss: vec![],
     };
-    assert_eq!(&new_b.alignments[&nn3.id()], &n3ed);
+    assert_eq!(new_b.alignment(nn3.id()), &n3ed);
   }
 
   fn generate_block_example() -> (PangraphBlock, Pangraph) {
@@ -451,22 +447,23 @@ mod tests {
       inss: vec![Ins { pos: 20, seq: o!("T") }],
     };
 
-    let n1 = PangraphNode::new(bid, PathId(1), true, (100, 125));
-    let n2 = PangraphNode::new(bid, PathId(2), false, (1000, 1025));
-    let n3 = PangraphNode::new(bid, PathId(3), false, (90, 9));
+    let n1 = PangraphNode::new(Some(NodeId(1)), bid, PathId(1), true, (100, 125));
+    let n2 = PangraphNode::new(Some(NodeId(2)), bid, PathId(2), false, (1000, 1025));
+    let n3 = PangraphNode::new(Some(NodeId(3)), bid, PathId(3), false, (90, 9));
 
-    let p1 = PangraphPath::new(/*"p1"*/ [NodeId(1), NodeId(4)], 2000, true);
-    let p2 = PangraphPath::new(/*"p2"*/ [NodeId(2), NodeId(5)], 2000, true);
-    let p3 = PangraphPath::new(/*"p3"*/ [NodeId(3), NodeId(6)], 100, true);
+    let p1 = PangraphPath::new(Some(PathId(1)), /*"p1"*/ [NodeId(1), NodeId(4)], 2000, true);
+    let p2 = PangraphPath::new(Some(PathId(2)), /*"p2"*/ [NodeId(2), NodeId(5)], 2000, true);
+    let p3 = PangraphPath::new(Some(PathId(3)), /*"p3"*/ [NodeId(3), NodeId(6)], 100, true);
 
-    let b1 = PangraphBlock {
-      consensus: seq,
-      alignments: btreemap! {
+    let b1 = PangraphBlock::new(
+      Some(bid),
+      seq,
+      btreemap! {
         NodeId(1) => ed1,
         NodeId(2) => ed2,
         NodeId(3) => ed3,
       },
-    };
+    );
 
     let G = Pangraph {
       paths: btreemap! {
@@ -501,15 +498,15 @@ mod tests {
 
     let (new_b, new_nodes) = block_slice(&b, &i, &G);
 
-    assert_eq!(new_b.consensus, "TATATTTATC");
+    assert_eq!(new_b.consensus(), "TATATTTATC");
 
-    let nn1 = PangraphNode::new(new_bid, PathId(1), false, (111, 120));
+    let nn1 = PangraphNode::new(None, new_bid, PathId(1), false, (111, 120));
     assert_eq!(&new_nodes[&NodeId(1)], &nn1);
 
-    let nn2 = PangraphNode::new(new_bid, PathId(2), true, (1008, 1017));
+    let nn2 = PangraphNode::new(None, new_bid, PathId(2), true, (1008, 1017));
     assert_eq!(&new_nodes[&NodeId(2)], &nn2);
 
-    let nn3 = PangraphNode::new(new_bid, PathId(3), true, (96, 4));
+    let nn3 = PangraphNode::new(None, new_bid, PathId(3), true, (96, 4));
     assert_eq!(&new_nodes[&NodeId(3)], &nn3);
 
     assert_eq!(
@@ -526,20 +523,20 @@ mod tests {
       dels: vec![Del { pos: 8, len: 2 }],
       inss: vec![Ins { pos: 0, seq: o!("A") }],
     };
-    assert_eq!(&new_b.alignments[&nn1.id()], &n1ed);
+    assert_eq!(new_b.alignment(nn1.id()), &n1ed);
 
     let n2ed = Edit {
       subs: vec![Sub { pos: 9, alt: 'G' }],
       dels: vec![Del { pos: 3, len: 2 }],
       inss: vec![Ins { pos: 7, seq: o!("T") }],
     };
-    assert_eq!(&new_b.alignments[&nn2.id()], &n2ed);
+    assert_eq!(new_b.alignment(nn2.id()), &n2ed);
 
     let n3ed = Edit {
       subs: vec![],
       dels: vec![Del { pos: 0, len: 2 }],
       inss: vec![],
     };
-    assert_eq!(&new_b.alignments[&nn3.id()], &n3ed);
+    assert_eq!(new_b.alignment(nn3.id()), &n3ed);
   }
 }

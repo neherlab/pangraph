@@ -1,26 +1,42 @@
 use crate::pangraph::pangraph_node::NodeId;
-use crate::utils::id::Id;
+use crate::utils::id::id;
 use derive_more::{Display, From};
+use getset::{CopyGetters, Getters};
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Display, From, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct PathId(pub usize);
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Getters, CopyGetters)]
 pub struct PangraphPath {
-  // pub name: BlockId,
+  #[getset(get_copy = "pub")]
+  pub id: PathId,
+
+  /* pub name: BlockId, */
+  #[getset(get = "pub")]
   pub nodes: Vec<NodeId>,
+
+  #[getset(get_copy = "pub")]
   pub tot_len: usize,
+
+  #[getset(get_copy = "pub")]
   pub circular: bool,
 }
 
-impl Id<PathId> for PangraphPath {}
-
 impl PangraphPath {
-  pub fn new(/* name: BlockId, */ nodes: impl Into<Vec<NodeId>>, tot_len: usize, circular: bool) -> Self {
+  pub fn new(
+    path_id: Option<PathId>,
+    /* name: BlockId, */
+    nodes: impl Into<Vec<NodeId>>,
+    tot_len: usize,
+    circular: bool,
+  ) -> Self {
+    let nodes = nodes.into();
+    let id = path_id.unwrap_or_else(|| id((&nodes, &tot_len, &circular)));
     Self {
+      id,
       // name,
-      nodes: nodes.into(),
+      nodes,
       tot_len,
       circular,
     }

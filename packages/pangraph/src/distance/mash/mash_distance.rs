@@ -62,7 +62,6 @@ mod tests {
   use super::*;
   use crate::io::fasta::FastaRecord;
   use crate::o;
-  use crate::utils::id::Id;
   use ndarray::array;
   use pretty_assertions::assert_eq;
   use rstest::rstest;

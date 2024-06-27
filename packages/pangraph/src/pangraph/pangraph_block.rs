@@ -1,9 +1,11 @@
 use crate::align::map_variations::map_variations;
 use crate::pangraph::edits::Edit;
 use crate::pangraph::pangraph_node::NodeId;
-use crate::utils::id::Id;
+use crate::utils::id::id;
 use derive_more::{Display, From};
 use eyre::Report;
+use getset::{CopyGetters, Getters};
+use maplit::btreemap;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::hash::Hash;
@@ -11,25 +13,25 @@ use std::hash::Hash;
 #[derive(Copy, Clone, Debug, Display, From, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct BlockId(pub usize);
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Getters, CopyGetters)]
 pub struct PangraphBlock {
-  pub consensus: String,
-  pub alignments: BTreeMap<NodeId, Edit>,
+  #[get_copy = "pub"]
+  id: BlockId,
+  consensus: String,
+  alignments: BTreeMap<NodeId, Edit>,
 }
 
-impl Id<BlockId> for PangraphBlock {}
-
 impl PangraphBlock {
-  pub fn from_consensus(consensus: impl AsRef<str>) -> Self {
-    Self {
-      consensus: consensus.as_ref().to_owned(),
-      alignments: BTreeMap::new(),
-    }
+  pub fn from_consensus(consensus: impl Into<String>) -> Self {
+    PangraphBlock::new(None, consensus, btreemap! {})
   }
 
-  pub fn new(consensus: impl AsRef<str>, alignments: BTreeMap<NodeId, Edit>) -> Self {
+  pub fn new(block_id: Option<BlockId>, consensus: impl Into<String>, alignments: BTreeMap<NodeId, Edit>) -> Self {
+    let consensus = consensus.into();
+    let id = block_id.unwrap_or_else(|| id((&consensus, &alignments)));
     Self {
-      consensus: consensus.as_ref().to_owned(),
+      id,
+      consensus,
       alignments,
     }
   }
@@ -47,12 +49,24 @@ impl PangraphBlock {
     self.alignments.len()
   }
 
+  pub fn consensus(&self) -> &str {
+    self.consensus.as_str()
+  }
+
   pub fn consensus_len(&self) -> usize {
     self.consensus.len()
   }
 
+  pub fn alignment(&self, nid: NodeId) -> &Edit {
+    &self.alignments[&nid]
+  }
+
   pub fn alignment_keys(&self) -> BTreeSet<NodeId> {
     self.alignments.keys().copied().collect()
+  }
+
+  pub fn alignments(&self) -> &BTreeMap<NodeId, Edit> {
+    &self.alignments
   }
 }
 
@@ -86,7 +100,7 @@ mod tests {
 
     let alignments = BTreeMap::from([(NodeId(0), E_0), (NodeId(1), E_1), (NodeId(2), E_2)]);
 
-    let mut block = PangraphBlock { consensus, alignments };
+    let mut block = PangraphBlock::new(None, consensus, alignments);
 
     let new_seq = o!("ACTTTGCGGATTTACTATA");
     block.append_sequence(new_seq, NodeId(0)).unwrap();

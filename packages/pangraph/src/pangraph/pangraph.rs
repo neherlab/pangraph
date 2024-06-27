@@ -5,7 +5,6 @@ use crate::io::json::json_parse;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::pangraph_path::{PangraphPath, PathId};
-use crate::utils::id::Id;
 use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::{Report, WrapErr};
 use maplit::btreemap;
@@ -33,10 +32,10 @@ impl Pangraph {
     //
     // Use pointers instead?
     let path_id = PathId(0);
-    let node = PangraphNode::new(block.id(), path_id, strand, (0, 0));
+    let node = PangraphNode::new(None, block.id(), path_id, strand, (0, 0));
 
     let tot_len = 0; // FIXME
-    let path = PangraphPath::new(/*fasta.seq_name, */ [node.id()], tot_len, circular);
+    let path = PangraphPath::new(None, /*fasta.seq_name, */ [node.id()], tot_len, circular);
 
     Self {
       blocks: btreemap! {block.id() => block},
@@ -58,7 +57,7 @@ impl Pangraph {
   }
 
   pub fn consensuses(&self) -> impl Iterator<Item = &str> {
-    self.blocks.values().map(|block| block.consensus.as_str())
+    self.blocks.values().map(|block| block.consensus())
   }
 
   pub fn update(&mut self, u: &GraphUpdate) {
@@ -88,7 +87,7 @@ impl Pangraph {
 
       path.nodes.remove(old_idx);
 
-      let new_ids: Vec<NodeId> = new_nodes.iter().map(Id::id).collect();
+      let new_ids: Vec<NodeId> = new_nodes.iter().map(|n| n.id()).collect();
       path.nodes.splice(old_idx..old_idx, new_ids);
 
       self.nodes.remove(old_node_id);
@@ -135,26 +134,26 @@ mod tests {
     // b2+ -> [b4+, b5-]
 
     let nodes = btreemap! {
-      NodeId(1) => PangraphNode::new(/* 1, */ BlockId(1), PathId(1), true, (0, 0)), // FIXME
-      NodeId(2) => PangraphNode::new(/* 2, */ BlockId(1), PathId(3), true, (0, 0)), // FIXME
-      NodeId(3) => PangraphNode::new(/* 3, */ BlockId(2), PathId(1), true, (0, 0)), // FIXME
-      NodeId(4) => PangraphNode::new(/* 4, */ BlockId(2), PathId(2), true, (0, 0)), // FIXME
-      NodeId(5) => PangraphNode::new(/* 5, */ BlockId(2), PathId(3), false, (0, 0)), // FIXME
-      NodeId(6) => PangraphNode::new(/* 6, */ BlockId(3), PathId(1), true, (0, 0)), // FIXME
-      NodeId(7) => PangraphNode::new(/* 7, */ BlockId(3), PathId(2), true, (0, 0)), // FIXME
-      NodeId(8) => PangraphNode::new(/* 8, */ BlockId(3), PathId(3), true, (0, 0)) // FIXME
+      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(1), PathId(1), true, (0, 0)), // FIXME
+      NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(1), PathId(3), true, (0, 0)), // FIXME
+      NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(2), PathId(1), true, (0, 0)), // FIXME
+      NodeId(4) => PangraphNode::new(Some(NodeId(4)), BlockId(2), PathId(2), true, (0, 0)), // FIXME
+      NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(2), PathId(3), false, (0, 0)), // FIXME
+      NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(3), PathId(1), true, (0, 0)), // FIXME
+      NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(3), PathId(2), true, (0, 0)), // FIXME
+      NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(3), true, (0, 0)) // FIXME
     };
 
     let blocks = btreemap! {
-      BlockId(1) => PangraphBlock::new(/* 1, */ "1", btreemap!{}), // {1: None, 2: None}
-      BlockId(2) => PangraphBlock::new(/* 2, */ "2", btreemap!{}), // {3: None, 4: None, 5: None}
-      BlockId(3) => PangraphBlock::new(/* 3, */ "3", btreemap!{}), // {6: None, 7: None, 8: None}
+      BlockId(1) => PangraphBlock::new(Some(BlockId(1)), "1", btreemap!{}), // {1: None, 2: None}
+      BlockId(2) => PangraphBlock::new(Some(BlockId(2)), "2", btreemap!{}), // {3: None, 4: None, 5: None}
+      BlockId(3) => PangraphBlock::new(Some(BlockId(3)), "3", btreemap!{}), // {6: None, 7: None, 8: None}
     };
 
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(/* 1, */ [NodeId(1), NodeId(3), NodeId(6)], 0, false),
-      PathId(2) => PangraphPath::new(/* 2, */ [NodeId(4), NodeId(7)], 0, false),
-      PathId(3) => PangraphPath::new(/* 3, */ [NodeId(2), NodeId(5), NodeId(8)], 0, false)
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1), NodeId(3), NodeId(6)], 0, false),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(4), NodeId(7)], 0, false),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2), NodeId(5), NodeId(8)], 0, false),
     };
 
     let mut G = Pangraph {
@@ -164,17 +163,17 @@ mod tests {
     };
 
     let new_nodes = btreemap! {
-      NodeId(9)  => PangraphNode::new(/* 9,  */ BlockId(4), PathId(1), true,  (0, 0)),
-      NodeId(10) => PangraphNode::new(/* 10, */ BlockId(5), PathId(1), false, (0, 0)),
-      NodeId(11) => PangraphNode::new(/* 11, */ BlockId(4), PathId(2), true,  (0, 0)),
-      NodeId(12) => PangraphNode::new(/* 12, */ BlockId(5), PathId(2), false, (0, 0)),
-      NodeId(13) => PangraphNode::new(/* 13, */ BlockId(4), PathId(3), false, (0, 0)),
-      NodeId(14) => PangraphNode::new(/* 14, */ BlockId(5), PathId(3), true,  (0, 0))
+      NodeId(9)  => PangraphNode::new(Some(NodeId(9)),  BlockId(4), PathId(1), true,  (0, 0)),
+      NodeId(10) => PangraphNode::new(Some(NodeId(10)), BlockId(5), PathId(1), false, (0, 0)),
+      NodeId(11) => PangraphNode::new(Some(NodeId(11)), BlockId(4), PathId(2), true,  (0, 0)),
+      NodeId(12) => PangraphNode::new(Some(NodeId(12)), BlockId(5), PathId(2), false, (0, 0)),
+      NodeId(13) => PangraphNode::new(Some(NodeId(13)), BlockId(4), PathId(3), false, (0, 0)),
+      NodeId(14) => PangraphNode::new(Some(NodeId(14)), BlockId(5), PathId(3), true,  (0, 0)),
     };
 
     let new_blocks = btreemap! {
-      BlockId(4) => PangraphBlock::new(/* 4, */ "4", btreemap!{}),
-      BlockId(5) => PangraphBlock::new(/* 5, */ "5", btreemap!{})
+      BlockId(4) => PangraphBlock::new(Some(BlockId(4)), "4", btreemap!{}),
+      BlockId(5) => PangraphBlock::new(Some(BlockId(5)), "5", btreemap!{}),
     };
 
     let update = GraphUpdate {
@@ -198,9 +197,9 @@ mod tests {
     assert_eq!(G.blocks, expected_blocks);
 
     let expected_paths = btreemap! {
-      PathId(1) => PangraphPath::new(/* 1, */ [NodeId(1),  NodeId(9),  NodeId(10),  NodeId(6)], 0, false),
-      PathId(2) => PangraphPath::new(/* 2, */ [NodeId(11), NodeId(12), NodeId(7)             ], 0, false),
-      PathId(3) => PangraphPath::new(/* 3, */ [NodeId(2),  NodeId(14), NodeId(13),  NodeId(8)], 0, false),
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1),  NodeId(9),  NodeId(10),  NodeId(6)], 0, false),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(11), NodeId(12), NodeId(7)             ], 0, false),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2),  NodeId(14), NodeId(13),  NodeId(8)], 0, false),
     };
     assert_eq!(G.paths, expected_paths);
 

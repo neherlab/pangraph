@@ -1,12 +1,6 @@
 use std::hash::{Hash, Hasher};
 use twox_hash::XxHash64;
 
-pub trait Id<T: From<usize>>: Hash {
-  fn id(&self) -> T {
-    id(self)
-  }
-}
-
 pub fn id<In, Out>(x: In) -> Out
 where
   In: Hash,

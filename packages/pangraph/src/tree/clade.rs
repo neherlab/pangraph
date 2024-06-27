@@ -2,7 +2,6 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::utils::lock::Lock;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
-use crate::utils::id::Id;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 pub struct Clade {
@@ -12,8 +11,6 @@ pub struct Clade {
   pub right: Option<Lock<Clade>>,
   pub graph: Option<Pangraph>,
 }
-
-impl Id<usize> for Clade {}
 
 impl Clade {
   pub fn new(name: &str, graph: Option<Pangraph>) -> Self {

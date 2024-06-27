@@ -7,8 +7,8 @@ pub fn merge_blocks_inplace<'l>(
   right: &PangraphBlock,
 ) -> Result<&'l PangraphBlock, Report> {
   // Append new sequences to left block
-  for (node_id, edits) in &right.alignments {
-    let seq = edits.apply(&right.consensus)?;
+  for (node_id, edits) in right.alignments() {
+    let seq = edits.apply(right.consensus())?;
     left.append_sequence(&seq, *node_id)?;
   }
   Ok(left)
@@ -56,7 +56,7 @@ mod tests {
       ),
     ]);
 
-    let mut block_A = PangraphBlock::new(cons_A, aln_A);
+    let mut block_A = PangraphBlock::new(None, cons_A, aln_A);
 
     let cons_B = o!("GACCAAACCTGTCCGCTGAAACTGCGGGGTACTGCAGC");
     let aln_B = BTreeMap::from([
@@ -77,7 +77,7 @@ mod tests {
         },
       ),
     ]);
-    let block_B = PangraphBlock::new(cons_B, aln_B);
+    let block_B = PangraphBlock::new(None, cons_B, aln_B);
     let new_block = merge_blocks_inplace(&mut block_A, &block_B)?;
 
     let new_cons = o!("GACTAAACCTGTCCGCTGAAACTGATCGGGGTACTGCAGC");
@@ -124,10 +124,7 @@ mod tests {
       ),
     ]);
 
-    let expected_new_block = PangraphBlock {
-      consensus: new_cons,
-      alignments: new_aln,
-    };
+    let expected_new_block = PangraphBlock::new(None, new_cons, new_aln);
 
     assert_eq!(&expected_new_block, new_block);
     Ok(())

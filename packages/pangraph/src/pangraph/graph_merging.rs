@@ -8,7 +8,6 @@ use crate::o;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::PangraphBlock;
 use crate::pangraph::split_matches::split_matches;
-use crate::utils::id::Id;
 use crate::utils::interval::{have_no_overlap, Interval};
 use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::Report;
@@ -112,7 +111,7 @@ fn find_matches<'a>(
   // This function calls an aligner (default: minimap2) to find matches
   // between the consensus sequences of the blocks. It returns a list of
   // alignment objects.
-  let seqs = blocks.into_iter().map(|block| block.consensus.as_str()).collect_vec();
+  let seqs = blocks.into_iter().map(|block| block.consensus()).collect_vec();
 
   match args.alignment_kernel {
     AlignmentBackend::Minimap2 => align_with_minimap2(&seqs, &seqs, &args.aln_args),
@@ -215,10 +214,7 @@ fn perform_merger(merger: &Merger) -> PangraphBlock {
   // TODO: potentially here later we can also take care of consolidating the
   // consensus sequence, updating it with indels or substitutions that might
   // have become present in the majority of sequences.
-  PangraphBlock {
-    consensus: o!(""),
-    alignments: btreemap! {},
-  }
+  PangraphBlock::new(None, "", btreemap! {})
 }
 
 fn consolidate(graph: Pangraph) -> Pangraph {
