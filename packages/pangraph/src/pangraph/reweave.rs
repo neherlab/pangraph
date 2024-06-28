@@ -33,15 +33,10 @@ impl MergePromise {
       if self.orientation {
         seq = reverse_complement(&seq)?;
       };
-      append_sequence(&self.anchor_block, &seq, *node_id);
+      self.anchor_block.append_sequence(&seq, *node_id)?;
     }
     Ok(self.anchor_block.clone())
   }
-}
-
-#[allow(clippy::todo)]
-fn append_sequence(_block: &PangraphBlock, _seq: &str, _node_id: NodeId) {
-  todo!()
 }
 
 #[derive(Debug)]
