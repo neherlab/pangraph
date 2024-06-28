@@ -454,8 +454,8 @@ mod tests {
       let nid3 = NodeId(3000);
 
       let n1 = PangraphNode::new(Some(nid1), bid, PathId(100), true, (100, 230));
-      let n2 = PangraphNode::new(Some(NodeId(2000)), bid, PathId(200), false, (1000, 1130)); // FIXME: mistake in node id?
-      let n3 = PangraphNode::new(Some(nid2), bid, PathId(300), false, (180, 110));
+      let n2 = PangraphNode::new(Some(nid2), bid, PathId(200), false, (1000, 1130));
+      let n3 = PangraphNode::new(Some(nid3), bid, PathId(300), false, (180, 110));
 
       let b1 = PangraphBlock::new(
         Some(bid),
@@ -471,7 +471,7 @@ mod tests {
       let p2 = PangraphPath::new(Some(PathId(200)), [nid2], 2000, false);
       let p3 = PangraphPath::new(Some(PathId(300)), [nid3], 200, false);
 
-      let g = Pangraph {
+      let G = Pangraph {
         paths: btreemap! {
           p1.id() => p1,
           p2.id() => p2,
@@ -516,11 +516,11 @@ mod tests {
       }
 
       let m = vec![
-        a(h(1, 10, 50), h(2, 100, 150), true, 42, AnchorBlock::Ref),
+        a(h(1, 10, 50), h(2, 100, 150), true, 42, AnchorBlock::Qry),
         a(h(3, 1000, 1050), h(1, 80, 130), false, 43, AnchorBlock::Qry),
       ];
 
-      (g, m, bid)
+      (G, m, bid)
     }
 
     let thr_len = 20;
