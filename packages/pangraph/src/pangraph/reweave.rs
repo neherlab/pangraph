@@ -305,88 +305,87 @@ mod tests {
     );
   }
 
-  // #[test]
-  // fn test_group_promises() {
-  //   let b1_anchor = PangraphBlock::new(/*1,*/ "A", btreemap! {} /* {1: None, 2: None, 3: None} */);
-  //   let b1_append = PangraphBlock::new(/*1,*/ "B", btreemap! {} /* {4: None, 5: None} */);
-  //
-  //   let b2_anchor = PangraphBlock::new(/*2,*/ "C", btreemap! {} /* {6: None, 7: None, 8: None} */);
-  //   let b2_append = PangraphBlock::new(/*2,*/ "D", btreemap! {} /* {7: None, 8: None} */);
-  //
-  //   let b3_anchor = PangraphBlock::new(/*3,*/ "E", btreemap! {} /* {11: None, 12: None} */);
-  //   let b3_append = PangraphBlock::new(/*3,*/ "F", btreemap! {} /* {13: None} */);
-  //
-  //   let h = &[
-  //     ToMerge::new(b1_anchor.clone(), true, true),
-  //     ToMerge::new(b1_append.clone(), false, true),
-  //     ToMerge::new(b3_anchor.clone(), true, false),
-  //     ToMerge::new(b2_append.clone(), false, true),
-  //     ToMerge::new(b2_anchor.clone(), true, true),
-  //     ToMerge::new(b3_append.clone(), false, false),
-  //   ];
-  //
-  //   let promises = group_promises(h);
-  //   assert_eq!(
-  //     promises,
-  //     vec![
-  //       MergePromise::new(b1_anchor, b1_append, true),
-  //       MergePromise::new(b2_anchor, b2_append, true),
-  //       MergePromise::new(b3_anchor, b3_append, false),
-  //     ]
-  //   );
-  // }
+  #[rustfmt::skip]
+  #[test]
+  fn test_group_promises() {
+    let b1_anchor = PangraphBlock::new(Some(BlockId(1)), "A", btreemap! {} /* {1: None, 2: None, 3: None} */);
+    let b1_append = PangraphBlock::new(Some(BlockId(1)), "B", btreemap! {} /* {4: None, 5: None} */);
+    let b2_anchor = PangraphBlock::new(Some(BlockId(2)), "C", btreemap! {} /* {6: None, 7: None, 8: None} */);
+    let b2_append = PangraphBlock::new(Some(BlockId(2)), "D", btreemap! {} /* {7: None, 8: None} */);
+    let b3_anchor = PangraphBlock::new(Some(BlockId(3)), "E", btreemap! {} /* {11: None, 12: None} */);
+    let b3_append = PangraphBlock::new(Some(BlockId(3)), "F", btreemap! {} /* {13: None} */);
 
-  // #[test]
-  // fn test_assign_anchor_block() {
-  //   fn new_hit(block_id: usize) -> Hit2 {
-  //     Hit2 {
-  //       name: BlockId(block_id),
-  //       length: 0,                     // FIXME
-  //       interval: Interval::default(), // FIXME
-  //     }
-  //   }
-  //
-  //   fn new_aln(q: usize, r: usize) -> Alignment2 {
-  //     Alignment2 {
-  //       qry: new_hit(q),
-  //       reff: new_hit(r),
-  //
-  //       // FIXME: these were all unset in Python version
-  //       matches: 0,
-  //       length: 0,
-  //       quality: 0,
-  //       orientation: false,
-  //       new_block_id: None,
-  //       anchor_block: None,
-  //       cigar: Cigar::default(),
-  //       divergence: None,
-  //       align: None,
-  //     }
-  //   }
-  //
-  //   let b1 = PangraphBlock::new(/* 1, */ "A", btreemap! {} /*[1, 2, 3]*/); // FIXME
-  //   let b2 = PangraphBlock::new(/* 2, */ "B", btreemap! {} /*[4, 5]*/); // FIXME
-  //   let b3 = PangraphBlock::new(/* 3, */ "C", btreemap! {} /*[6]*/); // FIXME
-  //   let b4 = PangraphBlock::new(/* 4, */ "D", btreemap! {} /*[7, 8, 9, 10]*/); // FIXME
-  //
-  //   let pangraph = Pangraph {
-  //     blocks: btreemap! {
-  //       BlockId(1) => b1,
-  //       BlockId(2) => b2,
-  //       BlockId(3) => b3,
-  //       BlockId(4) => b4,
-  //     },
-  //     paths: btreemap! {},
-  //     nodes: btreemap! {},
-  //   };
-  //
-  //   let mut mergers = vec![new_aln(1, 2), new_aln(3, 4), new_aln(4, 1)];
-  //   assign_anchor_block(&mut mergers, &pangraph);
-  //
-  //   assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Qry));
-  //   assert_eq!(mergers[1].anchor_block, Some(AnchorBlock::Ref));
-  //   assert_eq!(mergers[2].anchor_block, Some(AnchorBlock::Qry));
-  // }
+    let h = &[
+      ToMerge::new(b1_anchor.clone(), true, true),
+      ToMerge::new(b1_append.clone(), false, true),
+      ToMerge::new(b3_anchor.clone(), true, false),
+      ToMerge::new(b2_append.clone(), false, true),
+      ToMerge::new(b2_anchor.clone(), true, true),
+      ToMerge::new(b3_append.clone(), false, false),
+    ];
+
+    let promises = group_promises(h);
+    assert_eq!(
+      promises,
+      vec![
+        MergePromise::new(b1_anchor, b1_append, true),
+        MergePromise::new(b2_anchor, b2_append, true),
+        MergePromise::new(b3_anchor, b3_append, false),
+      ]
+    );
+  }
+
+  #[test]
+  fn test_assign_anchor_block() {
+    fn new_hit(block_id: usize) -> Hit2 {
+      Hit2 {
+        name: BlockId(block_id),
+        length: 0,                     // FIXME
+        interval: Interval::default(), // FIXME
+      }
+    }
+
+    fn new_aln(q: usize, r: usize) -> Alignment2 {
+      Alignment2 {
+        qry: new_hit(q),
+        reff: new_hit(r),
+
+        // FIXME: these were all unset in Python version
+        matches: 0,
+        length: 0,
+        quality: 0,
+        orientation: false,
+        new_block_id: None,
+        anchor_block: None,
+        cigar: Cigar::default(),
+        divergence: None,
+        align: None,
+      }
+    }
+
+    let b1 = PangraphBlock::new(Some(BlockId(1)), "A", btreemap! {} /*[1, 2, 3]*/); // FIXME
+    let b2 = PangraphBlock::new(Some(BlockId(2)), "B", btreemap! {} /*[4, 5]*/); // FIXME
+    let b3 = PangraphBlock::new(Some(BlockId(3)), "C", btreemap! {} /*[6]*/); // FIXME
+    let b4 = PangraphBlock::new(Some(BlockId(4)), "D", btreemap! {} /*[7, 8, 9, 10]*/); // FIXME
+
+    let pangraph = Pangraph {
+      blocks: btreemap! {
+        BlockId(1) => b1,
+        BlockId(2) => b2,
+        BlockId(3) => b3,
+        BlockId(4) => b4,
+      },
+      paths: btreemap! {},
+      nodes: btreemap! {},
+    };
+
+    let mut mergers = vec![new_aln(1, 2), new_aln(3, 4), new_aln(4, 1)];
+    assign_anchor_block(&mut mergers, &pangraph);
+
+    assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Qry));
+    assert_eq!(mergers[1].anchor_block, Some(AnchorBlock::Ref));
+    assert_eq!(mergers[2].anchor_block, Some(AnchorBlock::Qry));
+  }
 
   #[test]
   fn test_target_blocks() {
