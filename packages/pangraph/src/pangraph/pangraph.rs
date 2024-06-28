@@ -120,6 +120,7 @@ mod tests {
   #![allow(non_snake_case, clippy::redundant_clone)]
 
   use super::*;
+  use crate::pangraph::edits::Edit;
   use crate::pangraph::pangraph_node::PangraphNode;
   use crate::pangraph::pangraph_path::PangraphPath;
   use maplit::btreemap;
@@ -134,25 +135,28 @@ mod tests {
     // b2+ -> [b4+, b5-]
 
     let nodes = btreemap! {
-      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(1), PathId(1), true, (0, 0)), // FIXME
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(1), PathId(3), true, (0, 0)), // FIXME
-      NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(2), PathId(1), true, (0, 0)), // FIXME
-      NodeId(4) => PangraphNode::new(Some(NodeId(4)), BlockId(2), PathId(2), true, (0, 0)), // FIXME
+      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(1), PathId(1), true,  (0, 0)), // FIXME
+      NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(1), PathId(3), true,  (0, 0)), // FIXME
+      NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(2), PathId(1), true,  (0, 0)), // FIXME
+      NodeId(4) => PangraphNode::new(Some(NodeId(4)), BlockId(2), PathId(2), true,  (0, 0)), // FIXME
       NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(2), PathId(3), false, (0, 0)), // FIXME
-      NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(3), PathId(1), true, (0, 0)), // FIXME
-      NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(3), PathId(2), true, (0, 0)), // FIXME
-      NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(3), true, (0, 0)) // FIXME
+      NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(3), PathId(1), true,  (0, 0)), // FIXME
+      NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(3), PathId(2), true,  (0, 0)), // FIXME
+      NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(3), true,  (0, 0)) // FIXME
     };
 
     let blocks = btreemap! {
-      BlockId(1) => PangraphBlock::new(Some(BlockId(1)), "1", btreemap!{}), // {1: None, 2: None}
-      BlockId(2) => PangraphBlock::new(Some(BlockId(2)), "2", btreemap!{}), // {3: None, 4: None, 5: None}
-      BlockId(3) => PangraphBlock::new(Some(BlockId(3)), "3", btreemap!{}), // {6: None, 7: None, 8: None}
+      BlockId(1) => PangraphBlock::new(Some(BlockId(1)), "1",
+        btreemap!{ NodeId(1) => Edit::empty(), NodeId(2) => Edit::empty() }),
+      BlockId(2) => PangraphBlock::new(Some(BlockId(2)), "2",
+        btreemap!{ NodeId(3) => Edit::empty(), NodeId(4) => Edit::empty(), NodeId(5) => Edit::empty() }),
+      BlockId(3) => PangraphBlock::new(Some(BlockId(3)), "3",
+        btreemap!{ NodeId(6) => Edit::empty(), NodeId(7) => Edit::empty(), NodeId(8) => Edit::empty(), }),
     };
 
     let paths = btreemap! {
       PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1), NodeId(3), NodeId(6)], 0, false),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(4), NodeId(7)], 0, false),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(4), NodeId(7)           ], 0, false),
       PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2), NodeId(5), NodeId(8)], 0, false),
     };
 
@@ -209,12 +213,12 @@ mod tests {
       NodeId(6) => nodes[&NodeId(6)].clone(),
       NodeId(7) => nodes[&NodeId(7)].clone(),
       NodeId(8) => nodes[&NodeId(8)].clone(),
-      NodeId(9) => nodes[&NodeId(9)].clone(),
-      NodeId(10) => nodes[&NodeId(10)].clone(),
-      NodeId(11) => nodes[&NodeId(11)].clone(),
-      NodeId(12) => nodes[&NodeId(12)].clone(),
-      NodeId(13) => nodes[&NodeId(13)].clone(),
-      NodeId(14) => nodes[&NodeId(14)].clone(),
+      NodeId(9) => new_nodes[&NodeId(9)].clone(),
+      NodeId(10) => new_nodes[&NodeId(10)].clone(),
+      NodeId(11) => new_nodes[&NodeId(11)].clone(),
+      NodeId(12) => new_nodes[&NodeId(12)].clone(),
+      NodeId(13) => new_nodes[&NodeId(13)].clone(),
+      NodeId(14) => new_nodes[&NodeId(14)].clone(),
     };
     assert_eq!(G.nodes, expected_nodes);
   }
