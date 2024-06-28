@@ -363,10 +363,14 @@ mod tests {
       }
     }
 
-    let b1 = PangraphBlock::new(Some(BlockId(1)), "A", btreemap! {} /*[1, 2, 3]*/); // FIXME
-    let b2 = PangraphBlock::new(Some(BlockId(2)), "B", btreemap! {} /*[4, 5]*/); // FIXME
-    let b3 = PangraphBlock::new(Some(BlockId(3)), "C", btreemap! {} /*[6]*/); // FIXME
-    let b4 = PangraphBlock::new(Some(BlockId(4)), "D", btreemap! {} /*[7, 8, 9, 10]*/); // FIXME
+    fn e(nids: &[usize]) -> BTreeMap<NodeId, Edit> {
+      nids.iter().map(|nid| (NodeId(*nid), Edit::empty())).collect()
+    }
+
+    let b1 = PangraphBlock::new(Some(BlockId(1)), "A", e(&[1, 2, 3]));
+    let b2 = PangraphBlock::new(Some(BlockId(2)), "B", e(&[4, 5]));
+    let b3 = PangraphBlock::new(Some(BlockId(3)), "C", e(&[6]));
+    let b4 = PangraphBlock::new(Some(BlockId(4)), "D", e(&[7, 8, 9, 10]));
 
     let pangraph = Pangraph {
       blocks: btreemap! {
