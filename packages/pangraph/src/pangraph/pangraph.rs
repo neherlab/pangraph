@@ -22,21 +22,11 @@ pub struct Pangraph {
 
 impl Pangraph {
   pub fn singleton(fasta: FastaRecord, strand: bool, circular: bool) -> Self {
+    let tot_len = fasta.seq.len();
     let block = PangraphBlock::from_consensus(fasta.seq);
-
-    // FIXME: Paths and Nodes depend on ids of each other - chicken and egg problem. How to have simultaneously:
-    //
-    // - correct hash ids (without ad-hoc external id calculation and partially initialized objects)
-    //   AND
-    // - paths and nodes cross-reference each other
-    //
-    // Use pointers instead?
-    let path_id = PathId(0);
+    let path_id = PathId(fasta.index);
     let node = PangraphNode::new(None, block.id(), path_id, strand, (0, 0));
-
-    let tot_len = 0; // FIXME
-    let path = PangraphPath::new(None, /*fasta.seq_name, */ [node.id()], tot_len, circular);
-
+    let path = PangraphPath::new(Some(path_id), [node.id()], tot_len, circular);
     Self {
       blocks: btreemap! {block.id() => block},
       paths: btreemap! {path.id() => path},
