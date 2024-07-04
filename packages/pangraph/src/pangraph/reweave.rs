@@ -200,7 +200,7 @@ fn split_block(bid: BlockId, mergers: &[Alignment], graph: &Pangraph, thr_len: u
   (u, h)
 }
 
-pub fn reweave(mergers: &mut [Alignment], graph: &mut Pangraph, thr_len: usize) -> (Pangraph, Vec<MergePromise>) {
+pub fn reweave(mergers: &mut [Alignment], mut graph: Pangraph, thr_len: usize) -> (Pangraph, Vec<MergePromise>) {
   assign_new_block_ids(mergers);
   assign_anchor_block(mergers, &graph);
 
@@ -218,7 +218,8 @@ pub fn reweave(mergers: &mut [Alignment], graph: &mut Pangraph, thr_len: usize) 
   for graph_update in u {
     graph.update(&graph_update);
   }
-  (graph.clone(), merge_promises)
+
+  (graph, merge_promises)
 }
 
 #[cfg(test)]

@@ -15,7 +15,6 @@ use eyre::Report;
 use itertools::Itertools;
 use maplit::btreemap;
 use ordered_float::OrderedFloat;
-use std::borrow::Cow;
 use std::collections::BTreeMap;
 
 /// This is the function that is called when a node of the guide tree is visited.
@@ -27,7 +26,7 @@ pub fn merge_graphs(
 ) -> Result<Pangraph, Report> {
   // put the two graphs in a single one, by simply joining
   // the two sets of blocks and paths. No merging is performed
-  let mut graph = Cow::Owned(graph_join(left_graph, right_graph));
+  let mut graph = graph_join(left_graph, right_graph);
 
   // iteratively try to merge homologous regions in blocks.
   // We map the consensus sequences of blocks to each other and merge
@@ -39,7 +38,7 @@ pub fn merge_graphs(
 
     // stop when no more mergers are possible
     if !has_changed {
-      break Ok(graph.into_owned());
+      break Ok(graph);
     }
   }
 }
@@ -53,10 +52,7 @@ pub fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
   }
 }
 
-pub fn self_merge<'a>(
-  mut graph: Cow<'a, Pangraph>,
-  args: &PangraphBuildArgs,
-) -> Result<(Cow<'a, Pangraph>, bool), Report> {
+pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, bool), Report> {
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
   let matches = find_matches(graph.blocks.values(), args)?;
@@ -80,7 +76,7 @@ pub fn self_merge<'a>(
 
   // If there's no changes, then break out of the loop
   if matches.is_empty() {
-    return Ok((Cow::clone(&graph), false));
+    return Ok((graph, false));
   }
 
   // complex function: takes the list of desired matches and the two
@@ -94,7 +90,7 @@ pub fn self_merge<'a>(
   // - splitting blocks and updating the node ids.
   // - adding the blocks that do not need merging to the preliminary graph
   // - return the set of blocks that should be merged
-  let (mut graph, mergers) = reweave(&mut matches, graph.to_mut(), args.aln_args.indel_len_threshold);
+  let (mut graph, mergers) = reweave(&mut matches, graph, args.aln_args.indel_len_threshold);
 
   // this can be parallelized
   let merged_blocks = mergers
@@ -113,7 +109,7 @@ pub fn self_merge<'a>(
   // in the case of circular paths.
   let graph = consolidate(graph);
 
-  Ok((Cow::Owned(graph), true))
+  Ok((graph, true))
 }
 
 pub fn find_matches<'a>(
