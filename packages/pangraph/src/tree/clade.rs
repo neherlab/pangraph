@@ -5,7 +5,6 @@ use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 pub struct Clade {
-  pub name: Option<String>,
   pub parent: Option<Lock<Clade>>,
   pub left: Option<Lock<Clade>>,
   pub right: Option<Lock<Clade>>,
@@ -13,9 +12,8 @@ pub struct Clade {
 }
 
 impl Clade {
-  pub fn new(name: &str, graph: Option<Pangraph>) -> Self {
+  pub fn new(graph: Option<Pangraph>) -> Self {
     Self {
-      name: Some(name.to_owned()),
       parent: None,
       left: None,
       right: None,
@@ -25,7 +23,6 @@ impl Clade {
 
   pub fn from_children(left: &Lock<Clade>, right: &Lock<Clade>) -> Self {
     Self {
-      name: None,
       parent: None,
       left: Some(Lock::clone(left)),
       right: Some(Lock::clone(right)),
@@ -43,30 +40,30 @@ impl Clade {
     self.parent.is_none()
   }
 
-  pub fn to_newick(&self) -> String {
-    fn recurse(clade: &Clade) -> String {
-      if clade.is_leaf() {
-        clade.name.clone().unwrap_or_default()
-      } else {
-        let mut newick = String::from("(");
-        if let Some(left) = &clade.left {
-          newick.push_str(&recurse(&left.read()));
-        }
-        newick.push(',');
-        if let Some(right) = &clade.right {
-          newick.push_str(&recurse(&right.read()));
-        }
-        newick.push(')');
-        if let Some(name) = &clade.name {
-          newick.push_str(name);
-        }
-        newick
-      }
-    }
-
-    let newick = recurse(self);
-    format!("{newick};")
-  }
+  // pub fn to_newick(&self) -> String {
+  //   fn recurse(clade: &Clade) -> String {
+  //     if clade.is_leaf() {
+  //       clade.name.clone().unwrap_or_default()
+  //     } else {
+  //       let mut newick = String::from("(");
+  //       if let Some(left) = &clade.left {
+  //         newick.push_str(&recurse(&left.read()));
+  //       }
+  //       newick.push(',');
+  //       if let Some(right) = &clade.right {
+  //         newick.push_str(&recurse(&right.read()));
+  //       }
+  //       newick.push(')');
+  //       if let Some(name) = &clade.name {
+  //         newick.push_str(name);
+  //       }
+  //       newick
+  //     }
+  //   }
+  //
+  //   let newick = recurse(self);
+  //   format!("{newick};")
+  // }
 }
 
 pub fn postorder<T, F>(clade: &Lock<Clade>, f: F) -> Vec<T>
