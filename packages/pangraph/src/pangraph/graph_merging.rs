@@ -19,7 +19,7 @@ use std::collections::BTreeMap;
 
 /// This is the function that is called when a node of the guide tree is visited.
 /// Take two graphs and merge them into a single one. The merged graph is passed to the parent node.
-fn merge_graphs(left_graph: &Pangraph, right_graph: &Pangraph, args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
+pub fn merge_graphs(left_graph: &Pangraph, right_graph: &Pangraph, args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
   // put the two graphs in a single one, by simply joining
   // the two sets of blocks and paths. No merging is performed
   let graph = Cow::Owned(graph_join(left_graph, right_graph));
@@ -37,7 +37,7 @@ fn merge_graphs(left_graph: &Pangraph, right_graph: &Pangraph, args: &PangraphBu
   }
 }
 
-fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
+pub fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
   // simply join the two sets of blocks and paths
   Pangraph {
     blocks: map_merge(&left_graph.blocks, &right_graph.blocks, ConflictResolution::Left),
@@ -46,7 +46,7 @@ fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
   }
 }
 
-fn self_merge<'a>(graph: &'a Cow<'a, Pangraph>, args: &PangraphBuildArgs) -> Result<(Cow<'a, Pangraph>, bool), Report> {
+pub fn self_merge<'a>(graph: &'a Cow<'a, Pangraph>, args: &PangraphBuildArgs) -> Result<(Cow<'a, Pangraph>, bool), Report> {
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
   let matches = find_matches(graph.blocks.values(), args)?;
@@ -104,7 +104,7 @@ fn self_merge<'a>(graph: &'a Cow<'a, Pangraph>, args: &PangraphBuildArgs) -> Res
   Ok((Cow::Owned(graph), true))
 }
 
-fn find_matches<'a>(
+pub fn find_matches<'a>(
   blocks: impl IntoIterator<Item = &'a PangraphBlock>,
   args: &PangraphBuildArgs,
 ) -> Result<Vec<Alignment>, Report> {
@@ -119,7 +119,7 @@ fn find_matches<'a>(
   }
 }
 
-fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
+pub fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
   // - evaluates the energy of the alignments
   // - keeps only matches with E < 0
   // - sorts them by energy
@@ -149,7 +149,7 @@ fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
   accepted_alns
 }
 
-fn is_match_compatible(aln: &Alignment, accepted_intervals: &BTreeMap<String, Vec<Interval>>) -> bool {
+pub fn is_match_compatible(aln: &Alignment, accepted_intervals: &BTreeMap<String, Vec<Interval>>) -> bool {
   let ref_compatible = have_no_overlap(
     accepted_intervals.get(&aln.reff.name).unwrap_or(&vec![]),
     &aln.reff.interval,
@@ -163,7 +163,7 @@ fn is_match_compatible(aln: &Alignment, accepted_intervals: &BTreeMap<String, Ve
   ref_compatible && qry_compatible
 }
 
-fn update_intervals(aln: &Alignment, accepted_intervals: &mut BTreeMap<String, Vec<Interval>>) {
+pub fn update_intervals(aln: &Alignment, accepted_intervals: &mut BTreeMap<String, Vec<Interval>>) {
   accepted_intervals
     .entry(aln.reff.name.clone())
     .or_default()
@@ -175,7 +175,7 @@ fn update_intervals(aln: &Alignment, accepted_intervals: &mut BTreeMap<String, V
     .push(aln.qry.interval.clone());
 }
 
-fn reweave_graph(graph: &Pangraph, alns: &[Alignment]) -> (Pangraph, Vec<Merger>) {
+pub fn reweave_graph(graph: &Pangraph, alns: &[Alignment]) -> (Pangraph, Vec<Merger>) {
   // TODO: complex function. I will expand more on this, but it should:
   // - create a new graph with a copy of the paths, and only the blocks
   //   that do not undergo any merging.
@@ -206,7 +206,7 @@ struct Merger {
   alignment: Alignment,
 }
 
-fn perform_merger(merger: &Merger) -> PangraphBlock {
+pub fn perform_merger(merger: &Merger) -> PangraphBlock {
   // TODO: this part is basically contained in the block_operations notebook.
   // in the merger we add all sequences from the shallow block to the deep
   // block, and return the updated block.
@@ -217,7 +217,7 @@ fn perform_merger(merger: &Merger) -> PangraphBlock {
   PangraphBlock::new(None, "", btreemap! {})
 }
 
-fn consolidate(graph: Pangraph) -> Pangraph {
+pub fn consolidate(graph: Pangraph) -> Pangraph {
   // TODO: final updates and consistency checks.
   // - we can take care of removing _transitive edges_, i.e.
   //   pairs of blocks that are always adjacent and connected in the same
