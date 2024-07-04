@@ -194,7 +194,7 @@ fn split_block(bid: BlockId, mergers: &[Alignment], graph: &Pangraph, thr_len: u
   for (old_node_id, nodes) in &mut u.n_new {
     let strand = graph.nodes[old_node_id].strand();
     if strand.is_reverse() {
-      *nodes = nodes.iter().cloned().rev().collect();
+      nodes.reverse();
     }
   }
   (u, h)
