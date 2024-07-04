@@ -2,6 +2,7 @@ use crate::align::align_graphs::align_graphs;
 use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::io::fasta::{read_many_fasta, FastaRecord};
 use crate::io::json::json_write;
+use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
@@ -51,7 +52,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
         // Case: internal node with two children. Action: produce graph for this node based on the graphs of its children.
         // Assumption: Child nodes are assumed to be already visited at this point.
         if let (Some(left), Some(right)) = (&left.read().graph, &right.read().graph) {
-          clade.graph = Some(align_graphs(left, right, args)?);
+          clade.graph = Some(merge_graphs(left, right, args)?);
           Ok(())
         } else {
           make_internal_error!("Found internal clade with two children, of which one or both have no graph attached.")

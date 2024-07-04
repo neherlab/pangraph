@@ -183,25 +183,6 @@ pub fn update_intervals(aln: &Alignment, accepted_intervals: &mut BTreeMap<Block
     .push(aln.qry.interval.clone());
 }
 
-#[derive(Clone)]
-struct Merger {
-  merged_block_id: String,
-  deep_block: PangraphBlock,
-  shallow_block: PangraphBlock,
-  alignment: Alignment,
-}
-
-pub fn perform_merger(merger: &Merger) -> PangraphBlock {
-  // TODO: this part is basically contained in the block_operations notebook.
-  // in the merger we add all sequences from the shallow block to the deep
-  // block, and return the updated block.
-
-  // TODO: potentially here later we can also take care of consolidating the
-  // consensus sequence, updating it with indels or substitutions that might
-  // have become present in the majority of sequences.
-  PangraphBlock::new(None, "", btreemap! {})
-}
-
 pub fn consolidate(graph: Pangraph) -> Pangraph {
   // TODO: final updates and consistency checks.
   // - we can take care of removing _transitive edges_, i.e.
