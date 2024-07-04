@@ -13,14 +13,14 @@ use std::collections::BTreeMap;
 use std::hash::Hash;
 
 #[derive(Debug, Eq, PartialEq)]
-struct MergePromise {
+pub struct MergePromise {
   anchor_block: PangraphBlock,
   append_block: PangraphBlock,
   orientation: Strand,
 }
 
 impl MergePromise {
-  fn new(anchor_block: PangraphBlock, append_block: PangraphBlock, orientation: Strand) -> Self {
+  pub fn new(anchor_block: PangraphBlock, append_block: PangraphBlock, orientation: Strand) -> Self {
     Self {
       anchor_block,
       append_block,
@@ -28,7 +28,7 @@ impl MergePromise {
     }
   }
 
-  fn solve_promise(&mut self) -> Result<PangraphBlock, Report> {
+  pub fn solve_promise(&mut self) -> Result<PangraphBlock, Report> {
     for (node_id, edits) in self.append_block.alignments() {
       let mut seq = edits.apply(self.append_block.consensus())?;
       // TODO: check that `.is_forward()` is correct here? (should be `.is_reverse()`?)
@@ -200,16 +200,16 @@ fn split_block(bid: BlockId, mergers: &[Alignment], graph: &Pangraph, thr_len: u
   (u, h)
 }
 
-fn reweave(mergers: &mut [Alignment], graph: &mut Pangraph, thr_len: usize) -> (Pangraph, Vec<MergePromise>) {
+pub fn reweave(mergers: &mut [Alignment], graph: &mut Pangraph, thr_len: usize) -> (Pangraph, Vec<MergePromise>) {
   assign_new_block_ids(mergers);
-  assign_anchor_block(mergers, graph);
+  assign_anchor_block(mergers, &graph);
 
   let tb = target_blocks(mergers);
   let mut u = vec![];
   let mut h = vec![];
 
   for (bid, m) in tb {
-    let (graph_update, to_merge) = split_block(bid, &m, graph, thr_len);
+    let (graph_update, to_merge) = split_block(bid, &m, &graph, thr_len);
     u.push(graph_update);
     h.extend(to_merge);
   }

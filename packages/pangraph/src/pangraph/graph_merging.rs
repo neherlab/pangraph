@@ -7,6 +7,7 @@ use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
 use crate::o;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
+use crate::pangraph::reweave::reweave;
 use crate::pangraph::split_matches::split_matches;
 use crate::utils::interval::{have_no_overlap, Interval};
 use crate::utils::map_merge::{map_merge, ConflictResolution};
@@ -26,14 +27,16 @@ pub fn merge_graphs(
 ) -> Result<Pangraph, Report> {
   // put the two graphs in a single one, by simply joining
   // the two sets of blocks and paths. No merging is performed
-  let graph = Cow::Owned(graph_join(left_graph, right_graph));
+  let mut graph = Cow::Owned(graph_join(left_graph, right_graph));
 
   // iteratively try to merge homologous regions in blocks.
   // We map the consensus sequences of blocks to each other and merge
   // blocks in which we find matches. We iterate this until no more merging
   // is possible.
   loop {
-    let (graph, has_changed) = self_merge(&graph, args)?;
+    let (graph_new, has_changed) = self_merge(graph, args)?;
+    graph = graph_new;
+
     // stop when no more mergers are possible
     if !has_changed {
       break Ok(graph.into_owned());
@@ -51,7 +54,7 @@ pub fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
 }
 
 pub fn self_merge<'a>(
-  graph: &'a Cow<'a, Pangraph>,
+  mut graph: Cow<'a, Pangraph>,
   args: &PangraphBuildArgs,
 ) -> Result<(Cow<'a, Pangraph>, bool), Report> {
   // use minimap2 or other aligners to find matches between the consensus
@@ -73,11 +76,11 @@ pub fn self_merge<'a>(
   // - calculate energy and keep only matches with E < 0
   // - sort them by energy
   // - discard incompatible matches (the ones that have overlapping regions)
-  let matches = filter_matches(&matches, &args.aln_args);
+  let mut matches = filter_matches(&matches, &args.aln_args);
 
   // If there's no changes, then break out of the loop
   if matches.is_empty() {
-    return Ok((Cow::clone(graph), false));
+    return Ok((Cow::clone(&graph), false));
   }
 
   // complex function: takes the list of desired matches and the two
@@ -91,14 +94,16 @@ pub fn self_merge<'a>(
   // - splitting blocks and updating the node ids.
   // - adding the blocks that do not need merging to the preliminary graph
   // - return the set of blocks that should be merged
-  let (mut graph, mergers) = reweave_graph(graph, &matches);
+  let (mut graph, mergers) = reweave(&mut matches, graph.to_mut(), args.aln_args.indel_len_threshold);
 
   // this can be parallelized
   let merged_blocks = mergers
     .into_iter()
-    .map(|merger| perform_merger(&merger))
+    .map(|mut merger| merger.solve_promise())
+    .collect::<Result<Vec<_>, Report>>()?
+    .into_iter()
     .map(|block| (block.id(), block))
-    .collect();
+    .collect::<BTreeMap<_, _>>();
 
   // add the new blocks to the graph
   graph.blocks = map_merge(&graph.blocks, &merged_blocks, ConflictResolution::Right);
@@ -180,29 +185,6 @@ pub fn update_intervals(aln: &Alignment, accepted_intervals: &mut BTreeMap<Block
     .entry(aln.qry.name)
     .or_default()
     .push(aln.qry.interval.clone());
-}
-
-pub fn reweave_graph(graph: &Pangraph, alns: &[Alignment]) -> (Pangraph, Vec<Merger>) {
-  // TODO: complex function. I will expand more on this, but it should:
-  // - create a new graph with a copy of the paths, and only the blocks
-  //   that do not undergo any merging.
-  // - for each of the suggested matches:
-  //   - split the block and create new nodes (including ones for mergers)
-  //   - add the blocks that should not be processed further to the new graph
-  //   - update the path with the new nodes
-  //   - for blocks that should be merged, create a merger object and add it
-  //     to the list of mergers.
-  // TODO: this function should also update the position of all of the nodes!
-
-  let graph = Pangraph {
-    paths: btreemap! {},
-    blocks: btreemap! {},
-    nodes: btreemap! {},
-  };
-
-  let mergers = vec![];
-
-  (graph, mergers)
 }
 
 #[derive(Clone)]
