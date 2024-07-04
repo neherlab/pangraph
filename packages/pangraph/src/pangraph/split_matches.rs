@@ -166,8 +166,8 @@ fn generate_subalignment(aln: &Alignment, group: &(usize, usize)) -> Result<Alig
     Strand::Reverse => (aln.qry.interval.end - qe, aln.qry.interval.end - qs),
   };
 
-  let qry = Hit::new(aln.qry.name.clone(), aln.qry.length, (qs, qe));
-  let reff = Hit::new(aln.reff.name.clone(), aln.reff.length, (rs, re));
+  let qry = Hit::new(aln.qry.name, aln.qry.length, (qs, qe));
+  let reff = Hit::new(aln.reff.name, aln.reff.length, (rs, re));
   let ops = aln.cigar[group.0..=group.1].iter().copied().collect_vec();
   let cigar = Cigar::try_from(ops)?;
 
@@ -178,6 +178,8 @@ fn generate_subalignment(aln: &Alignment, group: &(usize, usize)) -> Result<Alig
     length: cigar_total_len(&cigar),
     quality: aln.quality,
     orientation: aln.orientation,
+    new_block_id: None,
+    anchor_block: None,
     cigar,
     divergence: aln.divergence,
     align: aln.align,

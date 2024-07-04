@@ -1,10 +1,11 @@
-use crate::align::alignment::{Alignment2, AnchorBlock, ExtractedHit};
+use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
 use crate::io::seq::reverse_complement;
 use crate::pangraph::pangraph::{GraphUpdate, Pangraph};
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_interval::extract_intervals;
 use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::slice::block_slice;
+use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
 use eyre::Report;
 use itertools::Itertools;
@@ -15,11 +16,11 @@ use std::hash::Hash;
 struct MergePromise {
   anchor_block: PangraphBlock,
   append_block: PangraphBlock,
-  orientation: bool,
+  orientation: Strand,
 }
 
 impl MergePromise {
-  fn new(anchor_block: PangraphBlock, append_block: PangraphBlock, orientation: bool) -> Self {
+  fn new(anchor_block: PangraphBlock, append_block: PangraphBlock, orientation: Strand) -> Self {
     Self {
       anchor_block,
       append_block,
@@ -30,7 +31,8 @@ impl MergePromise {
   fn solve_promise(&mut self) -> Result<PangraphBlock, Report> {
     for (node_id, edits) in self.append_block.alignments() {
       let mut seq = edits.apply(self.append_block.consensus())?;
-      if self.orientation {
+      // TODO: check that `.is_forward()` is correct here? (should be `.is_reverse()`?)
+      if self.orientation.is_forward() {
         seq = reverse_complement(&seq)?;
       };
       self.anchor_block.append_sequence(&seq, *node_id)?;
@@ -43,11 +45,11 @@ impl MergePromise {
 struct ToMerge {
   pub block: PangraphBlock,
   pub is_anchor: bool,
-  pub orientation: bool,
+  pub orientation: Strand,
 }
 
 impl ToMerge {
-  pub fn new(block: PangraphBlock, is_anchor: bool, orientation: bool) -> Self {
+  pub fn new(block: PangraphBlock, is_anchor: bool, orientation: Strand) -> Self {
     Self {
       block,
       is_anchor,
@@ -60,7 +62,7 @@ impl ToMerge {
   }
 }
 
-fn assign_new_block_ids(mergers: &mut [Alignment2]) {
+fn assign_new_block_ids(mergers: &mut [Alignment]) {
   for a in mergers.iter_mut() {
     a.new_block_id = Some(BlockId(
       // FIXME: looks like this is trying to calculate its own hash id? It should probably not be done in random places like this.
@@ -69,7 +71,7 @@ fn assign_new_block_ids(mergers: &mut [Alignment2]) {
   }
 }
 
-fn assign_anchor_block(mergers: &mut [Alignment2], graph: &Pangraph) {
+fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
   for m in mergers.iter_mut() {
     let ref_block = &graph.blocks[&m.reff.name];
     let qry_block = &graph.blocks[&m.qry.name];
@@ -81,7 +83,7 @@ fn assign_anchor_block(mergers: &mut [Alignment2], graph: &Pangraph) {
   }
 }
 
-fn target_blocks(mergers: &[Alignment2]) -> BTreeMap<BlockId, Vec<Alignment2>> {
+fn target_blocks(mergers: &[Alignment]) -> BTreeMap<BlockId, Vec<Alignment>> {
   let mut target_blocks = BTreeMap::new();
 
   for merger in mergers {
@@ -99,7 +101,7 @@ fn target_blocks(mergers: &[Alignment2]) -> BTreeMap<BlockId, Vec<Alignment2>> {
   target_blocks
 }
 
-fn extract_hits(bid: BlockId, mergers: &[Alignment2]) -> Vec<ExtractedHit> {
+fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
   let mut hits = Vec::with_capacity(mergers.len() * 2);
 
   for m in mergers {
@@ -156,7 +158,7 @@ fn group_promises(h: &[ToMerge]) -> Vec<MergePromise> {
   promises
 }
 
-fn split_block(bid: BlockId, mergers: &[Alignment2], graph: &Pangraph, thr_len: usize) -> (GraphUpdate, Vec<ToMerge>) {
+fn split_block(bid: BlockId, mergers: &[Alignment], graph: &Pangraph, thr_len: usize) -> (GraphUpdate, Vec<ToMerge>) {
   let extracted_hits = extract_hits(bid, mergers);
   let consensus_len = graph.blocks[&bid].consensus_len();
   let intervals = extract_intervals(&extracted_hits, consensus_len, thr_len);
@@ -191,14 +193,14 @@ fn split_block(bid: BlockId, mergers: &[Alignment2], graph: &Pangraph, thr_len: 
 
   for (old_node_id, nodes) in &mut u.n_new {
     let strand = graph.nodes[old_node_id].strand();
-    if !strand {
+    if strand.is_reverse() {
       *nodes = nodes.iter().cloned().rev().collect();
     }
   }
   (u, h)
 }
 
-fn reweave(mergers: &mut [Alignment2], graph: &mut Pangraph, thr_len: usize) -> (Pangraph, Vec<MergePromise>) {
+fn reweave(mergers: &mut [Alignment], graph: &mut Pangraph, thr_len: usize) -> (Pangraph, Vec<MergePromise>) {
   assign_new_block_ids(mergers);
   assign_anchor_block(mergers, graph);
 
@@ -229,7 +231,7 @@ mod tests {
   )]
 
   use super::*;
-  use crate::align::alignment::Hit2;
+  use crate::align::alignment::Hit;
   use crate::io::seq::generate_random_nuc_sequence;
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
   use crate::pangraph::pangraph_node::PangraphNode;
@@ -242,15 +244,15 @@ mod tests {
 
   #[test]
   fn test_extract_hits() {
-    fn new_hit(name: BlockId, start: usize) -> Hit2 {
-      Hit2 {
+    fn new_hit(name: BlockId, start: usize) -> Hit {
+      Hit {
         name,
         length: 0,                             // FIXME: `length` set to `None` in Python version
         interval: Interval::new(start, start), // FIXME: `end` was `None` in Python version
       }
     }
 
-    fn create_hit(new_bid: BlockId, is_anchor: bool, strand: bool, hit: Hit2) -> ExtractedHit {
+    fn create_hit(new_bid: BlockId, is_anchor: bool, strand: bool, hit: Hit) -> ExtractedHit {
       ExtractedHit {
         new_block_id: new_bid,
         is_anchor,
@@ -259,8 +261,8 @@ mod tests {
       }
     }
 
-    fn new_aln(new_block_id: BlockId, reff: &Hit2, qry: &Hit2, strand: bool, anchor_block: AnchorBlock) -> Alignment2 {
-      Alignment2 {
+    fn new_aln(new_block_id: BlockId, reff: &Hit, qry: &Hit, strand: bool, anchor_block: AnchorBlock) -> Alignment {
+      Alignment {
         reff: reff.clone(),
         qry: qry.clone(),
         new_block_id: Some(new_block_id),
@@ -337,16 +339,16 @@ mod tests {
 
   #[test]
   fn test_assign_anchor_block() {
-    fn new_hit(block_id: usize) -> Hit2 {
-      Hit2 {
+    fn new_hit(block_id: usize) -> Hit {
+      Hit {
         name: BlockId(block_id),
         length: 0,                     // FIXME
         interval: Interval::default(), // FIXME
       }
     }
 
-    fn new_aln(q: usize, r: usize) -> Alignment2 {
-      Alignment2 {
+    fn new_aln(q: usize, r: usize) -> Alignment {
+      Alignment {
         qry: new_hit(q),
         reff: new_hit(r),
 
@@ -393,16 +395,16 @@ mod tests {
 
   #[test]
   fn test_target_blocks() {
-    fn new_hit(block_id: usize) -> Hit2 {
-      Hit2 {
+    fn new_hit(block_id: usize) -> Hit {
+      Hit {
         name: BlockId(block_id),
         length: 0,                     // FIXME
         interval: Interval::default(), // FIXME
       }
     }
 
-    fn new_aln(qry: Hit2, reff: Hit2) -> Alignment2 {
-      Alignment2 {
+    fn new_aln(qry: Hit, reff: Hit) -> Alignment {
+      Alignment {
         qry,
         reff,
 
@@ -448,7 +450,7 @@ mod tests {
 
   #[test]
   fn test_split_block() {
-    fn generate_example() -> (Pangraph, Vec<Alignment2>, BlockId) {
+    fn generate_example() -> (Pangraph, Vec<Alignment>, BlockId) {
       let mut rng = get_random_number_generator(&Some(0));
       let consensus = generate_random_nuc_sequence(130, &mut rng);
 
@@ -492,8 +494,8 @@ mod tests {
       };
 
       #[allow(clippy::items_after_statements)]
-      fn h(name: usize, start: usize, stop: usize) -> Hit2 {
-        Hit2 {
+      fn h(name: usize, start: usize, stop: usize) -> Hit {
+        Hit {
           name: BlockId(name),
           length: 0, // FIXME
           interval: Interval::new(start, stop),
@@ -501,8 +503,8 @@ mod tests {
       }
 
       #[allow(clippy::items_after_statements)]
-      fn a(qry: Hit2, reff: Hit2, strand: bool, new_block_id: usize, anchor_block: AnchorBlock) -> Alignment2 {
-        Alignment2 {
+      fn a(qry: Hit, reff: Hit, strand: bool, new_block_id: usize, anchor_block: AnchorBlock) -> Alignment {
+        Alignment {
           qry,
           reff,
           orientation: strand,
@@ -611,7 +613,7 @@ mod tests {
       Sub::new(pos, alt)
     }
 
-    fn generate_example() -> (Pangraph, Vec<Alignment2>) {
+    fn generate_example() -> (Pangraph, Vec<Alignment>) {
       let nodes = btreemap! {
         NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(10), PathId(100), true, (700, 885)),
         NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(30), PathId(100), true, (885, 988)),
@@ -673,8 +675,8 @@ mod tests {
       let G = Pangraph { paths, blocks, nodes };
 
       #[allow(clippy::items_after_statements)]
-      fn h(name: usize, length: usize, start: usize, stop: usize) -> Hit2 {
-        Hit2 {
+      fn h(name: usize, length: usize, start: usize, stop: usize) -> Hit {
+        Hit {
           name: BlockId(name),
           length,
           interval: Interval::new(start, stop),
@@ -682,8 +684,8 @@ mod tests {
       }
 
       #[allow(clippy::items_after_statements)]
-      fn a(qry: Hit2, reff: Hit2, strand: bool) -> Alignment2 {
-        Alignment2 {
+      fn a(qry: Hit, reff: Hit, strand: bool) -> Alignment {
+        Alignment {
           qry,
           reff,
           orientation: strand,

@@ -5,6 +5,7 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::PangraphBlock;
 use crate::pangraph::pangraph_interval::PangraphInterval;
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
+use crate::pangraph::strand::Strand;
 use std::collections::BTreeMap;
 
 pub fn slice_substitutions(i: &PangraphInterval, S: &[Sub]) -> Vec<Sub> {
@@ -50,11 +51,11 @@ pub fn slice_edits(i: &PangraphInterval, ed: &Edit, block_L: usize) -> Edit {
   }
 }
 
-pub fn new_strandedness(old_strandedness: bool, orientation: bool, is_anchor: bool) -> bool {
-  if is_anchor || orientation {
+pub fn new_strandedness(old_strandedness: Strand, orientation: Strand, is_anchor: bool) -> Strand {
+  if is_anchor || orientation.is_forward() {
     old_strandedness
   } else {
-    !old_strandedness
+    old_strandedness.reverse()
   }
 }
 
@@ -62,11 +63,11 @@ pub fn new_position(
   old_position: (usize, usize),
   node_coords: (usize, usize),
   path_L: usize,
-  old_strandedness: bool,
+  old_strandedness: Strand,
 ) -> (usize, usize) {
   let (old_s, old_e) = old_position;
   let (new_s_in_node, new_e_in_node) = node_coords;
-  if old_strandedness {
+  if old_strandedness.is_forward() {
     ((old_s + new_s_in_node) % path_L, (old_s + new_e_in_node) % path_L)
   } else {
     (

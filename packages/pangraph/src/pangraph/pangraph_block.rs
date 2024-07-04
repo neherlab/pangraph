@@ -3,7 +3,7 @@ use crate::pangraph::edits::Edit;
 use crate::pangraph::pangraph_node::NodeId;
 use crate::utils::id::id;
 use derive_more::{Display, From};
-use eyre::Report;
+use eyre::{Report, WrapErr};
 use getset::{CopyGetters, Getters};
 use maplit::btreemap;
 use serde::{Deserialize, Serialize};
@@ -12,6 +12,15 @@ use std::hash::Hash;
 
 #[derive(Copy, Clone, Debug, Display, From, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct BlockId(pub usize);
+
+impl BlockId {
+  pub fn from_str(block_id_str: &String) -> Result<Self, Report> {
+    let block_id = block_id_str
+      .parse::<usize>()
+      .wrap_err_with(|| format!("When parsing Block ID: expected unsigned integer, but got '{block_id_str}'"))?;
+    Ok(Self(block_id))
+  }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Getters, CopyGetters)]
 pub struct PangraphBlock {

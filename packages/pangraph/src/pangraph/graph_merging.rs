@@ -6,7 +6,7 @@ use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
 use crate::o;
 use crate::pangraph::pangraph::Pangraph;
-use crate::pangraph::pangraph_block::PangraphBlock;
+use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::split_matches::split_matches;
 use crate::utils::interval::{have_no_overlap, Interval};
 use crate::utils::map_merge::{map_merge, ConflictResolution};
@@ -19,7 +19,11 @@ use std::collections::BTreeMap;
 
 /// This is the function that is called when a node of the guide tree is visited.
 /// Take two graphs and merge them into a single one. The merged graph is passed to the parent node.
-pub fn merge_graphs(left_graph: &Pangraph, right_graph: &Pangraph, args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
+pub fn merge_graphs(
+  left_graph: &Pangraph,
+  right_graph: &Pangraph,
+  args: &PangraphBuildArgs,
+) -> Result<Pangraph, Report> {
   // put the two graphs in a single one, by simply joining
   // the two sets of blocks and paths. No merging is performed
   let graph = Cow::Owned(graph_join(left_graph, right_graph));
@@ -46,7 +50,10 @@ pub fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
   }
 }
 
-pub fn self_merge<'a>(graph: &'a Cow<'a, Pangraph>, args: &PangraphBuildArgs) -> Result<(Cow<'a, Pangraph>, bool), Report> {
+pub fn self_merge<'a>(
+  graph: &'a Cow<'a, Pangraph>,
+  args: &PangraphBuildArgs,
+) -> Result<(Cow<'a, Pangraph>, bool), Report> {
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
   let matches = find_matches(graph.blocks.values(), args)?;
@@ -149,7 +156,7 @@ pub fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment
   accepted_alns
 }
 
-pub fn is_match_compatible(aln: &Alignment, accepted_intervals: &BTreeMap<String, Vec<Interval>>) -> bool {
+pub fn is_match_compatible(aln: &Alignment, accepted_intervals: &BTreeMap<BlockId, Vec<Interval>>) -> bool {
   let ref_compatible = have_no_overlap(
     accepted_intervals.get(&aln.reff.name).unwrap_or(&vec![]),
     &aln.reff.interval,
@@ -163,14 +170,14 @@ pub fn is_match_compatible(aln: &Alignment, accepted_intervals: &BTreeMap<String
   ref_compatible && qry_compatible
 }
 
-pub fn update_intervals(aln: &Alignment, accepted_intervals: &mut BTreeMap<String, Vec<Interval>>) {
+pub fn update_intervals(aln: &Alignment, accepted_intervals: &mut BTreeMap<BlockId, Vec<Interval>>) {
   accepted_intervals
-    .entry(aln.reff.name.clone())
+    .entry(aln.reff.name)
     .or_default()
     .push(aln.reff.interval.clone());
 
   accepted_intervals
-    .entry(aln.qry.name.clone())
+    .entry(aln.qry.name)
     .or_default()
     .push(aln.qry.interval.clone());
 }

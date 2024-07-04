@@ -1,5 +1,6 @@
 use crate::align::alignment::ExtractedHit;
 use crate::pangraph::pangraph_block::BlockId;
+use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
 use crate::utils::interval::Interval;
 use itertools::Itertools;
@@ -12,7 +13,7 @@ pub struct PangraphInterval {
   pub aligned: bool,
   pub new_block_id: BlockId,
   pub is_anchor: Option<bool>,
-  pub orientation: Option<bool>,
+  pub orientation: Option<Strand>,
 }
 
 impl PangraphInterval {
@@ -169,7 +170,7 @@ pub fn extract_intervals(hits: &[ExtractedHit], block_length: usize, thr_len: us
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::align::alignment::Hit2;
+  use crate::align::alignment::Hit;
   use pretty_assertions::assert_eq;
 
   fn example() -> (Vec<ExtractedHit>, usize, BlockId) {
@@ -181,7 +182,7 @@ mod tests {
         new_block_id: new_bid,
         is_anchor,
         orientation: strand,
-        hit: Hit2 {
+        hit: Hit {
           name: bid,
           interval,
           length: 0,

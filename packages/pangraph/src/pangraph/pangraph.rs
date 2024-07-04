@@ -5,6 +5,7 @@ use crate::io::json::json_parse;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::pangraph_path::{PangraphPath, PathId};
+use crate::pangraph::strand::Strand;
 use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::{Report, WrapErr};
 use maplit::btreemap;
@@ -25,7 +26,7 @@ impl Pangraph {
     let tot_len = fasta.seq.len();
     let block = PangraphBlock::from_consensus(fasta.seq);
     let path_id = PathId(fasta.index);
-    let node = PangraphNode::new(None, block.id(), path_id, strand, (0, 0));
+    let node = PangraphNode::new(None, block.id(), path_id, Strand::Forward, (0, 0));
     let path = PangraphPath::new(Some(path_id), [node.id()], tot_len, circular);
     Self {
       blocks: btreemap! {block.id() => block},

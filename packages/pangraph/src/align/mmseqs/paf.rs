@@ -1,7 +1,7 @@
 use crate::align::alignment::{Alignment, Hit};
 use crate::align::bam::cigar::parse_cigar_str;
+use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::strand::Strand;
-use crate::utils::interval::Interval;
 use csv::ReaderBuilder as CsvReaderBuilder;
 use eyre::Report;
 use serde::Deserialize;
@@ -51,13 +51,18 @@ impl Alignment {
 
         let (tstart, tend, _) = order_range(paf.tstart, paf.tend);
 
+        let block_id_qry = BlockId::from_str(&paf.query)?;
+        let block_id_ref = BlockId::from_str(&paf.target)?;
+
         Ok(Alignment {
-          qry: Hit::new(paf.query, paf.qlen, (qstart, qend)),
-          reff: Hit::new(paf.target, paf.tlen, (tstart, tend)),
+          qry: Hit::new(block_id_qry, paf.qlen, (qstart, qend)),
+          reff: Hit::new(block_id_ref, paf.tlen, (tstart, tend)),
           matches: paf.nident,
           length: paf.alnlen,
           quality: paf.bits,
           orientation: strand,
+          new_block_id: None, // FIXME: initialize?
+          anchor_block: None, // FIXME: initialize?
           cigar: parse_cigar_str(paf.cigar)?,
           divergence: Some(1.0 - paf.fident),
           align: Some(paf.raw),
@@ -79,7 +84,6 @@ fn order_range(start: usize, end: usize) -> (usize, usize, Strand) {
 mod tests {
 
   use super::*;
-  use crate::o;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 
@@ -88,12 +92,14 @@ mod tests {
     // forward alignment
     let paf_content = "qry	507	1	497	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = vec![Alignment {
-      qry: Hit::new("qry", 507, (1, 497)),
-      reff: Hit::new("ref", 500, (24, 500)),
+      qry: Hit::new(BlockId(1), 507, (1, 497)),
+      reff: Hit::new(BlockId(2), 500, (24, 500)),
       matches: 440,
       length: 508,
       quality: 622,
       orientation: Strand::Forward,
+      new_block_id: None,
+      anchor_block: None,
       cigar: parse_cigar_str("67M10D18M20I235M10I22M1I5M1D119M").unwrap(),
       divergence: Some(0.134),
       align: Some(693.0),
@@ -106,12 +112,14 @@ mod tests {
     // reverse alignment
     let paf_content = "rev_qry	507	507	11	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = vec![Alignment {
-      qry: Hit::new("rev_qry", 507, (11, 507)),
-      reff: Hit::new("ref", 500, (24, 500)),
+      qry: Hit::new(BlockId(3), 507, (11, 507)),
+      reff: Hit::new(BlockId(4), 500, (24, 500)),
       matches: 440,
       length: 508,
       quality: 622,
       orientation: Strand::Reverse,
+      new_block_id: None,
+      anchor_block: None,
       cigar: parse_cigar_str("67M10D18M20I235M10I22M1I5M1D119M").unwrap(),
       divergence: Some(0.134),
       align: Some(693.0),

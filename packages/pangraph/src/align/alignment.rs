@@ -9,16 +9,16 @@ use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::str::FromStr;
 
-/// Hit is one side of a pairwise alignment between homologous sequences.
+/// One side of a pairwise alignment between homologous sequences.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Hit {
-  pub name: String,
+  pub name: BlockId,
   pub length: usize,
   pub interval: Interval,
 }
 
 impl Hit {
-  pub fn new(name: impl Into<String>, length: usize, (start, end): (usize, usize)) -> Self {
+  pub fn new(name: BlockId, length: usize, (start, end): (usize, usize)) -> Self {
     Self {
       name: name.into(),
       length,
@@ -28,21 +28,14 @@ impl Hit {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
-pub struct Hit2 {
-  pub name: BlockId,
-  pub length: usize,
-  pub interval: Interval,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ExtractedHit {
-  pub hit: Hit2,
+  pub hit: Hit,
   pub new_block_id: BlockId,
   pub is_anchor: bool,
-  pub orientation: bool,
+  pub orientation: Strand,
 }
 
-/// Alignment is a pairwise homologous alignment between two sequences.
+/// Pairwise homologous alignment between two sequences.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Alignment {
   pub qry: Hit,
@@ -51,23 +44,6 @@ pub struct Alignment {
   pub length: usize,
   pub quality: usize,
   pub orientation: Strand,
-
-  #[serde(serialize_with = "serde_serialize_cigar")]
-  #[serde(deserialize_with = "serde_deserialize_cigar")]
-  pub cigar: Cigar, // TODO: We probably want Edits here instead?
-
-  pub divergence: Option<f64>,
-  pub align: Option<f64>,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub struct Alignment2 {
-  pub qry: Hit2,
-  pub reff: Hit2,
-  pub matches: usize,
-  pub length: usize,
-  pub quality: usize,
-  pub orientation: bool,
 
   pub new_block_id: Option<BlockId>, // FIXME: it looks like this does not belong here and is a "partially-initialized object" anti-pattern
   pub anchor_block: Option<AnchorBlock>, // FIXME: it looks like this does not belong here and is a "partially-initialized object" anti-pattern

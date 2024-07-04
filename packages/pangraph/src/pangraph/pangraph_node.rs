@@ -1,5 +1,6 @@
 use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::pangraph_path::PathId;
+use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
 use derive_more::{Display, From};
 use getset::CopyGetters;
@@ -16,7 +17,7 @@ pub struct PangraphNode {
   id: NodeId,
   block_id: BlockId,
   path_id: PathId,
-  strand: bool,
+  strand: Strand,
   position: (usize, usize),
 }
 
@@ -25,7 +26,7 @@ impl PangraphNode {
     node_id: Option<NodeId>,
     block_id: BlockId,
     path_id: PathId,
-    strand: bool,
+    strand: Strand,
     position: (usize, usize),
   ) -> Self {
     let id = node_id.unwrap_or_else(|| id((&block_id, &path_id, &strand, &position)));
