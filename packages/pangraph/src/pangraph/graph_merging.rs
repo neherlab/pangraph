@@ -34,7 +34,10 @@ pub fn merge_graphs(
   // is possible.
   let mut i = 0;
   loop {
-    debug!("Self-merge iteration {i}");
+    // print keys of left/right graph paths
+    let left_keys = left_graph.paths.keys().map(|k| k.to_string()).join(", ");
+    let right_keys = right_graph.paths.keys().map(|k| k.to_string()).join(", ");
+    debug!("Self-merge iteration {i} of left/right graph {left_keys} <---> {right_keys}");
 
     let (graph_new, has_changed) =
       self_merge(graph, args).wrap_err_with(|| format!("During self-merge iteration {i}"))?;
@@ -42,9 +45,9 @@ pub fn merge_graphs(
 
     // stop when no more mergers are possible
     if !has_changed {
+      debug!("Graph merge {left_keys} <---> {right_keys} complete.");
       break Ok(graph);
     }
-
     i += 1;
   }
 }

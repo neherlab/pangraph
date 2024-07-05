@@ -29,7 +29,7 @@ pub struct MinimapPafTsvRecord {
   /* 17 */ tp: String,
   /* 18 */ cm: String,
   /* 19 */ s1: String,
-  /* 20 */ s2: String,
+  // /* 20 */ s2: String,
   /* 21 */ de: String,
   /* 22 */ rl: String,
   /* 23 */ cg: String,

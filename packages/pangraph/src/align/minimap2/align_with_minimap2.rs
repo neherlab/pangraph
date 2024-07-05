@@ -45,8 +45,14 @@ pub fn align_with_minimap2(
     $input_path
     $[kmer_size]
     $[preset]
-    > $output_path
     2> /dev/null
+    |
+    sed
+    "s/\tzd:i:[0-9]*//g"
+    |
+    sed
+    "s/\ts2:i:[0-9]*//g"
+    > $output_path
   ).wrap_err("When trying to align sequences using minimap2")?;
 
   let mut paf_str = String::new();
