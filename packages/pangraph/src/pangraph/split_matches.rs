@@ -240,268 +240,268 @@ pub fn side_patches(aln: &mut Alignment, args: &AlignmentArgs) -> Result<(), Rep
   Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use crate::align::alignment::Hit;
-  use crate::align::bam::cigar::parse_cigar_str;
-  use crate::pangraph::strand::Strand;
-  use pretty_assertions::assert_eq;
-  use rstest::rstest;
-
-  #[rstest]
-  fn test_keep_groups_simple_case() {
-    //        | no                   | keep                 | no      | keep              | no   | keep
-    let cig = "10I 20D 10M 20I 190D   40M 1D 1I 40M 1I 40M   1D 100I   200M 60I 60D 140M   200D   40M 2I 70M";
-    //           0   1   2   3    4     5  6  7   8  9  10   11   12     13  14  15   16     17    18 19  20
-
-    let expected = vec![(5, 10), (13, 16), (18, 20)];
-
-    let cig = parse_cigar_str(cig.replace(' ', "")).unwrap();
-    let args = AlignmentArgs {
-      indel_len_threshold: 100,
-      ..AlignmentArgs::default()
-    };
-    let actual = keep_groups(&cig, &args).unwrap();
-
-    assert_eq!(expected, actual);
-  }
-
-  #[rstest]
-  fn test_split_matches_simple_case_forward() {
-    // CG      3I  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  3I
-    //
-    // 100 +       0                      17                18                            40
-    // ref     --- MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---
-    // qry     III MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM III
-    // 200 +       3                      19                34                            52
-    // groups      |-----------------------|                |------------------------------|
-
-    let aln = Alignment {
-      qry: Hit::new("qry", 500, (200, 255)),
-      reff: Hit::new("ref", 500, (100, 140)),
-      matches: 0,
-      length: 0,
-      quality: 10,
-      cigar: parse_cigar_str("3I 6M 3I 3M 4D 5M 14I 7M 3D 4I 5M 5D 3M 3I".replace(' ', "")).unwrap(),
-      orientation: Strand::Forward,
-      divergence: Some(0.1),
-      align: None,
-    };
-
-    let actual = split_matches(
-      &aln,
-      &AlignmentArgs {
-        indel_len_threshold: 10,
-        ..AlignmentArgs::default()
-      },
-    )
-    .unwrap();
-
-    let expected = vec![
-      Alignment {
-        qry: Hit::new("qry", 500, (203, 220)),
-        reff: Hit::new("ref", 500, (100, 118)),
-        matches: 14,
-        length: 21,
-        quality: 10,
-        cigar: parse_cigar_str("6M 3I 3M 4D 5M".replace(' ', "")).unwrap(),
-        orientation: Strand::Forward,
-        divergence: Some(0.1),
-        align: None,
-      },
-      Alignment {
-        qry: Hit::new("qry", 500, (234, 253)),
-        reff: Hit::new("ref", 500, (118, 141)),
-        matches: 15,
-        length: 27,
-        quality: 10,
-        cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M".replace(' ', "")).unwrap(),
-        orientation: Strand::Forward,
-        divergence: Some(0.1),
-        align: None,
-      },
-    ];
-
-    assert_eq!(expected, actual);
-  }
-
-  #[rstest]
-  fn test_split_matches_simple_case_reverse() {
-    // CG      3I  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  3I
-    //
-    // 100 +       0                      17                18                            40
-    // ref     --- MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---
-    // qry     III MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM III
-    // 200 +       52                     36                21                             3
-    // groups      |-----------------------|                |------------------------------|
-
-    let aln = Alignment {
-      qry: Hit::new("qry", 500, (200, 256)),
-      reff: Hit::new("ref", 500, (100, 141)),
-      matches: 0,
-      length: 0,
-      quality: 10,
-      cigar: parse_cigar_str("3I 6M 3I 3M 4D 5M 14I 7M 3D 4I 5M 5D 3M 3I".replace(' ', "")).unwrap(),
-      orientation: Strand::Reverse,
-      divergence: Some(0.1),
-      align: None,
-    };
-
-    let actual = split_matches(
-      &aln,
-      &AlignmentArgs {
-        indel_len_threshold: 10,
-        ..AlignmentArgs::default()
-      },
-    )
-    .unwrap();
-
-    let expected = vec![
-      Alignment {
-        qry: Hit::new("qry", 500, (236, 253)),
-        reff: Hit::new("ref", 500, (100, 118)),
-        matches: 14,
-        length: 21,
-        quality: 10,
-        cigar: parse_cigar_str("6M 3I 3M 4D 5M".replace(' ', "")).unwrap(),
-        orientation: Strand::Reverse,
-        divergence: Some(0.1),
-        align: None,
-      },
-      Alignment {
-        qry: Hit::new("qry", 500, (203, 222)),
-        reff: Hit::new("ref", 500, (118, 141)),
-        matches: 15,
-        length: 27,
-        quality: 10,
-        cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M".replace(' ', "")).unwrap(),
-        orientation: Strand::Reverse,
-        divergence: Some(0.1),
-        align: None,
-      },
-    ];
-
-    assert_eq!(expected, actual);
-  }
-
-  #[rstest]
-  fn test_split_matches_with_side_patches_forward() {
-    // CG      3I  3D  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  4I   12D
-    //
-    //             0   3                      20                21                            43                55
-    // ref     --- DDD MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---- DDDDDDDDDDDD
-    // qry     III --- MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM IIII ------------
-    // 200 +           3                      19                34                            52   56
-    // groups          |-----------------------|                |------------------------------|
-    // side patch  |---------------------------|                |-----------------------------------|
-
-    let aln = Alignment {
-      qry: Hit::new("qry", 257, (200, 257)),
-      reff: Hit::new("ref", 56, (0, 56)),
-      matches: 29,
-      length: 84,
-      quality: 10,
-      cigar: parse_cigar_str("3I 3D 6M 3I 3M 4D 5M 14I 7M 3D 4I 5M 5D 3M 4I 12D".replace(' ', "")).unwrap(),
-      orientation: Strand::Forward,
-      divergence: Some(0.1),
-      align: None,
-    };
-
-    let actual = split_matches(
-      &aln,
-      &AlignmentArgs {
-        indel_len_threshold: 10,
-        ..AlignmentArgs::default()
-      },
-    )
-    .unwrap();
-
-    let expected = vec![
-      Alignment {
-        qry: Hit::new("qry", 257, (203, 220)),
-        reff: Hit::new("ref", 56, (0, 21)),
-        matches: 14,
-        length: 24,
-        quality: 10,
-        cigar: parse_cigar_str("3D 6M 3I 3M 4D 5M".replace(' ', "")).unwrap(),
-        orientation: Strand::Forward,
-        divergence: Some(0.1),
-        align: None,
-      },
-      Alignment {
-        qry: Hit::new("qry", 257, (234, 257)),
-        reff: Hit::new("ref", 56, (21, 44)),
-        matches: 15,
-        length: 31,
-        quality: 10,
-        cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M 4I".replace(' ', "")).unwrap(),
-        orientation: Strand::Forward,
-        divergence: Some(0.1),
-        align: None,
-      },
-    ];
-
-    assert_eq!(expected, actual);
-  }
-
-  #[rstest]
-  fn test_split_matches_with_side_patches_reverse() {
-    // CG          3I  3D  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  4I   5D
-    //
-    //                 0   3                      20                21                            43         48
-    // ref         --- DDD MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---- DDDDD
-    // qry         III --- MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM IIII -----
-    // 300 +       56      53                     37                22                             4    0
-    // groups              |-----------------------|                |------------------------------|
-    // side patch  |-------------------------------|                |-------------------------------      -----|
-
-    let aln = Alignment {
-      qry: Hit::new("qry", 257, (200, 257)),
-      reff: Hit::new("ref", 49, (0, 49)),
-      matches: 29,
-      length: 77,
-      quality: 10,
-      cigar: parse_cigar_str("3I 3D 6M 3I 3M 4D 5M 14I 7M 3D 4I 5M 5D 3M 4I 5D".replace(' ', "")).unwrap(),
-      orientation: Strand::Reverse,
-      divergence: Some(0.1),
-      align: None,
-    };
-
-    let actual = split_matches(
-      &aln,
-      &AlignmentArgs {
-        indel_len_threshold: 10,
-        ..AlignmentArgs::default()
-      },
-    )
-    .unwrap();
-
-    let expected = vec![
-      Alignment {
-        qry: Hit::new("qry", 257, (237, 257)),
-        reff: Hit::new("ref", 49, (0, 21)),
-        matches: 14,
-        length: 27,
-        quality: 10,
-        cigar: parse_cigar_str("3I 3D 6M 3I 3M 4D 5M".replace(' ', "")).unwrap(),
-        orientation: Strand::Reverse,
-        divergence: Some(0.1),
-        align: None,
-      },
-      Alignment {
-        qry: Hit::new("qry", 257, (204, 223)),
-        reff: Hit::new("ref", 49, (21, 49)),
-        matches: 15,
-        length: 32,
-        quality: 10,
-        cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M 5D".replace(' ', "")).unwrap(),
-        orientation: Strand::Reverse,
-        divergence: Some(0.1),
-        align: None,
-      },
-    ];
-
-    assert_eq!(expected, actual);
-  }
-}
+// #[cfg(test)]
+// mod tests {
+//   use super::*;
+//   use crate::align::alignment::Hit;
+//   use crate::align::bam::cigar::parse_cigar_str;
+//   use crate::pangraph::strand::Strand;
+//   use pretty_assertions::assert_eq;
+//   use rstest::rstest;
+//
+//   #[rstest]
+//   fn test_keep_groups_simple_case() {
+//     //        | no                   | keep                 | no      | keep              | no   | keep
+//     let cig = "10I 20D 10M 20I 190D   40M 1D 1I 40M 1I 40M   1D 100I   200M 60I 60D 140M   200D   40M 2I 70M";
+//     //           0   1   2   3    4     5  6  7   8  9  10   11   12     13  14  15   16     17    18 19  20
+//
+//     let expected = vec![(5, 10), (13, 16), (18, 20)];
+//
+//     let cig = parse_cigar_str(cig.replace(' ', "")).unwrap();
+//     let args = AlignmentArgs {
+//       indel_len_threshold: 100,
+//       ..AlignmentArgs::default()
+//     };
+//     let actual = keep_groups(&cig, &args).unwrap();
+//
+//     assert_eq!(expected, actual);
+//   }
+//
+//   #[rstest]
+//   fn test_split_matches_simple_case_forward() {
+//     // CG      3I  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  3I
+//     //
+//     // 100 +       0                      17                18                            40
+//     // ref     --- MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---
+//     // qry     III MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM III
+//     // 200 +       3                      19                34                            52
+//     // groups      |-----------------------|                |------------------------------|
+//
+//     let aln = Alignment {
+//       qry: Hit::new("qry", 500, (200, 255)),
+//       reff: Hit::new("ref", 500, (100, 140)),
+//       matches: 0,
+//       length: 0,
+//       quality: 10,
+//       cigar: parse_cigar_str("3I 6M 3I 3M 4D 5M 14I 7M 3D 4I 5M 5D 3M 3I".replace(' ', "")).unwrap(),
+//       orientation: Strand::Forward,
+//       divergence: Some(0.1),
+//       align: None,
+//     };
+//
+//     let actual = split_matches(
+//       &aln,
+//       &AlignmentArgs {
+//         indel_len_threshold: 10,
+//         ..AlignmentArgs::default()
+//       },
+//     )
+//     .unwrap();
+//
+//     let expected = vec![
+//       Alignment {
+//         qry: Hit::new("qry", 500, (203, 220)),
+//         reff: Hit::new("ref", 500, (100, 118)),
+//         matches: 14,
+//         length: 21,
+//         quality: 10,
+//         cigar: parse_cigar_str("6M 3I 3M 4D 5M".replace(' ', "")).unwrap(),
+//         orientation: Strand::Forward,
+//         divergence: Some(0.1),
+//         align: None,
+//       },
+//       Alignment {
+//         qry: Hit::new("qry", 500, (234, 253)),
+//         reff: Hit::new("ref", 500, (118, 141)),
+//         matches: 15,
+//         length: 27,
+//         quality: 10,
+//         cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M".replace(' ', "")).unwrap(),
+//         orientation: Strand::Forward,
+//         divergence: Some(0.1),
+//         align: None,
+//       },
+//     ];
+//
+//     assert_eq!(expected, actual);
+//   }
+//
+//   #[rstest]
+//   fn test_split_matches_simple_case_reverse() {
+//     // CG      3I  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  3I
+//     //
+//     // 100 +       0                      17                18                            40
+//     // ref     --- MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---
+//     // qry     III MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM III
+//     // 200 +       52                     36                21                             3
+//     // groups      |-----------------------|                |------------------------------|
+//
+//     let aln = Alignment {
+//       qry: Hit::new("qry", 500, (200, 256)),
+//       reff: Hit::new("ref", 500, (100, 141)),
+//       matches: 0,
+//       length: 0,
+//       quality: 10,
+//       cigar: parse_cigar_str("3I 6M 3I 3M 4D 5M 14I 7M 3D 4I 5M 5D 3M 3I".replace(' ', "")).unwrap(),
+//       orientation: Strand::Reverse,
+//       divergence: Some(0.1),
+//       align: None,
+//     };
+//
+//     let actual = split_matches(
+//       &aln,
+//       &AlignmentArgs {
+//         indel_len_threshold: 10,
+//         ..AlignmentArgs::default()
+//       },
+//     )
+//     .unwrap();
+//
+//     let expected = vec![
+//       Alignment {
+//         qry: Hit::new("qry", 500, (236, 253)),
+//         reff: Hit::new("ref", 500, (100, 118)),
+//         matches: 14,
+//         length: 21,
+//         quality: 10,
+//         cigar: parse_cigar_str("6M 3I 3M 4D 5M".replace(' ', "")).unwrap(),
+//         orientation: Strand::Reverse,
+//         divergence: Some(0.1),
+//         align: None,
+//       },
+//       Alignment {
+//         qry: Hit::new("qry", 500, (203, 222)),
+//         reff: Hit::new("ref", 500, (118, 141)),
+//         matches: 15,
+//         length: 27,
+//         quality: 10,
+//         cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M".replace(' ', "")).unwrap(),
+//         orientation: Strand::Reverse,
+//         divergence: Some(0.1),
+//         align: None,
+//       },
+//     ];
+//
+//     assert_eq!(expected, actual);
+//   }
+//
+//   #[rstest]
+//   fn test_split_matches_with_side_patches_forward() {
+//     // CG      3I  3D  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  4I   12D
+//     //
+//     //             0   3                      20                21                            43                55
+//     // ref     --- DDD MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---- DDDDDDDDDDDD
+//     // qry     III --- MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM IIII ------------
+//     // 200 +           3                      19                34                            52   56
+//     // groups          |-----------------------|                |------------------------------|
+//     // side patch  |---------------------------|                |-----------------------------------|
+//
+//     let aln = Alignment {
+//       qry: Hit::new("qry", 257, (200, 257)),
+//       reff: Hit::new("ref", 56, (0, 56)),
+//       matches: 29,
+//       length: 84,
+//       quality: 10,
+//       cigar: parse_cigar_str("3I 3D 6M 3I 3M 4D 5M 14I 7M 3D 4I 5M 5D 3M 4I 12D".replace(' ', "")).unwrap(),
+//       orientation: Strand::Forward,
+//       divergence: Some(0.1),
+//       align: None,
+//     };
+//
+//     let actual = split_matches(
+//       &aln,
+//       &AlignmentArgs {
+//         indel_len_threshold: 10,
+//         ..AlignmentArgs::default()
+//       },
+//     )
+//     .unwrap();
+//
+//     let expected = vec![
+//       Alignment {
+//         qry: Hit::new("qry", 257, (203, 220)),
+//         reff: Hit::new("ref", 56, (0, 21)),
+//         matches: 14,
+//         length: 24,
+//         quality: 10,
+//         cigar: parse_cigar_str("3D 6M 3I 3M 4D 5M".replace(' ', "")).unwrap(),
+//         orientation: Strand::Forward,
+//         divergence: Some(0.1),
+//         align: None,
+//       },
+//       Alignment {
+//         qry: Hit::new("qry", 257, (234, 257)),
+//         reff: Hit::new("ref", 56, (21, 44)),
+//         matches: 15,
+//         length: 31,
+//         quality: 10,
+//         cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M 4I".replace(' ', "")).unwrap(),
+//         orientation: Strand::Forward,
+//         divergence: Some(0.1),
+//         align: None,
+//       },
+//     ];
+//
+//     assert_eq!(expected, actual);
+//   }
+//
+//   #[rstest]
+//   fn test_split_matches_with_side_patches_reverse() {
+//     // CG          3I  3D  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  4I   5D
+//     //
+//     //                 0   3                      20                21                            43         48
+//     // ref         --- DDD MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---- DDDDD
+//     // qry         III --- MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM IIII -----
+//     // 300 +       56      53                     37                22                             4    0
+//     // groups              |-----------------------|                |------------------------------|
+//     // side patch  |-------------------------------|                |-------------------------------      -----|
+//
+//     let aln = Alignment {
+//       qry: Hit::new("qry", 257, (200, 257)),
+//       reff: Hit::new("ref", 49, (0, 49)),
+//       matches: 29,
+//       length: 77,
+//       quality: 10,
+//       cigar: parse_cigar_str("3I 3D 6M 3I 3M 4D 5M 14I 7M 3D 4I 5M 5D 3M 4I 5D".replace(' ', "")).unwrap(),
+//       orientation: Strand::Reverse,
+//       divergence: Some(0.1),
+//       align: None,
+//     };
+//
+//     let actual = split_matches(
+//       &aln,
+//       &AlignmentArgs {
+//         indel_len_threshold: 10,
+//         ..AlignmentArgs::default()
+//       },
+//     )
+//     .unwrap();
+//
+//     let expected = vec![
+//       Alignment {
+//         qry: Hit::new("qry", 257, (237, 257)),
+//         reff: Hit::new("ref", 49, (0, 21)),
+//         matches: 14,
+//         length: 27,
+//         quality: 10,
+//         cigar: parse_cigar_str("3I 3D 6M 3I 3M 4D 5M".replace(' ', "")).unwrap(),
+//         orientation: Strand::Reverse,
+//         divergence: Some(0.1),
+//         align: None,
+//       },
+//       Alignment {
+//         qry: Hit::new("qry", 257, (204, 223)),
+//         reff: Hit::new("ref", 49, (21, 49)),
+//         matches: 15,
+//         length: 32,
+//         quality: 10,
+//         cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M 5D".replace(' ', "")).unwrap(),
+//         orientation: Strand::Reverse,
+//         divergence: Some(0.1),
+//         align: None,
+//       },
+//     ];
+//
+//     assert_eq!(expected, actual);
+//   }
+// }

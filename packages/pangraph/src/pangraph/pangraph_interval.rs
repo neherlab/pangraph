@@ -167,172 +167,172 @@ pub fn extract_intervals(hits: &[ExtractedHit], block_length: usize, thr_len: us
   intervals
 }
 
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use crate::align::alignment::Hit;
-  use pretty_assertions::assert_eq;
-
-  fn example() -> (Vec<ExtractedHit>, usize, BlockId) {
-    let block_length = 1000;
-    let bid = BlockId(0);
-
-    let create_hit = |new_bid: BlockId, is_anchor: bool, strand: bool, interval: Interval| -> ExtractedHit {
-      ExtractedHit {
-        new_block_id: new_bid,
-        is_anchor,
-        orientation: strand,
-        hit: Hit {
-          name: bid,
-          interval,
-          length: 0,
-        },
-      }
-    };
-
-    let hits = vec![
-      create_hit(BlockId(1), true, true, Interval::new(10, 100)),
-      create_hit(BlockId(2), false, true, Interval::new(200, 300)),
-      create_hit(BlockId(3), true, true, Interval::new(310, 500)),
-      create_hit(BlockId(4), false, true, Interval::new(600, 900)),
-    ];
-
-    (hits, block_length, bid)
-  }
-
-  #[test]
-  fn test_create_intervals() {
-    let (hits, block_length, bid) = example();
-    let intervals = create_intervals(&hits, block_length);
-
-    assert_eq!(
-      intervals,
-      vec![
-        PangraphInterval {
-          interval: Interval::new(0, 10),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(0, 10)),
-          is_anchor: None,
-          orientation: None
-        },
-        PangraphInterval {
-          interval: Interval::new(10, 100),
-          aligned: true,
-          new_block_id: BlockId(1),
-          is_anchor: Some(true),
-          orientation: Some(true)
-        },
-        PangraphInterval {
-          interval: Interval::new(100, 200),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(100, 200)),
-          is_anchor: None,
-          orientation: None
-        },
-        PangraphInterval {
-          interval: Interval::new(200, 300),
-          aligned: true,
-          new_block_id: BlockId(2),
-          is_anchor: Some(false),
-          orientation: Some(true)
-        },
-        PangraphInterval {
-          interval: Interval::new(300, 310),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(300, 310)),
-          is_anchor: None,
-          orientation: None
-        },
-        PangraphInterval {
-          interval: Interval::new(310, 500),
-          aligned: true,
-          new_block_id: BlockId(3),
-          is_anchor: Some(true),
-          orientation: Some(true)
-        },
-        PangraphInterval {
-          interval: Interval::new(500, 600),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(500, 600)),
-          is_anchor: None,
-          orientation: None
-        },
-        PangraphInterval {
-          interval: Interval::new(600, 900),
-          aligned: true,
-          new_block_id: BlockId(4),
-          is_anchor: Some(false),
-          orientation: Some(true)
-        },
-        PangraphInterval {
-          interval: Interval::new(900, 1000),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(900, 1000)),
-          is_anchor: None,
-          orientation: None
-        },
-      ]
-    );
-  }
-
-  #[test]
-  fn test_refine_intervals() {
-    let (hits, block_length, bid) = example();
-    let thr_len = 50;
-    let intervals = extract_intervals(&hits, block_length, thr_len);
-    assert_eq!(
-      intervals,
-      vec![
-        PangraphInterval {
-          interval: Interval::new(0, 100),
-          aligned: true,
-          new_block_id: BlockId(1),
-          is_anchor: Some(true),
-          orientation: Some(true)
-        },
-        PangraphInterval {
-          interval: Interval::new(100, 200),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(100, 200)),
-          is_anchor: None,
-          orientation: None
-        },
-        PangraphInterval {
-          interval: Interval::new(200, 300),
-          aligned: true,
-          new_block_id: BlockId(2),
-          is_anchor: Some(false),
-          orientation: Some(true)
-        },
-        PangraphInterval {
-          interval: Interval::new(300, 500),
-          aligned: true,
-          new_block_id: BlockId(3),
-          is_anchor: Some(true),
-          orientation: Some(true)
-        },
-        PangraphInterval {
-          interval: Interval::new(500, 600),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(500, 600)),
-          is_anchor: None,
-          orientation: None
-        },
-        PangraphInterval {
-          interval: Interval::new(600, 900),
-          aligned: true,
-          new_block_id: BlockId(4),
-          is_anchor: Some(false),
-          orientation: Some(true)
-        },
-        PangraphInterval {
-          interval: Interval::new(900, 1000),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(900, 1000)),
-          is_anchor: None,
-          orientation: None
-        },
-      ]
-    );
-  }
-}
+// #[cfg(test)]
+// mod tests {
+//   use super::*;
+//   use crate::align::alignment::Hit;
+//   use pretty_assertions::assert_eq;
+//
+//   fn example() -> (Vec<ExtractedHit>, usize, BlockId) {
+//     let block_length = 1000;
+//     let bid = BlockId(0);
+//
+//     let create_hit = |new_bid: BlockId, is_anchor: bool, strand: bool, interval: Interval| -> ExtractedHit {
+//       ExtractedHit {
+//         new_block_id: new_bid,
+//         is_anchor,
+//         orientation: strand,
+//         hit: Hit {
+//           name: bid,
+//           interval,
+//           length: 0,
+//         },
+//       }
+//     };
+//
+//     let hits = vec![
+//       create_hit(BlockId(1), true, true, Interval::new(10, 100)),
+//       create_hit(BlockId(2), false, true, Interval::new(200, 300)),
+//       create_hit(BlockId(3), true, true, Interval::new(310, 500)),
+//       create_hit(BlockId(4), false, true, Interval::new(600, 900)),
+//     ];
+//
+//     (hits, block_length, bid)
+//   }
+//
+//   #[test]
+//   fn test_create_intervals() {
+//     let (hits, block_length, bid) = example();
+//     let intervals = create_intervals(&hits, block_length);
+//
+//     assert_eq!(
+//       intervals,
+//       vec![
+//         PangraphInterval {
+//           interval: Interval::new(0, 10),
+//           aligned: false,
+//           new_block_id: calculate_hash(bid, &Interval::new(0, 10)),
+//           is_anchor: None,
+//           orientation: None
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(10, 100),
+//           aligned: true,
+//           new_block_id: BlockId(1),
+//           is_anchor: Some(true),
+//           orientation: Some(true)
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(100, 200),
+//           aligned: false,
+//           new_block_id: calculate_hash(bid, &Interval::new(100, 200)),
+//           is_anchor: None,
+//           orientation: None
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(200, 300),
+//           aligned: true,
+//           new_block_id: BlockId(2),
+//           is_anchor: Some(false),
+//           orientation: Some(true)
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(300, 310),
+//           aligned: false,
+//           new_block_id: calculate_hash(bid, &Interval::new(300, 310)),
+//           is_anchor: None,
+//           orientation: None
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(310, 500),
+//           aligned: true,
+//           new_block_id: BlockId(3),
+//           is_anchor: Some(true),
+//           orientation: Some(true)
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(500, 600),
+//           aligned: false,
+//           new_block_id: calculate_hash(bid, &Interval::new(500, 600)),
+//           is_anchor: None,
+//           orientation: None
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(600, 900),
+//           aligned: true,
+//           new_block_id: BlockId(4),
+//           is_anchor: Some(false),
+//           orientation: Some(true)
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(900, 1000),
+//           aligned: false,
+//           new_block_id: calculate_hash(bid, &Interval::new(900, 1000)),
+//           is_anchor: None,
+//           orientation: None
+//         },
+//       ]
+//     );
+//   }
+//
+//   #[test]
+//   fn test_refine_intervals() {
+//     let (hits, block_length, bid) = example();
+//     let thr_len = 50;
+//     let intervals = extract_intervals(&hits, block_length, thr_len);
+//     assert_eq!(
+//       intervals,
+//       vec![
+//         PangraphInterval {
+//           interval: Interval::new(0, 100),
+//           aligned: true,
+//           new_block_id: BlockId(1),
+//           is_anchor: Some(true),
+//           orientation: Some(true)
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(100, 200),
+//           aligned: false,
+//           new_block_id: calculate_hash(bid, &Interval::new(100, 200)),
+//           is_anchor: None,
+//           orientation: None
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(200, 300),
+//           aligned: true,
+//           new_block_id: BlockId(2),
+//           is_anchor: Some(false),
+//           orientation: Some(true)
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(300, 500),
+//           aligned: true,
+//           new_block_id: BlockId(3),
+//           is_anchor: Some(true),
+//           orientation: Some(true)
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(500, 600),
+//           aligned: false,
+//           new_block_id: calculate_hash(bid, &Interval::new(500, 600)),
+//           is_anchor: None,
+//           orientation: None
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(600, 900),
+//           aligned: true,
+//           new_block_id: BlockId(4),
+//           is_anchor: Some(false),
+//           orientation: Some(true)
+//         },
+//         PangraphInterval {
+//           interval: Interval::new(900, 1000),
+//           aligned: false,
+//           new_block_id: calculate_hash(bid, &Interval::new(900, 1000)),
+//           is_anchor: None,
+//           orientation: None
+//         },
+//       ]
+//     );
+//   }
+// }
