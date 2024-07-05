@@ -32,7 +32,6 @@ pub fn align_with_minimap2(
       .try_for_each(|(id, block)| writer.write(&id.to_string(), block.consensus()))?;
   }
 
-  let output_column_names = MinimapPafTsvRecord::fields_names().join(",");
   let kmer_size = create_arg_optional("-k", &params.kmer_length);
   let preset = create_arg_optional("-x", &Some(format!("asm{}", &params.sensitivity)));
 

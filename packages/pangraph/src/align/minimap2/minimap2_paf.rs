@@ -5,7 +5,6 @@ use crate::pangraph::strand::Strand;
 use csv::ReaderBuilder as CsvReaderBuilder;
 use eyre::Report;
 use serde::Deserialize;
-use serde_aux::serde_introspection::serde_introspect;
 use std::io::Cursor;
 
 /// Represents one row in the PAF file emitted by mmseqs
@@ -34,12 +33,6 @@ pub struct MinimapPafTsvRecord {
   /* 21 */ de: String,
   /* 22 */ rl: String,
   /* 23 */ cg: String,
-}
-
-impl MinimapPafTsvRecord {
-  pub fn fields_names() -> &'static [&'static str] {
-    serde_introspect::<MinimapPafTsvRecord>()
-  }
 }
 
 #[allow(clippy::multiple_inherent_impl)]
