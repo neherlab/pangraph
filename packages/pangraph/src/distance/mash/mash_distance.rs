@@ -62,6 +62,7 @@ mod tests {
   use super::*;
   use crate::io::fasta::FastaRecord;
   use crate::o;
+  use crate::pangraph::strand::Strand::Forward;
   use ndarray::array;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
@@ -73,7 +74,7 @@ mod tests {
         seq: seq.as_ref().to_owned(),
         index: 0,
       },
-      true,
+      Forward,
       false,
     )
   }

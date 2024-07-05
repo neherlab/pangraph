@@ -4,6 +4,7 @@ use crate::io::fasta::{read_many_fasta, FastaRecord};
 use crate::io::json::json_write;
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
+use crate::pangraph::strand::Strand::Forward;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
 use crate::utils::random::get_random_number_generator;
@@ -34,7 +35,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
   // TODO: initial graphs can potentially be constructed when initializing tree clades. This could avoid a lot of boilerplate code.
   let graphs = fastas
     .into_iter()
-    .map(|fasta| Pangraph::singleton(fasta, true, args.circular)) // FIXME: strand hardcoded
+    .map(|fasta| Pangraph::singleton(fasta, Forward, args.circular)) // FIXME: strand hardcoded
     .collect_vec();
 
   // Build guide tree
