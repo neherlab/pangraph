@@ -60,7 +60,7 @@ pub fn align_with_mmseqs(
 
 // FIXME: This test is failing after commit a62b19b018b4b2f9602bc75335d4ab5ddbc7abf5
 // After that commit, `align_with_mmseqs()` accepts an array of blocks, rather than 2 arrays of ref and query sequences,
-// and all blocks sequences are aligned against ll block sequences. So there is no way to pass refs and qrys separately
+// and all blocks sequences are aligned against all block sequences. So there is no way to pass refs and qrys separately
 // now - the test needs to be changed. There is also a sibling broken test in `align_with_minimap2`.
 //
 // #[cfg(test)]
