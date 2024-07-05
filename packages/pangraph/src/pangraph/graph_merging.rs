@@ -55,7 +55,7 @@ pub fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
 pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, bool), Report> {
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
-  let matches = find_matches(graph.blocks.values(), args)?;
+  let matches = find_matches(&graph.blocks, args)?;
 
   // split matches:
   // - whenever an alignment contains an in/del longer than the threshold length
@@ -112,18 +112,15 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
   Ok((graph, true))
 }
 
-pub fn find_matches<'a>(
-  blocks: impl IntoIterator<Item = &'a PangraphBlock>,
+// Call an aligner (default: minimap2) to find matches between the consensus sequences of the blocks.
+// Returns a list of alignment objects.
+pub fn find_matches(
+  blocks: &BTreeMap<BlockId, PangraphBlock>,
   args: &PangraphBuildArgs,
 ) -> Result<Vec<Alignment>, Report> {
-  // This function calls an aligner (default: minimap2) to find matches
-  // between the consensus sequences of the blocks. It returns a list of
-  // alignment objects.
-  let seqs = blocks.into_iter().map(|block| block.consensus()).collect_vec();
-
   match args.alignment_kernel {
-    AlignmentBackend::Minimap2 => align_with_minimap2(&seqs, &seqs, &args.aln_args),
-    AlignmentBackend::Mmseqs => align_with_mmseqs(&seqs, &seqs, &args.aln_args),
+    AlignmentBackend::Minimap2 => align_with_minimap2(&blocks, &args.aln_args),
+    AlignmentBackend::Mmseqs => align_with_mmseqs(&blocks, &args.aln_args),
   }
 }
 

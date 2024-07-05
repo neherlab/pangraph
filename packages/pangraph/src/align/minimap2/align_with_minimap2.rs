@@ -5,40 +5,31 @@ use crate::align::minimap2::minimap2_paf::MinimapPafTsvRecord;
 use crate::io::fasta::{write_one_fasta, FastaWriter};
 use crate::io::file::{create_file_or_stdout, open_file_or_stdin};
 use crate::io::fs::path_to_str;
+use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::utils::subprocess::create_arg_optional;
 use cmd_lib::run_cmd;
 use eyre::{Report, WrapErr};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::io::Write;
 use tempfile::Builder as TempDirBuilder;
 
 pub fn align_with_minimap2(
-  refs: &[impl AsRef<str>],
-  qrys: &[impl AsRef<str>],
+  blocks: &BTreeMap<BlockId, PangraphBlock>,
   params: &AlignmentArgs,
 ) -> Result<Vec<Alignment>, Report> {
   // TODO: This uses a global resource - filesystem.
   // Need to ensure that there are no data races when running concurrently.
   let temp_dir = TempDirBuilder::new().tempdir()?;
   let temp_dir_path = temp_dir.path();
-  let qry_path = path_to_str(&temp_dir_path.join("qry.fa"))?;
-  let ref_path = path_to_str(&temp_dir_path.join("reff.fa"))?;
-  let res_path = path_to_str(&temp_dir_path.join("res.paf"))?;
+  let input_path = path_to_str(&temp_dir_path.join("input.fa"))?;
+  let output_path = path_to_str(&temp_dir_path.join("output.paf"))?;
 
   {
-    let mut writer = FastaWriter::from_path(&qry_path)?;
-    qrys
+    let mut writer = FastaWriter::from_path(&input_path)?;
+    blocks
       .iter()
-      .enumerate()
-      .try_for_each(|(i, seq)| writer.write(format!("qry_{i}"), seq))?;
-  }
-
-  {
-    let mut writer = FastaWriter::from_path(&ref_path)?;
-    refs
-      .iter()
-      .enumerate()
-      .try_for_each(|(i, seq)| writer.write(format!("ref_{i}"), seq))?;
+      .try_for_each(|(id, block)| writer.write(&id.to_string(), block.consensus()))?;
   }
 
   let output_column_names = MinimapPafTsvRecord::fields_names().join(",");
@@ -50,16 +41,16 @@ pub fn align_with_minimap2(
   run_cmd!(
     minimap2
     -c
-    $ref_path
-    $qry_path
+    $input_path
+    $input_path
     $[kmer_size]
     $[preset]
-    > $res_path
+    > $output_path
     2> /dev/null
   ).wrap_err("When trying to align sequences using minimap2")?;
 
   let mut paf_str = String::new();
-  open_file_or_stdin(&Some(res_path))?.read_to_string(&mut paf_str)?;
+  open_file_or_stdin(&Some(output_path))?.read_to_string(&mut paf_str)?;
 
   Alignment::from_minimap_paf_str(&paf_str)
 }
