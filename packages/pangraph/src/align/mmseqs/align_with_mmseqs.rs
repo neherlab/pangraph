@@ -48,6 +48,7 @@ pub fn align_with_mmseqs(
     --search-type 3
     --format-output $output_column_names
     $[k]
+    >/dev/null
   )
   .wrap_err("When trying to align sequences using mmseqs")?;
 
