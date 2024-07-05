@@ -12,6 +12,7 @@ use crate::utils::interval::{have_no_overlap, Interval};
 use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
+use log::{debug, info, trace};
 use maplit::btreemap;
 use ordered_float::OrderedFloat;
 use std::collections::BTreeMap;
@@ -33,6 +34,8 @@ pub fn merge_graphs(
   // is possible.
   let mut i = 0;
   loop {
+    debug!("Self-merge iteration {i}");
+
     let (graph_new, has_changed) =
       self_merge(graph, args).wrap_err_with(|| format!("During self-merge iteration {i}"))?;
     graph = graph_new;
@@ -59,6 +62,8 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
   let matches = find_matches(&graph.blocks, args)?;
+  debug!("Found matches: {}", matches.len());
+  trace!("{matches:#?}");
 
   // split matches:
   // - whenever an alignment contains an in/del longer than the threshold length
@@ -70,12 +75,16 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
     .into_iter()
     .flatten()
     .collect_vec();
+  debug!("Matches after splitting: {}", matches.len());
+  trace!("{matches:#?}");
 
   // filter matches:
   // - calculate energy and keep only matches with E < 0
   // - sort them by energy
   // - discard incompatible matches (the ones that have overlapping regions)
   let mut matches = filter_matches(&matches, &args.aln_args);
+  debug!("Matches after filtering: {}", matches.len());
+  trace!("{matches:#?}");
 
   // If there's no changes, then break out of the loop
   if matches.is_empty() {
