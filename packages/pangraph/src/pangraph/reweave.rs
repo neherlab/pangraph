@@ -71,6 +71,18 @@ fn assign_new_block_ids(mergers: &mut [Alignment]) {
   }
 }
 
+fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
+  for m in mergers.iter_mut() {
+    let ref_block = &graph.blocks[&m.reff.name];
+    let qry_block = &graph.blocks[&m.qry.name];
+    if ref_block.depth() >= qry_block.depth() {
+      m.anchor_block = Some(AnchorBlock::Ref);
+    } else {
+      m.anchor_block = Some(AnchorBlock::Qry);
+    }
+  }
+}
+
 fn target_blocks(mergers: &[Alignment]) -> BTreeMap<BlockId, Vec<Alignment>> {
   let mut target_blocks = BTreeMap::new();
 
@@ -190,6 +202,7 @@ fn split_block(bid: BlockId, mergers: &[Alignment], graph: &Pangraph, thr_len: u
 
 pub fn reweave(mergers: &mut [Alignment], mut graph: Pangraph, thr_len: usize) -> (Pangraph, Vec<MergePromise>) {
   assign_new_block_ids(mergers);
+  assign_anchor_block(mergers, &graph);
 
   let tb = target_blocks(mergers);
   let mut u = vec![];

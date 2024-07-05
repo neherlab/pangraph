@@ -55,7 +55,7 @@ pub fn align_with_mmseqs(
   let mut paf_str = String::new();
   open_file_or_stdin(&Some(output_path))?.read_to_string(&mut paf_str)?;
 
-  Alignment::from_paf_str(&paf_str, blocks)
+  Alignment::from_paf_str(&paf_str)
 }
 
 #[cfg(test)]

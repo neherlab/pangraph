@@ -9,4 +9,3 @@ pub mod map_variations;
 pub mod minimap2;
 pub mod mmseqs;
 pub mod nextclade;
-pub mod select_anchor_block;
