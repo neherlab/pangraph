@@ -1,10 +1,12 @@
-use crate::align::alignment::{Alignment, Hit};
+use crate::align::alignment::{Alignment, AnchorBlock, Hit};
 use crate::align::bam::cigar::parse_cigar_str;
-use crate::pangraph::pangraph_block::BlockId;
+use crate::align::select_anchor_block::select_anchor_block;
+use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::strand::Strand;
 use csv::ReaderBuilder as CsvReaderBuilder;
 use eyre::Report;
 use serde::Deserialize;
+use std::collections::BTreeMap;
 use std::io::Cursor;
 
 /// Represents one row in the PAF file emitted by mmseqs
@@ -37,7 +39,10 @@ pub struct MinimapPafTsvRecord {
 
 #[allow(clippy::multiple_inherent_impl)]
 impl Alignment {
-  pub fn from_minimap_paf_str(paf_str: impl AsRef<str>) -> Result<Vec<Self>, Report> {
+  pub fn from_minimap_paf_str(
+    paf_str: impl AsRef<str>,
+    blocks: &BTreeMap<BlockId, PangraphBlock>,
+  ) -> Result<Vec<Self>, Report> {
     let mut rdr = CsvReaderBuilder::new()
       .delimiter(b'\t')
       .has_headers(false)
@@ -58,6 +63,8 @@ impl Alignment {
         let cigar = paf.cg.strip_prefix("cg:Z:").unwrap_or_default();
         let cigar = parse_cigar_str(cigar)?;
 
+        let anchor_block = select_anchor_block(&blocks[&paf.query], &blocks[&paf.target]);
+
         Ok(Alignment {
           qry: Hit::new(paf.query, paf.qlen, (paf.qstart, paf.qend)),
           reff: Hit::new(paf.target, paf.tlen, (paf.tstart, paf.tend)),
@@ -66,7 +73,7 @@ impl Alignment {
           quality: paf.mapq,
           orientation: paf.strand,
           new_block_id: None, // FIXME: initialize?
-          anchor_block: None, // FIXME: initialize?
+          anchor_block: Some(anchor_block),
           cigar,
           divergence: Some(div),
           align: Some(aln_score),

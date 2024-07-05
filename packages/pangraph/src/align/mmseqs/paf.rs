@@ -1,11 +1,13 @@
 use crate::align::alignment::{Alignment, Hit};
 use crate::align::bam::cigar::parse_cigar_str;
-use crate::pangraph::pangraph_block::BlockId;
+use crate::align::select_anchor_block::select_anchor_block;
+use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::strand::Strand;
 use csv::ReaderBuilder as CsvReaderBuilder;
 use eyre::Report;
 use serde::Deserialize;
 use serde_aux::serde_introspection::serde_introspect;
+use std::collections::BTreeMap;
 use std::io::Cursor;
 
 /// Represents one row in the PAF file emitted by mmseqs
@@ -36,7 +38,10 @@ impl PafTsvRecord {
 
 #[allow(clippy::multiple_inherent_impl)]
 impl Alignment {
-  pub fn from_paf_str(paf_str: impl AsRef<str>) -> Result<Vec<Self>, Report> {
+  pub fn from_paf_str(
+    paf_str: impl AsRef<str>,
+    blocks: &BTreeMap<BlockId, PangraphBlock>,
+  ) -> Result<Vec<Self>, Report> {
     let mut rdr = CsvReaderBuilder::new()
       .delimiter(b'\t')
       .has_headers(false)
@@ -51,6 +56,8 @@ impl Alignment {
 
         let (tstart, tend, _) = order_range(paf.tstart, paf.tend);
 
+        let anchor_block = select_anchor_block(&blocks[&paf.query], &blocks[&paf.target]);
+
         Ok(Alignment {
           qry: Hit::new(paf.query, paf.qlen, (qstart, qend)),
           reff: Hit::new(paf.target, paf.tlen, (tstart, tend)),
@@ -59,7 +66,7 @@ impl Alignment {
           quality: paf.bits,
           orientation: strand,
           new_block_id: None, // FIXME: initialize?
-          anchor_block: None, // FIXME: initialize?
+          anchor_block: Some(anchor_block),
           cigar: parse_cigar_str(paf.cigar)?,
           divergence: Some(1.0 - paf.fident),
           align: Some(paf.raw),
