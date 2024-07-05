@@ -45,27 +45,40 @@ pub fn have_no_overlap(intervals: &[PangraphInterval], candidate: &PangraphInter
 }
 
 fn intervals_sanity_checks(intervals: &[PangraphInterval], block_length: usize) {
-  assert_eq!(intervals[0].interval.start, 0, "first interval does not start at 0");
+  assert!(intervals.len() > 0);
+
+  assert_eq!(
+    intervals[0].interval.start, 0,
+    "First interval does not start at 0: {}",
+    intervals[0].interval
+  );
+
   assert_eq!(
     intervals[intervals.len() - 1].interval.end,
     block_length,
-    "last interval does not end at the block length"
+    "Last interval does not end at the block length. Interval: {}, block length: {}",
+    intervals[intervals.len() - 1].interval,
+    block_length
   );
 
   for n in 1..intervals.len() {
     assert_eq!(
       intervals[n - 1].interval.end,
       intervals[n].interval.start,
-      "interval {} and {} are not contiguous",
+      "Intervals {} and {} are not contiguous: {} and {}",
       n - 1,
-      n
+      n,
+      intervals[n - 1].interval,
+      intervals[n].interval
     );
 
     assert!(
       intervals[n - 1].aligned || intervals[n].aligned,
-      "two consecutive unaligned intervals: {} and {}",
+      "Found two consecutive unaligned intervals: {} and {}: {} and {}",
       n - 1,
-      n
+      n,
+      intervals[n - 1].aligned,
+      intervals[n].aligned
     );
   }
 }

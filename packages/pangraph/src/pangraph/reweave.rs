@@ -141,11 +141,27 @@ fn group_promises(h: &[ToMerge]) -> Vec<MergePromise> {
     .collect::<BTreeMap<_, _>>();
 
   for (_, bs) in groups {
-    debug_assert_eq!(bs.len(), 2, "Only two blocks can be merged");
+    assert_eq!(
+      bs.len(),
+      2,
+      "Only exactly two blocks can be merged, but found {}: {:#?}",
+      bs.len(),
+      bs
+    );
 
     let (b1, b2) = (&bs[0], &bs[1]);
-    debug_assert!(b1.is_anchor ^ b2.is_anchor, "Only one block is the anchor");
-    debug_assert_eq!(b1.orientation, b2.orientation, "Orientation must be the same");
+    assert!(
+      b1.is_anchor ^ b2.is_anchor,
+      "Only one block can be anchor, but found: {:#?}",
+      [&b1, &b2]
+    );
+
+    assert_eq!(
+      b1.orientation,
+      b2.orientation,
+      "Orientation must be the same, but found: {:#?}",
+      [&b1, &b2]
+    );
 
     let anchor_block = if b1.is_anchor { &b1.block } else { &b2.block };
     let append_block = if b1.is_anchor { &b2.block } else { &b1.block };

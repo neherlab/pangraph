@@ -1,10 +1,17 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::{Display, Formatter};
 use std::ops::Range;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Interval {
   pub start: usize,
   pub end: usize,
+}
+
+impl Display for Interval {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    write!(f, "[{}, {})", self.start, self.end)
+  }
 }
 
 impl Interval {
