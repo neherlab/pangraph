@@ -51,8 +51,8 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
       (Some(left), Some(right)) => {
         // Case: internal node with two children. Action: produce graph for this node based on the graphs of its children.
         // Assumption: Child nodes are assumed to be already visited at this point.
-        if let (Some(left), Some(right)) = (&left.read().graph, &right.read().graph) {
-          clade.graph = Some(merge_graphs(left, right, args)?);
+        if let (Some(left), Some(right)) = (&left.read().data, &right.read().data) {
+          clade.data = Some(merge_graphs(left, right, args)?);
           Ok(())
         } else {
           make_internal_error!("Found internal clade with two children, of which one or both have no graph attached.")
@@ -70,7 +70,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
 
   let graph = tree
     .write()
-    .graph
+    .data
     .take()
     .ok_or_else(|| make_internal_report!("Root clade of the guide tree contains no graph after graph alignment"))?;
 

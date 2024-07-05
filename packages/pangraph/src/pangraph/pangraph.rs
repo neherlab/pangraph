@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::str::FromStr;
 
-#[derive(Clone, Serialize, Deserialize, Debug, Hash)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Hash)]
 pub struct Pangraph {
   pub paths: BTreeMap<PathId, PangraphPath>,
   pub blocks: BTreeMap<BlockId, PangraphBlock>,

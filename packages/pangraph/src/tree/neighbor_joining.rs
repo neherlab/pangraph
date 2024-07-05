@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 pub fn build_tree_using_neighbor_joining(
   graphs: Vec<Pangraph>,
   args: &PangraphBuildArgs,
-) -> Result<Lock<Clade>, Report> {
+) -> Result<Lock<Clade<Option<Pangraph>>>, Report> {
   let mut distances = calculate_distances(&graphs, args);
 
   let mut nodes = graphs
@@ -30,7 +30,7 @@ pub fn build_tree_using_neighbor_joining(
     join_in_place(&mut distances, &mut nodes)?;
   }
 
-  let tree = Lock::new(Clade::from_children(&nodes[0], &nodes[1]));
+  let tree = Lock::new(Clade::from_children(None, &nodes[0], &nodes[1]));
 
   // Balance guide tree (to increase available parallelism during parallel traversal?)
   let tree = balance(&tree);
@@ -109,11 +109,11 @@ fn dist(D: &Array2<f64>, i: usize, j: usize) -> Array1<f64> {
   dn
 }
 
-fn join_in_place(D: &mut Array2<f64>, nodes: &mut Vec<Lock<Clade>>) -> Result<(), Report> {
+fn join_in_place<T: Default>(D: &mut Array2<f64>, nodes: &mut Vec<Lock<Clade<T>>>) -> Result<(), Report> {
   let q = create_Q_matrix(D).unwrap();
   let (i, j) = pair(&q)?;
 
-  let node = Lock::new(Clade::from_children(&nodes[i], &nodes[j]));
+  let node = Lock::new(Clade::from_children(T::default(), &nodes[i], &nodes[j]));
   nodes[i].write().parent = Some(node.clone()); // TODO: is this assignment redundant? (node[i] is overwritten below)
   nodes[j].write().parent = Some(node.clone());
   nodes[i] = node;

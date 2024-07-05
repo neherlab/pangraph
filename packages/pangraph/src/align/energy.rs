@@ -60,6 +60,7 @@ mod tests {
   use super::*;
   use crate::align::bam::cigar::parse_cigar_str;
   use crate::o;
+  use crate::pangraph::pangraph_block::BlockId;
   use crate::pangraph::strand::Strand;
   use crate::utils::interval::Interval;
   use approx::assert_ulps_eq;
@@ -70,12 +71,14 @@ mod tests {
   #[rstest]
   fn test_alignment_energy_simple_case() {
     let aln = Alignment {
-      qry: Hit::new("qry_3", 997, (0, 980)),
-      reff: Hit::new("ref_3", 1000, (18, 1000)),
+      qry: Hit::new(BlockId(1), 997, (0, 980)),
+      reff: Hit::new(BlockId(2), 1000, (18, 1000)),
       matches: 965,
       length: 982,
       quality: 60,
       orientation: Strand::Reverse,
+      new_block_id: None, // FIXME
+      anchor_block: None, // FIXME
       cigar: parse_cigar_str("124M1D416M1D440M").unwrap(),
       divergence: Some(0.0173),
       align: Some(889.0),
@@ -89,12 +92,14 @@ mod tests {
   #[rstest]
   fn test_alignment_energy2_simple_case() {
     let aln = Alignment {
-      qry: Hit::new("bl_1", 100, (0, 50)),
-      reff: Hit::new("bl_2", 200, (120, 200)),
+      qry: Hit::new(BlockId(3), 100, (0, 50)),
+      reff: Hit::new(BlockId(4), 200, (120, 200)),
       matches: 40,
       length: 60,
       quality: 100,
       orientation: Strand::Forward,
+      new_block_id: None, // FIXME
+      anchor_block: None, // FIXME
       cigar: parse_cigar_str("10I40M10D").unwrap(),
       divergence: Some(0.02),
       align: Some(0.1),

@@ -65,6 +65,7 @@ mod tests {
   use crate::pangraph::strand::Strand;
   use crate::utils::interval::Interval;
   use eyre::Report;
+  use maplit::btreemap;
   use noodles::sam::record::cigar::op::Kind;
   use noodles::sam::record::cigar::Op;
   use noodles::sam::record::Cigar;
@@ -83,15 +84,24 @@ mod tests {
       ..AlignmentArgs::default()
     };
 
-    let actual = align_with_mmseqs(&[ref_seq], &[qry_seq], &params)?;
+    let blocks = [ref_seq, qry_seq]
+      .into_iter()
+      .enumerate()
+      .map(|(i, seq)| PangraphBlock::new(Some(BlockId(i)), seq.replace(['\n', ' '], ""), btreemap! {}))
+      .map(|block| (block.id(), block))
+      .collect();
+
+    let actual = align_with_mmseqs(&blocks, &params)?;
 
     let expected = vec![Alignment {
-      qry: Hit::new("qry_0", 90, (1, 90)),
-      reff: Hit::new("ref_0", 88, (1, 88)),
+      qry: Hit::new(BlockId(1), 90, (1, 90)),
+      reff: Hit::new(BlockId(0), 88, (1, 88)),
       matches: 77,
       length: 95,
       quality: 102,
       orientation: Strand::Forward,
+      new_block_id: None, // FIXME
+      anchor_block: None, // FIXME
       cigar: Cigar::try_from(vec![
         Op::new(Kind::Match, 18),
         Op::new(Kind::Insertion, 4),

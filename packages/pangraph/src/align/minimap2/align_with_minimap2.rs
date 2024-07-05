@@ -62,6 +62,8 @@ mod tests {
   use crate::pangraph::strand::Strand;
   use crate::utils::interval::Interval;
   use eyre::Report;
+  use itertools::Itertools;
+  use maplit::btreemap;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 
@@ -104,25 +106,30 @@ mod tests {
     CTCGTCCCGCACTTTCGGGGACACGTACCCGAAGGGTGTAACGGATGCCCTATGTGAGGT
     GGCGCAGATTTGATGGTGACTAAGCTGCCAAACTGAGT";
 
-    // remove newline characters and spaces
-    let refs = vec![ref_seq.replace(['\n', ' '], "")];
-    let qrys = vec![qry_seq.replace(['\n', ' '], "")];
-
     let params = AlignmentArgs {
       kmer_length: Some(10),
       sensitivity: 20,
       ..AlignmentArgs::default()
     };
 
-    let actual = align_with_minimap2(&refs, &qrys, &params)?;
+    let blocks = [ref_seq, qry_seq]
+      .into_iter()
+      .enumerate()
+      .map(|(i, seq)| PangraphBlock::new(Some(BlockId(i)), seq.replace(['\n', ' '], ""), btreemap! {}))
+      .map(|block| (block.id(), block))
+      .collect();
+
+    let actual = align_with_minimap2(&blocks, &params)?;
 
     let expected = vec![Alignment {
-      qry: Hit::new("qry_0", 998, (0, 996)),
-      reff: Hit::new("ref_0", 1000, (0, 998)),
+      qry: Hit::new(BlockId(1), 998, (0, 996)),
+      reff: Hit::new(BlockId(0), 1000, (0, 998)),
       matches: 969,
       length: 998,
       quality: 60,
       orientation: Strand::Forward,
+      new_block_id: None, // FIXME
+      anchor_block: None, // FIXME
       cigar: parse_cigar_str("545M1D225M1D226M").unwrap(),
       divergence: Some(0.0291),
       align: Some(845.0),

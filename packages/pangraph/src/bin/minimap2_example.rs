@@ -2,9 +2,11 @@ use clap::{Parser, ValueHint};
 use ctor::ctor;
 use eyre::Report;
 use itertools::Itertools;
+use maplit::btreemap;
 use pangraph::align::alignment_args::AlignmentArgs;
 use pangraph::align::minimap2::align_with_minimap2::align_with_minimap2;
 use pangraph::io::fasta::read_many_fasta;
+use pangraph::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use pangraph::utils::global_init::global_init;
 use std::path::PathBuf;
 
@@ -28,12 +30,15 @@ fn main() -> Result<(), Report> {
     params,
   } = Args::parse();
 
-  let qrys = read_many_fasta(&input_query_fastas)?
+  let blocks = read_many_fasta(&input_query_fastas)?
     .into_iter()
     .map(|r| r.seq)
-    .collect_vec();
+    .enumerate()
+    .map(|(i, seq)| PangraphBlock::new(Some(BlockId(i)), seq.replace(['\n', ' '], ""), btreemap! {}))
+    .map(|block| (block.id(), block))
+    .collect();
 
-  let result = align_with_minimap2(&qrys, &qrys, &params)?;
+  let result = align_with_minimap2(&blocks, &params)?;
   println!("{:#?}", &result);
 
   Ok(())
