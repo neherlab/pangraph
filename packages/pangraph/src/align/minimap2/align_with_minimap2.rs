@@ -40,6 +40,7 @@ pub fn align_with_minimap2(
   run_cmd!(
     minimap2
     -c
+    -X
     $input_path
     $input_path
     $[kmer_size]
