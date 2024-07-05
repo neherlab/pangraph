@@ -11,12 +11,12 @@ use std::io::Cursor;
 /// Represents one row in the PAF file emitted by mmseqs
 #[derive(Clone, Debug, Deserialize)]
 pub struct PafTsvRecord {
-  /* 01 */ query: String,
+  /* 01 */ query: BlockId,
   /* 02 */ qlen: usize,
   /* 03 */ qstart: usize,
   /* 04 */ qend: usize,
   /* 05 */ empty: String,
-  /* 06 */ target: String,
+  /* 06 */ target: BlockId,
   /* 07 */ tlen: usize,
   /* 08 */ tstart: usize,
   /* 09 */ tend: usize,
@@ -51,12 +51,9 @@ impl Alignment {
 
         let (tstart, tend, _) = order_range(paf.tstart, paf.tend);
 
-        let block_id_qry = BlockId::from_str(&paf.query)?;
-        let block_id_ref = BlockId::from_str(&paf.target)?;
-
         Ok(Alignment {
-          qry: Hit::new(block_id_qry, paf.qlen, (qstart, qend)),
-          reff: Hit::new(block_id_ref, paf.tlen, (tstart, tend)),
+          qry: Hit::new(paf.query, paf.qlen, (qstart, qend)),
+          reff: Hit::new(paf.target, paf.tlen, (tstart, tend)),
           matches: paf.nident,
           length: paf.alnlen,
           quality: paf.bits,

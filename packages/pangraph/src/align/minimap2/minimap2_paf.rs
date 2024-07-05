@@ -11,12 +11,12 @@ use std::io::Cursor;
 /// Represents one row in the PAF file emitted by mmseqs
 #[derive(Clone, Debug, Deserialize)]
 pub struct MinimapPafTsvRecord {
-  /* 01 */ query: String,
+  /* 01 */ query: BlockId,
   /* 02 */ qlen: usize,
   /* 03 */ qstart: usize,
   /* 04 */ qend: usize,
-  /* 05 */ strand: String,
-  /* 06 */ target: String,
+  /* 05 */ strand: Strand,
+  /* 06 */ target: BlockId,
   /* 07 */ tlen: usize,
   /* 08 */ tstart: usize,
   /* 09 */ tend: usize,
@@ -55,12 +55,6 @@ impl Alignment {
       .map(|paf| {
         let paf: MinimapPafTsvRecord = paf?;
 
-        let strand = match paf.strand.as_str() {
-          "+" => Strand::Forward,
-          "-" => Strand::Reverse,
-          _ => return Err(eyre::eyre!("Invalid strand")),
-        };
-
         // strip divergence prefix and then parse as float
         let div = paf.de.strip_prefix("de:f:").unwrap_or_default().parse::<f64>()?;
 
@@ -71,16 +65,13 @@ impl Alignment {
         let cigar = paf.cg.strip_prefix("cg:Z:").unwrap_or_default();
         let cigar = parse_cigar_str(cigar)?;
 
-        let block_id_qry = BlockId::from_str(&paf.query)?;
-        let block_id_ref = BlockId::from_str(&paf.target)?;
-
         Ok(Alignment {
-          qry: Hit::new(block_id_qry, paf.qlen, (paf.qstart, paf.qend)),
-          reff: Hit::new(block_id_ref, paf.tlen, (paf.tstart, paf.tend)),
+          qry: Hit::new(paf.query, paf.qlen, (paf.qstart, paf.qend)),
+          reff: Hit::new(paf.target, paf.tlen, (paf.tstart, paf.tend)),
           matches: paf.nident,
           length: paf.alnlen,
           quality: paf.mapq,
-          orientation: strand,
+          orientation: paf.strand,
           new_block_id: None, // FIXME: initialize?
           anchor_block: None, // FIXME: initialize?
           cigar,
