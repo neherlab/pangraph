@@ -119,8 +119,8 @@ pub fn find_matches(
   args: &PangraphBuildArgs,
 ) -> Result<Vec<Alignment>, Report> {
   match args.alignment_kernel {
-    AlignmentBackend::Minimap2 => align_with_minimap2(&blocks, &args.aln_args),
-    AlignmentBackend::Mmseqs => align_with_mmseqs(&blocks, &args.aln_args),
+    AlignmentBackend::Minimap2 => align_with_minimap2(blocks, &args.aln_args),
+    AlignmentBackend::Mmseqs => align_with_mmseqs(blocks, &args.aln_args),
   }
 }
 

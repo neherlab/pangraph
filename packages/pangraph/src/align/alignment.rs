@@ -20,7 +20,7 @@ pub struct Hit {
 impl Hit {
   pub fn new(name: BlockId, length: usize, (start, end): (usize, usize)) -> Self {
     Self {
-      name: name.into(),
+      name,
       length,
       interval: Interval::new(start, end),
     }

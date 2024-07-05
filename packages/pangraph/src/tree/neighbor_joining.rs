@@ -42,7 +42,7 @@ pub fn build_tree_using_neighbor_joining(
 fn calculate_distances(graphs: &[Pangraph], args: &PangraphBuildArgs) -> Array2<f64> {
   let distances = match args.distance_backend {
     // TODO: this function only needs sequences, and not graphs
-    DistanceBackend::Native => mash_distance(&graphs, &MinimizersParams::default()),
+    DistanceBackend::Native => mash_distance(graphs, &MinimizersParams::default()),
     DistanceBackend::Mash => {
       // FIXME: what's the difference between Native and Mash?
       unimplemented!("DistanceBackend::Mash");
@@ -50,7 +50,7 @@ fn calculate_distances(graphs: &[Pangraph], args: &PangraphBuildArgs) -> Array2<
   };
 
   assert_eq!(distances.len_of(Axis(0)), distances.len_of(Axis(1)));
-  return distances;
+  distances
 }
 
 fn create_Q_matrix(D: &Array2<f64>) -> Result<Array2<f64>, Report> {
