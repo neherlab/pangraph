@@ -87,7 +87,7 @@ mod tests {
   #[rstest]
   fn test_paf_parse_forward() {
     // forward alignment
-    let paf_content = "qry	507	1	497	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
+    let paf_content = "1	507	1	497	-	2	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = vec![Alignment {
       qry: Hit::new(BlockId(1), 507, (1, 497)),
       reff: Hit::new(BlockId(2), 500, (24, 500)),
@@ -107,7 +107,7 @@ mod tests {
   #[rstest]
   fn test_paf_parse_reverse() {
     // reverse alignment
-    let paf_content = "rev_qry	507	507	11	-	ref	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
+    let paf_content = "3	507	507	11	-	4	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = vec![Alignment {
       qry: Hit::new(BlockId(3), 507, (11, 507)),
       reff: Hit::new(BlockId(4), 500, (24, 500)),

@@ -88,7 +88,7 @@ mod tests {
   #[rstest]
   fn test_minimap2_paf_parse_one_forward() {
     // forward alignment
-    let paf_content = "qry_0	998	0	996	+	ref_0	1000	0	998	969	998	60	NM:i:29	ms:i:845	AS:i:845	nn:i:0	tp:A:P	cm:i:145	s1:i:808	s2:i:0	de:f:0.0291	rl:i:0	cg:Z:545M1D225M1D226M";
+    let paf_content = "1	998	0	996	+	2	1000	0	998	969	998	60	NM:i:29	ms:i:845	AS:i:845	nn:i:0	tp:A:P	cm:i:145	s1:i:808	s2:i:0	de:f:0.0291	rl:i:0	cg:Z:545M1D225M1D226M";
     let aln = vec![Alignment {
       qry: Hit::new(BlockId(1), 998, (0, 996)),
       reff: Hit::new(BlockId(2), 1000, (0, 998)),
@@ -108,7 +108,7 @@ mod tests {
   #[rstest]
   fn test_minimap2_paf_parse_one_reverse() {
     // reverse alignment
-    let paf_content = "qry_3	997	0	980	-	ref_3	1000	18	1000	965	982	60	NM:i:17	ms:i:889	AS:i:889	nn:i:0	tp:A:P	cm:i:151	s1:i:815	s2:i:0	de:f:0.0173	rl:i:0	cg:Z:124M1D416M1D440M";
+    let paf_content = "3	997	0	980	-	4	1000	18	1000	965	982	60	NM:i:17	ms:i:889	AS:i:889	nn:i:0	tp:A:P	cm:i:151	s1:i:815	s2:i:0	de:f:0.0173	rl:i:0	cg:Z:124M1D416M1D440M";
     let aln = vec![Alignment {
       qry: Hit::new(BlockId(3), 997, (0, 980)),
       reff: Hit::new(BlockId(4), 1000, (18, 1000)),
