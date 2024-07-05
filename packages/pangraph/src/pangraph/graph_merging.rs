@@ -4,7 +4,6 @@ use crate::align::energy::alignment_energy2;
 use crate::align::minimap2::align_with_minimap2::align_with_minimap2;
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
-use crate::o;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::reweave::reweave;
@@ -192,124 +191,136 @@ pub fn consolidate(graph: Pangraph) -> Pangraph {
   graph
 }
 
-// #[cfg(test)]
-// mod tests {
-//   use super::*;
-//   use crate::align::alignment::Hit;
-//   use crate::align::bam::cigar::parse_cigar_str;
-//   use crate::pangraph::strand::Strand;
-//   use eyre::Report;
-//   use pretty_assertions::assert_eq;
-//   use rstest::rstest;
-//
-//   #[rstest]
-//   fn test_is_match_compatible() -> Result<(), Report> {
-//     let accepted_intervals = btreemap! {
-//       o!("block_0") => vec![Interval::new(100,200), Interval::new(300,400)],
-//       o!("block_1") => vec![Interval::new(200,300), Interval::new(400,500)],
-//     };
-//
-//     let aln = Alignment {
-//       qry: Hit::new("block_0", 1000, (210, 290)),
-//       reff: Hit::new("block_1", 1000, (310, 390)),
-//       matches: 80,
-//       length: 80,
-//       quality: 10,
-//       orientation: Strand::Reverse,
-//       cigar: parse_cigar_str("90M").unwrap(),
-//       divergence: Some(0.05),
-//       align: None,
-//     };
-//
-//     assert!(is_match_compatible(&aln, &accepted_intervals));
-//
-//     Ok(())
-//   }
-//
-//   #[rstest]
-//   fn test_is_match_compatible_not() -> Result<(), Report> {
-//     let accepted_intervals = btreemap! {
-//       o!("block_0") => vec![Interval::new(100,200), Interval::new(300,400)],
-//       o!("block_1") => vec![Interval::new(200,300), Interval::new(400,500)],
-//     };
-//
-//     let aln = Alignment {
-//       qry: Hit::new("block_0", 1000, (310, 390)),
-//       reff: Hit::new("block_1", 1000, (310, 390)),
-//       matches: 80,
-//       length: 80,
-//       quality: 10,
-//       orientation: Strand::Reverse,
-//       cigar: parse_cigar_str("90M").unwrap(),
-//       divergence: Some(0.05),
-//       align: None,
-//     };
-//
-//     assert!(!is_match_compatible(&aln, &accepted_intervals));
-//
-//     Ok(())
-//   }
-//
-//   #[rstest]
-//   fn test_filter_matches() -> Result<(), Report> {
-//     let aln_0 = Alignment {
-//       qry: Hit::new("bl0", 500, (100, 200)),
-//       reff: Hit::new("bl1", 500, (200, 300)),
-//       matches: 100,
-//       length: 0,
-//       quality: 0,
-//       orientation: Strand::default(),
-//       cigar: parse_cigar_str("100M").unwrap(),
-//       divergence: Some(0.05),
-//       align: None,
-//     };
-//
-//     let aln_1 = Alignment {
-//       qry: Hit::new("bl2", 500, (100, 200)),
-//       reff: Hit::new("bl3", 500, (200, 300)),
-//       matches: 100,
-//       length: 0,
-//       quality: 0,
-//       orientation: Strand::default(),
-//       cigar: parse_cigar_str("100M").unwrap(),
-//       divergence: Some(0.02),
-//       align: None,
-//     };
-//
-//     let aln_2 = Alignment {
-//       qry: Hit::new("bl2", 500, (150, 250)),
-//       reff: Hit::new("bl4", 500, (200, 300)),
-//       matches: 100,
-//       length: 0,
-//       quality: 0,
-//       orientation: Strand::default(),
-//       cigar: parse_cigar_str("100M").unwrap(),
-//       divergence: Some(0.05),
-//       align: None,
-//     };
-//
-//     let aln_3 = Alignment {
-//       qry: Hit::new("bl5", 500, (100, 200)),
-//       reff: Hit::new("bl6", 500, (200, 300)),
-//       matches: 100,
-//       length: 0,
-//       quality: 0,
-//       orientation: Strand::default(),
-//       cigar: parse_cigar_str("100M").unwrap(),
-//       divergence: Some(0.1),
-//       align: None,
-//     };
-//
-//     let args = AlignmentArgs {
-//       alpha: 10.0,
-//       beta: 10.0,
-//       ..Default::default()
-//     };
-//
-//     let alns = [aln_0.clone(), aln_1.clone(), aln_2, aln_3];
-//
-//     assert_eq!(filter_matches(&alns, &args), vec![aln_1, aln_0]);
-//
-//     Ok(())
-//   }
-// }
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::align::alignment::Hit;
+  use crate::align::bam::cigar::parse_cigar_str;
+  use crate::pangraph::strand::Strand;
+  use eyre::Report;
+  use pretty_assertions::assert_eq;
+  use rstest::rstest;
+
+  #[rstest]
+  fn test_is_match_compatible() -> Result<(), Report> {
+    let accepted_intervals = btreemap! {
+      BlockId(0) => vec![Interval::new(100,200), Interval::new(300,400)],
+      BlockId(1) => vec![Interval::new(200,300), Interval::new(400,500)],
+    };
+
+    let aln = Alignment {
+      qry: Hit::new(BlockId(0), 1000, (210, 290)),
+      reff: Hit::new(BlockId(1), 1000, (310, 390)),
+      matches: 80,
+      length: 80,
+      quality: 10,
+      orientation: Strand::Reverse,
+      new_block_id: None, // FIXME
+      anchor_block: None, // FIXME
+      cigar: parse_cigar_str("90M").unwrap(),
+      divergence: Some(0.05),
+      align: None,
+    };
+
+    assert!(is_match_compatible(&aln, &accepted_intervals));
+
+    Ok(())
+  }
+
+  #[rstest]
+  fn test_is_match_compatible_not() -> Result<(), Report> {
+    let accepted_intervals = btreemap! {
+      BlockId(0) => vec![Interval::new(100,200), Interval::new(300,400)],
+      BlockId(1) => vec![Interval::new(200,300), Interval::new(400,500)],
+    };
+
+    let aln = Alignment {
+      qry: Hit::new(BlockId(0), 1000, (310, 390)),
+      reff: Hit::new(BlockId(1), 1000, (310, 390)),
+      matches: 80,
+      length: 80,
+      quality: 10,
+      orientation: Strand::Reverse,
+      new_block_id: None, // FIXME
+      anchor_block: None, // FIXME
+      cigar: parse_cigar_str("90M").unwrap(),
+      divergence: Some(0.05),
+      align: None,
+    };
+
+    assert!(!is_match_compatible(&aln, &accepted_intervals));
+
+    Ok(())
+  }
+
+  #[rstest]
+  fn test_filter_matches() -> Result<(), Report> {
+    let aln_0 = Alignment {
+      qry: Hit::new(BlockId(0), 500, (100, 200)),
+      reff: Hit::new(BlockId(1), 500, (200, 300)),
+      matches: 100,
+      length: 0,
+      quality: 0,
+      orientation: Strand::default(),
+      new_block_id: None, // FIXME
+      anchor_block: None, // FIXME
+      cigar: parse_cigar_str("100M").unwrap(),
+      divergence: Some(0.05),
+      align: None,
+    };
+
+    let aln_1 = Alignment {
+      qry: Hit::new(BlockId(2), 500, (100, 200)),
+      reff: Hit::new(BlockId(3), 500, (200, 300)),
+      matches: 100,
+      length: 0,
+      quality: 0,
+      orientation: Strand::default(),
+      new_block_id: None, // FIXME
+      anchor_block: None, // FIXME
+      cigar: parse_cigar_str("100M").unwrap(),
+      divergence: Some(0.02),
+      align: None,
+    };
+
+    let aln_2 = Alignment {
+      qry: Hit::new(BlockId(2), 500, (150, 250)),
+      reff: Hit::new(BlockId(4), 500, (200, 300)),
+      matches: 100,
+      length: 0,
+      quality: 0,
+      orientation: Strand::default(),
+      new_block_id: None, // FIXME
+      anchor_block: None, // FIXME
+      cigar: parse_cigar_str("100M").unwrap(),
+      divergence: Some(0.05),
+      align: None,
+    };
+
+    let aln_3 = Alignment {
+      qry: Hit::new(BlockId(5), 500, (100, 200)),
+      reff: Hit::new(BlockId(6), 500, (200, 300)),
+      matches: 100,
+      length: 0,
+      quality: 0,
+      orientation: Strand::default(),
+      new_block_id: None, // FIXME
+      anchor_block: None, // FIXME
+      cigar: parse_cigar_str("100M").unwrap(),
+      divergence: Some(0.1),
+      align: None,
+    };
+
+    let args = AlignmentArgs {
+      alpha: 10.0,
+      beta: 10.0,
+      ..Default::default()
+    };
+
+    let alns = [aln_0.clone(), aln_1.clone(), aln_2, aln_3];
+
+    assert_eq!(filter_matches(&alns, &args), vec![aln_1, aln_0]);
+
+    Ok(())
+  }
+}
