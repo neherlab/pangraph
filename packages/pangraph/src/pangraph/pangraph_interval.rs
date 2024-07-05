@@ -1,8 +1,11 @@
 use crate::align::alignment::ExtractedHit;
+use crate::make_internal_error;
 use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
 use crate::utils::interval::Interval;
+use color_eyre::{Section, SectionExt};
+use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
@@ -44,43 +47,46 @@ pub fn have_no_overlap(intervals: &[PangraphInterval], candidate: &PangraphInter
     .any(|interval| interval.has_overlap_with(&candidate.interval))
 }
 
-fn intervals_sanity_checks(intervals: &[PangraphInterval], block_length: usize) {
-  assert!(intervals.len() > 0);
+#[allow(clippy::missing_asserts_for_indexing)]
+fn intervals_sanity_checks(intervals: &[PangraphInterval], block_length: usize) -> Result<(), Report> {
+  if intervals.is_empty() {
+    return make_internal_error!("Intervals array cannot be empty.");
+  }
 
-  assert_eq!(
-    intervals[0].interval.start, 0,
-    "First interval does not start at 0: {}",
-    intervals[0].interval
-  );
+  if intervals[0].interval.start != 0 {
+    return make_internal_error!("First interval does not start at 0: {}", intervals[0].interval);
+  }
 
-  assert_eq!(
-    intervals[intervals.len() - 1].interval.end,
-    block_length,
-    "Last interval does not end at the block length. Interval: {}, block length: {}",
-    intervals[intervals.len() - 1].interval,
-    block_length
-  );
-
-  for n in 1..intervals.len() {
-    assert_eq!(
-      intervals[n - 1].interval.end,
-      intervals[n].interval.start,
-      "Intervals {} and {} are not contiguous: {} and {}",
-      n - 1,
-      n,
-      intervals[n - 1].interval,
-      intervals[n].interval
-    );
-
-    assert!(
-      intervals[n - 1].aligned || intervals[n].aligned,
-      "Found two consecutive unaligned intervals: {} and {}: {} and {}",
-      n - 1,
-      n,
-      intervals[n - 1].aligned,
-      intervals[n].aligned
+  if intervals.last().unwrap().interval.end != block_length {
+    return make_internal_error!(
+      "Last interval does not end at the block length. Interval: {}, block length: {}",
+      intervals.last().unwrap().interval,
+      block_length
     );
   }
+
+  for n in 1..intervals.len() {
+    if intervals[n - 1].interval.end != intervals[n].interval.start {
+      return make_internal_error!(
+        "Intervals {} and {} are not contiguous: {} and {}",
+        n - 1,
+        n,
+        intervals[n - 1].interval,
+        intervals[n].interval
+      );
+    }
+
+    if !intervals[n - 1].aligned && !intervals[n].aligned {
+      return make_internal_error!(
+        "Found two consecutive unaligned intervals: {} and {}: {} and {}",
+        n - 1,
+        n,
+        intervals[n - 1].aligned,
+        intervals[n].aligned
+      );
+    }
+  }
+  Ok(())
 }
 
 fn unaligned_interval(interval: Interval, block_id: BlockId) -> PangraphInterval {
@@ -136,7 +142,49 @@ fn create_intervals(hits: &[ExtractedHit], block_length: usize) -> Vec<PangraphI
   intervals
 }
 
-fn refine_intervals(intervals: &mut Vec<PangraphInterval>, thr_len: usize) {
+fn check_interval_conditions(
+  interval: &PangraphInterval,
+  n: usize,
+  left_len: usize,
+  right_len: usize,
+  thr_len: usize,
+  intervals: &Vec<PangraphInterval>,
+) -> Result<(), Report> {
+  if interval.aligned {
+    return make_internal_error!("Aligned interval at index {n} is shorter than the threshold length ({thr_len}).")
+      .with_section(|| format!("{interval:#?}").header("Interval:"));
+  }
+
+  if n > 0 {
+    if !intervals[n - 1].aligned {
+      return make_internal_error!("No adjacent aligned interval on the left of index {n}.")
+        .with_section(|| format!("{:#?}", intervals[n - 1]).header("Interval:"));
+    }
+    if left_len < thr_len {
+      return make_internal_error!(
+        "Left interval at index {} is shorter than the threshold length ({thr_len}).",
+        n - 1
+      )
+      .with_section(|| format!("{:#?}", intervals[n - 1]).header("Interval:"));
+    }
+  }
+  if n + 1 < intervals.len() {
+    if !intervals[n + 1].aligned {
+      return make_internal_error!("No adjacent aligned interval on the right of index {n}.")
+        .with_section(|| format!("{:#?}", intervals[n + 1]).header("Interval:"));
+    }
+    if right_len < thr_len {
+      return make_internal_error!(
+        "Right interval at index {} is shorter than the threshold length ({thr_len}).",
+        n + 1
+      )
+      .with_section(|| format!("{:#?}", intervals[n + 1]).header("Interval:"));
+    }
+  }
+  Ok(())
+}
+
+fn refine_intervals(intervals: &mut Vec<PangraphInterval>, thr_len: usize) -> Result<(), Report> {
   let mut mergers = vec![];
 
   for (n, interval) in intervals.iter().enumerate() {
@@ -148,16 +196,7 @@ fn refine_intervals(intervals: &mut Vec<PangraphInterval>, thr_len: usize) {
         0
       };
 
-      assert!(!interval.aligned, "aligned interval {n} shorter than the threshold len");
-
-      if n > 0 {
-        assert!(intervals[n - 1].aligned, "no adjacent aligned interval on the left");
-        assert!(left_len >= thr_len, "left interval shorter than threshold len");
-      }
-      if n + 1 < intervals.len() {
-        assert!(intervals[n + 1].aligned, "no adjacent aligned interval on the right");
-        assert!(right_len >= thr_len, "right interval shorter than threshold len");
-      }
+      check_interval_conditions(interval, n, left_len, right_len, thr_len, intervals)?;
 
       mergers.push(if left_len >= right_len { (n, n - 1) } else { (n, n + 1) });
     }
@@ -171,13 +210,21 @@ fn refine_intervals(intervals: &mut Vec<PangraphInterval>, thr_len: usize) {
     }
     intervals.remove(*n_from);
   }
+
+  Ok(())
 }
 
-pub fn extract_intervals(hits: &[ExtractedHit], block_length: usize, thr_len: usize) -> Vec<PangraphInterval> {
+pub fn extract_intervals(
+  hits: &[ExtractedHit],
+  block_length: usize,
+  thr_len: usize,
+) -> Result<Vec<PangraphInterval>, Report> {
   let mut intervals = create_intervals(hits, block_length);
-  refine_intervals(&mut intervals, thr_len);
-  intervals_sanity_checks(&intervals, block_length);
-  intervals
+  refine_intervals(&mut intervals, thr_len)?;
+  intervals_sanity_checks(&intervals, block_length)
+    .wrap_err("When performing interval sanity checks")
+    .with_section(|| format!("{intervals:#?}").header("Intervals:"))?;
+  Ok(intervals)
 }
 
 #[cfg(test)]
@@ -290,10 +337,11 @@ mod tests {
   }
 
   #[test]
-  fn test_refine_intervals() {
+  fn test_refine_intervals() -> Result<(), Report> {
     let (hits, block_length, bid) = example();
     let thr_len = 50;
-    let intervals = extract_intervals(&hits, block_length, thr_len);
+    let intervals = extract_intervals(&hits, block_length, thr_len)?;
+
     assert_eq!(
       intervals,
       vec![
@@ -348,5 +396,7 @@ mod tests {
         },
       ]
     );
+
+    Ok(())
   }
 }

@@ -10,7 +10,7 @@ use crate::pangraph::reweave::reweave;
 use crate::pangraph::split_matches::split_matches;
 use crate::utils::interval::{have_no_overlap, Interval};
 use crate::utils::map_merge::{map_merge, ConflictResolution};
-use eyre::Report;
+use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use maplit::btreemap;
 use ordered_float::OrderedFloat;
@@ -31,14 +31,18 @@ pub fn merge_graphs(
   // We map the consensus sequences of blocks to each other and merge
   // blocks in which we find matches. We iterate this until no more merging
   // is possible.
+  let mut i = 0;
   loop {
-    let (graph_new, has_changed) = self_merge(graph, args)?;
+    let (graph_new, has_changed) =
+      self_merge(graph, args).wrap_err_with(|| format!("During self-merge iteration {i}"))?;
     graph = graph_new;
 
     // stop when no more mergers are possible
     if !has_changed {
       break Ok(graph);
     }
+
+    i += 1;
   }
 }
 
@@ -89,12 +93,17 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
   // - splitting blocks and updating the node ids.
   // - adding the blocks that do not need merging to the preliminary graph
   // - return the set of blocks that should be merged
-  let (mut graph, mergers) = reweave(&mut matches, graph, args.aln_args.indel_len_threshold);
+  let (mut graph, mergers) =
+    reweave(&mut matches, graph, args.aln_args.indel_len_threshold).wrap_err("During reweave")?;
 
   // this can be parallelized
   let merged_blocks = mergers
     .into_iter()
-    .map(|mut merger| merger.solve_promise())
+    .map(|mut merge_promise| {
+      merge_promise
+        .solve_promise()
+        .wrap_err_with(|| format!("When solving merge promise: {merge_promise:#?}"))
+    })
     .collect::<Result<Vec<_>, Report>>()?
     .into_iter()
     .map(|block| (block.id(), block))

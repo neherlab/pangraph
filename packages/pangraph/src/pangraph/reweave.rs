@@ -1,5 +1,6 @@
 use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
 use crate::io::seq::reverse_complement;
+use crate::make_internal_error;
 use crate::pangraph::pangraph::{GraphUpdate, Pangraph};
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_interval::extract_intervals;
@@ -7,7 +8,8 @@ use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::slice::block_slice;
 use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
-use eyre::Report;
+use color_eyre::{Section, SectionExt};
+use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use std::collections::BTreeMap;
 use std::hash::Hash;
@@ -129,7 +131,25 @@ fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
   hits
 }
 
-fn group_promises(h: &[ToMerge]) -> Vec<MergePromise> {
+#[allow(clippy::missing_asserts_for_indexing)]
+fn validate_blocks(bs: &[&ToMerge]) -> Result<(), Report> {
+  if bs.len() != 2 {
+    return make_internal_error!("Only exactly two blocks can be merged, but found: {}", bs.len());
+  }
+
+  let (b1, b2) = (&bs[0], &bs[1]);
+  if !(b1.is_anchor ^ b2.is_anchor) {
+    return make_internal_error!("Only one block can be anchor.");
+  }
+
+  if b1.orientation != b2.orientation {
+    return make_internal_error!("Orientation must be the same.");
+  }
+
+  Ok(())
+}
+
+fn group_promises(h: &[ToMerge]) -> Result<Vec<MergePromise>, Report> {
   let mut promises = Vec::new();
 
   let groups = h
@@ -141,43 +161,31 @@ fn group_promises(h: &[ToMerge]) -> Vec<MergePromise> {
     .collect::<BTreeMap<_, _>>();
 
   for (_, bs) in groups {
-    assert_eq!(
-      bs.len(),
-      2,
-      "Only exactly two blocks can be merged, but found {}: {:#?}",
-      bs.len(),
-      bs
-    );
+    validate_blocks(&bs)?;
 
     let (b1, b2) = (&bs[0], &bs[1]);
-    assert!(
-      b1.is_anchor ^ b2.is_anchor,
-      "Only one block can be anchor, but found: {:#?}",
-      [&b1, &b2]
-    );
-
-    assert_eq!(
-      b1.orientation,
-      b2.orientation,
-      "Orientation must be the same, but found: {:#?}",
-      [&b1, &b2]
-    );
-
     let anchor_block = if b1.is_anchor { &b1.block } else { &b2.block };
     let append_block = if b1.is_anchor { &b2.block } else { &b1.block };
     promises.push(MergePromise {
-      anchor_block: anchor_block.clone(),
-      append_block: append_block.clone(),
+      anchor_block: anchor_block.clone(), // TODO: avoid cloning
+      append_block: append_block.clone(), // TODO: avoid cloning
       orientation: b1.orientation,
     });
   }
-  promises
+  Ok(promises)
 }
 
-fn split_block(bid: BlockId, mergers: &[Alignment], graph: &Pangraph, thr_len: usize) -> (GraphUpdate, Vec<ToMerge>) {
+fn split_block(
+  bid: BlockId,
+  mergers: &[Alignment],
+  graph: &Pangraph,
+  thr_len: usize,
+) -> Result<(GraphUpdate, Vec<ToMerge>), Report> {
   let extracted_hits = extract_hits(bid, mergers);
   let consensus_len = graph.blocks[&bid].consensus_len();
-  let intervals = extract_intervals(&extracted_hits, consensus_len, thr_len);
+  let intervals = extract_intervals(&extracted_hits, consensus_len, thr_len)
+    .wrap_err_with(|| format!("When extracting intervals for block {bid}"))
+    .with_section(|| format!("{extracted_hits:#?}").header("Extracted hits:"))?;
 
   let mut u = GraphUpdate {
     b_old_id: bid,
@@ -213,10 +221,14 @@ fn split_block(bid: BlockId, mergers: &[Alignment], graph: &Pangraph, thr_len: u
       nodes.reverse();
     }
   }
-  (u, h)
+  Ok((u, h))
 }
 
-pub fn reweave(mergers: &mut [Alignment], mut graph: Pangraph, thr_len: usize) -> (Pangraph, Vec<MergePromise>) {
+pub fn reweave(
+  mergers: &mut [Alignment],
+  mut graph: Pangraph,
+  thr_len: usize,
+) -> Result<(Pangraph, Vec<MergePromise>), Report> {
   assign_new_block_ids(mergers);
   assign_anchor_block(mergers, &graph);
 
@@ -225,17 +237,18 @@ pub fn reweave(mergers: &mut [Alignment], mut graph: Pangraph, thr_len: usize) -
   let mut h = vec![];
 
   for (bid, m) in tb {
-    let (graph_update, to_merge) = split_block(bid, &m, &graph, thr_len);
+    let (graph_update, to_merge) =
+      split_block(bid, &m, &graph, thr_len).wrap_err_with(|| format!("When splitting block {bid}"))?;
     u.push(graph_update);
     h.extend(to_merge);
   }
 
-  let merge_promises = group_promises(&h);
+  let merge_promises = group_promises(&h).wrap_err("When grouping promises")?;
   for graph_update in u {
     graph.update(&graph_update);
   }
 
-  (graph, merge_promises)
+  Ok((graph, merge_promises))
 }
 
 #[cfg(test)]
@@ -327,7 +340,7 @@ mod tests {
 
   #[rustfmt::skip]
   #[test]
-  fn test_group_promises() {
+  fn test_group_promises() -> Result<(), Report>  {
     let b1_anchor = PangraphBlock::new(Some(BlockId(1)), "A", btreemap! {} /* {1: None, 2: None, 3: None} */);
     let b1_append = PangraphBlock::new(Some(BlockId(1)), "B", btreemap! {} /* {4: None, 5: None} */);
     let b2_anchor = PangraphBlock::new(Some(BlockId(2)), "C", btreemap! {} /* {6: None, 7: None, 8: None} */);
@@ -344,7 +357,7 @@ mod tests {
       ToMerge::new(b3_append.clone(), false, Reverse),
     ];
 
-    let promises = group_promises(h);
+    let promises = group_promises(h)?;
     assert_eq!(
       promises,
       vec![
@@ -353,6 +366,8 @@ mod tests {
         MergePromise::new(b3_anchor, b3_append, Reverse),
       ]
     );
+    
+    Ok(())
   }
 
   #[test]
@@ -467,7 +482,7 @@ mod tests {
   }
 
   #[test]
-  fn test_split_block() {
+  fn test_split_block() -> Result<(), Report> {
     fn generate_example() -> (Pangraph, Vec<Alignment>, BlockId) {
       let mut rng = get_random_number_generator(&Some(0));
       let consensus = generate_random_nuc_sequence(130, &mut rng);
@@ -549,7 +564,7 @@ mod tests {
 
     let thr_len = 20;
     let (G, m, bid) = generate_example();
-    let (u, h) = split_block(bid, &m, &G, thr_len);
+    let (u, h) = split_block(bid, &m, &G, thr_len)?;
 
     assert_eq!(u.b_old_id, bid);
 
@@ -615,10 +630,12 @@ mod tests {
 
     assert_eq!(h[0].block.alignment_keys(), node_keys_0);
     assert_eq!(h[1].block.alignment_keys(), node_keys_2);
+
+    Ok(())
   }
 
   #[test]
-  fn test_reweave() {
+  fn test_reweave() -> Result<(), Report> {
     fn i(pos: usize, len: usize, seq: impl AsRef<str>) -> Ins {
       Ins::new(pos, seq.as_ref().repeat(len))
     }
@@ -733,7 +750,7 @@ mod tests {
     let (G, mut M) = generate_example();
     let O = G.clone();
     let thr_len = 90;
-    let (G, P) = reweave(&mut M, G, thr_len);
+    let (G, P) = reweave(&mut M, G, thr_len)?;
 
     // new paths
     let p1 = &G.paths[&PathId(100)];
@@ -827,5 +844,7 @@ mod tests {
     );
     assert_eq!(p2.append_block.id(), G.nodes[&nid_200_4].block_id());
     assert_eq!(p2.append_block.consensus(), &O.blocks[&BlockId(20)].consensus()[0..200]);
+
+    Ok(())
   }
 }
