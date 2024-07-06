@@ -5,6 +5,10 @@ members = [
   "packages/*",
 ]
 
+exclude = [
+#  "packages/minimap2"
+]
+
 [workspace.package]
 description = "A bioinformatic toolkit to align genome assemblies into pangenome graphs"
 version = "1.0.0"
@@ -50,6 +54,7 @@ lazy_static = "=1.4.0"
 log = "=0.4.20"
 maplit = "=1.0.2"
 memoize = { version = "=0.4.2", features = ["full"] }
+minimap2 = { path = "packages/minimap2" }
 ndarray = { version = "=0.15.6", features = ["rayon", "serde", "approx-0_5", "blas"] }
 ndarray-rand = "=0.14.0"
 ndarray-stats = "=0.5.1"
