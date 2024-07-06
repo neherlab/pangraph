@@ -1,0 +1,57 @@
+[package]
+name = "minimap2-sys"
+version = "0.1.19+minimap2.2.28"
+edition = "2021"
+links = "libminimap2"
+authors = ["Joseph Guhlin <joseph.guhlin@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Bindings to libminimap2"
+repository = "https://github.com/jguhlin/minimap2-rs"
+categories = ["science", "external-ffi-bindings"]
+keywords = ["bioinformatics", "fasta", "alignment", "ffi", "fastq"]
+exclude = [
+	"**/*.fasta",
+	"libsfasta/test_data/",
+	"*.profdata",
+	"target",
+	"Cargo.lock",
+	"/minimap2/lib/simde/test",
+	".circlci",
+	".notest",
+	".github",
+	"docker",
+	"/mm2-fast/ext/TAL/applications",
+	"/mm2-fast/lib/simde/test/",
+	".*",
+	"/mm2-fast/test",
+	"/minimap2/test",
+	"/mm2-fast/test_bench/",
+
+]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+libz-sys = { version = "1.1.15", default-features = false }
+
+[build-dependencies]
+pkg-config = "0.3.30"
+
+[build-dependencies.bindgen]
+optional = true
+version = "0.69.4"
+default-features = false
+features = ["which-rustfmt", "runtime"]
+
+[build-dependencies.cc]
+version = "1.0.90"
+
+[features]
+default = ["libz-sys/libc"]
+vendored = ["bindgen"]
+sse2only = []
+simde = []
+noopt = []
+zlib-ng = ["libz-sys/zlib-ng"]
+static = ["libz-sys/static"]
