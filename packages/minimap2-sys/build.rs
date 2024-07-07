@@ -132,20 +132,21 @@ fn compile() {
   configure(&mut cc);
 
   cc.flag("-DHAVE_KALLOC");
-  cc.flag("-lm");
-  cc.flag("-lpthread");
 
   #[cfg(feature = "static")]
   cc.static_flag(true);
 
-  if let Some(include) = std::env::var_os("DEP_Z_INCLUDE") {
-    cc.include(include);
-  }
+  if cfg!(feature = "static") {
+    let libz_include = env::var_os("DEP_Z_INCLUDE").unwrap();
+    cc.include(libz_include);
 
-  if let Ok(lib) = pkg_config::find_library("zlib") {
-    for path in &lib.include_paths {
-      cc.include(path);
-    }
+    let libz_root = env::var_os("DEP_Z_ROOT").unwrap();
+    let libz_lib = PathBuf::from(&libz_root).join("lib");
+    let libz_lib = libz_lib.to_str().unwrap();
+    println!("cargo:rustc-link-search={libz_lib}");
+    println!("cargo:rustc-link-lib=static=z");
+  } else {
+    println!("cargo:rustc-link-lib=z");
   }
 
   cc.compile("libminimap");

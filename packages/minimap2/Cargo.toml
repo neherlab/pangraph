@@ -18,7 +18,7 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-minimap2-sys = { version = "0.1.19+minimap2.2.28", features = ["static"] }
+minimap2-sys = { path = "../minimap2-sys", features = ["static"] }
 approx = { workspace = true }
 auto_ops = { workspace = true }
 bio = { workspace = true }

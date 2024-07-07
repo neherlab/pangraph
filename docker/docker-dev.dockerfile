@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1
+
 ARG DOCKER_BASE_IMAGE
 
 FROM $DOCKER_BASE_IMAGE as base
@@ -10,9 +12,12 @@ ARG WATCHEXEC_VERSION="1.17.1"
 ARG NODEMON_VERSION="2.0.15"
 ARG YARN_VERSION="1.22.18"
 
-# Install required packages if running CentOS
+
+
 RUN set -euxo pipefail >/dev/null \
 && if [[ "$DOCKER_BASE_IMAGE" != centos* ]] && [[ "$DOCKER_BASE_IMAGE" != *manylinux2014* ]]; then exit 0; fi \
+&& echo -e "[buildlogs-c7.2009.u]\nname=https://buildlogs.centos.org/c7.2009.u.x86_64/\nbaseurl=https://buildlogs.centos.org/c7.2009.u.x86_64/\nenabled=1\ngpgcheck=0\n\n[buildlogs-c7.2009.00]\nname=https://buildlogs.centos.org/c7.2009.00.x86_64/\nbaseurl=https://buildlogs.centos.org/c7.2009.00.x86_64/\nenabled=1\ngpgcheck=0" > /etc/yum.repos.d/buildlogs.repo \
+&& echo -e "[llvm-toolset]\nname=https://buildlogs.centos.org/c7-llvm-toolset-13.0.x86_64/\nbaseurl=https://buildlogs.centos.org/c7-llvm-toolset-13.0.x86_64/\nenabled=1\ngpgcheck=0" > /etc/yum.repos.d/llvm-toolset.repo \
 && sed -i "s/enabled=1/enabled=0/g" "/etc/yum/pluginconf.d/fastestmirror.conf" \
 && sed -i "s/enabled=1/enabled=0/g" "/etc/yum/pluginconf.d/ovl.conf" \
 && yum clean all \
@@ -22,18 +27,15 @@ RUN set -euxo pipefail >/dev/null \
   automake \
   bash \
   bash-completion \
-  binutils \
   brotli \
   ca-certificates \
   cmake \
   curl \
-  gcc \
-  gcc-c++ \
-  gcc-gfortran \
   gdb \
   git \
   gnupg \
   gzip \
+  llvm-toolset-13.0 \
   make \
   parallel \
   pigz \
@@ -48,6 +50,14 @@ RUN set -euxo pipefail >/dev/null \
   zstd \
 && dnf clean all \
 && rm -rf /var/cache/yum
+
+ENV PATH="/opt/rh/llvm-toolset-13.0/root/usr/bin:/opt/rh/llvm-toolset-13.0/root/usr/sbin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/rh/llvm-toolset-13.0/root/usr/lib64:${LD_LIBRARY_PATH}"
+ENV MANPATH="/opt/rh/llvm-toolset-13.0/root/usr/share/man:${MANPATH:-}"
+ENV PKG_CONFIG_PATH="/opt/rh/llvm-toolset-13.0/root/usr/lib64/pkgconfig:${PKG_CONFIG_PATH}"
+ENV PYTHONPATH="/opt/rh/llvm-toolset-13.0/root/usr/lib/python3.6/site-packages:${PYTHONPATH}"
+
+
 
 
 ARG CLANG_VERSION
@@ -309,12 +319,12 @@ FROM base as dev
 ENV CC_x86_64-unknown-linux-gnu=clang
 ENV CXX_x86_64-unknown-linux-gnu=clang++
 
-# Cross-compilation for Linux x86_64 with gnu-libc.
-# Same as native, but convenient to have for mass cross-compilation.
+
+# Cross-compilation for Linux x86_64 with gnu-libc
 FROM dev as cross-x86_64-unknown-linux-gnu
 
-ENV CC_x86_64-unknown-linux-gnu=gcc
-ENV CXX_x86_64-unknown-linux-gnu=g++
+ENV CC_x86_64-unknown-linux-gnu=clang
+ENV CXX_x86_64-unknown-linux-gnu=clang++
 
 
 # Cross-compilation for Linux x86_64 with libmusl
@@ -395,6 +405,12 @@ ENV CC_aarch64_unknown_linux_musl=aarch64-linux-musl-gcc
 ENV CXX_aarch64_unknown_linux_musl=aarch64-linux-musl-g++
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc
 
+# Linker error: undefined reference to `getauxval'
+# https://github.com/rust-lang/rustup/issues/3324
+# https://github.com/rust-lang/rust/issues/89626#issuecomment-945814003
+ENV CFLAGS="-mno-outline-atomics"
+ENV CXXFLAGS="-mno-outline-atomics"
+
 
 # Cross-compilation for Windows x86_64
 FROM base as cross-x86_64-pc-windows-gnu
@@ -449,12 +465,32 @@ USER ${USER}
 RUN set -euxo pipefail >/dev/null \
 && rustup target add x86_64-apple-darwin
 
-ENV PATH="/opt/osxcross/bin/:${PATH}"
-ENV CC_x86_64-apple-darwin=x86_64-apple-darwin20.2-clang
-ENV CXX_x86_64-apple-darwin=x86_64-apple-darwin20.2-clang++
-ENV CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER=x86_64-apple-darwin20.2-clang
-ENV CARGO_TARGET_X86_64_APPLE_DARWIN_STRIP=x86_64-apple-darwin20.2-strip
+ENV CARGO_BUILD_TARGET=x86_64-apple-darwin
+ENV OSX_TRIPLET=x86_64-apple-darwin20.2
 
+ENV OSX_CROSS_PATH=/opt/osxcross
+ENV PATH="${OSX_CROSS_PATH}/bin/:${PATH}"
+
+ENV C_INCLUDE_PATH="${OSX_CROSS_PATH}/SDK/MacOSX11.1.sdk/usr/include"
+ENV CPLUS_INCLUDE_PATH="${C_INCLUDE_PATH}"
+ENV LIBRARY_PATH="${OSX_CROSS_PATH}/SDK/MacOSX11.1.sdk/usr/lib"
+
+ENV CC="${OSX_CROSS_PATH}/bin/o64-clang"
+ENV CXX="${OSX_CROSS_PATH}/bin/o64-clang++"
+
+ENV AR="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ar"
+ENV AS="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-as"
+ENV CMAKE="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-cmake"
+ENV DSYMUTIL="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-dsymutil"
+ENV LD="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ld"
+ENV LIBTOOL="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-libtool"
+ENV NM="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-nm"
+ENV PKG_CONFIG="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-pkg-config"
+ENV STRIP="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-strip"
+
+ENV CARGO_TARGET_X86_64_APPLE_DARWIN_AR="${AR}"
+ENV CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER="${CC}"
+ENV CARGO_TARGET_X86_64_APPLE_DARWIN_STRIP="${STRIP}"
 
 USER 0
 
@@ -477,12 +513,32 @@ USER ${USER}
 RUN set -euxo pipefail >/dev/null \
 && rustup target add aarch64-apple-darwin
 
-ENV PATH="/opt/osxcross/bin/:${PATH}"
-ENV CC_aarch64-apple-darwin=aarch64-apple-darwin20.2-clang
-ENV CXX_aarch64-apple-darwin=aarch64-apple-darwin20.2-clang++
-ENV CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER=aarch64-apple-darwin20.2-clang
-ENV CARGO_TARGET_AARCH64_APPLE_DARWIN_STRIP=aarch64-apple-darwin20.2-strip
+ENV CARGO_BUILD_TARGET=aarch64-apple-darwin
+ENV OSX_TRIPLET=aarch64-apple-darwin20.2
 
+ENV OSX_CROSS_PATH=/opt/osxcross
+ENV PATH="${OSX_CROSS_PATH}/bin/:${PATH}"
+
+ENV C_INCLUDE_PATH="${OSX_CROSS_PATH}/SDK/MacOSX11.1.sdk/usr/include"
+ENV CPLUS_INCLUDE_PATH="${C_INCLUDE_PATH}"
+ENV LIBRARY_PATH="${OSX_CROSS_PATH}/SDK/MacOSX11.1.sdk/usr/lib"
+
+ENV CC="${OSX_CROSS_PATH}/bin/oa64-clang"
+ENV CXX="${OSX_CROSS_PATH}/bin/oa64-clang++"
+
+ENV AR="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ar"
+ENV AS="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-as"
+ENV CMAKE="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-cmake"
+ENV DSYMUTIL="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-dsymutil"
+ENV LD="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ld"
+ENV LIBTOOL="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-libtool"
+ENV NM="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-nm"
+ENV PKG_CONFIG="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-pkg-config"
+ENV STRIP="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-strip"
+
+ENV CARGO_TARGET_AARCH64_APPLE_DARWIN_AR="${AR}"
+ENV CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER="${CC}"
+ENV CARGO_TARGET_AARCH64_APPLE_DARWIN_STRIP="${STRIP}"
 
 USER 0
 
