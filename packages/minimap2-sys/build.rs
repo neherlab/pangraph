@@ -121,8 +121,6 @@ fn compile() {
 
   println!("cargo:rustc-link-lib=m");
 
-  println!("cargo:rustc-link-lib=pthread");
-
   let mut cc = cc::Build::new();
 
   cc.warnings(false);
@@ -134,9 +132,17 @@ fn compile() {
   cc.flag("-DHAVE_KALLOC");
 
   #[cfg(feature = "static")]
-  cc.static_flag(true);
+  if _target.ends_with("windows-gnu") {
+    let mingw_lib_dir = env::var("MINGW_LIB_DIR").unwrap_or("/usr/x86_64-w64-mingw32/lib".to_owned());
+    println!("cargo:rustc-link-search=native={mingw_lib_dir}");
+    println!("cargo:rustc-link-lib=static=pthread");
+  } else {
+    println!("cargo:rustc-link-lib=pthread");
+  }
 
   if cfg!(feature = "static") {
+    cc.static_flag(true);
+
     let libz_include = env::var_os("DEP_Z_INCLUDE").unwrap();
     cc.include(libz_include);
 

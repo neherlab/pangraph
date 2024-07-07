@@ -437,6 +437,11 @@ USER ${USER}
 RUN set -euxo pipefail >/dev/null \
 && rustup target add x86_64-pc-windows-gnu
 
+ENV MINGW_HOME="/usr/x86_64-w64-mingw32"
+ENV MINGW_LIB_DIR="${MINGW_HOME}/lib"
+
+ENV PKG_CONFIG_ALLOW_CROSS=1
+ENV PKG_CONFIG_PATH="${MINGW_LIB_DIR}/pkgconfig"
 
 # Builds osxcross for Mac cross-compiation
 FROM base as osxcross
