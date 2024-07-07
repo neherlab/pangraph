@@ -277,11 +277,11 @@ RUN set -euxo pipefail >/dev/null \
 && curl -fsSL "https://github.com/marbl/Mash/releases/download/v2.2/mash-Linux64-v2.2.tar" | tar -C "/usr/bin/" -x --strip-components=1 "mash-Linux64-v2.2/mash" \
 && mash --version
 
-# Install fasttree
-RUN set -euxo pipefail >/dev/null \
-&& curl -fsSLo "/usr/bin/fasttree" "http://www.microbesonline.org/fasttree/FastTree" \
-&& chmod +x "/usr/bin/fasttree" \
-&& fasttree -help
+## Install fasttree
+#RUN set -euxo pipefail >/dev/null \
+#&& curl -fsSLo "/usr/bin/fasttree" "http://www.microbesonline.org/fasttree/FastTree" \
+#&& chmod +x "/usr/bin/fasttree" \
+#&& fasttree -help
 
 # Install mafft
 RUN set -euxo pipefail >/dev/null \
