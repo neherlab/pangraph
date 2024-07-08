@@ -345,6 +345,7 @@ RUN set -euxo pipefail >/dev/null \
 ENV CC_x86_64_unknown_linux_musl=x86_64-linux-musl-gcc
 ENV CXX_x86_64_unknown_linux_musl=x86_64-linux-musl-g++
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-musl-gcc
+ENV BINDGEN_EXTRA_CLANG_ARGS="--sysroot /usr/x86_64-linux-musl"
 
 
 # Cross-compilation to WebAssembly
@@ -404,6 +405,7 @@ RUN set -euxo pipefail >/dev/null \
 ENV CC_aarch64_unknown_linux_musl=aarch64-linux-musl-gcc
 ENV CXX_aarch64_unknown_linux_musl=aarch64-linux-musl-g++
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc
+ENV BINDGEN_EXTRA_CLANG_ARGS="--sysroot /usr/aarch64-linux-musl"
 
 # Linker error: undefined reference to `getauxval'
 # https://github.com/rust-lang/rustup/issues/3324
