@@ -51,7 +51,7 @@ log = "=0.4.20"
 maplit = "=1.0.2"
 memoize = { version = "=0.4.2", features = ["full"] }
 minimap2 = { path = "packages/minimap2" }
-minimap2-sys = { path = "packages/minimap2-sys", features = ["static", "vendored"] }
+minimap2-sys = { path = "packages/minimap2-sys", features = ["simde", "static", "vendored"] }
 ndarray = { version = "=0.15.6", features = ["rayon", "serde", "approx-0_5", "blas"] }
 ndarray-rand = "=0.14.0"
 ndarray-stats = "=0.5.1"
