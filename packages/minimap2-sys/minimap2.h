@@ -1,4 +1,3 @@
-#include <zlib.h>
 #include "minimap2/minimap.h"
 #include "minimap2/bseq.h"
 #include "minimap2/kdq.h"
