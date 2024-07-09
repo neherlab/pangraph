@@ -1,19 +1,21 @@
+#![allow(non_snake_case)]
 #![allow(unsafe_code)]
 
 use crate::buf::Minimap2Buffer;
 use crate::index::Minimap2Index;
-use eyre::Report;
+use eyre::{eyre, Report};
 use itertools::Itertools;
-use minimap2_sys::{free, mm_extra_t, mm_idx_t, mm_map, mm_reg1_t, MM_CIGAR_CHARS};
+use minimap2_sys::{free, mm_event_identity, mm_extra_t, mm_idx_t, mm_map, mm_reg1_t, MM_CIGAR_CHARS};
 use ordered_float::OrderedFloat;
-use std::ffi::CString;
-use std::os::raw::c_int;
+use std::ffi::{CStr, CString};
+use std::os::raw::{c_char, c_int};
 use std::slice::from_raw_parts;
 
 #[must_use]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Minimap2Result {
   pub regs: Vec<Minimap2Reg>,
+  pub pafs: Vec<PafRow>,
 }
 
 #[must_use]
@@ -42,13 +44,19 @@ impl Minimap2Result {
 
     dbg!(&regs.as_slice());
 
+    let pafs = regs
+      .as_slice()
+      .iter()
+      .map(|reg| PafRow::from_raw(seq, name, idx.get_ref()?, reg))
+      .collect::<Result<Vec<PafRow>, Report>>()?;
+
     let regs = regs
       .as_slice()
       .iter()
       .map(Minimap2Reg::from_raw)
       .collect::<Result<Vec<Minimap2Reg>, Report>>()?;
 
-    Ok(Minimap2Result { regs })
+    Ok(Minimap2Result { regs, pafs })
   }
 }
 
@@ -173,7 +181,162 @@ impl MinimapExtra {
   }
 }
 
-// RAII wrapper around array of `mm_reg1_t`
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PafSeq {
+  /// (1) Query sequence name
+  name: String,
+  /// (2) Query sequence length
+  len: usize,
+  /// (3) Query start coordinate (0-based)
+  start: i32,
+  /// (4) Query end coordinate (0-based)
+  end: i32,
+}
+
+/// Minimap2 Pairwise mApping Format (PAF).
+/// PAF is a TAB-delimited text format with each line consisting of at least 12 fields.
+/// For more details, see the full spec: [PAF Specification](https://github.com/lh3/minimap2)
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PafRow {
+  /// (1-4) Query sequence
+  q: PafSeq,
+  /// (6-9) Target sequence
+  t: PafSeq,
+  /// (5) ‘+’ if query/target on the same strand; ‘-’ if opposite
+  strand: char,
+  /// (10) Number of matching bases in the mapping
+  mlen: i32,
+  /// (11) Number bases, including gaps, in the mapping
+  blen: i32,
+  /// (12) Mapping quality (0-255 with 255 for missing)
+  mapq: u8,
+  /// (13) tp:A Type of aln: P/primary, S/secondary and I,i/inversion
+  tp: Option<char>,
+  /// (14) cm:i Number of minimizers on the chain
+  cm: Option<i32>,
+  /// (15) s1:i Chaining score
+  s1: Option<i32>,
+  /// (16) s2:i Chaining score of the best secondary chain
+  s2: Option<i32>,
+  /// (17) NM:i Total number of mismatches and gaps in the alignment
+  NM: Option<i32>,
+  /// (18) MD:Z To generate the ref sequence in the alignment
+  MD: Option<String>,
+  /// (19) AS:i DP alignment score
+  AS: Option<i32>,
+  /// (20) SA:Z List of other supplementary alignments
+  SA: Option<String>,
+  /// (21) ms:i DP score of the max scoring segment in the alignment
+  ms: Option<i32>,
+  /// (22) nn:i Number of ambiguous bases in the alignment
+  nn: Option<u32>,
+  /// (23) ts:A Transcript strand (splice mode only)
+  ts: Option<char>,
+  /// (24) cg:Z CIGAR string (only in PAF)
+  cg: Option<String>,
+  /// (25) cs:Z Difference string
+  cs: Option<String>,
+  /// (26) dv:f Approximate per-base sequence divergence
+  dv: Option<OrderedFloat<f32>>,
+  /// (27) de:f Gap-compressed per-base sequence divergence
+  de: Option<OrderedFloat<f64>>,
+  /// (28) rl:i Length of query regions harboring repetitive seeds
+  rl: Option<i32>,
+}
+
+pub fn c_char_to_str<'a>(ptr: *mut c_char) -> Result<&'a str, std::str::Utf8Error> {
+  // SAFETY: Converting raw pointer to string
+  unsafe { CStr::from_ptr(ptr) }.to_str()
+}
+
+impl PafRow {
+  fn from_raw(seq: &str, name: &str, idx: &mm_idx_t, res: &mm_reg1_t) -> Result<PafRow, Report> {
+    let query_seq = PafSeq {
+      name: name.to_owned(),
+      len: seq.len(),
+      start: res.qs,
+      end: res.qe,
+    };
+    let strand = if res.rev() == 0 { '+' } else { '-' };
+
+    if idx.n_seq > 0 && idx.seq.is_null() {
+      return Err(eyre!("minimap2: unable to access query sequence in the result"));
+    }
+
+    // SAFETY: Converting raw pointer to slice
+    let mi_seq = unsafe { from_raw_parts(idx.seq, idx.n_seq as usize) };
+
+    let target_seq = PafSeq {
+      name: c_char_to_str(mi_seq[res.rid as usize].name)?.to_owned(),
+      len: mi_seq[res.rid as usize].len as usize,
+      start: res.rs,
+      end: res.re,
+    };
+
+    let num_matching_bases = res.mlen;
+    let num_bases_with_gaps = res.blen;
+    let mapping_quality = res.mapq() as u8;
+
+    let tp = Some(match (res.id == res.parent, res.inv()) {
+      (true, 0) => 'P',
+      (true, _) => 'I',
+      (_, 0) => 'S',
+      (_, _) => 'i',
+    });
+
+    let cm = Some(res.cnt);
+    let s1 = Some(res.score);
+    let s2 = (res.parent == res.id).then_some(res.subsc);
+
+    // SAFETY: dereferencing raw pointer
+    let p = unsafe { res.p.as_ref() };
+    let NM = p.map(|p| res.blen - res.mlen + p.n_ambi() as i32);
+    let AS = p.map(|p| p.dp_score);
+    let ms = p.map(|p| p.dp_max);
+    let nn = p.map(|p| p.n_ambi());
+
+    let ts = p.and_then(|p| match p.trans_strand() {
+      1 => Some('+'),
+      2 => Some('-'),
+      _ => None,
+    });
+
+    let dv = (0.0..=1.0).contains(&res.div).then_some(OrderedFloat(res.div));
+
+    let de = p.map(|_| {
+      // SAFETY: calling unsafe function
+      let ei = unsafe { mm_event_identity(res) };
+      OrderedFloat(1.0 - ei)
+    });
+
+    Ok(PafRow {
+      q: query_seq,
+      t: target_seq,
+      strand,
+      mlen: num_matching_bases,
+      blen: num_bases_with_gaps,
+      mapq: mapping_quality,
+      tp,
+      cm,
+      s1,
+      s2,
+      NM,
+      MD: None, // TODO
+      AS,
+      SA: None, // TODO
+      ms,
+      nn,
+      ts,
+      cg: None, // TODO
+      cs: None, // TODO
+      dv,
+      de,
+      rl: None, // TODO
+    })
+  }
+}
+
+/// RAII wrapper around array of `mm_reg1_t`
 #[must_use]
 #[derive(Clone, Debug)]
 pub struct Minimap2RawRegs {

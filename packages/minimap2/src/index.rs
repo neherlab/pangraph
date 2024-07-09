@@ -51,8 +51,18 @@ impl Minimap2Index {
     self.idx
   }
 
-  pub(crate) fn get_mut(&self) -> *mut mm_idx_t {
+  pub(crate) fn get_mut(&mut self) -> *mut mm_idx_t {
     self.idx
+  }
+
+  pub(crate) fn get_ref(&self) -> Result<&mm_idx_t, Report> {
+    // SAFETY: dereferencing raw pointer
+    unsafe { self.idx.as_ref() }.ok_or_else(|| eyre!("minimap2: index is null"))
+  }
+
+  pub(crate) fn get_ref_mut(&mut self) -> Result<&mut mm_idx_t, Report> {
+    // SAFETY: dereferencing raw pointer
+    unsafe { self.idx.as_mut() }.ok_or_else(|| eyre!("minimap2: index is null"))
   }
 }
 
