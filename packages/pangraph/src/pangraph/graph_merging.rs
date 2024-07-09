@@ -2,6 +2,7 @@ use crate::align::alignment::Alignment;
 use crate::align::alignment_args::AlignmentArgs;
 use crate::align::energy::alignment_energy2;
 use crate::align::minimap2::align_with_minimap2::align_with_minimap2;
+use crate::align::minimap2_lib::align_with_minimap2_lib::align_with_minimap2_lib;
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
 use crate::pangraph::pangraph::Pangraph;
@@ -139,7 +140,8 @@ pub fn find_matches(
   args: &PangraphBuildArgs,
 ) -> Result<Vec<Alignment>, Report> {
   match args.alignment_kernel {
-    AlignmentBackend::Minimap2 => align_with_minimap2(blocks, &args.aln_args),
+    AlignmentBackend::Minimap2Lib => align_with_minimap2_lib(blocks, &args.aln_args),
+    AlignmentBackend::Minimap2Cli => align_with_minimap2(blocks, &args.aln_args),
     AlignmentBackend::Mmseqs => align_with_mmseqs(blocks, &args.aln_args),
   }
 }

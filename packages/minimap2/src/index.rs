@@ -13,7 +13,11 @@ pub struct Minimap2Index {
 }
 
 impl Minimap2Index {
-  pub fn new(seqs: &[&str], names: &[&str], mut options: Minimap2Options) -> Result<Self, Report> {
+  pub fn new<S, N>(seqs: &[S], names: &[N], mut options: Minimap2Options) -> Result<Self, Report>
+  where
+    S: AsRef<str>,
+    N: AsRef<str>,
+  {
     assert_eq!(seqs.len(), names.len());
     assert!(seqs.len() > 0);
 
@@ -25,10 +29,10 @@ impl Minimap2Index {
 
     let n: c_int = seqs.len().try_into()?;
 
-    let seqs: Vec<CString> = seqs.iter().map(|&s| CString::new(s).unwrap()).collect();
+    let seqs: Vec<CString> = seqs.iter().map(|s| CString::new(s.as_ref()).unwrap()).collect();
     let mut seqs: Vec<*const c_char> = seqs.iter().map(|s| s.as_ptr()).collect();
 
-    let names: Vec<CString> = names.iter().map(|&s| CString::new(s).unwrap()).collect();
+    let names: Vec<CString> = names.iter().map(|s| CString::new(s.as_ref()).unwrap()).collect();
     let mut names: Vec<*const c_char> = names.iter().map(|s| s.as_ptr()).collect();
 
     // SAFETY: calling unsafe function

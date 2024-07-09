@@ -5,7 +5,7 @@ mod options;
 mod ptr;
 
 pub use index::Minimap2Index;
-pub use map::Minimap2Mapper;
+pub use map::{Minimap2Mapper, Minimap2PafRow, Minimap2PafRowSeq, Minimap2Reg, Minimap2RegExtra, Minimap2Result};
 pub use options::{Minimap2Options, Minimap2Preset};
 
 #[cfg(test)]

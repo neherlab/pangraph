@@ -1,3 +1,5 @@
+use crate::{make_error, make_report};
+use eyre::Report;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 
@@ -24,6 +26,23 @@ impl Strand {
     match self {
       Strand::Forward => Strand::Reverse,
       Strand::Reverse => Strand::Forward,
+    }
+  }
+
+  pub fn from_char(c: char) -> Result<Self, Report> {
+    match c {
+      '+' => Ok(Strand::Forward),
+      '-' => Ok(Strand::Reverse),
+      _ => make_error!("Invalid strand character: {c}"),
+    }
+  }
+
+  pub fn from_str(s: &str) -> Result<Self, Report> {
+    if s.len() != 1 {
+      make_error!("Invalid strand string: '{s}'")
+    } else {
+      let c = s.chars().next().ok_or_else(|| make_report!("Empty strand string"))?;
+      Strand::from_char(c)
     }
   }
 }

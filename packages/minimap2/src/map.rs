@@ -187,13 +187,13 @@ impl Minimap2RegExtra {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Minimap2PafRowSeq {
   /// (1) Query sequence name
-  name: String,
+  pub name: String,
   /// (2) Query sequence length
-  len: usize,
+  pub len: usize,
   /// (3) Query start coordinate (0-based)
-  start: i32,
+  pub start: i32,
   /// (4) Query end coordinate (0-based)
-  end: i32,
+  pub end: i32,
 }
 
 /// Represents a row in the minimap2 flavor of PAF (Minimap2 Pairwise mApping) format.
@@ -203,49 +203,49 @@ pub struct Minimap2PafRowSeq {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Minimap2PafRow {
   /// (1-4) Query sequence
-  q: Minimap2PafRowSeq,
+  pub q: Minimap2PafRowSeq,
   /// (6-9) Target sequence
-  t: Minimap2PafRowSeq,
+  pub t: Minimap2PafRowSeq,
   /// (5) ‘+’ if query/target on the same strand; ‘-’ if opposite
-  strand: char,
+  pub strand: char,
   /// (10) Number of matching bases in the mapping
-  mlen: i32,
+  pub mlen: i32,
   /// (11) Number bases, including gaps, in the mapping
-  blen: i32,
+  pub blen: i32,
   /// (12) Mapping quality (0-255 with 255 for missing)
-  mapq: u8,
+  pub mapq: u8,
   /// (13) tp:A Type of aln: P/primary, S/secondary and I,i/inversion
-  tp: Option<char>,
+  pub tp: Option<char>,
   /// (14) cm:i Number of minimizers on the chain
-  cm: Option<i32>,
+  pub cm: Option<i32>,
   /// (15) s1:i Chaining score
-  s1: Option<i32>,
+  pub s1: Option<i32>,
   /// (16) s2:i Chaining score of the best secondary chain
-  s2: Option<i32>,
+  pub s2: Option<i32>,
   /// (17) NM:i Total number of mismatches and gaps in the alignment
-  NM: Option<i32>,
+  pub NM: Option<i32>,
   /// (18) MD:Z To generate the ref sequence in the alignment
-  MD: Option<String>,
+  pub MD: Option<String>,
   /// (19) AS:i DP alignment score
-  AS: Option<i32>,
+  pub AS: Option<i32>,
   /// (20) SA:Z List of other supplementary alignments
-  SA: Option<String>,
+  pub SA: Option<String>,
   /// (21) ms:i DP score of the max scoring segment in the alignment
-  ms: Option<i32>,
+  pub ms: Option<i32>,
   /// (22) nn:i Number of ambiguous bases in the alignment
-  nn: Option<u32>,
+  pub nn: Option<u32>,
   /// (23) ts:A Transcript strand (splice mode only)
-  ts: Option<char>,
+  pub ts: Option<char>,
   /// (24) cg:Z CIGAR string (only in PAF)
-  cg: Option<String>,
+  pub cg: Option<String>,
   /// (25) cs:Z Difference string
-  cs: Option<String>,
+  pub cs: Option<String>,
   /// (26) dv:f Approximate per-base sequence divergence
-  dv: Option<OrderedFloat<f32>>,
+  pub dv: Option<OrderedFloat<f32>>,
   /// (27) de:f Gap-compressed per-base sequence divergence
-  de: Option<OrderedFloat<f64>>,
+  pub de: Option<OrderedFloat<f64>>,
   /// (28) rl:i Length of query regions harboring repetitive seeds
-  rl: Option<i32>,
+  pub rl: Option<i32>,
 }
 
 pub fn c_char_to_str<'a>(ptr: *mut c_char) -> Result<&'a str, std::str::Utf8Error> {

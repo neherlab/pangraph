@@ -16,7 +16,8 @@ pub enum DistanceBackend {
 #[clap(rename = "kebab-case")]
 pub enum AlignmentBackend {
   #[default]
-  Minimap2,
+  Minimap2Lib,
+  Minimap2Cli,
   Mmseqs,
 }
 
