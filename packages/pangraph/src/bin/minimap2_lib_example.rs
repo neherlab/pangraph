@@ -82,7 +82,7 @@ fn main() -> Result<(), Report> {
 
   dbg!(&result);
 
-  let actual = parse_cigar_str(&result.regs[0].cigar)?;
+  let actual = parse_cigar_str(&result.regs[0].p.as_ref().unwrap().cigar)?;
   assert_eq!(actual, expected[0].cigar);
 
   Ok(())
