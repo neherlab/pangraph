@@ -4,6 +4,7 @@ use crate::make_internal_error;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::strand::Strand;
 use eyre::{Report, WrapErr};
+use itertools::Itertools;
 use minimap2::{Minimap2Index, Minimap2Mapper, Minimap2Options, Minimap2Preset, Minimap2Result};
 use noodles::sam::record::Cigar;
 use std::collections::BTreeMap;
@@ -15,34 +16,45 @@ pub fn align_with_minimap2_lib(
 ) -> Result<Vec<Alignment>, Report> {
   // let kmer_size = create_arg_optional("-k", &params.kmer_length);
   // let preset = create_arg_optional("-x", &Some(format!("asm{}", &params.sensitivity)));
-  let options = Minimap2Options::with_preset(Minimap2Preset::Asm20)?;
 
   let (names, seqs): (Vec<String>, Vec<&str>) = blocks
     .iter()
     .map(|(id, block)| (id.to_string(), block.consensus()))
     .unzip();
 
-  let idx =
-    Minimap2Index::new(&seqs, &names, options).wrap_err("When initializing alignment index using minimap2 library")?;
-
-  let mut mapper = Minimap2Mapper::new(&idx).wrap_err("When initializing alignment mapper using minimap2 library")?;
-
   let results = blocks
     .iter()
     .map(|(id, block)| (id.to_string(), block.consensus()))
     .map(|(name, seq)| {
-      let res = mapper
-        .run_map(&name, seq)
-        .wrap_err_with(|| format!("When trying to align sequence using minimap2 library: '{name}'"))?;
+      let options = Minimap2Options::with_preset(Minimap2Preset::Asm20).unwrap(); // FIXME: unwrap
 
-      Ok((name, seq, res))
+      let idx = Minimap2Index::new(&seqs, &names, options)
+        .wrap_err("When initializing alignment index using minimap2 library")
+        .unwrap(); // FIXME: unwrap
+
+      let mut mapper = Minimap2Mapper::new(&idx)
+        .wrap_err("When initializing alignment mapper using minimap2 library")
+        .unwrap(); // FIXME: unwrap
+
+      let res = mapper.run_map(&name, seq).unwrap();  // FIXME: unwrap
+      (name, seq, res)
     })
-    .collect::<Result<Vec<_>, Report>>()?
-    .into_iter()
-    .flat_map(|(name, seq, res)| {
-      let Minimap2Result { regs, pafs } = res;
-      pafs.into_iter().map(move |paf| {
-        if let Some(cg) = paf.cg {
+    .flat_map(|(name, seq, res)| Alignment::from_minimap_paf_obj(res).unwrap()) // FIXME: unwrap
+    .collect_vec();
+
+  dbg!(&results);
+
+  Ok(results)
+}
+
+#[allow(clippy::multiple_inherent_impl)]
+impl Alignment {
+  pub fn from_minimap_paf_obj(res: Minimap2Result) -> Result<Vec<Self>, Report> {
+    let Minimap2Result { regs, pafs } = res;
+    pafs
+      .into_iter()
+      .map(|paf| {
+        if let Some(cg) = &paf.cg {
           Ok(Alignment {
             qry: Hit::new(
               BlockId::from_str(&paf.q.name)?,
@@ -60,21 +72,16 @@ pub fn align_with_minimap2_lib(
             orientation: Strand::from_char(paf.strand)?,
             new_block_id: None, // FIXME: initialize?
             anchor_block: None, // FIXME: initialize?
-            cigar: Cigar::from_str(&cg)?,
+            cigar: Cigar::from_str(cg)?,
             divergence: paf.de.map(|x| x.0),
             align: paf.AS.map(|x| x as f64),
           })
         } else {
           make_internal_error!("Unable to find CIGAR string in the result")
-            .wrap_err_with(|| format!("When trying to align sequence using minimap2 library: '{name}'"))
         }
       })
-    })
-    .collect::<Result<Vec<_>, Report>>()?;
-
-  dbg!(&results);
-
-  Ok(results)
+      .collect()
+  }
 }
 
 // #[cfg(test)]
