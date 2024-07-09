@@ -14,8 +14,11 @@ use std::slice::from_raw_parts;
 #[must_use]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Minimap2Result {
+  // This contains data in a format which is close to minimap2 internal format (`struct mm_reg1_t`)
   pub regs: Vec<Minimap2Reg>,
-  pub pafs: Vec<PafRow>,
+
+  /// This contains data in a digested format that is close to the 'PAF' output of minimap2 CLI
+  pub pafs: Vec<Minimap2PafRow>,
 }
 
 #[must_use]
@@ -47,8 +50,8 @@ impl Minimap2Result {
     let pafs = regs
       .as_slice()
       .iter()
-      .map(|reg| PafRow::from_raw(seq, name, idx.get_ref()?, reg))
-      .collect::<Result<Vec<PafRow>, Report>>()?;
+      .map(|reg| Minimap2PafRow::from_raw(seq, name, idx.get_ref()?, reg))
+      .collect::<Result<Vec<Minimap2PafRow>, Report>>()?;
 
     let regs = regs
       .as_slice()
@@ -80,7 +83,7 @@ pub struct Minimap2Reg {
   pub score0: i32, // initial chaining score (before chain merging/spliting)
   pub hash: u32,
   pub div: OrderedFloat<f32>,
-  pub p: Option<MinimapExtra>,
+  pub p: Option<Minimap2RegExtra>,
   pub mapq: u32,            // map quality
   pub split: u32,           // split
   pub rev: u32,             // reverse
@@ -98,7 +101,7 @@ pub struct Minimap2Reg {
 
 #[must_use]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct MinimapExtra {
+pub struct Minimap2RegExtra {
   pub capacity: u32, // the capacity of cigar[]
   pub dp_score: i32, // DP score
   pub dp_max: i32,   // score of the max-scoring segment
@@ -113,7 +116,7 @@ impl Minimap2Reg {
   pub fn from_raw(reg: &mm_reg1_t) -> Result<Self, Report> {
     // SAFETY: dereferencing a raw pointer
     let p = unsafe { reg.p.as_ref() };
-    let p = p.map(MinimapExtra::from_raw).transpose()?;
+    let p = p.map(Minimap2RegExtra::from_raw).transpose()?;
     Ok(Self {
       id: reg.id,
       cnt: reg.cnt,
@@ -150,7 +153,7 @@ impl Minimap2Reg {
   }
 }
 
-impl MinimapExtra {
+impl Minimap2RegExtra {
   pub fn from_raw(p: &mm_extra_t) -> Result<Self, Report> {
     dbg!(&p);
     let n_cigar = p.n_cigar as usize;
@@ -182,7 +185,7 @@ impl MinimapExtra {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PafSeq {
+pub struct Minimap2PafRowSeq {
   /// (1) Query sequence name
   name: String,
   /// (2) Query sequence length
@@ -193,15 +196,16 @@ pub struct PafSeq {
   end: i32,
 }
 
-/// Minimap2 Pairwise mApping Format (PAF).
+/// Represents a row in the minimap2 flavor of PAF (Minimap2 Pairwise mApping) format.
 /// PAF is a TAB-delimited text format with each line consisting of at least 12 fields.
-/// For more details, see the full spec: [PAF Specification](https://github.com/lh3/minimap2)
+/// For more details, see the full spec in the
+/// ['Output' section of the man pages](https://lh3.github.io/minimap2/minimap2.html)
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PafRow {
+pub struct Minimap2PafRow {
   /// (1-4) Query sequence
-  q: PafSeq,
+  q: Minimap2PafRowSeq,
   /// (6-9) Target sequence
-  t: PafSeq,
+  t: Minimap2PafRowSeq,
   /// (5) ‘+’ if query/target on the same strand; ‘-’ if opposite
   strand: char,
   /// (10) Number of matching bases in the mapping
@@ -249,9 +253,9 @@ pub fn c_char_to_str<'a>(ptr: *mut c_char) -> Result<&'a str, std::str::Utf8Erro
   unsafe { CStr::from_ptr(ptr) }.to_str()
 }
 
-impl PafRow {
-  fn from_raw(seq: &str, name: &str, idx: &mm_idx_t, res: &mm_reg1_t) -> Result<PafRow, Report> {
-    let query_seq = PafSeq {
+impl Minimap2PafRow {
+  fn from_raw(seq: &str, name: &str, idx: &mm_idx_t, res: &mm_reg1_t) -> Result<Minimap2PafRow, Report> {
+    let query_seq = Minimap2PafRowSeq {
       name: name.to_owned(),
       len: seq.len(),
       start: res.qs,
@@ -266,7 +270,7 @@ impl PafRow {
     // SAFETY: Converting raw pointer to slice
     let mi_seq = unsafe { from_raw_parts(idx.seq, idx.n_seq as usize) };
 
-    let target_seq = PafSeq {
+    let target_seq = Minimap2PafRowSeq {
       name: c_char_to_str(mi_seq[res.rid as usize].name)?.to_owned(),
       len: mi_seq[res.rid as usize].len as usize,
       start: res.rs,
@@ -280,8 +284,8 @@ impl PafRow {
     let tp = Some(match (res.id == res.parent, res.inv()) {
       (true, 0) => 'P',
       (true, _) => 'I',
-      (_, 0) => 'S',
-      (_, _) => 'i',
+      (false, 0) => 'S',
+      (false, _) => 'i',
     });
 
     let cm = Some(res.cnt);
@@ -302,14 +306,16 @@ impl PafRow {
     });
 
     let dv = (0.0..=1.0).contains(&res.div).then_some(OrderedFloat(res.div));
-
     let de = p.map(|_| {
       // SAFETY: calling unsafe function
       let ei = unsafe { mm_event_identity(res) };
       OrderedFloat(1.0 - ei)
     });
 
-    Ok(PafRow {
+    let extra = p.map(Minimap2RegExtra::from_raw).transpose()?;
+    let cg = extra.map(|extra| extra.cigar);
+
+    Ok(Minimap2PafRow {
       q: query_seq,
       t: target_seq,
       strand,
@@ -327,7 +333,7 @@ impl PafRow {
       ms,
       nn,
       ts,
-      cg: None, // TODO
+      cg,
       cs: None, // TODO
       dv,
       de,
