@@ -5,11 +5,13 @@ use minimap2::{Minimap2Index, Minimap2Mapper, Minimap2Options, Minimap2Preset};
 use pangraph::align::alignment::{Alignment, Hit};
 use pangraph::align::alignment_args::AlignmentArgs;
 use pangraph::align::bam::cigar::parse_cigar_str;
+use pangraph::io::fasta::read_many_fasta;
 use pangraph::pangraph::pangraph_block::BlockId;
 use pangraph::pangraph::strand::Strand;
 use pangraph::utils::global_init::global_init;
 use pretty_assertions::assert_eq;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 #[ctor]
 fn init() {
@@ -25,7 +27,24 @@ struct Args {
   pub params: AlignmentArgs,
 }
 
-fn main() -> Result<(), Report> {
+fn run_with_fasta() -> Result<(), Report> {
+  let (names, seqs): (Vec<String>, Vec<String>) = read_many_fasta(&[&PathBuf::from_str("data/flu.fa")?])?
+    .into_iter()
+    .map(|f| (f.seq_name, f.seq))
+    .unzip();
+
+  let options = Minimap2Options::with_preset(Minimap2Preset::Asm20)?;
+  let idx = Minimap2Index::new(&seqs[..2], &names[..2], options)?;
+  let mut mapper = Minimap2Mapper::new(&idx)?;
+
+  let result = mapper.run_map(&seqs[2], &names[2])?;
+
+  dbg!(&result);
+
+  Ok(())
+}
+
+fn run_with_hardcoded() -> Result<(), Report> {
   let ref_seq = "GTAGTTTTTGTACCCCCCGACTGTACGTCCTCCGTCGATAGAAGCAATAAAGGTGACGTC
     TGACTACTTTTGGGTGTATATGAAATTCAACACACAAGGTAGCCAAGGCAACGATTTGTT
     CAGCACTCCTATGGTGCGGTCCGGTGGCAAACGATTTCTGACTAACATCCGCATCCGGCT
@@ -76,14 +95,20 @@ fn main() -> Result<(), Report> {
   }];
 
   let options = Minimap2Options::with_preset(Minimap2Preset::Asm20)?;
-  let idx = Minimap2Index::new(&[ref_seq], &["ref"], options)?;
+  let idx = Minimap2Index::new(&[ref_seq], &["0"], options)?;
   let mut mapper = Minimap2Mapper::new(&idx)?;
-  let result = mapper.run_map(qry_seq, "qry")?;
+  let result = mapper.run_map(qry_seq, "1")?;
 
   dbg!(&result);
+  let actual = Alignment::from_minimap_paf_obj(result)?;
 
-  let actual = parse_cigar_str(&result.regs[0].p.as_ref().unwrap().cigar)?;
-  assert_eq!(actual, expected[0].cigar);
+  assert_eq!(expected, actual);
 
+  Ok(())
+}
+
+fn main() -> Result<(), Report> {
+  // run_with_fasta()?;
+  run_with_hardcoded()?;
   Ok(())
 }
