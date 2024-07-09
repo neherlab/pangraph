@@ -1,76 +1,9 @@
-Release 2.28-r1209 (27 March 2024)
-----------------------------------
-
-Notable changes to minimap2:
-
- * Bugfix: `--MD` was not working properly due to the addition of `--ds` in the
-   last release (#1181 and #1182).
-
- * New feature: added an experimental preset `lq:hqae` for aligning accurate
-   long reads back to their assembly. It has been observed that `map-hifi` and
-   `lr:hq` may produce many wrong alignments around centromeres when accurate
-   long reads (PacBio HiFi or Nanopore duplex/Q20+) are mapped to a diploid
-   assembly constructed from them. This new preset produces much more accurate
-   alignment. It is still experimental and may be subjective to changes in
-   future.
-
- * Change: reduced the default `--cap-kalloc` to 500m to lower the peak
-   memory consumption (#855).
-
-Notable changes to mappy:
-
- * Bugfix: mappy option struct was out of sync with minimap2 (#1177).
-
-Minimap2 should output identical alignments to v2.27.
-
-(2.28: 27 March 2024, r1209)
-
-
-
-Release 2.27-r1193 (12 March 2024)
-----------------------------------
-
-Notable changes to minimap2:
-
- * New feature: added the `lr:hq` preset for accurate long reads at ~1% error
-   rate. This was suggested by Oxford Nanopore developers (#1127). It is not
-   clear if this preset also works well for PacBio HiFi reads.
-
- * New feature: added the `map-iclr` preset for Illumina Complete Long Reads
-   (#1069), provided by Illumina developers.
-
- * New feature: added option `-b` to specify mismatch penalty for base
-   transitions (i.e. A-to-G or C-to-T changes).
-
- * New feature: added option `--ds` to generate a new `ds:Z` tag that
-   indicates uncertainty in INDEL positions. It is an extension to `cs`. The
-   `mgutils-es6.js` script in minigraph parses `ds`.
-
- * Bugfix: avoided a NULL pointer dereference (#1154). This would not have an
-   effect on most systems but would still be good to fix.
-
- * Bugfix: reverted the value of `ms:i` to pre-2.22 versions (#1146). This was
-   an oversight. See fcd4df2 for details.
-
-Notable changes to paftools.js and mappy:
-
- * New feature: expose `bw_long` to mappy's Aligner class (#1124).
-
- * Bugfix: fixed several compatibility issues with k8 v1.0 (#1161 and #1166).
-   Subcommands "call", "pbsim2fq" and "mason2fq" were not working with v1.0.
-
-Minimap2 should output identical alignments to v2.26, except the ms tag.
-
-(2.27: 12 March 2024, r1193)
-
-
-
 Release 2.26-r1175 (29 April 2023)
 ----------------------------------
 
 Fixed the broken Python package. This is the only change.
 
-(2.26: 25 April 2023, r1173)
+(2.25: 25 April 2023, r1173)
 
 
 

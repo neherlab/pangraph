@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 
-#define MM_VERSION "2.28-r1209"
+#define MM_VERSION "2.26-r1175"
 
 #define MM_F_NO_DIAG       (0x001LL) // no exact diagonal hit
 #define MM_F_NO_DUAL       (0x002LL) // skip pairs where query name is lexicographically larger than target name
@@ -44,7 +44,6 @@
 #define MM_F_NO_HASH_NAME  (0x400000000LL)
 #define MM_F_SPLICE_OLD    (0x800000000LL)
 #define MM_F_SECONDARY_SEQ (0x1000000000LL)	//output SEQ field for seqondary alignments using hard clipping
-#define MM_F_OUT_DS        (0x2000000000LL)
 
 #define MM_I_HPC          0x1
 #define MM_I_NO_SEQ       0x2
@@ -98,7 +97,6 @@ typedef struct {
 typedef struct {
 	uint32_t capacity;                  // the capacity of cigar[]
 	int32_t dp_score, dp_max, dp_max2;  // DP score; score of the max-scoring segment; score of the best alternate mappings
-	int32_t dp_max0;                    // DP score before mm_update_dp_max() adjustment
 	uint32_t n_ambi:30, trans_strand:2; // number of ambiguous bases; transcript strand: 0 for unknown, 1 for +, 2 for -
 	uint32_t n_cigar;                   // number of cigar operations in cigar[]
 	uint32_t cigar[];
@@ -155,7 +153,6 @@ typedef struct {
 	float alt_drop;
 
 	int a, b, q, e, q2, e2; // matching score, mismatch, gap-open and gap-ext penalties
-	int transition; // transition mismatch score (A:G, C:T)
 	int sc_ambi; // score when one or both bases are "N"
 	int noncan;      // cost of non-canonical splicing sites
 	int junc_bonus;

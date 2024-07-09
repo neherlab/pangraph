@@ -1,6 +1,6 @@
 #!/usr/bin/env k8
 
-var paftools_version = '2.28-r1209';
+var paftools_version = '2.26-r1175';
 
 /*****************************
  ***** Library functions *****
@@ -133,50 +133,26 @@ Interval.find_ovlp = function(a, st, en)
 
 function fasta_read(fn)
 {
-	var h = {}, seqlen = [];
-	var buf = new Bytes();
+	var h = {}, gt = '>'.charCodeAt(0);
 	var file = fn == '-'? new File() : new File(fn);
-	if (typeof k8_version == "undefined") { // for k8-0.x
-		var seq = null, name = null, gt = '>'.charCodeAt(0);
-		while (file.readline(buf) >= 0) {
-			if (buf[0] == gt) {
-				if (seq != null && name != null) {
-					seqlen.push([name, seq.length]);
-					h[name] = seq;
-					name = seq = null;
-				}
-				var m, line = buf.toString();
-				if ((m = /^>(\S+)/.exec(line)) != null) {
-					name = m[1];
-					seq = new Bytes();
-				}
-			} else seq.set(buf);
-		}
-		if (seq != null && name != null) {
-			seqlen.push([name, seq.length]);
-			h[name] = seq;
-		}
-	} else { // for k8-1.x
-		var seq = null, name = null;
-		while (file.readline(buf) >= 0) {
-			var line = buf.toString();
-			if (line[0] == ">") {
-				if (seq != null && name != null) {
-					seqlen.push([name, seq.length]);
-					h[name] = new Uint8Array(seq.buffer);
-					name = seq = null;
-				}
-				var m;
-				if ((m = /^>(\S+)/.exec(line)) != null) {
-					name = m[1];
-					seq = new Bytes();
-				}
-			} else seq.set(line);
-		}
-		if (seq != null && name != null) {
-			seqlen.push([name, seq.length]);
-			h[name] = new Uint8Array(seq.buffer);
-		}
+	var buf = new Bytes(), seq = null, name = null, seqlen = [];
+	while (file.readline(buf) >= 0) {
+		if (buf[0] == gt) {
+			if (seq != null && name != null) {
+				seqlen.push([name, seq.length]);
+				h[name] = seq;
+				name = seq = null;
+			}
+			var m, line = buf.toString();
+			if ((m = /^>(\S+)/.exec(line)) != null) {
+				name = m[1];
+				seq = new Bytes();
+			}
+		} else seq.set(buf);
+	}
+	if (seq != null && name != null) {
+		seqlen.push([name, seq.length]);
+		h[name] = seq;
 	}
 	buf.destroy();
 	file.close();
@@ -185,27 +161,16 @@ function fasta_read(fn)
 
 function fasta_free(fa)
 {
-	if (typeof k8_version == "undefined")
-		for (var name in fa)
-			fa[name].destroy();
-	// FIXME: for k8-1.0, sequences are not freed. This is ok for now but not general.
+	for (var name in fa)
+		fa[name].destroy();
 }
 
 Bytes.prototype.reverse = function()
 {
-	if (typeof k8_version === "undefined") { // k8-0.x
-		for (var i = 0; i < this.length>>1; ++i) {
-			var tmp = this[i];
-			this[i] = this[this.length - i - 1];
-			this[this.length - i - 1] = tmp;
-		}
-	} else { // k8-1.x
-		var buf = new Uint8Array(this.buffer);
-		for (var i = 0; i < buf.length>>1; ++i) {
-			var tmp = buf[i];
-			buf[i] = buf[buf.length - i - 1];
-			buf[buf.length - i - 1] = tmp;
-		}
+	for (var i = 0; i < this.length>>1; ++i) {
+		var tmp = this[i];
+		this[i] = this[this.length - i - 1];
+		this[this.length - i - 1] = tmp;
 	}
 }
 
@@ -220,24 +185,13 @@ Bytes.prototype.revcomp = function()
 		for (var i = 0; i < s1.length; ++i)
 			Bytes.rctab[s1.charCodeAt(i)] = s2.charCodeAt(i);
 	}
-	if (typeof k8_version === "undefined") { // k8-0.x
-		for (var i = 0; i < this.length>>1; ++i) {
-			var tmp = this[this.length - i - 1];
-			this[this.length - i - 1] = Bytes.rctab[this[i]];
-			this[i] = Bytes.rctab[tmp];
-		}
-		if (this.length&1)
-			this[this.length>>1] = Bytes.rctab[this[this.length>>1]];
-	} else { // k8-1.x
-		var buf = new Uint8Array(this.buffer);
-		for (var i = 0; i < buf.length>>1; ++i) {
-			var tmp = buf[buf.length - i - 1];
-			buf[buf.length - i - 1] = Bytes.rctab[buf[i]];
-			buf[i] = Bytes.rctab[tmp];
-		}
-		if (buf.length&1)
-			buf[buf.length>>1] = Bytes.rctab[buf[buf.length>>1]];
+	for (var i = 0; i < this.length>>1; ++i) {
+		var tmp = this[this.length - i - 1];
+		this[this.length - i - 1] = Bytes.rctab[this[i]];
+		this[i] = Bytes.rctab[tmp];
 	}
+	if (this.length&1)
+		this[this.length>>1] = Bytes.rctab[this[this.length>>1]];
 }
 
 /********************
@@ -1740,17 +1694,15 @@ function paf_gff2bed(args)
 
 function paf_sam2paf(args)
 {
-	var c, pri_only = false, long_cs = false, pri_pri_only = false;
-	while ((c = getopt(args, "pPL")) != null) {
+	var c, pri_only = false, long_cs = false;
+	while ((c = getopt(args, "pL")) != null) {
 		if (c == 'p') pri_only = true;
-		else if (c == 'P') pri_pri_only = pri_only = true;
 		else if (c == 'L') long_cs = true;
 	}
 	if (args.length == getopt.ind) {
 		print("Usage: paftools.js sam2paf [options] <in.sam>");
 		print("Options:");
 		print("  -p      convert primary or supplementary alignments only");
-		print("  -P      convert primary alignments only");
 		print("  -L      output the cs tag in the long form");
 		exit(1);
 	}
@@ -1777,7 +1729,6 @@ function paf_sam2paf(args)
 			throw Error("at line " + lineno + ": inconsistent SEQ and QUAL lengths - " + t[9].length + " != " + t[10].length);
 		if (t[2] == '*' || (flag&4) || t[5] == '*') continue;
 		if (pri_only && (flag&0x100)) continue;
-		if (pri_pri_only && (flag&0x900)) continue;
 		var tlen = ctg_len[t[2]];
 		if (tlen == null) throw Error("at line " + lineno + ": can't find the length of contig " + t[2]);
 		// find tags
@@ -1890,10 +1841,7 @@ function paf_sam2paf(args)
 		// optional tags
 		var type = flag&0x100? 'S' : 'P';
 		var tags = ["tp:A:" + type];
-		if (NM != null) {
-			tags.push("NM:i:"+NM);
-			tags.push("mm:i:"+mm);
-		}
+		if (NM != null) tags.push("mm:i:"+mm);
 		tags.push("gn:i:"+(I[1]+D[1]), "go:i:"+(I[0]+D[0]), "cg:Z:" + t[5].replace(/\d+[SH]/g, ''));
 		if (cs_str != null) tags.push("cs:Z:" + cs_str);
 		else if (cs.length > 0) tags.push("cs:Z:" + cs.join(""));
@@ -2103,7 +2051,7 @@ function paf_mapeval(args)
 		warn("Usage: paftools.js mapeval [options] <in.paf>|<in.sam>");
 		warn("Options:");
 		warn("  -r FLOAT   mapping correct if overlap_length/union_length>FLOAT [" + ovlp_ratio + "]");
-		warn("  -Q INT     print wrong mappings with mapQ>=INT [don't print]");
+		warn("  -Q INT     print wrong mappings with mapQ>INT [don't print]");
 		warn("  -m INT     0: eval the longest aln only; 1: first aln only; 2: all primary aln [0]");
 		exit(1);
 	}

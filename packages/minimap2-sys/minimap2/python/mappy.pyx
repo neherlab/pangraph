@@ -3,7 +3,7 @@ from libc.stdlib cimport free
 cimport cmappy
 import sys
 
-__version__ = '2.28'
+__version__ = '2.26'
 
 cmappy.mm_reset_timer()
 
@@ -96,7 +96,6 @@ cdef class Alignment:
 		a = [str(self._q_st), str(self._q_en), strand, self._ctg, str(self._ctg_len), str(self._r_st), str(self._r_en),
 			str(self._mlen), str(self._blen), str(self._mapq), tp, ts, "cg:Z:" + self.cigar_str]
 		if self._cs != "": a.append("cs:Z:" + self._cs)
-		if self._MD != "": a.append("MD:Z:" + self._MD)
 		return "\t".join(a)
 
 cdef class ThreadBuffer:
@@ -113,7 +112,7 @@ cdef class Aligner:
 	cdef cmappy.mm_idxopt_t idx_opt
 	cdef cmappy.mm_mapopt_t map_opt
 
-	def __cinit__(self, fn_idx_in=None, preset=None, k=None, w=None, min_cnt=None, min_chain_score=None, min_dp_score=None, bw=None, bw_long=None, best_n=None, n_threads=3, fn_idx_out=None, max_frag_len=None, extra_flags=None, seq=None, scoring=None):
+	def __cinit__(self, fn_idx_in=None, preset=None, k=None, w=None, min_cnt=None, min_chain_score=None, min_dp_score=None, bw=None, best_n=None, n_threads=3, fn_idx_out=None, max_frag_len=None, extra_flags=None, seq=None, scoring=None):
 		self._idx = NULL
 		cmappy.mm_set_opt(NULL, &self.idx_opt, &self.map_opt) # set the default options
 		if preset is not None:
@@ -126,7 +125,6 @@ cdef class Aligner:
 		if min_chain_score is not None: self.map_opt.min_chain_score = min_chain_score
 		if min_dp_score is not None: self.map_opt.min_dp_max = min_dp_score
 		if bw is not None: self.map_opt.bw = bw
-		if bw_long is not None: self.map_opt.bw_long = bw_long
 		if best_n is not None: self.map_opt.best_n = best_n
 		if max_frag_len is not None: self.map_opt.max_frag_len = max_frag_len
 		if extra_flags is not None: self.map_opt.flag |= extra_flags

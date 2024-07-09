@@ -77,9 +77,7 @@ This constructor accepts the following arguments:
 
 * **min_chain_score**: minimum chaing score
 
-* **bw**: chaining and alignment band width (initial chaining and extension)
-
-* **bw_long**: chaining and alignment band width (RMQ-based rechaining and closing gaps)
+* **bw**: chaining and alignment band width
 
 * **best_n**: max number of alignments to return
 
