@@ -1,18 +1,19 @@
+use bindgen::Formatter;
 use std::env;
 use std::path::PathBuf;
 
 // Configure for minimap2
-fn configure(mut cc: &mut cc::Build) {
+fn configure(cc: &mut cc::Build) {
   println!("cargo:rerun-if-changed=minimap2/*.c");
 
   cc.include("minimap2");
   cc.opt_level(2);
 
   #[cfg(feature = "sse2only")]
-  sse2only(&mut cc);
+  sse2only(cc);
 
   #[cfg(feature = "simde")]
-  simde(&mut cc);
+  simde(cc);
 
   // Include ksw2.h kalloc.h
   cc.include("minimap2/");
@@ -23,8 +24,9 @@ fn configure(mut cc: &mut cc::Build) {
     .map(|f| f.unwrap().path())
     .collect();
 
-  assert!(
-    files.len() != 0,
+  assert_ne!(
+    files.len(),
+    0,
     "No files found in minimap2 directory -- Did you forget to clone the submodule? git submodule init --recursive"
   );
 
@@ -54,9 +56,10 @@ fn configure(mut cc: &mut cc::Build) {
   cc.file("minimap2/ksw2_ll_sse.c");
 
   #[cfg(not(feature = "noopt"))]
-  target_specific(&mut cc);
+  target_specific(cc);
 }
 
+#[cfg(not(feature = "noopt"))]
 fn target_specific(cc: &mut cc::Build) {
   let target = env::var("TARGET").unwrap_or_default();
 
@@ -182,17 +185,22 @@ fn sse2only(cc: &mut cc::Build) {
 fn gen_bindings() {
   let out_path = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
-  let mut bindgen = bindgen::Builder::default()
+  let bigings = bindgen::Builder::default()
     .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
-    .rustfmt_bindings(true);
-
-  let mut bindgen = bindgen.header("minimap2.h");
-
-  bindgen
+    .formatter(Formatter::Rustfmt)
+    .header("minimap2.h")
     .generate_cstr(true)
+    .derive_debug(true)
+    .generate_comments(true)
     .generate()
-    .expect("Couldn't write bindings!")
+    .expect("Couldn't write bindings!");
+
+  bigings
     .write_to_file(out_path.join("bindings.rs"))
+    .expect("Unable to create bindings");
+
+  bigings
+    .write_to_file("src/bindings.rs")
     .expect("Unable to create bindings");
 }
 
