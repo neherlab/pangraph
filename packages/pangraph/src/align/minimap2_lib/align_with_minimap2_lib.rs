@@ -36,7 +36,7 @@ pub fn align_with_minimap2_lib(
         .wrap_err("When initializing alignment mapper using minimap2 library")
         .unwrap(); // FIXME: unwrap
 
-      let res = mapper.run_map(&name, seq).unwrap();  // FIXME: unwrap
+      let res = mapper.run_map(seq, &name).unwrap();  // FIXME: unwrap
       (name, seq, res)
     })
     .flat_map(|(name, seq, res)| Alignment::from_minimap_paf_obj(res).unwrap()) // FIXME: unwrap
