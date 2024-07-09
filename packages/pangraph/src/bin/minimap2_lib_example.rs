@@ -2,8 +2,13 @@ use clap::{Parser, ValueHint};
 use ctor::ctor;
 use eyre::Report;
 use minimap2::{Minimap2Index, Minimap2Mapper, Minimap2Options, Minimap2Preset};
+use pangraph::align::alignment::{Alignment, Hit};
 use pangraph::align::alignment_args::AlignmentArgs;
+use pangraph::align::bam::cigar::parse_cigar_str;
+use pangraph::pangraph::pangraph_block::BlockId;
+use pangraph::pangraph::strand::Strand;
 use pangraph::utils::global_init::global_init;
+use pretty_assertions::assert_eq;
 use std::path::PathBuf;
 
 #[ctor]
@@ -56,13 +61,29 @@ fn main() -> Result<(), Report> {
     CTCGTCCCGCACTTTCGGGGACACGTACCCGAAGGGTGTAACGGATGCCCTATGTGAGGT
     GGCGCAGATTTGATGGTGACTAAGCTGCCAAACTGAGT";
 
+  let expected = vec![Alignment {
+    qry: Hit::new(BlockId(1), 998, (0, 996)),
+    reff: Hit::new(BlockId(0), 1000, (0, 998)),
+    matches: 969,
+    length: 998,
+    quality: 60,
+    orientation: Strand::Forward,
+    new_block_id: None, // FIXME
+    anchor_block: None, // FIXME
+    cigar: parse_cigar_str("545M1D225M1D226M").unwrap(),
+    divergence: Some(0.0291),
+    align: Some(845.0),
+  }];
+
   let options = Minimap2Options::with_preset(Minimap2Preset::Asm20)?;
   let idx = Minimap2Index::new(&[ref_seq], &["ref"], options)?;
   let mut mapper = Minimap2Mapper::new(&idx)?;
   let result = mapper.run_map(qry_seq, "qry")?;
-  let result = result.regs;
 
   dbg!(&result);
+
+  let actual = parse_cigar_str(&result.regs[0].cigar)?;
+  assert_eq!(actual, expected[0].cigar);
 
   Ok(())
 }

@@ -7,5 +7,6 @@ pub mod bam;
 pub mod energy;
 pub mod map_variations;
 pub mod minimap2;
+pub mod minimap2_lib;
 pub mod mmseqs;
 pub mod nextclade;

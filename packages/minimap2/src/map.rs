@@ -2,8 +2,9 @@
 
 use crate::buf::Minimap2Buffer;
 use crate::index::Minimap2Index;
-use eyre::Report;
-use minimap2_sys::{free, mm_extra_t, mm_idx_t, mm_map, mm_reg1_t};
+use eyre::{eyre, Report};
+use itertools::Itertools;
+use minimap2_sys::{free, mm_idx_t, mm_map, mm_reg1_t, MM_CIGAR_CHARS};
 use ordered_float::OrderedFloat;
 use std::ffi::CString;
 use std::os::raw::c_int;
@@ -39,7 +40,7 @@ impl Minimap2Result {
   pub fn new(seq: &str, name: &str, idx: &Minimap2Index, buf: &mut Minimap2Buffer) -> Result<Self, Report> {
     let regs = Minimap2RawRegs::new(seq, name, idx, buf)?;
 
-    dbg!(&regs);
+    dbg!(&regs.as_slice());
 
     let regs = regs
       .as_slice()
@@ -71,7 +72,7 @@ pub struct Minimap2Reg {
   pub score0: i32,
   pub hash: u32,
   pub div: OrderedFloat<f32>,
-  pub p: *mut mm_extra_t,
+  pub cigar: String,
 }
 
 // pub capacity: u32,
@@ -148,6 +149,27 @@ impl Minimap2Reg {
     //   pub align: Option<f64>,
     // }
 
+    // SAFETY: dereferencing raw pointer
+    let p = unsafe { r.p.as_ref() };
+    let cigar = if let Some(p) = p {
+      let n_cigar = p.n_cigar as usize;
+
+      // SAFETY: dereferencing raw pointer and calling unsafe function
+      let cigar = unsafe { p.cigar.as_slice(n_cigar) };
+
+      cigar
+        .iter()
+        .map(|&op| {
+          let len = op >> 4;
+          let op = (op & 0xf) as usize;
+          let ch = char::from(MM_CIGAR_CHARS[op]);
+          format!("{len}{ch}")
+        })
+        .join("")
+    } else {
+      return Err(eyre!("minimap2: cigar is null"));
+    };
+
     Ok(Self {
       id: *id,
       cnt: *cnt,
@@ -166,7 +188,7 @@ impl Minimap2Reg {
       score0: *score0,
       hash: *hash,
       div: OrderedFloat(*div),
-      p: *p,
+      cigar,
     })
   }
 }

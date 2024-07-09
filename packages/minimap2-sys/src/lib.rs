@@ -13,6 +13,8 @@ unsafe impl Send for mm_mapopt_t {}
 
 use std::mem::MaybeUninit;
 
+pub const MM_CIGAR_CHARS: &[u8] = MM_CIGAR_STR.to_bytes();
+
 impl Default for mm_mapopt_t {
   fn default() -> Self {
     unsafe {
