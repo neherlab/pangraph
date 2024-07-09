@@ -1,10 +1,7 @@
 #![allow(unsafe_code)]
 use crate::ptr::is_null;
 use eyre::{eyre, Report};
-use minimap2_sys::{
-  mm_check_opt, mm_idxopt_init, mm_idxopt_t, mm_mapopt_init, mm_mapopt_t, mm_set_opt, MM_F_ALL_CHAINS, MM_F_CIGAR,
-  MM_F_NO_DIAG, MM_F_NO_DUAL, MM_F_NO_LJOIN,
-};
+use minimap2_sys::{mm_check_opt, mm_idxopt_t, mm_mapopt_t, mm_set_opt, MM_F_CIGAR, MM_F_NO_DIAG};
 use std::ffi::{c_char, CString};
 use std::mem::MaybeUninit;
 use std::ptr::null;
@@ -96,14 +93,21 @@ fn init_options(preset: *const c_char) -> Result<Minimap2Options, Report> {
   let mut map_opt = MaybeUninit::<mm_mapopt_t>::uninit();
 
   // SAFETY: calling unsafe function
-  unsafe { mm_idxopt_init(idx_opt.as_mut_ptr()) };
-
-  // SAFETY: calling unsafe function
-  unsafe { mm_mapopt_init(map_opt.as_mut_ptr()) };
+  unsafe { mm_set_opt(null(), idx_opt.as_mut_ptr(), map_opt.as_mut_ptr()) };
 
   // SAFETY: calling unsafe function
   if unsafe { mm_set_opt(preset, idx_opt.as_mut_ptr(), map_opt.as_mut_ptr()) } != 0 {
     return Err(eyre!("minimap2: mm_set_opt(): failed to set options: incorrect preset"));
+  }
+
+  {
+    // SAFETY: calling unsafe function
+    let idx_opt = unsafe { idx_opt.assume_init_mut() };
+
+    // SAFETY: calling unsafe function
+    let map_opt = unsafe { map_opt.assume_init_mut() };
+
+    apply_additional_options(idx_opt, map_opt)?;
   }
 
   if is_null(&idx_opt) || is_null(&map_opt) {
@@ -120,12 +124,10 @@ fn init_options(preset: *const c_char) -> Result<Minimap2Options, Report> {
   }
 
   // SAFETY: calling unsafe function
-  let mut idx_opt = unsafe { idx_opt.assume_init() };
+  let idx_opt = unsafe { idx_opt.assume_init() };
 
   // SAFETY: calling unsafe function
-  let mut map_opt = unsafe { map_opt.assume_init() };
-
-  apply_additional_options(&mut idx_opt, &mut map_opt)?;
+  let map_opt = unsafe { map_opt.assume_init() };
 
   Ok(Minimap2Options { idx_opt, map_opt })
 }
@@ -136,11 +138,20 @@ fn apply_additional_options(idx_opt: &mut mm_idxopt_t, map_opt: &mut mm_mapopt_t
   map_opt.flag |= MM_F_CIGAR as i64; // Output CIGAR (in minimap2 CLI: `-c`)
 
   // FIXME: make these configurable
-  idx_opt.k = 10; // k-mer size (no larger than 28) (in minimap2 CLI: `-k`, default: 15)
-  map_opt.flag |= (MM_F_ALL_CHAINS | MM_F_NO_DIAG | MM_F_NO_DUAL | MM_F_NO_LJOIN) as i64; // (in minimap2 CLI: `-X`)
+  idx_opt.k = 15; // k-mer size (no larger than 28) (in minimap2 CLI: `-k`, default: 15)
+
+  // This is `-X`, but with `MM_F_NO_DUAL` it returns empty results when e.g. ref name is "0" and query name is "1"
+  // map_opt.flag |= (MM_F_ALL_CHAINS | MM_F_NO_DIAG | MM_F_NO_DUAL | MM_F_NO_LJOIN) as i64; // (in minimap2 CLI: `-X`)
+  // In julia version only this flag is set.
+  map_opt.flag |= MM_F_NO_DIAG as i64;
 
   // FIXME: Overrides from Julia version
   map_opt.min_dp_max = minblock - 10; // minimal peak DP alignment score (in minimap2 CLI: `-s`, default: 80)
+  idx_opt.bucket_bits = 14;
+
+  // FIXME: from minimap2/python/mappy.pyx
+  // idx_opt.batch_size = 0x7fffffffffffffff; // always build a uni-part index
+  // map_opt.mid_occ = 1000; // don't filter high-occ seeds
 
   Ok(())
 }
