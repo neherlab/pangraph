@@ -1,11 +1,11 @@
 use crate::align::alignment::{Alignment, Hit};
 use crate::align::alignment_args::AlignmentArgs;
-use crate::make_internal_error;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::strand::Strand;
+use crate::{make_error, make_internal_error};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
-use minimap2::{Minimap2Index, Minimap2Mapper, Minimap2Options, Minimap2Preset, Minimap2Result};
+use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset, Minimap2Result};
 use noodles::sam::record::Cigar;
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -14,9 +14,6 @@ pub fn align_with_minimap2_lib(
   blocks: &BTreeMap<BlockId, PangraphBlock>,
   params: &AlignmentArgs,
 ) -> Result<Vec<Alignment>, Report> {
-  // let kmer_size = create_arg_optional("-k", &params.kmer_length);
-  // let preset = create_arg_optional("-x", &Some(format!("asm{}", &params.sensitivity)));
-
   let (names, seqs): (Vec<String>, Vec<&str>) = blocks
     .iter()
     .map(|(id, block)| (id.to_string(), block.consensus()))
@@ -26,9 +23,24 @@ pub fn align_with_minimap2_lib(
     .iter()
     .map(|(id, block)| (id.to_string(), block.consensus()))
     .map(|(name, seq)| {
-      let options = Minimap2Options::with_preset(Minimap2Preset::Asm20).unwrap(); // FIXME: unwrap
 
-      let idx = Minimap2Index::new(&seqs, &names, options)
+      let preset = match params.sensitivity {
+        5 => Ok(Minimap2Preset::Asm5),
+        10 => Ok(Minimap2Preset::Asm10),
+        20 => Ok(Minimap2Preset::Asm20),
+        _ => make_error!("Unknown sensitivity preset: {}", params.sensitivity),
+      }.unwrap();
+
+      let args = Minimap2Args{
+        x: Some(preset),
+        k: params.kmer_length.map(|v| v as i32),
+        c: true,
+        X: true,
+        bucket_bits: Some(14),
+        ..Default::default()
+      };
+
+      let idx = Minimap2Index::new(&seqs, &names, &args)
         .wrap_err("When initializing alignment index using minimap2 library")
         .unwrap(); // FIXME: unwrap
 

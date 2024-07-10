@@ -185,6 +185,7 @@ impl Minimap2RegExtra {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Minimap2PafRowSeq {
   /// (1) Query sequence name
   pub name: String,
@@ -201,6 +202,7 @@ pub struct Minimap2PafRowSeq {
 /// For more details, see the full spec in the
 /// ['Output' section of the man pages](https://lh3.github.io/minimap2/minimap2.html)
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Minimap2PafRow {
   /// (1-4) Query sequence
   pub q: Minimap2PafRowSeq,

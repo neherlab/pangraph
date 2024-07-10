@@ -41,8 +41,8 @@ itertools = { workspace = true }
 lazy_static = { workspace = true }
 log = { workspace = true }
 maplit = { workspace = true }
-minimap2-sys = { workspace = true }
 memoize = { workspace = true }
+minimap2-sys = { workspace = true }
 ndarray = { workspace = true }
 ndarray-rand = { workspace = true }
 ndarray-stats = { workspace = true }
@@ -58,7 +58,7 @@ rand = { workspace = true }
 rand_distr = { workspace = true }
 rand_isaac = { workspace = true }
 rayon = { workspace = true }
-serde = { workspace = true }
+serde = { version = "=1.0.143", features = ["derive"], optional = true }
 serde-aux = { workspace = true }
 serde_json = { workspace = true }
 serde_stacker = { workspace = true }
@@ -78,3 +78,6 @@ zstd = { workspace = true }
 pretty_assertions = { workspace = true }
 rstest = { workspace = true }
 rstest_reuse = { workspace = true }
+
+[features]
+serde = ["dep:serde"]

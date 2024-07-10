@@ -1,8 +1,9 @@
 #![allow(unsafe_code)]
-use crate::Minimap2Options;
+use crate::options::Minimap2Options;
+use crate::options_args::Minimap2Args;
 use eyre::{eyre, Report};
-use minimap2_sys::{mm_idx_destroy, mm_idx_str, mm_idx_t, mm_mapopt_update};
-use std::ffi::CString;
+use minimap2_sys::{mm_idx_destroy, mm_idx_str, mm_idx_t, mm_mapopt_update, MM_I_HPC};
+use std::ffi::{c_short, CString};
 use std::os::raw::{c_char, c_int};
 
 #[must_use]
@@ -13,7 +14,7 @@ pub struct Minimap2Index {
 }
 
 impl Minimap2Index {
-  pub fn new<S, N>(seqs: &[S], names: &[N], mut options: Minimap2Options) -> Result<Self, Report>
+  pub fn new<S, N>(seqs: &[S], names: &[N], args: &Minimap2Args) -> Result<Self, Report>
   where
     S: AsRef<str>,
     N: AsRef<str>,
@@ -21,10 +22,12 @@ impl Minimap2Index {
     assert_eq!(seqs.len(), names.len());
     assert!(seqs.len() > 0);
 
+    let mut options = Minimap2Options::new(args)?;
+
     let idxopt = options.idx_opt();
     let w: c_int = idxopt.w.into();
     let k: c_int = idxopt.k.into();
-    let is_hpc: c_int = (idxopt.flag & 1).into();
+    let is_hpc: c_int = (idxopt.flag & MM_I_HPC as c_short).into();
     let bucket_bits: c_int = idxopt.bucket_bits.into();
 
     let n: c_int = seqs.len().try_into()?;
