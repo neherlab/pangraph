@@ -46,6 +46,7 @@ fn align_with_minimap2_lib_impl(
     k: params.kmer_length.map(|v| v as i32),
     c: true,
     X: true,
+    s: Some(std::cmp::max(params.indel_len_threshold - 10, 5) as i32),
     bucket_bits: Some(14),
     ..Default::default()
   };
