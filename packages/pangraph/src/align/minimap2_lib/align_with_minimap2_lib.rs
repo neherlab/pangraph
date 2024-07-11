@@ -184,7 +184,7 @@ mod tests {
       reff: Hit::new(BlockId(1), 1000, (0, 998)),
       matches: 969,
       length: 998,
-      quality: 60,
+      quality: 0,
       orientation: Strand::Forward,
       new_block_id: None, // FIXME
       anchor_block: None, // FIXME
