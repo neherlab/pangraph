@@ -9,6 +9,7 @@ use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset, Mini
 use pangraph::io::fasta::read_many_fasta;
 use pangraph::io::json::json_write;
 use pangraph::utils::global_init::global_init;
+use rayon::prelude::*;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -27,7 +28,6 @@ fn main() -> Result<(), Report> {
 
   let args = minimap2_from_clap(&cli);
   let idx = Minimap2Index::new(&seqs, &names, &args)?;
-  let mut mapper = Minimap2Mapper::new(&idx)?;
 
   // FIXME: output actual PAF
   // let output_paf = create_file_or_stdout(&cli.output_paf)?;
@@ -39,11 +39,15 @@ fn main() -> Result<(), Report> {
   // })?;
 
   let results: Vec<Minimap2Result> = izip!(seqs, names)
-    .map(move |(seq, name)| {
-      mapper
-        .run_map(&seq, &name)
-        .wrap_err_with(|| format!("When aligning sequence '{name}'"))
-    })
+    .par_bridge()
+    .map_init(
+      || Minimap2Mapper::new(&idx).unwrap(),
+      move |mapper, (seq, name)| {
+        mapper
+          .run_map(&seq, &name)
+          .wrap_err_with(|| format!("When aligning sequence '{name}'"))
+      },
+    )
     .collect::<Result<Vec<_>, Report>>()?;
 
   // Outputs PAF-like JSON

@@ -7,9 +7,12 @@ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 #[cfg(all(not(feature = "bindgen")))]
 include!("bindings.rs");
 
-unsafe impl Send for mm_idx_t {}
-unsafe impl Send for mm_idx_reader_t {}
+// unsafe impl Send for mm_idx_t {}
+// unsafe impl Sync for mm_idx_t {}
+// unsafe impl Send for mm_idx_reader_t {}
+// unsafe impl Sync for mm_idx_reader_t {}
 unsafe impl Send for mm_mapopt_t {}
+unsafe impl Sync for mm_mapopt_t {}
 
 use std::mem::MaybeUninit;
 

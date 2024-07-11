@@ -7,6 +7,7 @@ use eyre::{Report, WrapErr};
 use itertools::{izip, Itertools};
 use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset, Minimap2Result};
 use noodles::sam::record::Cigar;
+use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
@@ -49,15 +50,21 @@ fn align_with_minimap2_lib_impl(
     ..Default::default()
   };
 
-  let idx = Minimap2Index::new(seqs, names, &args)?;
-  let mut mapper = Minimap2Mapper::new(&idx)?;
+  let seqs = seqs.iter().map(AsRef::as_ref).collect_vec();
+  let names = names.iter().map(AsRef::as_ref).collect_vec();
 
-  let results: Vec<Minimap2Result> = izip!(seqs, names)
-    .map(move |(seq, name)| {
-      mapper
-        .run_map(seq, name)
-        .wrap_err_with(|| format!("When aligning sequence '{}'", name.as_ref()))
-    })
+  let idx = Minimap2Index::new(&seqs, &names, &args)?;
+
+  let results: Vec<Minimap2Result> = izip!(&seqs, &names)
+    .par_bridge()
+    .map_init(
+      || Minimap2Mapper::new(&idx).unwrap(),
+      move |mapper, (seq, name)| {
+        mapper
+          .run_map(seq, name)
+          .wrap_err_with(|| format!("When aligning sequence '{name}'"))
+      },
+    )
     .collect::<Result<Vec<_>, Report>>()?;
 
   let alns = results
