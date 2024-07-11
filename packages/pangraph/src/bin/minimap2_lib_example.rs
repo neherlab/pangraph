@@ -3,9 +3,9 @@
 
 use clap::{AppSettings, ArgEnum, Parser};
 use ctor::ctor;
-use eyre::Report;
+use eyre::{Report, WrapErr};
 use itertools::{izip, Itertools};
-use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset};
+use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset, Minimap2Result};
 use pangraph::io::fasta::read_many_fasta;
 use pangraph::io::json::json_write;
 use pangraph::utils::global_init::global_init;
@@ -38,15 +38,27 @@ fn main() -> Result<(), Report> {
   //   Ok(())
   // })?;
 
-  // HACK: outputs JSON
-  let pafs = izip!(seqs, names)
-    .flat_map(move |(seq, name)| {
-      let result = mapper.run_map(&seq, &name).unwrap(); // FIXME: unwrap
-      result.pafs
+  let results: Vec<Minimap2Result> = izip!(seqs, names)
+    .map(move |(seq, name)| {
+      mapper
+        .run_map(&seq, &name)
+        .wrap_err_with(|| format!("When aligning sequence '{name}'"))
     })
-    .collect_vec();
+    .collect::<Result<Vec<_>, Report>>()?;
 
+  // Outputs PAF-like JSON
+  let pafs = results.iter().flat_map(|result| &result.pafs).collect_vec();
   json_write(&cli.output_paf, &pafs)?;
+
+  // // Outputs alignment JSON
+  // let alns = results
+  //   .into_iter()
+  //   .map(Alignment::from_minimap_paf_obj)
+  //   .collect::<Result<Vec<Vec<_>>, Report>>()?
+  //   .into_iter()
+  //   .flatten()
+  //   .collect_vec();
+  // json_write(&cli.output_aln, &alns)?;
 
   Ok(())
 }
@@ -65,6 +77,11 @@ struct Minimap2CliArgs {
   #[clap(display_order = 1)]
   pub output_paf: PathBuf,
 
+  // /// Path to output Alignment JSON file, or "-" for stdout
+  // #[clap(short = 'l', long, default_value = "-", value_parser)]
+  // #[clap(display_order = 1)]
+  // pub output_aln: PathBuf,
+  //
   /// Preset (always applied before other options)
   #[clap(arg_enum, short = 'x')]
   pub preset: Option<Minimap2CliPreset>,
