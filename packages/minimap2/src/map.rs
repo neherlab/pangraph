@@ -53,8 +53,6 @@ impl Minimap2Result {
 
     let regs = Minimap2RawRegs::new(seq, name, idx, buf)?;
 
-    dbg!(&regs.as_slice());
-
     let pafs = regs
       .as_slice()
       .iter()
@@ -163,7 +161,6 @@ impl Minimap2Reg {
 
 impl Minimap2RegExtra {
   pub fn from_raw(p: &mm_extra_t) -> Result<Self, Report> {
-    dbg!(&p);
     let n_cigar = p.n_cigar as usize;
 
     // SAFETY: dereferencing raw pointer and calling unsafe function

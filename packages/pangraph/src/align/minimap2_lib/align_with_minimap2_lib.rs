@@ -21,8 +21,6 @@ pub fn align_with_minimap2_lib(
 
   let alns: Vec<Alignment> = align_with_minimap2_lib_impl(&seqs, &names, params)?;
 
-  dbg!(&alns);
-
   Ok(alns)
 }
 
