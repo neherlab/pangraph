@@ -36,13 +36,21 @@ impl<'i> Minimap2Mapper<'i> {
     })
   }
 
-  pub fn run_map(&mut self, seq: &str, name: &str) -> Result<Minimap2Result, Report> {
+  pub fn run_map(&mut self, seq: impl AsRef<str>, name: impl AsRef<str>) -> Result<Minimap2Result, Report> {
     Minimap2Result::new(seq, name, self.idx, &mut self.buf)
   }
 }
 
 impl Minimap2Result {
-  pub fn new(seq: &str, name: &str, idx: &Minimap2Index, buf: &mut Minimap2Buffer) -> Result<Self, Report> {
+  pub fn new(
+    seq: impl AsRef<str>,
+    name: impl AsRef<str>,
+    idx: &Minimap2Index,
+    buf: &mut Minimap2Buffer,
+  ) -> Result<Self, Report> {
+    let seq = seq.as_ref();
+    let name = name.as_ref();
+
     let regs = Minimap2RawRegs::new(seq, name, idx, buf)?;
 
     dbg!(&regs.as_slice());
@@ -256,10 +264,15 @@ pub fn c_char_to_str<'a>(ptr: *mut c_char) -> Result<&'a str, std::str::Utf8Erro
 }
 
 impl Minimap2PafRow {
-  fn from_raw(seq: &str, name: &str, idx: &mm_idx_t, res: &mm_reg1_t) -> Result<Minimap2PafRow, Report> {
+  fn from_raw(
+    seq: impl AsRef<str>,
+    name: impl AsRef<str>,
+    idx: &mm_idx_t,
+    res: &mm_reg1_t,
+  ) -> Result<Minimap2PafRow, Report> {
     let query_seq = Minimap2PafRowSeq {
-      name: name.to_owned(),
-      len: seq.len(),
+      name: name.as_ref().to_owned(),
+      len: seq.as_ref().len(),
       start: res.qs,
       end: res.qe,
     };
@@ -353,16 +366,21 @@ pub struct Minimap2RawRegs {
 }
 
 impl Minimap2RawRegs {
-  pub fn new(seq: &str, name: &str, idx: &Minimap2Index, buf: &mut Minimap2Buffer) -> Result<Self, Report> {
+  pub fn new(
+    seq: impl AsRef<str>,
+    name: impl AsRef<str>,
+    idx: &Minimap2Index,
+    buf: &mut Minimap2Buffer,
+  ) -> Result<Self, Report> {
     let mi: *const mm_idx_t = idx.get();
     let map_opt = idx.options().map_opt();
 
-    let l_seq: c_int = seq.len() as c_int;
+    let l_seq: c_int = seq.as_ref().len() as c_int;
 
-    let seq = CString::new(seq)?;
+    let seq = CString::new(seq.as_ref())?;
     let seq = seq.as_ptr();
 
-    let name = CString::new(name)?;
+    let name = CString::new(name.as_ref())?;
     let name = name.as_ptr();
 
     // let seq: *const c_char = to_c_char_ptr(seq)?;
