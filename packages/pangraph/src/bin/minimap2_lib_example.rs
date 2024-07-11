@@ -369,6 +369,54 @@ struct Minimap2CliArgs {
   /// Include secondary sequences
   #[clap(long)]
   pub secondary_seq: bool,
+
+  /// Disable diagonal chaining
+  #[clap(short = 'D')]
+  pub D: bool,
+
+  /// Keep all chains
+  #[clap(short = 'P')]
+  pub all_chain: bool,
+
+  /// Noncanonical penalty
+  #[clap(long)]
+  pub noncan: Option<i32>,
+
+  /// Min-occ-floor
+  #[clap(long)]
+  pub min_occ_floor: Option<i32>,
+
+  /// Output in color space, short format
+  #[clap(long)]
+  pub out_cs: Option<bool>,
+
+  /// Output in color space, long format
+  #[clap(long)]
+  pub out_cs_long: Option<bool>,
+
+  /// Enable read mapping quality control
+  #[clap(long)]
+  pub rmq: Option<bool>,
+
+  /// Enable splice for forward strand
+  #[clap(long)]
+  pub splice_for: Option<bool>,
+
+  /// Enable splice for reverse strand
+  #[clap(long)]
+  pub splice_rev: Option<bool>,
+
+  /// Enable heap sort
+  #[clap(long)]
+  pub heap_sort: Option<bool>,
+
+  /// Disable dual mode
+  #[clap(long)]
+  pub no_dual: Option<bool>,
+
+  /// Suppress printing of secondary alignments
+  #[clap(long)]
+  pub no_print_2nd: Option<bool>,
 }
 
 #[allow(clippy::map_err_ignore)]
@@ -487,7 +535,7 @@ fn minimap2_from_clap(args: &Minimap2CliArgs) -> Minimap2Args {
     rmq_inner_dist: args.rmq_inner_dist,
     rmq_rescue_size: args.rmq_rescue_size,
     rmq_rescue_ratio: args.rmq_rescue_ratio,
-    max_ksw_len: args.max_ksw_len,
+    min_dp_len: args.max_ksw_len,
     splice: args.splice,
     no_ljoin: args.no_ljoin,
     sr: args.sr,
@@ -507,5 +555,17 @@ fn minimap2_from_clap(args: &Minimap2CliArgs) -> Minimap2Args {
     qstrand: args.qstrand,
     no_hash_name: args.no_hash_name,
     secondary_seq: args.secondary_seq,
+    D: args.D,
+    P: args.all_chain,
+    noncan: args.noncan,
+    min_occ_floor: args.min_occ_floor,
+    out_cs: args.out_cs,
+    out_cs_long: args.out_cs_long,
+    rmq: args.rmq,
+    splice_for: args.splice_for,
+    splice_rev: args.splice_rev,
+    heap_sort: args.heap_sort,
+    no_dual: args.no_dual,
+    no_print_2nd: args.no_print_2nd,
   }
 }

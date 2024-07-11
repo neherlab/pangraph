@@ -4,9 +4,10 @@
 use crate::Minimap2Preset;
 use minimap2_sys::{
   mm_idxopt_t, mm_mapopt_t, MM_F_ALL_CHAINS, MM_F_CIGAR, MM_F_COPY_COMMENT, MM_F_EQX, MM_F_FOR_ONLY, MM_F_HARD_MLEVEL,
-  MM_F_INDEPEND_SEG, MM_F_LONG_CIGAR, MM_F_NO_DIAG, MM_F_NO_DUAL, MM_F_NO_END_FLT, MM_F_NO_HASH_NAME, MM_F_NO_INV,
-  MM_F_NO_LJOIN, MM_F_NO_QUAL, MM_F_OUT_CG, MM_F_OUT_MD, MM_F_PAF_NO_HIT, MM_F_QSTRAND, MM_F_REV_ONLY,
-  MM_F_SAM_HIT_ONLY, MM_F_SECONDARY_SEQ, MM_F_SOFTCLIP, MM_F_SPLICE, MM_F_SR, MM_I_HPC, MM_I_NO_SEQ,
+  MM_F_HEAP_SORT, MM_F_INDEPEND_SEG, MM_F_LONG_CIGAR, MM_F_NO_DIAG, MM_F_NO_DUAL, MM_F_NO_END_FLT, MM_F_NO_HASH_NAME,
+  MM_F_NO_INV, MM_F_NO_LJOIN, MM_F_NO_PRINT_2ND, MM_F_NO_QUAL, MM_F_OUT_CG, MM_F_OUT_CS, MM_F_OUT_CS_LONG, MM_F_OUT_MD,
+  MM_F_PAF_NO_HIT, MM_F_QSTRAND, MM_F_REV_ONLY, MM_F_RMQ, MM_F_SAM_HIT_ONLY, MM_F_SECONDARY_SEQ, MM_F_SOFTCLIP,
+  MM_F_SPLICE, MM_F_SPLICE_FOR, MM_F_SPLICE_REV, MM_F_SR, MM_I_HPC, MM_I_NO_SEQ,
 };
 use std::os::raw::c_short;
 
@@ -114,6 +115,15 @@ pub struct Minimap2Args {
   /// "splice mode. 0: original minimap2 model; 1: miniprot model"
   pub J: Option<i32>,
 
+  /// "disable diagonal chaining"
+  pub D: bool,
+
+  /// "keep all chains"
+  pub P: bool,
+
+  /// "noncanonical penalty"
+  pub noncan: Option<i32>,
+
   /// "--cap-sw-mat"
   pub max_sw_mat: Option<i64>,
 
@@ -172,7 +182,7 @@ pub struct Minimap2Args {
   pub rmq_rescue_ratio: Option<f32>,
 
   /// "--min-dp-len"
-  pub max_ksw_len: Option<i32>,
+  pub min_dp_len: Option<i32>,
 
   /// "--splice"
   pub splice: bool,
@@ -191,6 +201,9 @@ pub struct Minimap2Args {
 
   /// "--idx-no-seq"
   pub idx_no_seq: bool,
+
+  /// "--min-occ-floor"
+  pub min_occ_floor: Option<i32>,
 
   /// "--for-only"
   pub for_only: bool,
@@ -230,6 +243,30 @@ pub struct Minimap2Args {
 
   /// "--secondary-seq"
   pub secondary_seq: bool,
+
+  /// "Output in color space, short format"
+  pub out_cs: Option<bool>,
+
+  /// "Output in color space, long format"
+  pub out_cs_long: Option<bool>,
+
+  /// "Enable read mapping quality control"
+  pub rmq: Option<bool>,
+
+  /// "Enable splice for forward strand"
+  pub splice_for: Option<bool>,
+
+  /// "Enable splice for reverse strand"
+  pub splice_rev: Option<bool>,
+
+  /// "Enable heap sort"
+  pub heap_sort: Option<bool>,
+
+  /// "Disable dual mode"
+  pub no_dual: Option<bool>,
+
+  /// "Suppress printing of secondary alignments"
+  pub no_print_2nd: Option<bool>,
 }
 
 #[allow(clippy::redundant_pattern_matching)]
@@ -325,6 +362,18 @@ pub fn init_opts(args: &Minimap2Args, idx_opt: &mut mm_idxopt_t, map_opt: &mut m
   if let Some(_) = args.J {
     unimplemented!("-J")
   }
+  if args.D {
+    map_opt.flag |= MM_F_NO_DIAG as i64;
+  }
+  if args.P {
+    map_opt.flag |= MM_F_ALL_CHAINS as i64;
+  }
+  if let Some(noncan) = args.noncan {
+    map_opt.noncan = noncan;
+  }
+  if let Some(min_occ_floor) = args.min_occ_floor {
+    map_opt.min_mid_occ = min_occ_floor;
+  }
   if let Some(max_sw_mat) = args.max_sw_mat {
     map_opt.max_sw_mat = max_sw_mat;
   }
@@ -382,8 +431,8 @@ pub fn init_opts(args: &Minimap2Args, idx_opt: &mut mm_idxopt_t, map_opt: &mut m
   if let Some(rmq_rescue_ratio) = args.rmq_rescue_ratio {
     map_opt.rmq_rescue_ratio = rmq_rescue_ratio;
   }
-  if let Some(max_ksw_len) = args.max_ksw_len {
-    map_opt.min_ksw_len = max_ksw_len;
+  if let Some(min_ksw_len) = args.min_dp_len {
+    map_opt.min_ksw_len = min_ksw_len;
   }
   if args.splice {
     map_opt.flag |= MM_F_SPLICE as i64;
@@ -441,5 +490,62 @@ pub fn init_opts(args: &Minimap2Args, idx_opt: &mut mm_idxopt_t, map_opt: &mut m
   }
   if args.secondary_seq {
     map_opt.flag |= MM_F_SECONDARY_SEQ as i64;
+  }
+  if let Some(out_cs) = args.out_cs {
+    if out_cs {
+      map_opt.flag |= MM_F_OUT_CS as i64;
+    } else {
+      map_opt.flag &= !(MM_F_OUT_CS as i64);
+    }
+  }
+  if let Some(out_cs_long) = args.out_cs_long {
+    if out_cs_long {
+      map_opt.flag |= MM_F_OUT_CS_LONG as i64;
+    } else {
+      map_opt.flag &= !(MM_F_OUT_CS_LONG as i64);
+    }
+  }
+  if let Some(rmq) = args.rmq {
+    if rmq {
+      map_opt.flag |= MM_F_RMQ as i64;
+    } else {
+      map_opt.flag &= !(MM_F_RMQ as i64);
+    }
+  }
+  if let Some(splice_for) = args.splice_for {
+    if splice_for {
+      map_opt.flag |= MM_F_SPLICE_FOR as i64;
+    } else {
+      map_opt.flag &= !(MM_F_SPLICE_FOR as i64);
+    }
+  }
+  if let Some(splice_rev) = args.splice_rev {
+    if splice_rev {
+      map_opt.flag |= MM_F_SPLICE_REV as i64;
+    } else {
+      map_opt.flag &= !(MM_F_SPLICE_REV as i64);
+    }
+  }
+
+  if let Some(heap_sort) = args.heap_sort {
+    if heap_sort {
+      map_opt.flag |= MM_F_HEAP_SORT as i64;
+    } else {
+      map_opt.flag &= !(MM_F_HEAP_SORT as i64);
+    }
+  }
+  if let Some(no_dual) = args.no_dual {
+    if no_dual {
+      map_opt.flag |= MM_F_NO_DUAL as i64;
+    } else {
+      map_opt.flag &= !(MM_F_NO_DUAL as i64);
+    }
+  }
+  if let Some(no_print_2nd) = args.no_print_2nd {
+    if no_print_2nd {
+      map_opt.flag |= MM_F_NO_PRINT_2ND as i64;
+    } else {
+      map_opt.flag &= !(MM_F_NO_PRINT_2ND as i64);
+    }
   }
 }
