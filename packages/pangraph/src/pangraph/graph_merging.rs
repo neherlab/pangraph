@@ -69,11 +69,13 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
   debug!("Found matches: {}", matches.len());
   trace!("{matches:#?}");
 
-  // split matches:
+  // exclude self-alignments (a block with itself)
+  // and split matches:
   // - whenever an alignment contains an in/del longer than the threshold length
   //   (parameter - default 100 bp) we want to split the alignment in two)
   let matches = matches
     .iter()
+    .filter(|m| m.qry.name != m.reff.name)
     .map(|m| split_matches(m, &args.aln_args))
     .collect::<Result<Vec<Vec<Alignment>>, Report>>()?
     .into_iter()
@@ -167,6 +169,7 @@ pub fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment
   let mut accepted_intervals = btreemap![];
 
   for aln in alns {
+    debug_assert!(aln.qry.name != aln.reff.name);
     if is_match_compatible(aln, &accepted_intervals) {
       accepted_alns.push(aln.clone());
       update_intervals(aln, &mut accepted_intervals);
