@@ -9,6 +9,7 @@ use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::utils::subprocess::create_arg_optional;
 use cmd_lib::run_cmd;
 use eyre::{Report, WrapErr};
+use num_traits::clamp_min;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::Write;
@@ -35,6 +36,9 @@ pub fn align_with_minimap2(
   let kmer_size = create_arg_optional("-k", &params.kmer_length);
   let preset = create_arg_optional("-x", &Some(format!("asm{}", &params.sensitivity)));
 
+  let min_dp_max = clamp_min(params.indel_len_threshold - 10, 5).to_string();
+  let min_dp_max = create_arg_optional("-s", &Some(min_dp_max));
+
   // TODO: implement proper minimap2 call
   #[rustfmt::skip]
   run_cmd!(
@@ -45,6 +49,7 @@ pub fn align_with_minimap2(
     $input_path
     $[kmer_size]
     $[preset]
+    $[min_dp_max]
     2> /dev/null
     |
     sed

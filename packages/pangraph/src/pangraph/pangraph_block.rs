@@ -31,8 +31,8 @@ pub struct PangraphBlock {
 }
 
 impl PangraphBlock {
-  pub fn from_consensus(consensus: impl Into<String>) -> Self {
-    PangraphBlock::new(None, consensus, btreemap! {})
+  pub fn from_consensus(consensus: impl Into<String>, nid: NodeId) -> Self {
+    PangraphBlock::new(None, consensus, btreemap! {nid => Edit::empty()})
   }
 
   pub fn new(block_id: Option<BlockId>, consensus: impl Into<String>, alignments: BTreeMap<NodeId, Edit>) -> Self {

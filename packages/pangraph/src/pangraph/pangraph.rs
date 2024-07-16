@@ -24,9 +24,10 @@ pub struct Pangraph {
 impl Pangraph {
   pub fn singleton(fasta: FastaRecord, strand: Strand, circular: bool) -> Self {
     let tot_len = fasta.seq.len();
-    let block = PangraphBlock::from_consensus(fasta.seq);
+    let node_id = NodeId(fasta.index);
+    let block = PangraphBlock::from_consensus(fasta.seq, node_id);
     let path_id = PathId(fasta.index);
-    let node = PangraphNode::new(None, block.id(), path_id, strand, (0, 0));
+    let node = PangraphNode::new(Some(node_id), block.id(), path_id, strand, (0, 0));
     let path = PangraphPath::new(Some(path_id), [node.id()], tot_len, circular);
     Self {
       blocks: btreemap! {block.id() => block},

@@ -7,6 +7,7 @@ use eyre::{Report, WrapErr};
 use itertools::{izip, Itertools};
 use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset, Minimap2Result};
 use noodles::sam::record::Cigar;
+use num_traits::clamp_min;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::str::FromStr;
@@ -46,6 +47,7 @@ fn align_with_minimap2_lib_impl(
     k: params.kmer_length.map(|v| v as i32),
     c: true,
     X: true,
+    s: Some(clamp_min(params.indel_len_threshold - 10, 5) as i32),
     bucket_bits: Some(14),
     ..Default::default()
   };
@@ -184,7 +186,7 @@ mod tests {
       reff: Hit::new(BlockId(1), 1000, (0, 998)),
       matches: 969,
       length: 998,
-      quality: 60,
+      quality: 0,
       orientation: Strand::Forward,
       new_block_id: None, // FIXME
       anchor_block: None, // FIXME

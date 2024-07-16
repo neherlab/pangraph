@@ -34,7 +34,7 @@ impl MergePromise {
     for (node_id, edits) in self.append_block.alignments() {
       let mut seq = edits.apply(self.append_block.consensus())?;
       // TODO: check that `.is_forward()` is correct here? (should be `.is_reverse()`?)
-      if self.orientation.is_forward() {
+      if !self.orientation.is_forward() {
         seq = reverse_complement(&seq)?;
       };
       self.anchor_block.append_sequence(&seq, *node_id)?;
