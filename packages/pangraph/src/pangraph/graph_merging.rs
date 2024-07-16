@@ -16,6 +16,7 @@ use itertools::Itertools;
 use log::{debug, info, trace};
 use maplit::btreemap;
 use ordered_float::OrderedFloat;
+use rayon::prelude::*;
 use std::collections::BTreeMap;
 
 /// This is the function that is called when a node of the guide tree is visited.
@@ -111,9 +112,8 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
   let (mut graph, mergers) =
     reweave(&mut matches, graph, args.aln_args.indel_len_threshold).wrap_err("During reweave")?;
 
-  // this can be parallelized
   let merged_blocks = mergers
-    .into_iter()
+    .into_par_iter()
     .map(|mut merge_promise| {
       merge_promise
         .solve_promise()
