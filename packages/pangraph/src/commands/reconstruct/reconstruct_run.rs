@@ -16,13 +16,14 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
   // let fasta_output = reconstruct(graph, &args)?;
 
   // write fasta to stdout
-  // println!("{}", fasta_output);
+  // in the order given by path id.
 
   Ok(())
 }
 
-// this function could belong to the path class.
+// // Note: this function could belong to the path class.
 // fn reconstruct_path_sequence(path: &PangraphPath, graph: &Pangraph) -> Result<String, Report> {
+//   // collect here the sequence block by block
 //   let mut seq = Vec::new();
 //   for node_id in &path.nodes {
 //     let node = graph
@@ -34,10 +35,11 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
 //       .blocks
 //       .get(&block_id)
 //       .ok_or_else(|| make_internal_report!("Block {} not found in graph", block_id))?;
+//     // get edits and apply them to the consensus sequence
 //     let edits = block.alignment(node_id);
 //     let mut s = edits.apply(block.consensus())?;
+//     // reverse-complement if on opposite strand
 //     if node.strand() == Strand::Reverse {
-//       // TODO: reverse complement
 //       s = reverse_complement(s)
 //     }
 //     seq.push(s);
@@ -49,8 +51,7 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
 //   let seqs = graph
 //     .paths
 //     .iter()
-//     .enumerate()
-//     .map(|(i, p)| (i, reconstruct_path_sequence(p, graph), p.name.clone()))
+//     .map(|p| (p.path_id, reconstruct_path_sequence(p, graph), p.name.clone()))
 //     .map(|(i, s, n)| FastaRecord {
 //       index: i,
 //       seq: s,
