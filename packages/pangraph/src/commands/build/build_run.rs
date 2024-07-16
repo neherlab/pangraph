@@ -32,7 +32,7 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
     build(fastas, args)
   }?;
 
-  json_write("-", &pangraph_json)?;
+  json_write(&args.output_json, &pangraph_json)?;
 
   Ok(())
 }
