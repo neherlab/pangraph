@@ -36,6 +36,7 @@ eyre = { workspace = true }
 flate2 = { workspace = true }
 gcollections = { workspace = true }
 getset = { workspace = true }
+indexmap = { workspace = true }
 intervallum = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
@@ -43,6 +44,7 @@ log = { workspace = true }
 maplit = { workspace = true }
 memoize = { workspace = true }
 minimap2 = { workspace = true }
+multimap = { workspace = true }
 ndarray = { workspace = true }
 ndarray-rand = { workspace = true }
 ndarray-stats = { workspace = true }
@@ -53,6 +55,7 @@ num-traits = { workspace = true }
 num_cpus = { workspace = true }
 ordered-float = { workspace = true }
 parking_lot = { workspace = true }
+petgraph = { workspace = true }
 pretty_assertions = { workspace = true }
 pretty_dtoa = { workspace = true }
 rand = { workspace = true }
