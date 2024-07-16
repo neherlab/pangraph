@@ -63,6 +63,10 @@ pub struct PangraphBuildArgs {
   #[clap(value_hint = ValueHint::Other)]
   pub alignment_kernel: AlignmentBackend,
 
+  /// Verify that the original sequences can be reconstructed from the resulting pangraph
+  #[clap(long)]
+  pub verify: bool,
+
   /// Random seed for block id generation
   #[clap(long)]
   pub seed: Option<u64>,

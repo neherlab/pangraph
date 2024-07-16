@@ -1,5 +1,6 @@
 use crate::align::align_graphs::align_graphs;
 use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::commands::build::verify::verify_result;
 use crate::io::fasta::{read_many_fasta, FastaRecord};
 use crate::io::json::json_write;
 use crate::pangraph::graph_merging::merge_graphs;
@@ -23,7 +24,13 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
 
   // TODO: check for duplicate fasta names
 
-  let pangraph_json = build(fastas, args)?;
+  let pangraph_json = if args.verify {
+    let pangraph_json = build(fastas.clone(), args)?;
+    verify_result(&pangraph_json, &fastas).wrap_err("When verifying resulting paragraph")?;
+    Ok(pangraph_json)
+  } else {
+    build(fastas, args)
+  }?;
 
   json_write("-", &pangraph_json)?;
 
