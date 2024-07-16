@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+trap "exit 0" INT
+
+# Runs smoke tests - basic use-case checks with default data
+# https://en.wikipedia.org/wiki/Smoke_testing_(software)
+#
+# Dependencies:
+#   sudo apt-get install -y bash curl parallel
+#
+# Usage:
+#
+#     ./tests/run-smoke-tests target/release/pangraph
+#
+# with additional args to pangraph build:
+#
+#     ./tests/run-smoke-tests target/release/pangraph -b 20 -l 500
+#
+# (NOTE: you must build and re-build the executable yourself, this script does not do that):
+
+export PANGRAPH_BIN="${1:? "Usage: ${0} <path_to_pangraph> [extra_args...]"}"
+export EXTRA_ARGS="${*:2}"
+
+THIS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")";  pwd)
+export THIS_DIR
+
+export ROOT_DIR="${THIS_DIR}/.."
+export INPUT_DIR="${ROOT_DIR}/data"
+export OUTPUT_DIR="${ROOT_DIR}/tmp/smoke-tests"
+
+function run_one() {
+  set -euxo pipefail
+
+  input_fasta="${1}"
+  name="$(basename "${input_fasta}")"
+
+  ${PANGRAPH_BIN} build \
+    "${input_fasta}" \
+    -o="${OUTPUT_DIR}/${name}.json" \
+    ${EXTRA_ARGS}
+}
+export -f run_one
+
+shopt -s nullglob
+all_data=$(ls "${INPUT_DIR}/"*.fa* "${INPUT_DIR}/"*.fasta*)
+parallel --keep-order --jobs=+0 run_one ::: "${all_data}"
