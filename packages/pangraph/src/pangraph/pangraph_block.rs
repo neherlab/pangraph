@@ -49,16 +49,6 @@ impl PangraphBlock {
     self.id = id((&self.consensus, &self.alignments));
   }
 
-  /// Append a sequence to a block, and assign the given node_id
-  pub fn append_sequence(&mut self, new_seq: impl AsRef<str>, new_node_id: NodeId) -> Result<(), Report> {
-    // Calculate the set of edits
-    let edits = map_variations(&self.consensus, new_seq)?;
-    // Append the edits to the block alignment dictionary
-    self.alignments.insert(new_node_id, edits);
-    self.refresh_id();
-    Ok(())
-  }
-
   pub fn depth(&self) -> usize {
     self.alignments.len()
   }
