@@ -1,4 +1,5 @@
 use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
+use crate::align::map_variations::map_variations;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_error;
 use crate::pangraph::pangraph::{GraphUpdate, Pangraph};
@@ -11,6 +12,7 @@ use crate::utils::id::id;
 use color_eyre::{Section, SectionExt};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
+use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::hash::Hash;
 
@@ -31,14 +33,24 @@ impl MergePromise {
   }
 
   pub fn solve_promise(&mut self) -> Result<PangraphBlock, Report> {
-    for (node_id, edits) in self.append_block.alignments() {
-      let mut seq = edits.apply(self.append_block.consensus())?;
-      // TODO: check that `.is_forward()` is correct here? (should be `.is_reverse()`?)
-      if !self.orientation.is_forward() {
-        seq = reverse_complement(&seq)?;
-      };
-      self.anchor_block.append_sequence(&seq, *node_id)?;
-    }
+    self
+      .append_block
+      .alignments()
+      .par_iter()
+      .map(|(node_id, edits)| {
+        let mut seq = edits.apply(self.append_block.consensus())?;
+        if !self.orientation.is_forward() {
+          seq = reverse_complement(&seq)?;
+        };
+        let edits = map_variations(self.anchor_block.consensus(), seq)?;
+        Ok((*node_id, edits))
+      })
+      .collect::<Result<Vec<_>, Report>>()?
+      .into_iter()
+      .for_each(|(node_id, edits)| {
+        self.anchor_block.alignment_insert(node_id, edits);
+      });
+    self.anchor_block.refresh_id();
     Ok(self.anchor_block.clone())
   }
 }

@@ -82,6 +82,10 @@ impl PangraphBlock {
   pub fn alignments(&self) -> &BTreeMap<NodeId, Edit> {
     &self.alignments
   }
+
+  pub fn alignment_insert(&mut self, node_id: NodeId, edit: Edit) -> Option<Edit> {
+    self.alignments.insert(node_id, edit)
+  }
 }
 
 #[allow(non_snake_case)]
