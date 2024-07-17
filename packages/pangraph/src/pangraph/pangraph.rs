@@ -28,7 +28,7 @@ impl Pangraph {
     let block = PangraphBlock::from_consensus(fasta.seq, node_id);
     let path_id = PathId(fasta.index);
     let node = PangraphNode::new(Some(node_id), block.id(), path_id, strand, (0, 0));
-    let path = PangraphPath::new(Some(path_id), [node.id()], tot_len, circular);
+    let path = PangraphPath::new(Some(path_id), [node.id()], tot_len, circular, Some(fasta.seq_name));
     Self {
       blocks: btreemap! {block.id() => block},
       paths: btreemap! {path.id() => path},
@@ -148,9 +148,9 @@ mod tests {
     };
 
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1), NodeId(3), NodeId(6)], 0, false),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(4), NodeId(7)           ], 0, false),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2), NodeId(5), NodeId(8)], 0, false),
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1), NodeId(3), NodeId(6)], 0, false, None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(4), NodeId(7)           ], 0, false, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2), NodeId(5), NodeId(8)], 0, false, None),
     };
 
     let mut G = Pangraph {
@@ -194,9 +194,9 @@ mod tests {
     assert_eq!(G.blocks, expected_blocks);
 
     let expected_paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1),  NodeId(9),  NodeId(10),  NodeId(6)], 0, false),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(11), NodeId(12), NodeId(7)             ], 0, false),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2),  NodeId(14), NodeId(13),  NodeId(8)], 0, false),
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1),  NodeId(9),  NodeId(10),  NodeId(6)], 0, false, None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(11), NodeId(12), NodeId(7)             ], 0, false, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2),  NodeId(14), NodeId(13),  NodeId(8)], 0, false, None),
     };
     assert_eq!(G.paths, expected_paths);
 

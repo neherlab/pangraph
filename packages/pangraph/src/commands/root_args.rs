@@ -3,6 +3,7 @@ use crate::commands::export::export_args::PangraphExportArgs;
 use crate::commands::generate::generate_args::PangraphGenerateArgs;
 use crate::commands::marginalize::marginalize_args::PangraphMarginalizeArgs;
 use crate::commands::polish::polish_args::PangraphPolishArgs;
+use crate::commands::reconstruct::reconstruct_args::PangraphReconstructArgs;
 use crate::commands::verbosity::{Verbosity, WarnLevel};
 use crate::utils::global_init::setup_logger;
 use clap::{AppSettings, ArgEnum, CommandFactory, Parser, Subcommand};
@@ -68,6 +69,9 @@ pub enum PangraphCommands {
 
   /// Realign pancontigs of multiple sequence alignment graph
   Polish(PangraphPolishArgs),
+
+  /// Reconstruct input fasta sequences from graph
+  Reconstruct(PangraphReconstructArgs),
 
   /// Generate shell completions.
   ///

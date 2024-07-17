@@ -21,6 +21,9 @@ pub struct PangraphPath {
 
   #[getset(get_copy = "pub")]
   pub circular: bool,
+
+  #[getset(get = "pub")]
+  pub name: Option<String>,
 }
 
 impl PangraphPath {
@@ -30,12 +33,13 @@ impl PangraphPath {
     nodes: impl Into<Vec<NodeId>>,
     tot_len: usize,
     circular: bool,
+    name: Option<String>,
   ) -> Self {
     let nodes = nodes.into();
     let id = path_id.unwrap_or_else(|| id((&nodes, &tot_len, &circular)));
     Self {
       id,
-      // name,
+      name,
       nodes,
       tot_len,
       circular,
