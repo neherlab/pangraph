@@ -27,6 +27,22 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
   Ok(())
 }
 
+pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord, Report>> + '_ {
+  graph
+    .paths
+    .iter()
+    .sorted_by_key(|(path_id, _)| **path_id)
+    .map(|(path_id, path)| {
+      let index = path_id.0;
+      let seq = reconstruct_path_sequence(graph, path)?;
+      let seq_name = path
+        .name()
+        .clone()
+        .unwrap_or_else(|| format!("Unknown sequence #{path_id}"));
+      Ok(FastaRecord { seq_name, seq, index })
+    })
+}
+
 fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<String, Report> {
   path
     .nodes
@@ -57,20 +73,4 @@ fn reconstruct_block_sequence(graph: &Pangraph, node_id: NodeId) -> Result<Strin
     s = reverse_complement(s)?;
   }
   Ok(s)
-}
-
-pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord, Report>> + '_ {
-  graph
-    .paths
-    .iter()
-    .sorted_by_key(|(path_id, _)| **path_id)
-    .map(|(path_id, path)| {
-      let index = path_id.0;
-      let seq = reconstruct_path_sequence(graph, path)?;
-      let seq_name = path
-        .name()
-        .clone()
-        .unwrap_or_else(|| format!("Unknown sequence #{path_id}"));
-      Ok(FastaRecord { seq_name, seq, index })
-    })
 }
