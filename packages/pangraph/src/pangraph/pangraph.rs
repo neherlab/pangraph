@@ -1,7 +1,7 @@
 use crate::io::fasta::FastaRecord;
 use crate::io::file::open_file_or_stdin;
 use crate::io::fs::read_reader_to_string;
-use crate::io::json::json_parse;
+use crate::io::json::json_read_str;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::pangraph_path::{PangraphPath, PathId};
@@ -95,7 +95,7 @@ impl FromStr for Pangraph {
   type Err = Report;
 
   fn from_str(s: &str) -> Result<Self, Self::Err> {
-    json_parse(s).wrap_err("When parsing Pangraph JSON contents")
+    json_read_str(s).wrap_err("When parsing Pangraph JSON contents")
   }
 }
 

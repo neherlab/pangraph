@@ -1,4 +1,4 @@
-use crate::io::file::create_file_or_stdout;
+use crate::io::file::{create_file_or_stdout, open_file_or_stdin};
 use eyre::{Report, WrapErr};
 use serde::{Deserialize, Serialize};
 use serde_json::{de::Read, Deserializer};
@@ -15,13 +15,23 @@ pub fn deserialize_without_recursion_limit<'de, R: Read<'de>, T: Deserialize<'de
   Ok(obj)
 }
 
-pub fn json_parse<T: for<'de> Deserialize<'de>>(s: &str) -> Result<T, Report> {
+pub fn json_read_str<T: for<'de> Deserialize<'de>>(s: &str) -> Result<T, Report> {
   let mut de = Deserializer::from_str(s);
   deserialize_without_recursion_limit(&mut de)
 }
 
-pub fn json_parse_bytes<T: for<'de> Deserialize<'de>>(bytes: &[u8]) -> Result<T, Report> {
+pub fn json_read_bytes<T: for<'de> Deserialize<'de>>(bytes: &[u8]) -> Result<T, Report> {
   let mut de = Deserializer::from_slice(bytes);
+  deserialize_without_recursion_limit(&mut de)
+}
+
+pub fn json_read_file<T: for<'de> Deserialize<'de>, P: AsRef<Path>>(filepath: &Option<P>) -> Result<T, Report> {
+  let r = open_file_or_stdin(filepath)?;
+  json_read_reader(r)
+}
+
+pub fn json_read_reader<T: for<'de> Deserialize<'de>>(r: impl std::io::Read) -> Result<T, Report> {
+  let mut de = Deserializer::from_reader(r);
   deserialize_without_recursion_limit(&mut de)
 }
 

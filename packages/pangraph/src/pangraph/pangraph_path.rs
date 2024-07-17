@@ -12,7 +12,6 @@ pub struct PangraphPath {
   #[getset(get_copy = "pub")]
   pub id: PathId,
 
-  /* pub name: BlockId, */
   #[getset(get = "pub")]
   pub nodes: Vec<NodeId>,
 
@@ -29,7 +28,6 @@ pub struct PangraphPath {
 impl PangraphPath {
   pub fn new(
     path_id: Option<PathId>,
-    /* name: BlockId, */
     nodes: impl Into<Vec<NodeId>>,
     tot_len: usize,
     circular: bool,
@@ -39,10 +37,10 @@ impl PangraphPath {
     let id = path_id.unwrap_or_else(|| id((&nodes, &tot_len, &circular)));
     Self {
       id,
-      name,
       nodes,
       tot_len,
       circular,
+      name,
     }
   }
 }
