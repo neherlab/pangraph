@@ -2,16 +2,22 @@ use crate::graph::node::GraphNodeKey;
 use derive_more::Display;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::Arc;
 
-pub trait Weighted {
-  fn weight(&self) -> f64;
+pub trait GraphEdge: Clone + Debug + Sync + Send {}
+
+pub trait EdgeFromNwk {
+  fn from_nwk(weight: Option<f64>) -> Self;
 }
 
-pub trait GraphEdge: Clone + Debug + Display + Sync + Send + Weighted {
-  fn new(weight: f64) -> Self;
+pub trait EdgeToNwk {
+  fn to_nwk(&self) -> Option<f64>;
+}
+
+pub trait GetWeight {
+  fn weight(&self) -> Option<f64>;
 }
 
 #[derive(Copy, Clone, Debug, Display, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
@@ -64,11 +70,5 @@ impl<E: GraphEdge> Edge<E> {
   #[inline]
   pub fn payload(&self) -> Arc<RwLock<E>> {
     Arc::clone(&self.data)
-  }
-}
-
-impl<E: GraphEdge> Display for Edge<E> {
-  fn fmt(&self, fmt: &mut Formatter<'_>) -> std::fmt::Result {
-    write!(fmt, "{} -> {}", self.source(), self.target())
   }
 }

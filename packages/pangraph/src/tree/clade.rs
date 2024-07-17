@@ -97,110 +97,31 @@ where
 mod tests {
   #![allow(clippy::many_single_char_names)]
 
-  use super::*;
-  use crate::graph::breadth_first::GraphTraversalContinuation;
-  use crate::graph::create_graph_from_nwk::create_graph_from_nwk_str;
-  use crate::graph::edge::{GraphEdge, Weighted};
-  use crate::graph::node::{GraphNode, Named, NodeType, WithNwkComments};
+  use crate::graph::node::GetName;
+  use crate::graph::traversal::GraphTraversalContinuation;
+  use crate::io::nwk::nwk_read_str;
+  use crate::io::nwk::tests::{TestEdge, TestNode};
   use eyre::Report;
   use parking_lot::RwLock;
   use pretty_assertions::assert_eq;
-  use serde::{Deserialize, Serialize};
-  use std::fmt::{Display, Formatter};
+  use std::fmt::Display;
   use std::sync::Arc;
-
-  #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-  pub struct Node {
-    pub name: String,
-    pub node_type: NodeType,
-  }
-
-  impl Node {
-    pub fn new(name: impl AsRef<str>, node_type: NodeType) -> Self {
-      Self {
-        name: name.as_ref().to_owned(),
-        node_type,
-      }
-    }
-  }
-
-  impl GraphNode for Node {
-    fn root(name: &str) -> Self {
-      Self::new(name, NodeType::Root(name.to_owned()))
-    }
-
-    fn internal(name: &str) -> Self {
-      Self::new(name, NodeType::Internal(name.to_owned()))
-    }
-
-    fn leaf(name: &str) -> Self {
-      Self::new(name, NodeType::Leaf(name.to_owned()))
-    }
-
-    fn set_node_type(&mut self, node_type: NodeType) {
-      self.node_type = node_type;
-    }
-  }
-
-  impl WithNwkComments for Node {}
-
-  impl Named for Node {
-    fn name(&self) -> &str {
-      &self.name
-    }
-
-    fn set_name(&mut self, name: &str) {
-      self.name = name.to_owned();
-    }
-  }
-
-  impl Display for Node {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-      match &self.node_type {
-        NodeType::Root(weight) => write!(f, "{weight:}"),
-        NodeType::Internal(weight) => write!(f, "{weight:}"),
-        NodeType::Leaf(name) => write!(f, "{name}"),
-      }
-    }
-  }
-
-  #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-  pub struct Edge {
-    pub weight: f64,
-  }
-
-  impl GraphEdge for Edge {
-    fn new(weight: f64) -> Self {
-      Self { weight }
-    }
-  }
-
-  impl Weighted for Edge {
-    fn weight(&self) -> f64 {
-      self.weight
-    }
-  }
-
-  impl Display for Edge {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-      write!(f, "{:}", &self.weight)
-    }
-  }
 
   #[test]
   fn test_postorder() -> Result<(), Report> {
     rayon::ThreadPoolBuilder::new().num_threads(1).build_global()?;
 
-    let mut graph = create_graph_from_nwk_str::<Node, Edge>("(((A,B)AB,(C,D)CD)ABCD,(E,F)EF)root;")?;
+    let graph = nwk_read_str::<TestNode, TestEdge>("(((A,B)AB,(C,D)CD)ABCD,(E,F)EF)root;")?;
 
     let actual = Arc::new(RwLock::new(vec![]));
-    graph.par_iter_breadth_first_backward(|node| {
-      actual.write_arc().push(node.payload.name.clone());
+    graph.traverse_backward(|node| {
+      let name = node.payload.name().to_owned();
+      actual.write_arc().push(name);
       GraphTraversalContinuation::Continue
     });
 
     assert_eq!(
-      &vec!["F", "E", "D", "C", "B", "A", "EF", "CD", "AB", "ABCD", "root",],
+      &vec!["F", "E", "D", "C", "B", "A", "EF", "CD", "AB", "ABCD", "root"],
       &*actual.read()
     );
 

@@ -1,6 +1,7 @@
 pub mod assert;
 pub mod collections;
 pub mod datetime;
+pub mod deadlock_detection;
 pub mod error;
 pub mod float_fmt;
 pub mod global_init;

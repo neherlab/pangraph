@@ -1,5 +1,6 @@
 use crate::io::fs::filename_maybe;
 use crate::utils::datetime::{date_format_precise, date_now};
+use crate::utils::deadlock_detection::setup_deadlock_detection;
 use color_eyre::owo_colors::OwoColorize;
 use env_logger::Env;
 use log::{Level, LevelFilter, Record};
@@ -55,4 +56,5 @@ pub fn setup_logger(filter_level: LevelFilter) {
 
 pub fn global_init() {
   color_eyre::install().expect("color_eyre initialization failed");
+  setup_deadlock_detection();
 }

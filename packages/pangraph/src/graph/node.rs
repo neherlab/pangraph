@@ -2,38 +2,23 @@ use crate::graph::edge::GraphEdgeKey;
 use derive_more::Display;
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 use std::hash::Hash;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum NodeType {
-  Root(String),
-  Leaf(String),
-  Internal(String),
+pub trait GraphNode: Clone + Debug + Sync + Send {}
+
+pub trait NodeFromNwk {
+  fn from_nwk(name: String) -> Self;
 }
 
-impl Eq for NodeType {}
+pub trait NodeToNwk {
+  fn to_nwk(&self) -> String;
+}
 
-pub trait Named {
+pub trait GetName {
   fn name(&self) -> &str;
-  fn set_name(&mut self, name: &str);
-}
-
-/// Defines comments to attach to nodes when writing to Newick and Nexus files
-pub trait WithNwkComments {
-  fn nwk_comments(&self) -> BTreeMap<String, String> {
-    BTreeMap::<String, String>::new()
-  }
-}
-
-pub trait GraphNode: Clone + Debug + Display + Sync + Send + Named + WithNwkComments {
-  fn root(name: &str) -> Self;
-  fn internal(name: &str) -> Self;
-  fn leaf(name: &str) -> Self;
-  fn set_node_type(&mut self, node_type: NodeType);
 }
 
 #[derive(Copy, Clone, Debug, Display, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
