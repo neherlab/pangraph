@@ -25,4 +25,15 @@ pub struct PangraphReconstructArgs {
   #[clap(long, short = 'o', default_value = "-")]
   #[clap(value_hint = ValueHint::AnyPath)]
   pub output_fasta: PathBuf,
+
+  /// Path to the FASTA file with sequences to check the reconstructed sequences against. If this argument is provided, then the sequences are not being printed to standard output (stdout) as usual. Instead, if any differences are detected, a diff will be printed between the expected (original) sequence and reconstructed sequence.
+  ///
+  /// Accepts plain or compressed FASTA files. If a compressed fasta file is provided, it will be transparently
+  /// decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file
+  /// extension. If there's multiple input files, then different files can have different compression formats.
+  ///
+  /// Use "-" to read uncompressed FASTA from standard input (stdin).
+  #[clap(long, short = 'f')]
+  #[clap(value_hint = ValueHint::AnyPath)]
+  pub verify: Option<PathBuf>,
 }
