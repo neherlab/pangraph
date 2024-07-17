@@ -4,6 +4,7 @@ use crate::io::json::json_read_file;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_report;
 use crate::pangraph::pangraph::Pangraph;
+use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::pangraph_path::PangraphPath;
 use eyre::Report;
 use itertools::Itertools;
@@ -26,37 +27,36 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
   Ok(())
 }
 
-// Note: this function could belong to the path class.
-fn reconstruct_path_sequence(path: &PangraphPath, graph: &Pangraph) -> Result<String, Report> {
-  // collect here the sequence block by block
-  let mut seq = Vec::new();
+fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<String, Report> {
+  path
+    .nodes
+    .iter()
+    .map(|node_id| reconstruct_block_sequence(graph, *node_id))
+    .collect()
+}
 
-  for node_id in &path.nodes {
-    let node = graph
-      .nodes
-      .get(node_id)
-      .ok_or_else(|| make_internal_report!("Node {node_id} not found in graph"))?;
+fn reconstruct_block_sequence(graph: &Pangraph, node_id: NodeId) -> Result<String, Report> {
+  let node = graph
+    .nodes
+    .get(&node_id)
+    .ok_or_else(|| make_internal_report!("Node {node_id} not found in graph"))?;
 
-    let block_id = node.block_id();
-    let block = graph
-      .blocks
-      .get(&block_id)
-      .ok_or_else(|| make_internal_report!("Block {block_id} not found in graph"))?;
+  let block_id = node.block_id();
+  let block = graph
+    .blocks
+    .get(&block_id)
+    .ok_or_else(|| make_internal_report!("Block {block_id} not found in graph"))?;
 
-    // Get edits and apply them to the consensus sequence
-    let edits = block.alignment(*node_id);
+  // Get edits and apply them to the consensus sequence
+  let edits = block.alignment(node_id);
 
-    let mut s = edits.apply(block.consensus())?;
+  let mut s = edits.apply(block.consensus())?;
 
-    // Reverse-complement if on opposite strand
-    if node.strand().is_reverse() {
-      s = reverse_complement(s)?;
-    }
-
-    seq.push(s);
+  // Reverse-complement if on opposite strand
+  if node.strand().is_reverse() {
+    s = reverse_complement(s)?;
   }
-
-  Ok(seq.join(""))
+  Ok(s)
 }
 
 pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord, Report>> + '_ {
@@ -66,7 +66,7 @@ pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord,
     .sorted_by_key(|(path_id, _)| **path_id)
     .map(|(path_id, path)| {
       let index = path_id.0;
-      let seq = reconstruct_path_sequence(path, graph)?;
+      let seq = reconstruct_path_sequence(graph, path)?;
       let seq_name = path
         .name()
         .clone()
