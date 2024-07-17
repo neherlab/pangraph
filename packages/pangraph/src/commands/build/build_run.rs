@@ -1,5 +1,5 @@
-use crate::align::align_graphs::align_graphs;
 use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::commands::reconstruct::reconstruct_run::{compare_sequences, reconstruct};
 use crate::io::fasta::{read_many_fasta, FastaRecord};
 use crate::io::json::json_write;
 use crate::pangraph::graph_merging::merge_graphs;
@@ -22,9 +22,23 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   // TODO: adjust fasta letter case if `upper_case` is set
   // TODO: check for duplicate fasta names
 
-  let pangraph_json = build(fastas, args)?;
+  let pangraph = if args.verify {
+    let pangraph = build(fastas.clone(), args)?;
+    {
+      let mut results = reconstruct(&pangraph);
+      results.try_for_each(|actual| -> Result<(), Report> {
+        let actual = actual?;
+        let expected = &fastas[actual.index];
+        compare_sequences(expected, &actual);
+        Ok(())
+      })?;
+    }
+    Ok(pangraph)
+  } else {
+    build(fastas, args)
+  }?;
 
-  json_write(&args.output_json, &pangraph_json)?;
+  json_write(&args.output_json, &pangraph)?;
 
   Ok(())
 }

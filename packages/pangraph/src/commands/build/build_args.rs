@@ -73,7 +73,7 @@ pub struct PangraphBuildArgs {
   pub alignment_kernel: AlignmentBackend,
 
   /// Verify that the original sequences can be reconstructed from the resulting pangraph
-  #[clap(long)]
+  #[clap(long, short = 'f')]
   pub verify: bool,
 
   /// Random seed for block id generation
