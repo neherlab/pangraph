@@ -50,7 +50,6 @@ impl MergePromise {
       .for_each(|(node_id, edits)| {
         self.anchor_block.alignment_insert(node_id, edits);
       });
-    self.anchor_block.refresh_id();
     Ok(self.anchor_block.clone())
   }
 }
@@ -78,6 +77,7 @@ impl ToMerge {
 
 fn assign_new_block_ids(mergers: &mut [Alignment]) {
   for a in mergers.iter_mut() {
+    debug_assert!(a.new_block_id.is_none());
     a.new_block_id = Some(BlockId(
       // FIXME: looks like this is trying to calculate its own hash id? It should probably not be done in random places like this.
       id((&a.qry.name, &a.qry.interval, &a.reff.name, &a.reff.interval)),

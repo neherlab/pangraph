@@ -45,10 +45,6 @@ impl PangraphBlock {
     }
   }
 
-  pub fn refresh_id(&mut self) {
-    self.id = id((&self.consensus, &self.alignments));
-  }
-
   pub fn depth(&self) -> usize {
     self.alignments.len()
   }

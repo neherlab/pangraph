@@ -137,7 +137,8 @@ pub fn block_slice(
     node_updates.insert(*old_node_id, new_node.clone());
 
     let new_edits = slice_edits(i, edits, block_L);
-    new_alignment.insert(new_node.id(), new_edits);
+    let ovw = new_alignment.insert(new_node.id(), new_edits);
+    debug_assert!(ovw.is_none()); // new node id is not already in new_alignment
   }
 
   let new_block = PangraphBlock::new(Some(i.new_block_id), new_consensus, new_alignment);

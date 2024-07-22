@@ -57,9 +57,21 @@ pub fn merge_graphs(
 pub fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
   // simply join the two sets of blocks and paths
   Pangraph {
-    blocks: map_merge(&left_graph.blocks, &right_graph.blocks, ConflictResolution::Left),
-    paths: map_merge(&left_graph.paths, &right_graph.paths, ConflictResolution::Left),
-    nodes: map_merge(&left_graph.nodes, &right_graph.nodes, ConflictResolution::Left),
+    blocks: map_merge(
+      &left_graph.blocks,
+      &right_graph.blocks,
+      ConflictResolution::Custom(|(kl, vl), (kr, vr)| panic!("Conflicting key: '{kl}'")),
+    ),
+    paths: map_merge(
+      &left_graph.paths,
+      &right_graph.paths,
+      ConflictResolution::Custom(|(kl, vl), (kr, vr)| panic!("Conflicting key: '{kl}'")),
+    ),
+    nodes: map_merge(
+      &left_graph.nodes,
+      &right_graph.nodes,
+      ConflictResolution::Custom(|(kl, vl), (kr, vr)| panic!("Conflicting key: '{kl}'")),
+    ),
   }
 }
 
@@ -125,7 +137,11 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
     .collect::<BTreeMap<_, _>>();
 
   // add the new blocks to the graph
-  graph.blocks = map_merge(&graph.blocks, &merged_blocks, ConflictResolution::Right);
+  graph.blocks = map_merge(
+    &graph.blocks,
+    &merged_blocks,
+    ConflictResolution::Custom(|(k1, _), (k2, _)| panic!("Conflicting key '{k1}'")),
+  );
 
   // we might need this step for some final updates and consistency checks.
   // TODO: here we could also take care of transitive edges, which is useful

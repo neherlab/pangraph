@@ -77,6 +77,9 @@ impl Pangraph {
 
       let old_idx = path.nodes.iter().position(|node_id| node_id == old_node_id).unwrap();
 
+      // only one such nodes
+      debug_assert!(path.nodes.iter().filter(|node_id| *node_id == old_node_id).count() == 1);
+
       path.nodes.remove(old_idx);
 
       let new_ids: Vec<NodeId> = new_nodes.iter().map(|n| n.id()).collect();
