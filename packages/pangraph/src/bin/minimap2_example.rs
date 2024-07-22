@@ -34,7 +34,7 @@ fn main() -> Result<(), Report> {
     .into_iter()
     .map(|r| r.seq)
     .enumerate()
-    .map(|(i, seq)| PangraphBlock::new(Some(BlockId(i)), seq.replace(['\n', ' '], ""), btreemap! {}))
+    .map(|(i, seq)| PangraphBlock::new(BlockId(i), seq.replace(['\n', ' '], ""), btreemap! {}))
     .map(|block| (block.id(), block))
     .collect();
 

@@ -141,7 +141,7 @@ pub fn block_slice(
     debug_assert!(ovw.is_none()); // new node id is not already in new_alignment
   }
 
-  let new_block = PangraphBlock::new(Some(i.new_block_id), new_consensus, new_alignment);
+  let new_block = PangraphBlock::new(i.new_block_id, new_consensus, new_alignment);
 
   (new_block, node_updates)
 }
@@ -459,7 +459,7 @@ mod tests {
     let p3 = PangraphPath::new(Some(PathId(3)), /*"p3"*/ [NodeId(3), NodeId(6)], 100, true, None);
 
     let b1 = PangraphBlock::new(
-      Some(bid),
+      bid,
       seq,
       btreemap! {
         NodeId(1) => ed1,

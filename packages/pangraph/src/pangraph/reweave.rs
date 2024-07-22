@@ -353,12 +353,12 @@ mod tests {
   #[rustfmt::skip]
   #[test]
   fn test_group_promises() -> Result<(), Report>  {
-    let b1_anchor = PangraphBlock::new(Some(BlockId(1)), "A", btreemap! {} /* {1: None, 2: None, 3: None} */);
-    let b1_append = PangraphBlock::new(Some(BlockId(1)), "B", btreemap! {} /* {4: None, 5: None} */);
-    let b2_anchor = PangraphBlock::new(Some(BlockId(2)), "C", btreemap! {} /* {6: None, 7: None, 8: None} */);
-    let b2_append = PangraphBlock::new(Some(BlockId(2)), "D", btreemap! {} /* {7: None, 8: None} */);
-    let b3_anchor = PangraphBlock::new(Some(BlockId(3)), "E", btreemap! {} /* {11: None, 12: None} */);
-    let b3_append = PangraphBlock::new(Some(BlockId(3)), "F", btreemap! {} /* {13: None} */);
+    let b1_anchor = PangraphBlock::new(BlockId(1), "A", btreemap! {} /* {1: None, 2: None, 3: None} */);
+    let b1_append = PangraphBlock::new(BlockId(1), "B", btreemap! {} /* {4: None, 5: None} */);
+    let b2_anchor = PangraphBlock::new(BlockId(2), "C", btreemap! {} /* {6: None, 7: None, 8: None} */);
+    let b2_append = PangraphBlock::new(BlockId(2), "D", btreemap! {} /* {7: None, 8: None} */);
+    let b3_anchor = PangraphBlock::new(BlockId(3), "E", btreemap! {} /* {11: None, 12: None} */);
+    let b3_append = PangraphBlock::new(BlockId(3), "F", btreemap! {} /* {13: None} */);
 
     let h = &[
       ToMerge::new(b1_anchor.clone(), true, Forward),
@@ -414,10 +414,10 @@ mod tests {
       nids.iter().map(|nid| (NodeId(*nid), Edit::empty())).collect()
     }
 
-    let b1 = PangraphBlock::new(Some(BlockId(1)), "A", e(&[1, 2, 3]));
-    let b2 = PangraphBlock::new(Some(BlockId(2)), "B", e(&[4, 5]));
-    let b3 = PangraphBlock::new(Some(BlockId(3)), "C", e(&[6]));
-    let b4 = PangraphBlock::new(Some(BlockId(4)), "D", e(&[7, 8, 9, 10]));
+    let b1 = PangraphBlock::new(BlockId(1), "A", e(&[1, 2, 3]));
+    let b2 = PangraphBlock::new(BlockId(2), "B", e(&[4, 5]));
+    let b3 = PangraphBlock::new(BlockId(3), "C", e(&[6]));
+    let b4 = PangraphBlock::new(BlockId(4), "D", e(&[7, 8, 9, 10]));
 
     let pangraph = Pangraph {
       blocks: btreemap! {
@@ -509,7 +509,7 @@ mod tests {
       let n3 = PangraphNode::new(Some(nid3), bid, PathId(300), Reverse, (180, 110));
 
       let b1 = PangraphBlock::new(
-        Some(bid),
+        bid,
         consensus,
         btreemap! {
           nid1 => Edit::empty(),
@@ -702,7 +702,7 @@ mod tests {
 
       let b = |bid: usize, nids: &[usize]| -> PangraphBlock {
         PangraphBlock::new(
-          Some(BlockId(bid)),
+          BlockId(bid),
           &bseq[&BlockId(bid)],
           nids
             .iter()

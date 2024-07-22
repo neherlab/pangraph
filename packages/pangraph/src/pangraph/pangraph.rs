@@ -25,7 +25,8 @@ impl Pangraph {
   pub fn singleton(fasta: FastaRecord, strand: Strand, circular: bool) -> Self {
     let tot_len = fasta.seq.len();
     let node_id = NodeId(fasta.index);
-    let block = PangraphBlock::from_consensus(fasta.seq, node_id);
+    let block_id = BlockId(fasta.index);
+    let block = PangraphBlock::from_consensus(fasta.seq, block_id, node_id);
     let path_id = PathId(fasta.index);
     let node = PangraphNode::new(Some(node_id), block.id(), path_id, strand, (0, 0));
     let path = PangraphPath::new(Some(path_id), [node.id()], tot_len, circular, Some(fasta.seq_name));
@@ -142,11 +143,11 @@ mod tests {
     };
 
     let blocks = btreemap! {
-      BlockId(1) => PangraphBlock::new(Some(BlockId(1)), "1",
+      BlockId(1) => PangraphBlock::new(BlockId(1), "1",
         btreemap!{ NodeId(1) => Edit::empty(), NodeId(2) => Edit::empty() }),
-      BlockId(2) => PangraphBlock::new(Some(BlockId(2)), "2",
+      BlockId(2) => PangraphBlock::new(BlockId(2), "2",
         btreemap!{ NodeId(3) => Edit::empty(), NodeId(4) => Edit::empty(), NodeId(5) => Edit::empty() }),
-      BlockId(3) => PangraphBlock::new(Some(BlockId(3)), "3",
+      BlockId(3) => PangraphBlock::new(BlockId(3), "3",
         btreemap!{ NodeId(6) => Edit::empty(), NodeId(7) => Edit::empty(), NodeId(8) => Edit::empty(), }),
     };
 
@@ -172,8 +173,8 @@ mod tests {
     };
 
     let new_blocks = btreemap! {
-      BlockId(4) => PangraphBlock::new(Some(BlockId(4)), "4", btreemap!{}),
-      BlockId(5) => PangraphBlock::new(Some(BlockId(5)), "5", btreemap!{}),
+      BlockId(4) => PangraphBlock::new(BlockId(4), "4", btreemap!{}),
+      BlockId(5) => PangraphBlock::new(BlockId(5), "5", btreemap!{}),
     };
 
     let update = GraphUpdate {
