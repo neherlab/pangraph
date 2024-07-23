@@ -38,7 +38,7 @@ pub fn align_nuc(
   seed_index: &CodonSpacedIndex,
   gap_open_close: &[i32],
   params: &NextalignParams,
-) -> Result<AlignmentOutput<Nuc>, Report> {
+) -> Result<Option<AlignmentOutput<Nuc>>, Report> {
   let qry_len = qry_seq.len();
   let ref_len = ref_seq.len();
   let min_len = params.min_length;
@@ -52,7 +52,7 @@ pub fn align_nuc(
     // for very short sequences, use full square
     let stripes = full_matrix(ref_len, qry_len);
     trace!("When processing sequence #{index} '{seq_name}': In nucleotide alignment: Band construction: short sequences, using full matrix");
-    return Ok(align_pairwise(qry_seq, ref_seq, gap_open_close, params, &stripes));
+    return Ok(Some(align_pairwise(qry_seq, ref_seq, gap_open_close, params, &stripes)));
   }
 
   // otherwise, determine seed matches roughly regularly spaced along the query sequence
@@ -62,6 +62,10 @@ pub fn align_nuc(
     is_reverse_complement,
   } = get_seed_matches_maybe_reverse_complement(qry_seq, ref_seq, seed_index, params)
     .wrap_err("When calculating seed matches")?;
+
+  if seed_matches.is_empty() {
+    return Ok(None);
+  }
 
   let mut terminal_bandwidth = params.terminal_bandwidth as isize;
   let mut excess_bandwidth = params.excess_bandwidth as isize;
@@ -118,5 +122,5 @@ pub fn align_nuc(
     info!("When processing sequence #{index} '{seq_name}': In nucleotide alignment: Succeeded without hitting band boundary on attempt {}. Alignment score was: {}", attempt+1, alignment.alignment_score);
   }
   alignment.is_reverse_complement = is_reverse_complement;
-  Ok(alignment)
+  Ok(Some(alignment))
 }

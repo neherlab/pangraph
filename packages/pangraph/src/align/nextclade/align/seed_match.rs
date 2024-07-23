@@ -11,6 +11,7 @@ use eyre::Report;
 use gcollections::ops::{Intersection, IsEmpty, Union};
 use interval::interval_set::{IntervalSet, ToIntervalSet};
 use itertools::Itertools;
+use log::warn;
 use std::borrow::Cow;
 use std::cmp::{max, min};
 use std::collections::{BTreeMap, VecDeque};
@@ -468,13 +469,14 @@ pub fn get_seed_matches2(
   // write_matches_to_file(&matches, "matches.csv");
 
   if matches.is_empty() {
-    return make_error!(
+    warn!(
       "Unable to align: seed alignment was unable to find any matches that are long enough. \
       Only matches of at least {} nucleotides long are considered \
       (configurable using 'min match length' CLI flag or dataset property). \
       This is likely due to low quality of the provided sequence, or due to using incorrect reference sequence.",
       params.min_match_length
     );
+    return Ok(vec![]);
   }
 
   let seed_matches = chain_seeds(&matches);
@@ -484,13 +486,14 @@ pub fn get_seed_matches2(
   if (sum_of_seed_length as f64 / qry_seq.len() as f64) < params.min_seed_cover {
     let query_knowns = qry_seq.iter().filter(|n| n.is_acgt()).count();
     if (sum_of_seed_length as f64 / query_knowns as f64) < params.min_seed_cover {
-      return make_error!(
+      warn!(
         "Unable to align: seed alignment covers {:.2}% of the query sequence, which is less than expected {:.2}% \
         (configurable using 'min seed cover' CLI flag or dataset property). This is likely due to low quality of the \
         provided sequence, or due to using incorrect reference sequence.",
         100.0 * (sum_of_seed_length as f64) / (query_knowns as f64),
         100.0 * params.min_seed_cover
       );
+      return Ok(vec![]);
     }
   }
 
