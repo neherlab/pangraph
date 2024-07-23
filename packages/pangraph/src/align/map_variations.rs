@@ -9,6 +9,10 @@ pub fn map_variations(ref_seq: impl AsRef<str>, qry_seq: impl AsRef<str>) -> Res
   let params = NextalignParams {
     min_length: 3,
     min_match_length: 3,
+    allowed_mismatches: 16,
+    terminal_bandwidth: 100,
+    excess_bandwidth: 18,
+    max_band_area: 1_000_000_000,
     ..NextalignParams::default()
   };
 
