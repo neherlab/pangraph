@@ -41,7 +41,7 @@ pub fn find_nuc_changes(qry_aln: &[Nuc], ref_aln: &[Nuc]) -> FindNucChangesOutpu
     }
 
     let ref_nuc = ref_aln[i];
-    if !d.is_gap() && (d != ref_nuc) && d.is_acgt() {
+    if !d.is_gap() && (d != ref_nuc) {
       substitutions.push(NucSub {
         ref_nuc,
         pos: i.into(),
