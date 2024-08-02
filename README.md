@@ -40,7 +40,7 @@ blocks and paths can also be accessed with their id:
 p = pan.paths['NZ_CB0023']
 
 # access the block having block-id XIFBDIEN
-b = pan.block['XIFBDIEN']
+b = pan.blocks['XIFBDIEN']
 ```
 
 ### Other pangraph representation
