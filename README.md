@@ -24,8 +24,8 @@ pan = pp.Pangraph.load_json("path/to/pangraph.json")
 Pangraph objects have two main properties: `blocks` and `paths`. One can cycle through blocks and paths simply with:
 
 ```python
-len(pan.pahts) # n. paths, i.e. number of genomes in the pangraph
-for p in pan.pahts:
+len(pan.paths) # n. paths, i.e. number of genomes in the pangraph
+for p in pan.paths:
   print(p)
 
 len(pan.blocks) # n. blocks in the pangraph
