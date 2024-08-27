@@ -1,6 +1,7 @@
 import pypangraph as pp
 import pypangraph.msu as msu
 from collections import defaultdict
+import pytest
 
 
 class TestNode:
@@ -81,6 +82,7 @@ class TestEdge:
         assert e1 == e5
 
 
+@pytest.fixture
 def generate_core_paths():
     A = msu.Node("A", True)
     B = msu.Node("B", True)
@@ -103,8 +105,8 @@ def generate_core_paths():
     return paths, nodes
 
 
-def test_find_mergers():
-    paths, nodes = generate_core_paths()
+def test_find_mergers(generate_core_paths):
+    paths, nodes = generate_core_paths
 
     mg = msu.find_mergers(paths)
     mg_groups = defaultdict(set)
@@ -116,3 +118,15 @@ def test_find_mergers():
     assert {"C", "D"} in sources
     assert {"E", "F", "G"} in sources
     assert {"H"} in sources
+
+
+@pytest.fixture
+def load_graph():
+    return pp.Pangraph.load_json("tests/data/graph_circ.json")
+
+
+def test_msu(load_graph):
+    pan = load_graph
+    MSU_mergers, MSU_paths, MSU_len = msu.minimal_synteny_units(
+        pan, L_thr=50, rotate=True
+    )
