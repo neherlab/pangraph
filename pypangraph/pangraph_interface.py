@@ -3,8 +3,9 @@
 import numpy as np
 import json
 import pandas as pd
+from Bio import SeqRecord, Seq, AlignIO
 
-from collections import Counter
+from collections import Counter, defaultdict
 
 from . import pangraph_utils as pgu
 from . import pangraph_alignments as pga
@@ -53,11 +54,6 @@ class Pangraph:
     def block_ids(self):
         """Returns the list of block ids"""
         return self.blocks.ids_copy()
-
-    # def to_json(self):
-    #     # TODO: implement saving to json format after manipulation.
-    #     # Maintain the same input format
-    #     pass
 
     def to_paths_dict(self):
         """Generates a compressed representation of paths as simply lists of
@@ -112,6 +108,55 @@ class Pangraph:
         of all block ids present in the graph
         """
         return pgu.pangraph_to_networkx(self, only_blocks=only_blocks)
+
+    def core_genome_alignment(self, guide_strain=None):
+        """Returns the core genome aligment, in a biopython alignment object.
+        The order of the blocks is determined by the guide strain, if provided.
+        """
+        strains = self.strains()
+
+        # get core blocks
+        bdf = self.to_blockstats_df()
+        core_blocks = bdf[bdf["core"]].index
+
+        # get order of core blocks in guide strain
+        if guide_strain is None:
+            guide_strain = self.strains()[0]
+        assert (
+            guide_strain in strains
+        ), f"Guide strain {guide_strain} not found in the dataset"
+        guide_path = self.paths[guide_strain]
+        core_blocks = [
+            (bid, strand)
+            for bid, strand in zip(guide_path.block_ids, guide_path.block_strands)
+            if bid in core_blocks
+        ]
+
+        # get alignment
+        alignment = defaultdict(str)
+        for bid, guide_strand in core_blocks:
+            block = self.blocks[bid]
+            seqs, which = block.alignment.generate_alignments()
+            assert set([w[0] for w in which]) == set(
+                strains
+            ), f"error: strain missing in block {block}"
+            for seq, occ in zip(seqs, which):
+                strain, occ_n, strand = occ
+                assert (
+                    occ_n == 1
+                ), f"error in {bid=} | {occ=}, only one occurrence is expected"
+                if not guide_strand:
+                    seq = str(Seq.Seq(seq).reverse_complement())
+                alignment[strain] += seq
+
+        # convert to biopython alignment
+        records = []
+        for strain, seq in alignment.items():
+            record = SeqRecord.SeqRecord(Seq.Seq(seq), id=strain, description="")
+            records.append(record)
+        alignment = AlignIO.MultipleSeqAlignment(records)
+
+        return alignment
 
 
 class IndexedCollection:
@@ -252,6 +297,9 @@ class Block:
     def is_duplicated(self):
         """Check whether a block is duplicated in any strain"""
         return self.depth() > self.frequency()
+
+    def generate_alignment(self):
+        return self.alignment.to_biopython_aln()
 
 
 class Path:

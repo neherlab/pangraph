@@ -101,16 +101,12 @@ bl.is_duplicated() # whether the block is duplicated
 
 #### Block alignment
 
-Each block also has an alignment property, that can be used to reconstruct the block sequences and alignment:
+The alignment for each block can be obtained with:
 ```python
-aln = bl.alignment
-alignment, occurrences = aln.generate_alignments()
+aln = bl.generate_alignment()
 # generate the alignment for the block.
-# returns two objects: the aligned list of sequences
-# and the list of identifiers for the sequences (strain, n. occurrences, dna strand)
-  
-alignment, occurrences = aln.generate_sequences()
-# same as above, but instead of alignments returns the sequences, without gaps.
+# returns a biopython Alignment object, whose entry have id in the form:
+# <block id>|<block occurrence>|<block strandedness>
 ```
 
 ### Path object
@@ -123,7 +119,17 @@ pt.block_nums # ordered list with number of occurrence of each block.
 # (duplicated blocks have occurrence n.1, n.2... on each strain)
 pt.block_strands # ordered list indicating whether each block is on the direct or reverse dna strand
 pt.name # name of the strain/genome
+pt.block_positions # start position of each block in the genome, and end position of the last block
 ```
+
+## Obtaining the core-genome alignment
+
+The full core-genome alignment can be easily constructed from the graph with:
+```python
+core_aln = pan.core_genome_alignment(guide_strain='NZ_CP014647')
+```
+This generates a biopython alignment object, in which core blocks alignment are concatenated in the order and strandedness in which they are found on the guide strain.
+
 
 ## Finding blocks corresponding to locations in the genome
 

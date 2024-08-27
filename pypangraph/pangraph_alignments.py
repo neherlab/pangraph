@@ -3,6 +3,7 @@
 # And the set of SNPs in the columns of the alignment without gaps
 
 import numpy as np
+from Bio import SeqRecord, Seq, AlignIO
 
 
 class pan_alignment:
@@ -38,16 +39,6 @@ class pan_alignment:
         self.ins = ins
         self.dels = dels
         self.pos = pos  # [i:j] as per julia numbering, to python is [i-1:j]
-
-    # def block_depth(self) -> int:
-    #     """How many times the block occurrs (including duplications)"""
-    #     return len(self.occs)
-
-    # def occurrences_index(self):
-    #     """Returns the list of block occurrences as a dictionary
-    #     { strain : [occurrences...] }. The keys are the set of strains
-    #     (strain, occurrence number, )"""
-    #     pass
 
     def block_occurrence_length(self, occ: tuple):
         """Returns the length of a particular block occurrence, inferred from alignment
@@ -113,6 +104,18 @@ class pan_alignment:
         )
 
         return positions, SNPs, which
+
+    def to_biopython_aln(self):
+        """Returns a biopython alignment object for the block"""
+        seqs, which = self.generate_alignments()
+        records = []
+        for seq, occ in zip(seqs, which):
+            block_id, n, strand = occ
+            record = SeqRecord.SeqRecord(
+                Seq.Seq(seq), id=f"{block_id=}|{n=}|{strand=}", description=""
+            )
+            records.append(record)
+        return AlignIO.MultipleSeqAlignment(records)
 
 
 def parse_alignment(pan_block: dict):
@@ -226,7 +229,6 @@ def extract_relevant_SNPs(consensus: str, dels: list, muts: list, which: list):
     for i, wh in enumerate(which):
         mt = muts[wh]
         for pos, nt in mt:
-
             # exclude positions that have gaps
             if pos in forbidden_positions:
                 continue
