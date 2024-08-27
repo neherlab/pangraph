@@ -1,3 +1,5 @@
+[![PyPI version](https://badge.fury.io/py/pypangraph.svg)](https://badge.fury.io/py/pypangraph)
+
 # pypangraph: python utilities to interact with PanGraph's pangenome graphs
 
 This repository contains a collection of utilities to interact with pangrenome graphs produced by [PanGraph](https://github.com/neherlab/pangraph).
