@@ -149,3 +149,42 @@ bl_id, bl_pos, occ = loc.find_position(strain='NZ_CP014647', pos=4231563)
 # Nb: all positions are considered in 1-based indexing. 
 bl_ids, intervals, occs = loc.find_interval(strain='NZ_CP014647', pos_b=5034, pos_e=7028)
 ```
+
+## minimal synteny units
+
+If we strip down paths to just core blocks, Minimal Synteny Units (MSUs) are collections of core blocks that are always found together in the same order in all strains. The function `minimal_synteny_units`
+
+```python
+# find MSUs
+threshold_len = 100 # minimal length of core blocks to consider
+MSU_mergers, MSU_paths, MSU_len = pp.minimal_synteny_units(pan, threshold_len)
+```
+This returns three objects:
+- `MSU_mergers`: a dictionary where keys are core block ids and the values are the ids of the MSU they belong to.
+- `MSU_paths`: a dictionary where keys are path ids and values are paths for each isolate, but whose nodes are MSUs instead of pangraph blocks.
+- `MSU_len`: a list of the lengths of the MSUs, i.e. the sum of length of the core blocks that compose them.
+
+Here is an example visualization of the MSUs:
+```python
+cmap = mpl.colormaps["rainbow"]
+color_generator = (cmap(i / len(MSU_len)) for i in range(len(MSU_len)))
+colors = defaultdict(lambda: next(color_generator))
+
+fig, ax = plt.subplots(figsize=(10, 10))
+
+for i, (iso, path) in enumerate(MSU_paths.items()):
+    for j, node in enumerate(path.nodes):
+        ax.barh(i, 1, left=j, color=colors[node.id])
+        if not node.strand:
+            ax.arrow(
+                j + 1,
+                i,
+                -0.8,
+                0,
+                head_width=1,
+                head_length=0.2,
+                fc="k",
+                ec="k",
+            )
+plt.show()
+```

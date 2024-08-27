@@ -15,3 +15,6 @@ from .pangraph_wrapper import pangraph_command
 
 # log utility
 from .logger import logger
+
+# minimal synteny units
+from .msu import minimal_synteny_units
