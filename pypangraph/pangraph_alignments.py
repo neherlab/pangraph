@@ -110,8 +110,9 @@ class pan_alignment:
         seqs, which = self.generate_alignments()
         records = []
         for seq, occ in zip(seqs, which):
+            block_id, n, strand = occ
             record = SeqRecord.SeqRecord(
-                Seq.Seq(seq), id=f"{occ[0]}|n={occ[1]}", description=""
+                Seq.Seq(seq), id=f"{block_id=}|{n=}|{strand=}", description=""
             )
             records.append(record)
         return AlignIO.MultipleSeqAlignment(records)

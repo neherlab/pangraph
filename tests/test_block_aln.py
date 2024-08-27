@@ -13,7 +13,8 @@ def test_block_alignment(load_graph):
     bdf = pan.to_blockstats_df()
     core_blocks = bdf[bdf["core"]]
     bid = core_blocks.index[1]
-    aln = pan.blocks[bid].get_alignment()
+    block = pan.blocks[bid]
+    aln = block.generate_alignment()
     A = np.array(aln)
     assert A.shape[0] == 15
 

@@ -126,11 +126,15 @@ class Pangraph:
             guide_strain in strains
         ), f"Guide strain {guide_strain} not found in the dataset"
         guide_path = self.paths[guide_strain]
-        core_blocks = [bid for bid in guide_path.block_ids if bid in core_blocks]
+        core_blocks = [
+            (bid, strand)
+            for bid, strand in zip(guide_path.block_ids, guide_path.block_strands)
+            if bid in core_blocks
+        ]
 
         # get alignment
         alignment = defaultdict(str)
-        for bid in core_blocks:
+        for bid, guide_strand in core_blocks:
             block = self.blocks[bid]
             seqs, which = block.alignment.generate_alignments()
             assert set([w[0] for w in which]) == set(
@@ -141,6 +145,8 @@ class Pangraph:
                 assert (
                     occ_n == 1
                 ), f"error in {bid=} | {occ=}, only one occurrence is expected"
+                if not guide_strand:
+                    seq = str(Seq.Seq(seq).reverse_complement())
                 alignment[strain] += seq
 
         # convert to biopython alignment
@@ -292,7 +298,7 @@ class Block:
         """Check whether a block is duplicated in any strain"""
         return self.depth() > self.frequency()
 
-    def get_alignment(self):
+    def generate_alignment(self):
         return self.alignment.to_biopython_aln()
 
 
