@@ -3,3 +3,5 @@ __pycache__/
 /playground
 .pytest_cache/
 /.vscode
+/.pypirc
+/dist

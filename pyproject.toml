@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pypangraph"
+version = "0.1.3"
+authors = [
+  { name="Marco Molari", email="mmolari91@gmail.com" },
+]
+description = "package to manipulate pangenomes produced by PanGraph"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+  "matplotlib",
+  "numpy",
+  "pandas",
+  "biopython",
+  "scipy",
+  "networkx"
+]
+
+[project.urls]
+Homepage = "https://github.com/mmolari/pypangraph"
+Issues = "https://github.com/mmolari/pypangraph/issues"

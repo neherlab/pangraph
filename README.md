@@ -5,7 +5,7 @@ This repository contains a collection of utilities to interact with pangrenome g
 The package can be installed using pip with the command:
 
 ```bash
-pip install git+https://github.com/mmolari/pypangraph
+pip install pypangraph
 ```
 
 Below are some examples showcasing some of the main functions in the package.
