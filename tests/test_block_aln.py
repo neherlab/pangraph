@@ -20,6 +20,7 @@ def test_block_alignment(load_graph):
 
 def test_core_genome_aln(load_graph):
     pan = load_graph
-    aln = pan.core_genome_alignment()
+    guide_strain = pan.strains()[0]
+    aln = pan.core_genome_alignment(guide_strain)
     A = np.array(aln)
     assert A.shape[0] == 15
