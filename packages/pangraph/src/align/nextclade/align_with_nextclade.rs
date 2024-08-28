@@ -61,8 +61,9 @@ pub fn align_with_nextclade(
       }
 
       Ok(AlignWithNextcladeOutput {
-        qry_aln: from_nuc_seq(&stripped.qry_seq),
-        ref_aln: from_nuc_seq(&alignment.ref_seq),
+        qry_aln: from_nuc_seq(&stripped.qry_seq), // returns query with stripped insertions (regions with gap on reference)
+        // so that len(qry_aln) == len(ref_seq)
+        ref_aln: from_nuc_seq(&alignment.ref_seq), // returns reference sequence with all gaps.
         substitutions,
         deletions,
         insertions: stripped.insertions,
@@ -87,25 +88,36 @@ mod tests {
     //                0         1         2         3         4         5         6         7         8         9
     //                0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
     let ref_seq = o!("CTTGGAGGTTCCGTGGCTAGATAACAGAACATTCTTGGAATGCTGATCTTTATAAGCTCATGCGACACTTCGCATGGTGAGCCTTTGT");
-    let qry_seq = o!("CTTGGAGGTTCCGTGGCTATAAAGATAACAGAACATTCTTGGAATGCTGATCAAGCTCATGGGACANNNNNCATGGTGGACAGCCTTTGT");
-    let qry_aln = o!("CTTGGAGGTTCCGTGGCTAGATAACAGAACATTCTTGGAATGCTGATC-----AAGCTCATGGGACANNNNNCATGGTGAGCCTTTGT");
+    let qry_seq = o!("CTTGGAGGTTCCGTGGCTATAAAGATAACAGAACATTCTTGGAATGCTGATCAAGCTCATGGGACANNTCGCATGGTGGACAGCCTTTGT");
     let ref_aln = o!("CTTGGAGGTTCCGTGGCTA----GATAACAGAACATTCTTGGAATGCTGATCTTTATAAGCTCATGCGACACTTCGCATGGTG---AGCCTTTGT");
-
+    let qry_aln = o!("CTTGGAGGTTCCGTGGCTAGATAACAGAACATTCTTGGAATGCTGATC-----AAGCTCATGGGACANNTCGCATGGTGAGCCTTTGT");
     let params = NextalignParams {
       min_length: 3,
       ..NextalignParams::default()
     };
 
-    let actual = align_with_nextclade(ref_seq, qry_seq, &params)?;
+    let actual = align_with_nextclade(ref_seq, qry_seq, &params)?.unwrap();
 
     let expected = AlignWithNextcladeOutput {
       qry_aln,
       ref_aln,
-      substitutions: vec![NucSub {
-        pos: NucRefGlobalPosition::new(62),
-        ref_nuc: Nuc::C,
-        qry_nuc: Nuc::G,
-      }],
+      substitutions: vec![
+        NucSub {
+          pos: NucRefGlobalPosition::new(62),
+          ref_nuc: Nuc::C,
+          qry_nuc: Nuc::G,
+        },
+        NucSub {
+          pos: NucRefGlobalPosition::new(67),
+          ref_nuc: Nuc::C,
+          qry_nuc: Nuc::N,
+        },
+        NucSub {
+          pos: NucRefGlobalPosition::new(68),
+          ref_nuc: Nuc::T,
+          qry_nuc: Nuc::N,
+        },
+      ],
       deletions: vec![NucDelRange::from_usize(48, 53)],
       insertions: vec![
         Insertion {
