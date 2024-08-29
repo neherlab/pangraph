@@ -137,4 +137,128 @@ mod tests {
 
     Ok(())
   }
+
+  #[rstest]
+  fn test_align_with_nextclade_ns_in_ref() -> Result<(), Report> {
+    //       0         1         2         3         4         5
+    //       012345678901234567890123456789012345678901234567890
+    // ref = TGGTGCTGCAGCTTATTATGTGGNNNNNTTTTCTATTAAAATATAATGAAA
+    // qry = TGGTGCTGCAGCTTATTATGTGGAGGACTTTTCTATTAAAATATAATGAAA
+    // sub =                        xxxxx
+
+    let ref_seq = o!("TGGTGCTGCAGCTTATTATGTGGNNNNNTTTTCTATTAAAATATAATGAAA");
+    let qry_seq = o!("TGGTGCTGCAGCTTATTATGTGGAGGACTTTTCTATTAAAATATAATGAAA");
+    let qry_aln = o!("TGGTGCTGCAGCTTATTATGTGGAGGACTTTTCTATTAAAATATAATGAAA");
+    let ref_aln = o!("TGGTGCTGCAGCTTATTATGTGGNNNNNTTTTCTATTAAAATATAATGAAA");
+
+    let params = NextalignParams {
+      min_length: 3,
+      ..NextalignParams::default()
+    };
+
+    let actual = align_with_nextclade(ref_seq, qry_seq, &params)?.unwrap();
+
+    let expected = AlignWithNextcladeOutput {
+      qry_aln,
+      ref_aln,
+      substitutions: vec![
+        NucSub {
+          pos: NucRefGlobalPosition::new(23),
+          ref_nuc: Nuc::N,
+          qry_nuc: Nuc::A,
+        },
+        NucSub {
+          pos: NucRefGlobalPosition::new(24),
+          ref_nuc: Nuc::N,
+          qry_nuc: Nuc::G,
+        },
+        NucSub {
+          pos: NucRefGlobalPosition::new(25),
+          ref_nuc: Nuc::N,
+          qry_nuc: Nuc::G,
+        },
+        NucSub {
+          pos: NucRefGlobalPosition::new(26),
+          ref_nuc: Nuc::N,
+          qry_nuc: Nuc::A,
+        },
+        NucSub {
+          pos: NucRefGlobalPosition::new(27),
+          ref_nuc: Nuc::N,
+          qry_nuc: Nuc::C,
+        },
+      ],
+      deletions: vec![],
+      insertions: vec![],
+      is_reverse_complement: false,
+    };
+
+    assert_eq!(expected, actual);
+
+    Ok(())
+  }
+
+  #[rstest]
+  fn test_align_with_nextclade_edge_case() -> Result<(), Report> {
+    //       0         1         2         3         4         5         6         7         8         9         0
+    //       01234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890
+    // ref = TGGTGCTGCNNNNNATTATGTGGGTTATCTTCAACCTTTTTTTAAAATATAATGAAAATGGAACCATTACAGATGCTNNNNNNNNTGCACTTGACCCTCTC
+    // qry = TGGTGCTGCAGCTTATTATGTGGGTTATCTTCAACCTTTTTTTAAAATATAATGAAAATGGAACCATTACAGATGCTGTAGACTGTGCACTTGACCCTCTC
+    // sub =          xxxxx                                                               xxxxxxxx
+
+    let ref_seq =
+      o!("TGGTGCTGCNNNNNATTATGTGGGTTATCTTCAACCTTTTTTTAAAATATAATGAAAATGGAACCATTACAGATGCTNNNNNNNNTGCACTTGACCCTCTC");
+    let qry_seq =
+      o!("TGGTGCTGCAGCTTATTATGTGGGTTATCTTCAACCTTTTTTTAAAATATAATGAAAATGGAACCATTACAGATGCTGTAGACTGTGCACTTGACCCTCTC");
+
+    let qry_aln =
+      o!("TGGTGCTGCAGCTTATTATGTGGGTTATCTTCAACCTTTTTTTAAAATATAATGAAAATGGAACCATTACAGATGCTGTAGACTGTGCACTTGACCCTCTC");
+    let ref_aln =
+      o!("TGGTGCTGCNNNNNATTATGTGGGTTATCTTCAACCTTTTTTTAAAATATAATGAAAATGGAACCATTACAGATGCTNNNNNNNNTGCACTTGACCCTCTC");
+
+    let params = NextalignParams {
+      min_length: 3,
+      ..NextalignParams::default()
+    };
+
+    let actual = align_with_nextclade(ref_seq, qry_seq, &params)?.unwrap();
+
+    let subs = [
+      (9, Nuc::A),
+      (10, Nuc::G),
+      (11, Nuc::C),
+      (12, Nuc::T),
+      (13, Nuc::T),
+      (77, Nuc::G),
+      (78, Nuc::T),
+      (79, Nuc::A),
+      (80, Nuc::G),
+      (81, Nuc::A),
+      (82, Nuc::C),
+      (83, Nuc::T),
+      (84, Nuc::G),
+    ];
+
+    let subs = subs
+      .iter()
+      .map(|(pos, nuc)| NucSub {
+        pos: NucRefGlobalPosition::new(*pos),
+        ref_nuc: Nuc::N,
+        qry_nuc: *nuc,
+      })
+      .collect();
+
+    let expected = AlignWithNextcladeOutput {
+      qry_aln,
+      ref_aln,
+      substitutions: subs,
+      deletions: vec![],
+      insertions: vec![],
+      is_reverse_complement: false,
+    };
+
+    assert_eq!(expected, actual);
+
+    Ok(())
+  }
 }
