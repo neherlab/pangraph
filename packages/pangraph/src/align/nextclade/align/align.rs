@@ -12,7 +12,7 @@ use crate::align::nextclade::alphabet::letter::Letter;
 use crate::align::nextclade::alphabet::nuc::Nuc;
 use crate::make_error;
 use eyre::{Report, WrapErr};
-use log::{info, trace};
+use log::{info, trace, warn};
 use std::cmp::max;
 
 fn align_pairwise<T: Letter<T>>(
@@ -27,6 +27,60 @@ fn align_pairwise<T: Letter<T>>(
   let ScoreMatrixResult { scores, paths } = score_matrix(qry_seq, ref_seq, gap_open_close, stripes, params);
 
   backtrace(qry_seq, ref_seq, &scores, &paths)
+}
+
+pub fn align_nuc_simplestripe(
+  qry_seq: &[Nuc],
+  ref_seq: &[Nuc],
+  gap_open_close: &[i32],
+  params: &NextalignParams,
+) -> Result<AlignmentOutput<Nuc>, Report> {
+  let qry_len = qry_seq.len();
+  let ref_len = ref_seq.len();
+  let min_len = params.min_length;
+  if qry_len < min_len {
+    return make_error!(
+      "Unable to align: sequence is too short. Details: sequence length: {qry_len}, min length allowed: {min_len}. This is likely due to a low quality of the provided sequence, or due to using incorrect reference sequence."
+    );
+  }
+
+  if ref_len + qry_len < (20 * params.kmer_length) {
+    // for very short sequences, use full square
+    let stripes = full_matrix(ref_len, qry_len);
+    trace!("In nucleotide alignment: Band construction: short sequences, using full matrix");
+    return Ok(align_pairwise(qry_seq, ref_seq, gap_open_close, params, &stripes));
+  }
+
+  // mean shift equal to half difference between ref and query lengths
+  let mean_shift = (ref_len as i32 - qry_len as i32) / 2;
+  // band width equal to 2 times absolute difference + 10
+  let mut band_width = (mean_shift.abs() * 4 + 10) as usize;
+  let mut stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
+
+  let mut attempt = 0;
+  let mut alignment = align_pairwise(&qry_seq, ref_seq, gap_open_close, params, &stripes);
+
+  while alignment.hit_boundary && attempt < params.max_alignment_attempts {
+    info!("In nucleotide alignment: Band boundary is hit on attempt {}. Retrying with relaxed parameters. Alignment score was: {}", attempt+1, alignment.alignment_score);
+    // double bandwidth parameters or increase to one if 0
+    band_width = max(2 * band_width, 1);
+    stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
+    // realign
+    attempt += 1;
+    alignment = align_pairwise(&qry_seq, ref_seq, gap_open_close, params, &stripes);
+  }
+
+  // report success/failure of broadening of band width
+  if alignment.hit_boundary {
+    warn!("In nucleotide alignment: Attempted to relax band parameters {attempt} times, but still hitting the band boundary. Returning last attempt with score: {}", alignment.alignment_score);
+  } else if attempt > 0 {
+    info!(
+      "In nucleotide alignment: Succeeded without hitting band boundary on attempt {}. Alignment score was: {}",
+      attempt + 1,
+      alignment.alignment_score
+    );
+  }
+  Ok(alignment)
 }
 
 /// align nucleotide sequences via seed alignment and banded smith watermann without penalizing terminal gaps
