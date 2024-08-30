@@ -11,32 +11,30 @@ pub fn map_variations(ref_seq: impl AsRef<str>, qry_seq: impl AsRef<str>) -> Res
     ..NextalignParams::default()
   };
 
-  Ok({
-    let AlignWithNextcladeOutput {
-      substitutions,
-      deletions,
-      insertions,
-      ..
-    } = align_with_nextclade(ref_seq, qry_seq, &params)?;
+  let AlignWithNextcladeOutput {
+    substitutions,
+    deletions,
+    insertions,
+    ..
+  } = align_with_nextclade(ref_seq, qry_seq, &params)?;
 
-    let subs = substitutions
-      .iter()
-      .map(|s| Sub::new(s.pos.inner as usize, from_nuc(s.qry_nuc)))
-      .collect_vec();
+  let subs = substitutions
+    .iter()
+    .map(|s| Sub::new(s.pos.inner as usize, from_nuc(s.qry_nuc)))
+    .collect_vec();
 
-    let dels = deletions
-      .iter()
-      .map(|d| Del::new(d.range().begin.inner as usize, d.range().len()))
-      .collect_vec();
+  let dels = deletions
+    .iter()
+    .map(|d| Del::new(d.range().begin.inner as usize, d.range().len()))
+    .collect_vec();
 
-    // pangraph convention: location of insertion is the position *after* the insertion -> increment pos by 1
-    let inss = insertions
-      .iter()
-      .map(|s| Ins::new((s.pos + 1) as usize, from_nuc_seq(&s.ins)))
-      .collect_vec();
+  // pangraph convention: location of insertion is the position *after* the insertion -> increment pos by 1
+  let inss = insertions
+    .iter()
+    .map(|s| Ins::new((s.pos + 1) as usize, from_nuc_seq(&s.ins)))
+    .collect_vec();
 
-    Edit { subs, dels, inss }
-  })
+  Ok(Edit { subs, dels, inss })
 }
 
 #[cfg(test)]
