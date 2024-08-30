@@ -44,13 +44,6 @@ pub fn align_nuc_simplestripe(
     );
   }
 
-  if ref_len + qry_len < (20 * params.kmer_length) {
-    // for very short sequences, use full square
-    let stripes = full_matrix(ref_len, qry_len);
-    trace!("In nucleotide alignment: Band construction: short sequences, using full matrix");
-    return Ok(align_pairwise(qry_seq, ref_seq, gap_open_close, params, &stripes));
-  }
-
   // mean shift equal to half difference between ref and query lengths
   let mean_shift = (ref_len as i32 - qry_len as i32) / 2;
   // band width equal to 2 times absolute difference + 10
