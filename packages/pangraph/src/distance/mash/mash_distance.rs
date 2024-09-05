@@ -126,8 +126,19 @@ mod tests {
   }
 
   #[rstest]
+  fn test_mash_distance_equal() {
+    let graphs = vec![
+      "CATAGAAGCAGTCCCTGAGCACGACGCGTGTAACAATCGTTTTCAGACCTAGGACGTTAGAATATCGATCGCACGCTACGACCGACGATTAGCCGCACGAGCAAGTCGAAAACCCGAGTTAAGAGGCTGGACGTGATCCTAGACTTCGTC",
+      "CATAGAAGCAGTCCCTGAGCACGACGCGTGTAACAATCGTTTTCAGACCTAGGACGTTAGAATATCGATCGCACGCTACGACCGACGATTAGCCGCACGAGCAAGTCGAAAACCCGAGTTAAGAGGCTGGACGTGATCCTAGACTTCGTC",
+    ].into_iter().map(create_fake_graph).collect_vec();
+    let actual = mash_distance(&graphs, &MinimizersParams::default());
+    let expected = array![[0., 0.], [0., 0.],];
+    assert_eq!(actual, expected);
+  }
+
+  #[rstest]
   fn test_mash_distance_one() {
-    let graphs = [create_fake_graph("ATGCATGC")];
+    let graphs = [create_fake_graph("CATAGAAGCAGTCCCTGAGCACGACGCGTGTAACAATCGTTTTCAGACCTA")];
     let actual = mash_distance(&graphs, &MinimizersParams::default());
     let expected = array![[0.0]];
     assert_eq!(actual, expected);
