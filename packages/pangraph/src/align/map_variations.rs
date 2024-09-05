@@ -7,7 +7,7 @@ use itertools::Itertools;
 
 pub fn map_variations(ref_seq: impl AsRef<str>, qry_seq: impl AsRef<str>) -> Result<Edit, Report> {
   let params = NextalignParams {
-    min_length: 3,
+    min_length: 1,
     ..NextalignParams::default()
   };
 

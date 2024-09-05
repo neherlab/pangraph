@@ -2,6 +2,7 @@ use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
 use crate::align::map_variations::map_variations;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_error;
+use crate::pangraph::edits::{Del, Edit, Ins, Sub};
 use crate::pangraph::pangraph::{GraphUpdate, Pangraph};
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_interval::extract_intervals;
@@ -40,20 +41,29 @@ impl MergePromise {
       .map(|(node_id, edits)| {
         let mut seq = edits.apply(self.append_block.consensus())?;
 
-        // debug assert: check that length of sequence is > 0
-        // if not, return an error and print the results for debug
-        debug_assert!(
-          !seq.is_empty(),
-          "Sequence {:?} is empty after applying edits: {:#?}",
-          self.append_block.consensus(),
-          edits
-        );
-
         if !self.orientation.is_forward() {
           seq = reverse_complement(&seq)?;
         };
-        let seq_cpy = seq.clone(); // TODO: for debug check, remove befor merging PR
-        let edits = map_variations(self.anchor_block.consensus(), seq)?;
+
+        // debug assert: check that length of sequence is > 0
+        // if not, return an error and print the results for debug
+        // debug_assert!(
+        //   !seq.is_empty(),
+        //   "Sequence {:?} is empty after applying edits: {:#?}",
+        //   self.append_block.consensus(),
+        //   edits
+        // );
+
+        let seq_cpy = seq.clone(); // TODO: remove check before release
+
+        let edits = match seq.is_empty() {
+          true => Edit {
+            subs: vec![],
+            dels: vec![Del::new(0, self.anchor_block.consensus().len())],
+            inss: vec![],
+          },
+          false => map_variations(self.anchor_block.consensus(), seq)?,
+        };
 
         // check that input and output sequences are the same after edits
         debug_assert!(
