@@ -56,13 +56,14 @@ impl MergePromise {
 
         // let seq_cpy = seq.clone(); // TODO: remove check before release
 
-        let edits = match seq.is_empty() {
-          true => Edit {
+        let edits = if seq.is_empty() {
+          Edit {
             subs: vec![],
             dels: vec![Del::new(0, self.anchor_block.consensus().len())],
             inss: vec![],
-          },
-          false => map_variations(self.anchor_block.consensus(), seq)?,
+          }
+        } else {
+          map_variations(self.anchor_block.consensus(), seq)?
         };
 
         // check that input and output sequences are the same after edits
@@ -410,7 +411,7 @@ mod tests {
         MergePromise::new(b3_anchor, b3_append, Reverse),
       ]
     );
-    
+
     Ok(())
   }
 
