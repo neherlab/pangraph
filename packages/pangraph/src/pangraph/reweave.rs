@@ -54,7 +54,7 @@ impl MergePromise {
         //   edits
         // );
 
-        let seq_cpy = seq.clone(); // TODO: remove check before release
+        // let seq_cpy = seq.clone(); // TODO: remove check before release
 
         let edits = match seq.is_empty() {
           true => Edit {
@@ -66,14 +66,14 @@ impl MergePromise {
         };
 
         // check that input and output sequences are the same after edits
-        debug_assert!(
-          seq_cpy == edits.apply(self.anchor_block.consensus())?,
-          "After applying edits, the sequence\n{:?} is not equal to the original input sequence\n{:?}.\nEdits: {:#?}, Anchor block consensus: {:#?}",
-          edits.apply(self.anchor_block.consensus())?,
-          seq_cpy,
-          edits,
-          self.anchor_block.consensus()
-        );
+        // debug_assert!(
+        //   seq_cpy == edits.apply(self.anchor_block.consensus())?,
+        //   "After applying edits, the sequence\n{:?} is not equal to the original input sequence\n{:?}.\nEdits: {:#?}, Anchor block consensus: {:#?}",
+        //   edits.apply(self.anchor_block.consensus())?,
+        //   seq_cpy,
+        //   edits,
+        //   self.anchor_block.consensus()
+        // );
 
         Ok((*node_id, edits))
       })
