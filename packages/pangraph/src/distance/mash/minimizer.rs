@@ -218,6 +218,6 @@ mod tests {
   #[rstest]
   fn test_minimizers_sketch_empty() {
     let actual = minimizers_sketch("", 0, &MinimizersParams::default());
-    assert!(actual.is_err());
+    actual.unwrap_err();
   }
 }

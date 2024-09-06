@@ -51,7 +51,7 @@ pub fn align_nuc_simplestripe(
   let mut stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
 
   let mut attempt = 0;
-  let mut alignment = align_pairwise(&qry_seq, ref_seq, gap_open_close, params, &stripes);
+  let mut alignment = align_pairwise(qry_seq, ref_seq, gap_open_close, params, &stripes);
 
   while alignment.hit_boundary && attempt < params.max_alignment_attempts {
     info!("In nucleotide alignment: Band boundary is hit on attempt {}. Retrying with relaxed parameters. Alignment score was: {}", attempt+1, alignment.alignment_score);
@@ -60,7 +60,7 @@ pub fn align_nuc_simplestripe(
     stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
     // realign
     attempt += 1;
-    alignment = align_pairwise(&qry_seq, ref_seq, gap_open_close, params, &stripes);
+    alignment = align_pairwise(qry_seq, ref_seq, gap_open_close, params, &stripes);
   }
 
   // report success/failure of broadening of band width

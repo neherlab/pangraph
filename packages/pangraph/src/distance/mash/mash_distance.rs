@@ -52,8 +52,7 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<f
   for i in 0..n {
     assert!(
       distance[(i, i)] > 0.,
-      "no self-hit found for sequence {}. This will make neighbor joining fail",
-      i
+      "no self-hit found for sequence {i}. This will make neighbor joining fail"
     );
 
     for j in (i + 1)..n {
