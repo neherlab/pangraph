@@ -1,5 +1,6 @@
 use crate::distance::mash::hash::hash;
 use crate::utils::number_min_max::IsMinMaxValueOfType;
+use eyre::Report;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 
@@ -44,7 +45,7 @@ impl Minimizer {
 ///  - `w` sets the number of contiguous k-mers that will be used in the window minimizer comparison.
 ///  - `id` is a unique integer that corresponds to the sequence. It will be bit-packed into the minimizer position.
 #[allow(clippy::needless_range_loop)]
-pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParams) -> Vec<Minimizer> {
+pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParams) -> Result<Vec<Minimizer>, Report> {
   let MinimizersParams { k, w } = params;
 
   assert!(k < &32);
@@ -151,7 +152,16 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
     minimizer.push(min);
   }
 
-  minimizer
+  if minimizer.is_empty() {
+    Err(eyre::eyre!(
+      "No minimizers found for seq. id: {}\nparams: {:?}\nseq: {}",
+      id,
+      params,
+      seq.as_ref()
+    ))
+  } else {
+    Ok(minimizer)
+  }
 }
 
 #[rustfmt::skip]
@@ -176,6 +186,8 @@ const MAP: [u64; 256] = [
 
 #[cfg(test)]
 mod tests {
+  use crate::utils::assert;
+
   use super::*;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
@@ -184,7 +196,7 @@ mod tests {
   fn test_minimizers_sketch_general_case() {
     let params = MinimizersParams { w: 16, k: 8 };
     let seq = "CGATCCTTCGGGAACGTGTGACGCGAAGGTGCATGGGAGATCTCGCATTGCTGTTCTGGACGACGCGAAGAGTACTGCTACTTTCATGTCGCCTACGCCT";
-    let actual = minimizers_sketch(seq, 1, &params);
+    let actual = minimizers_sketch(seq, 1, &params).unwrap();
     let expected = vec![
       (9685, 4294967328),
       (7669, 4294967355),
@@ -206,6 +218,6 @@ mod tests {
   #[rstest]
   fn test_minimizers_sketch_empty() {
     let actual = minimizers_sketch("", 0, &MinimizersParams::default());
-    assert_eq!(actual, vec![]);
+    assert!(actual.is_err());
   }
 }
