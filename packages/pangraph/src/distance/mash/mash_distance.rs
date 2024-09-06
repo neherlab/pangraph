@@ -16,7 +16,10 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<f
 
   let minimizers = sequences
     .enumerate()
-    .flat_map(|(i, seq)| minimizers_sketch(seq, i as u64, params))
+    .flat_map(|(i, seq)| {
+      minimizers_sketch(seq, i as u64, params)
+        .expect("no minimizer found for a sequence during mash distance evaluation")
+    })
     .sorted_by_key(|minimizer| minimizer.value)
     .collect_vec();
 
@@ -47,6 +50,12 @@ pub fn mash_distance(graphs: &[Pangraph], params: &MinimizersParams) -> Array2<f
   }
 
   for i in 0..n {
+    assert!(
+      distance[(i, i)] > 0.,
+      "no self-hit found for sequence {}. This will make neighbor joining fail",
+      i
+    );
+
     for j in (i + 1)..n {
       distance[(i, j)] = 1.0 - distance[(i, j)] / distance[(i, i)];
       distance[(j, i)] = distance[(i, j)];
