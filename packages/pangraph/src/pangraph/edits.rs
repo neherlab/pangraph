@@ -68,6 +68,15 @@ impl Edit {
     Self::default()
   }
 
+  /// Construct edit which consists of a deletion of length `len`
+  pub fn deleted(len: usize) -> Self {
+    Self {
+      subs: vec![],
+      dels: vec![Del::new(0, len)],
+      inss: vec![],
+    }
+  }
+
   pub fn new(inss: impl Into<Vec<Ins>>, dels: impl Into<Vec<Del>>, subs: impl Into<Vec<Sub>>) -> Self {
     Self {
       subs: subs.into(),

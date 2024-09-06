@@ -57,11 +57,7 @@ impl MergePromise {
         // let seq_cpy = seq.clone(); // TODO: remove check before release
 
         let edits = if seq.is_empty() {
-          Edit {
-            subs: vec![],
-            dels: vec![Del::new(0, self.anchor_block.consensus().len())],
-            inss: vec![],
-          }
+          Edit::deleted(self.anchor_block.consensus().len())
         } else {
           map_variations(self.anchor_block.consensus(), seq)?
         };
