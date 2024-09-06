@@ -14,7 +14,10 @@ pub struct CsvStructWriter<W: Write + Send> {
 
 impl<W: Write + Send> CsvStructWriter<W> {
   pub fn new(writer: W, delimiter: u8) -> Result<Self, Report> {
-    let writer = CsvWriterBuilder::new().delimiter(delimiter).has_headers(false).from_writer(writer);
+    let writer = CsvWriterBuilder::new()
+      .delimiter(delimiter)
+      .has_headers(false)
+      .from_writer(writer);
     Ok(Self { writer })
   }
 

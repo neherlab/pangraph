@@ -262,111 +262,32 @@ where
   }
 }
 
-
-#[derive(
-  Clone,
-  Copy,
-  Debug,
-  DeriveDisplay,
-  Default,
-  Eq,
-  PartialEq,
-  Ord,
-  PartialOrd,
-  Hash,
-  Serialize,
-  Deserialize,
-)]
+#[derive(Clone, Copy, Debug, DeriveDisplay, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct AlignmentCoords;
 impl PositionLikeAttrs for AlignmentCoords {}
 impl CoordsMarker for AlignmentCoords {}
 
-#[derive(
-  Clone,
-  Copy,
-  Debug,
-  DeriveDisplay,
-  Default,
-  Eq,
-  PartialEq,
-  Ord,
-  PartialOrd,
-  Hash,
-  Serialize,
-  Deserialize,
-)]
+#[derive(Clone, Copy, Debug, DeriveDisplay, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct ReferenceCoords;
 impl PositionLikeAttrs for ReferenceCoords {}
 impl CoordsMarker for ReferenceCoords {}
 
-#[derive(
-  Clone,
-  Copy,
-  Debug,
-  DeriveDisplay,
-  Default,
-  Eq,
-  PartialEq,
-  Ord,
-  PartialOrd,
-  Hash,
-  Serialize,
-  Deserialize,
-)]
+#[derive(Clone, Copy, Debug, DeriveDisplay, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct LocalSpace;
 impl PositionLikeAttrs for LocalSpace {}
 impl SpaceMarker for LocalSpace {}
 
-#[derive(
-  Clone,
-  Copy,
-  Debug,
-  DeriveDisplay,
-  Default,
-  Eq,
-  PartialEq,
-  Ord,
-  PartialOrd,
-  Hash,
-  Serialize,
-  Deserialize,
-)]
+#[derive(Clone, Copy, Debug, DeriveDisplay, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct GlobalSpace;
 impl PositionLikeAttrs for GlobalSpace {}
 impl SpaceMarker for GlobalSpace {}
 
-#[derive(
-  Clone,
-  Copy,
-  Debug,
-  DeriveDisplay,
-  Default,
-  Eq,
-  PartialEq,
-  Ord,
-  PartialOrd,
-  Hash,
-  Serialize,
-  Deserialize,
-)]
+#[derive(Clone, Copy, Debug, DeriveDisplay, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct NucSpace;
 impl PositionLikeAttrs for NucSpace {}
 impl SeqTypeMarker for NucSpace {}
 
-#[derive(
-  Clone,
-  Copy,
-  Debug,
-  DeriveDisplay,
-  Default,
-  Eq,
-  PartialEq,
-  Ord,
-  PartialOrd,
-  Hash,
-  Serialize,
-  Deserialize,
-)]
+#[derive(Clone, Copy, Debug, DeriveDisplay, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub struct AaSpace;
 impl PositionLikeAttrs for AaSpace {}
 impl SeqTypeMarker for AaSpace {}
