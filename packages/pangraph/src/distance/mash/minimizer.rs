@@ -1,4 +1,5 @@
 use crate::distance::mash::hash::hash;
+use crate::make_internal_error;
 use crate::utils::number_min_max::IsMinMaxValueOfType;
 use eyre::Report;
 use serde::{Deserialize, Serialize};
@@ -46,6 +47,7 @@ impl Minimizer {
 ///  - `id` is a unique integer that corresponds to the sequence. It will be bit-packed into the minimizer position.
 #[allow(clippy::needless_range_loop)]
 pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParams) -> Result<Vec<Minimizer>, Report> {
+  let seq = seq.as_ref();
   let MinimizersParams { k, w } = params;
 
   assert!(k < &32);
@@ -65,7 +67,7 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
   let mut bi: usize = 0;
   let mut mi: usize = 0;
 
-  for (locus, nuc) in seq.as_ref().chars().enumerate() {
+  for (locus, nuc) in seq.chars().enumerate() {
     let locus = (locus as u64) + 1;
     let c = MAP[nuc as usize];
 
@@ -153,12 +155,7 @@ pub fn minimizers_sketch(seq: impl AsRef<str>, id: u64, params: &MinimizersParam
   }
 
   if minimizer.is_empty() {
-    Err(eyre::eyre!(
-      "No minimizers found for seq. id: {}\nparams: {:?}\nseq: {}",
-      id,
-      params,
-      seq.as_ref()
-    ))
+    make_internal_error!("No minimizers found for seq. id: {id}\nparams: {params:?}\nseq: {seq}")
   } else {
     Ok(minimizer)
   }
