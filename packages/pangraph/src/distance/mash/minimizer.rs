@@ -183,8 +183,6 @@ const MAP: [u64; 256] = [
 
 #[cfg(test)]
 mod tests {
-  use crate::utils::assert;
-
   use super::*;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
@@ -214,7 +212,10 @@ mod tests {
 
   #[rstest]
   fn test_minimizers_sketch_empty() {
-    let actual = minimizers_sketch("", 0, &MinimizersParams::default());
-    actual.unwrap_err();
+    let actual = minimizers_sketch("", 0, &MinimizersParams::default())
+      .unwrap_err()
+      .to_string();
+    let expected = "No minimizers found for seq. id: 0\nparams: MinimizersParams { k: 15, w: 100 }\nseq: . This is an internal error. Please report it to developers.";
+    assert_eq!(expected, actual);
   }
 }
