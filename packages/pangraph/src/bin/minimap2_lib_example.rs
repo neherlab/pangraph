@@ -29,15 +29,6 @@ fn main() -> Result<(), Report> {
   let args = minimap2_from_clap(&cli);
   let idx = Minimap2Index::new(&seqs, &names, &args)?;
 
-  // FIXME: output actual PAF
-  // let output_paf = create_file_or_stdout(&cli.output_paf)?;
-  // let mut csv = CsvStructWriter::new(output_paf, b'\t')?;
-  // izip!(seqs, names).try_for_each(move |(seq, name)| -> Result<(), Report> {
-  //   let result = mapper.run_map(&seq, &name)?;
-  //   result.pafs.iter().try_for_each(|paf| csv.write(paf))?;
-  //   Ok(())
-  // })?;
-
   let results: Vec<Minimap2Result> = izip!(seqs, names)
     .par_bridge()
     .map_init(
@@ -53,16 +44,6 @@ fn main() -> Result<(), Report> {
   // Outputs PAF-like JSON
   let pafs = results.iter().flat_map(|result| &result.pafs).collect_vec();
   json_write(&cli.output_paf, &pafs)?;
-
-  // // Outputs alignment JSON
-  // let alns = results
-  //   .into_iter()
-  //   .map(Alignment::from_minimap_paf_obj)
-  //   .collect::<Result<Vec<Vec<_>>, Report>>()?
-  //   .into_iter()
-  //   .flatten()
-  //   .collect_vec();
-  // json_write(&cli.output_aln, &alns)?;
 
   Ok(())
 }

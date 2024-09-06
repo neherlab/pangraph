@@ -45,32 +45,11 @@ impl MergePromise {
           seq = reverse_complement(&seq)?;
         };
 
-        // debug assert: check that length of sequence is > 0
-        // if not, return an error and print the results for debug
-        // debug_assert!(
-        //   !seq.is_empty(),
-        //   "Sequence {:?} is empty after applying edits: {:#?}",
-        //   self.append_block.consensus(),
-        //   edits
-        // );
-
-        // let seq_cpy = seq.clone(); // TODO: remove check before release
-
         let edits = if seq.is_empty() {
           Edit::deleted(self.anchor_block.consensus().len())
         } else {
           map_variations(self.anchor_block.consensus(), seq)?
         };
-
-        // check that input and output sequences are the same after edits
-        // debug_assert!(
-        //   seq_cpy == edits.apply(self.anchor_block.consensus())?,
-        //   "After applying edits, the sequence\n{:?} is not equal to the original input sequence\n{:?}.\nEdits: {:#?}, Anchor block consensus: {:#?}",
-        //   edits.apply(self.anchor_block.consensus())?,
-        //   seq_cpy,
-        //   edits,
-        //   self.anchor_block.consensus()
-        // );
 
         Ok((*node_id, edits))
       })
