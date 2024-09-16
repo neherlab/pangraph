@@ -1,5 +1,13 @@
 from dataclasses import dataclass, field
 from collections import defaultdict
+from Bio import Seq
+
+
+def reverse_complement(seq: str) -> str:
+    """
+    Reverse complement a DNA sequence
+    """
+    return str(Seq.Seq(seq).reverse_complement())
 
 
 @dataclass
@@ -29,11 +37,23 @@ class Insertion:
     pos: int
     ins: str
 
+    def reverse_complement(self, L) -> "Insertion":
+        return Insertion(L - self.pos, reverse_complement(self.ins))
+
+    def shift(self, shift: int) -> "Insertion":
+        return Insertion(self.pos + shift, self.ins)
+
 
 @dataclass
 class Deletion:
     pos: int
     length: int
+
+    def reverse_complement(self, L) -> "Deletion":
+        return Deletion(L - self.pos - self.length, self.length)
+
+    def shift(self, shift: int) -> "Deletion":
+        return Deletion(self.pos + shift, self.length)
 
 
 @dataclass
@@ -41,12 +61,39 @@ class Substitution:
     pos: int
     alt: str
 
+    def reverse_complement(self, L) -> "Substitution":
+        return Substitution(L - self.pos - 1, reverse_complement(self.alt))
+
+    def shift(self, shift: int) -> "Substitution":
+        return Substitution(self.pos + shift, self.alt)
+
 
 @dataclass
 class Edit:
     ins: list[Insertion] = field(default_factory=list)
     dels: list[Deletion] = field(default_factory=list)
     subs: list[Substitution] = field(default_factory=list)
+
+    def reverse_complement(self, L) -> "Edit":
+        return Edit(
+            ins=[i.reverse_complement(L) for i in self.ins],
+            dels=[d.reverse_complement(L) for d in self.dels],
+            subs=[s.reverse_complement(L) for s in self.subs],
+        )
+
+    def shift(self, shift: int) -> "Edit":
+        return Edit(
+            ins=[i.shift(shift) for i in self.ins],
+            dels=[d.shift(shift) for d in self.dels],
+            subs=[s.shift(shift) for s in self.subs],
+        )
+
+    def concat(self, other: "Edit") -> "Edit":
+        return Edit(
+            ins=self.ins + other.ins,
+            dels=self.dels + other.dels,
+            subs=self.subs + other.subs,
+        )
 
 
 def apply_edits_to_ref(edits: Edit, ref: str) -> str:
@@ -67,14 +114,6 @@ def apply_edits_to_ref(edits: Edit, ref: str) -> str:
     return "".join(qry)
 
 
-def reverse_complement(seq: str) -> str:
-    """
-    Reverse complement a DNA sequence
-    """
-    complement = {"A": "T", "C": "G", "G": "C", "T": "A"}
-    return "".join(complement[base] for base in reversed(seq))
-
-
 @dataclass
 class Block:
     id: int  # block id
@@ -86,6 +125,13 @@ class Block:
 
     def consensus_len(self) -> int:
         return len(self.consensus)
+
+    def reverse_complement(self) -> "Block":
+        """Returns a new block with the reverse complement of the consensus and alignment."""
+        rev_cons = reverse_complement(self.consensus)
+        L = self.consensus_len()
+        rev_aln = {nid: e.reverse_complement(L) for nid, e in self.alignment.items()}
+        return Block(self.id, rev_cons, rev_aln)
 
 
 @dataclass

@@ -1,63 +1,7 @@
-from collections import defaultdict, Counter
-from dataclasses import dataclass
-from utils import Node, Path, Pangraph, Block
-
-
-@dataclass
-class SimpleNode:
-    bid: int  # block id
-    strand: bool  # strand
-
-    def __invert__(self) -> "SimpleNode":
-        return SimpleNode(self.bid, not self.strand)
-
-    def __eq__(self, other: object) -> bool:
-        return self.bid == other.bid and self.strand == other.strand
-
-    def __hash__(self) -> int:
-        return hash((self.bid, self.strand))
-
-    def __repr__(self) -> str:
-        s = "+" if self.strand else "-"
-        return f"({self.bid}{s})"
-
-
-@dataclass
-class Edge:
-    n1: SimpleNode
-    n2: SimpleNode
-
-    def __invert__(self) -> "Edge":
-        return Edge(~self.n2, ~self.n1)
-
-    def oriented_equal(self, other: "Edge") -> bool:
-        return self.n1 == other.n1 and self.n2 == other.n2
-
-    def __eq__(self, other: object) -> bool:
-        return self.oriented_equal(other) or self.oriented_equal(~other)
-
-    def side_hash(self) -> int:
-        return hash((self.n1, self.n2))
-
-    def __hash__(self) -> int:
-        return self.side_hash() ^ (~self).side_hash()
-
-    def __repr__(self) -> str:
-        return f"[{self.n1}|{self.n2}]"
-
-
-@dataclass
-class SimplePath:
-    nodes: list[SimpleNode]
-    circular: bool
-
-    def to_edges(self) -> list[Edge]:
-        edges = [
-            Edge(self.nodes[i], self.nodes[i + 1]) for i in range(len(self.nodes) - 1)
-        ]
-        if self.circular:
-            edges.append(Edge(self.nodes[-1], self.nodes[0]))
-        return edges
+from collections import Counter
+from utils import Pangraph
+from merge_blocks import merge_blocks
+from circularize_utils import Edge, SimpleNode, SimplePath
 
 
 def block_depths(graph: Pangraph) -> dict[int, int]:
@@ -96,7 +40,8 @@ def edges_count(graph: Pangraph) -> dict[Edge, int]:
 
 def transitive_edges(graph: Pangraph) -> list[Edge]:
     """
-    Returns a list of transitive edges in the graph.
+    Returns a list of transitive edges between two different blocks in the graph
+    (no self-loops).
     """
     n_blocks = block_depths(graph)
     n_edges = edges_count(graph)
@@ -104,6 +49,16 @@ def transitive_edges(graph: Pangraph) -> list[Edge]:
     for edge, ct in n_edges.items():
         bid1 = edge.n1.bid
         bid2 = edge.n2.bid
-        if n_blocks[bid1] == n_blocks[bid2] == ct:
+        if n_blocks[bid1] == n_blocks[bid2] == ct and bid1 != bid2:
             transitive_edges.append(edge)
     return transitive_edges
+
+
+def remove_transitive_edges(graph: Pangraph) -> Pangraph:
+    """
+    Removes transitive edges from the graph inplace.
+    """
+    # TODO: can be improved: if transitive edges are between separate nodes,
+    # no need to recalculate the list of transitive edges every time
+    while len(t_edges := transitive_edges(graph)) > 0:
+        merge_blocks(graph, t_edges[0])
