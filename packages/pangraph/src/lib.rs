@@ -1,4 +1,5 @@
 pub mod align;
+pub mod circularize;
 pub mod commands;
 pub mod distance;
 pub mod io;
