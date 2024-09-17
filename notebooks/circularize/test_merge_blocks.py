@@ -1,5 +1,6 @@
 from utils import Block, Node, Path, Pangraph, Edit, Substitution, Insertion, Deletion
 from circularize_utils import SimpleNode, Edge
+from circularize import remove_transitive_edges
 from merge_blocks import merge_blocks, find_node_pairings, concatenate_alignments
 import pytest
 
@@ -189,11 +190,11 @@ def test_concatenate_blocks(graph_A, block_1, block_2, expected_concat):
 
 @pytest.fixture
 def expected_graph(expected_concat):
-    #      (0|------------|61)     (61|0)
-    # p1) (b1+|-----------|n4) -> (b3+|n7)  l=80
+    #       (0|-----------|61)     (61|0)
+    # p1) (b1+|-----------|n1) -> (b3+|n7)  l=80
     #      (10|-----------|72)     (72|10)
-    # p2) (b1+|-----------|n5) -> (b3+|n8)  l=83
-    #      (40|------------|40)
+    # p2) (b1+|-----------|n2) -> (b3+|n8)  l=83
+    #      (40|-----------|40)
     # p3) (b1-|-----------|n3)              l=67
     blocks = {
         1: expected_concat,
@@ -242,6 +243,13 @@ def test_merge_blocks(graph_A, expected_graph):
     n2 = SimpleNode(2, False)
     edge = Edge(n1, n2)
     merge_blocks(graph_A, edge)
+    assert graph_A.nodes == expected_graph.nodes
+    assert graph_A.blocks == expected_graph.blocks
+    assert graph_A.paths == expected_graph.paths
+
+
+def test_remove_transitive_edges(graph_A, expected_graph):
+    remove_transitive_edges(graph_A)
     assert graph_A.nodes == expected_graph.nodes
     assert graph_A.blocks == expected_graph.blocks
     assert graph_A.paths == expected_graph.paths

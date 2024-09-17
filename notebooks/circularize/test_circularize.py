@@ -6,7 +6,6 @@ from circularize import (
     SimpleNode,
     block_depths,
     edges_count,
-    graph_to_simplepaths,
     transitive_edges,
 )
 

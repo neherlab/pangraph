@@ -58,7 +58,5 @@ def remove_transitive_edges(graph: Pangraph) -> Pangraph:
     """
     Removes transitive edges from the graph inplace.
     """
-    # TODO: can be improved: if transitive edges are between separate nodes,
-    # no need to recalculate the list of transitive edges every time
     while len(t_edges := transitive_edges(graph)) > 0:
         merge_blocks(graph, t_edges[0])
