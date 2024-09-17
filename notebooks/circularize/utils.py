@@ -1,13 +1,11 @@
 from dataclasses import dataclass, field
 from collections import defaultdict
-from Bio import Seq
+from Bio.Seq import Seq
 
 
 def reverse_complement(seq: str) -> str:
-    """
-    Reverse complement a DNA sequence
-    """
-    return str(Seq.Seq(seq).reverse_complement())
+    """Reverse complements a DNA sequence"""
+    return str(Seq(seq).reverse_complement())
 
 
 @dataclass

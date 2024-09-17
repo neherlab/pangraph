@@ -91,7 +91,7 @@ def test_find_node_pairings_A(graph_A):
     n1 = SimpleNode(1, True)
     n2 = SimpleNode(2, False)
     edge = Edge(n1, n2)
-    pairings = find_node_pairings(graph_A, edge)
+    pairings, new_nodes = find_node_pairings(graph_A, edge)
     assert pairings == {1: 4, 2: 5, 3: 6, 4: 1, 5: 2, 6: 3}
 
 
@@ -174,10 +174,74 @@ def expected_concat():
     )
 
 
-def test_merge_blocks(graph_A, block_1, block_2, expected_concat):
+def test_concatenate_blocks(graph_A, block_1, block_2, expected_concat):
     n1 = SimpleNode(1, True)
     n2 = SimpleNode(2, False)
     edge = Edge(n1, n2)
-    pairings = find_node_pairings(graph_A, edge)
-    block = concatenate_alignments(block_1, block_2.reverse_complement(), pairings)
+    pairings, new_nodes = find_node_pairings(graph_A, edge)
+    new_nodes_ids = {1: 1, 2: 2, 3: 3, 4: 1, 5: 2, 6: 3}
+    new_block_id = 1
+    block = concatenate_alignments(
+        block_1, block_2.reverse_complement(), pairings, new_nodes_ids, new_block_id
+    )
     assert block == expected_concat
+
+
+@pytest.fixture
+def expected_graph(expected_concat):
+    #      (0|------------|61)     (61|0)
+    # p1) (b1+|-----------|n4) -> (b3+|n7)  l=80
+    #      (10|-----------|72)     (72|10)
+    # p2) (b1+|-----------|n5) -> (b3+|n8)  l=83
+    #      (40|------------|40)
+    # p3) (b1-|-----------|n3)              l=67
+    blocks = {
+        1: expected_concat,
+        3: Block(
+            id=3,
+            consensus="CTATTACTAGGGGGACCACTA",
+            alignment={
+                7: Edit(ins=[], subs=[], dels=[Deletion(15, 2)]),
+                8: Edit(ins=[], subs=[Substitution(3, "C")], dels=[]),
+            },
+        ),
+    }
+    nodes = {
+        1: Node(id=1, block_id=1, path_id=1, position=(0, 61), strandedness=True),
+        2: Node(id=2, block_id=1, path_id=2, position=(10, 72), strandedness=True),
+        3: Node(id=3, block_id=1, path_id=3, position=(40, 40), strandedness=False),
+        7: Node(id=7, block_id=3, path_id=1, position=(61, 0), strandedness=True),
+        8: Node(id=8, block_id=3, path_id=2, position=(72, 10), strandedness=True),
+    }
+
+    # new node ids
+    new_ids = {}
+    for nids in [1, 2, 3]:
+        n = nodes[nids]
+        n.id = n.calculate_id()
+        del nodes[nids]
+        nodes[n.id] = n
+        new_ids[nids] = n.id
+
+    # new node ids in block 1 edits
+    for nid in [1, 2, 3]:
+        aln = blocks[1].alignment[nid]
+        blocks[1].alignment[new_ids[nid]] = aln
+        del blocks[1].alignment[nid]
+
+    paths = {
+        1: Path(id=1, nodes=[new_ids[1], 7], L=80, circular=True),
+        2: Path(id=2, nodes=[new_ids[2], 8], L=83, circular=True),
+        3: Path(id=3, nodes=[new_ids[3]], L=67, circular=True),
+    }
+    return Pangraph(paths=paths, blocks=blocks, nodes=nodes)
+
+
+def test_merge_blocks(graph_A, expected_graph):
+    n1 = SimpleNode(1, True)
+    n2 = SimpleNode(2, False)
+    edge = Edge(n1, n2)
+    merge_blocks(graph_A, edge)
+    assert graph_A.nodes == expected_graph.nodes
+    assert graph_A.blocks == expected_graph.blocks
+    assert graph_A.paths == expected_graph.paths
