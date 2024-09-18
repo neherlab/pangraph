@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from collections import defaultdict
 from Bio.Seq import Seq
+from Bio.Align import PairwiseAligner
 
 
 def reverse_complement(seq: str) -> str:
@@ -260,3 +261,47 @@ class ToMerge:
 
     def block_id(self) -> int:
         return self.block.id
+
+
+def align_pairwise(ref: str, qry: str) -> tuple[str, str]:
+    """
+    Aligns two sequences using the global alignment algorithm.
+    """
+    aligner = PairwiseAligner()
+    aligner.mode = "global"
+    aligner.match_score = 3
+    aligner.mismatch_score = -1
+    aligner.open_gap_score = -6
+    aligner.extend_gap_score = 0
+    aln = aligner.align(ref, qry)
+    return aln[0]
+
+
+def map_variations(consensus, qry):
+    """
+    Given a consensus and a query sequence, returns the edits required to transform the consensus into the query.
+    Nb: re-implementation for testing purposes of:
+    https://github.com/neherlab/pangraph/blob/d4272ece3ee326ca8228652667f9682f34d570a1/packages/pangraph/src/align/map_variations.rs#L8
+    """
+    aln = align_pairwise(consensus, qry)
+    rc, qc = aln.coordinates
+    edits = Edit()
+    for i in range(len(rc) - 1):
+        rb, qb = rc[i], qc[i]
+        re, qe = rc[i + 1], qc[i + 1]
+        if rb == re:
+            # insertion
+            edits.ins.append(Insertion(re, qry[qb:qe]))
+        elif qb == qe:
+            # deletion
+            edits.dels.append(Deletion(rb, re - rb))
+        else:
+            # possible substitution
+            r_seq = consensus[rb:re]
+            q_seq = qry[qb:qe]
+            if r_seq == q_seq:
+                continue
+            for j in range(len(r_seq)):
+                if r_seq[j] != q_seq[j]:
+                    edits.subs.append(Substitution(rb + j, q_seq[j]))
+    return edits

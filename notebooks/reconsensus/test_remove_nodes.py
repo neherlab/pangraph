@@ -3,14 +3,8 @@ import pytest
 from utils import Edit, Insertion, Deletion, Substitution
 from copy import deepcopy
 
-from reconsensus import (
-    Block,
-    Node,
-    Path,
-    Pangraph,
-    find_empty_nodes,
-    remove_emtpy_nodes,
-)
+from utils import Block, Node, Path, Pangraph
+from remove_nodes import find_empty_nodes, remove_emtpy_nodes
 
 
 @pytest.fixture

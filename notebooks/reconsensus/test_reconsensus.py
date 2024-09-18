@@ -1,7 +1,14 @@
 import pytest
 from copy import deepcopy
 
-from utils import Edit, Insertion, Deletion, Substitution
+from utils import (
+    Edit,
+    Insertion,
+    Deletion,
+    Substitution,
+    map_variations,
+    align_pairwise,
+)
 
 from reconsensus import (
     Block,
@@ -169,3 +176,18 @@ def test_apply_indels(block_2):
     cons = block_2.consensus
     cons = apply_indels(cons, dels, ins)
     assert cons == "GAGGACCGATCTAAATTCGGAAATT"
+
+
+def test_map_variations():
+    """
+    NB: No need to reproduce this test, just for me to test that my
+    re-implementation works
+    """
+    consensus = "AGGACTTCGATCTATTCGG"
+    qry = "AGGACCGATCTAAATACGG"
+    edits = map_variations(consensus, qry)
+    assert edits == Edit(
+        ins=[Insertion(13, "AA")],
+        dels=[Deletion(5, 2)],
+        subs=[Substitution(15, "A")],
+    )

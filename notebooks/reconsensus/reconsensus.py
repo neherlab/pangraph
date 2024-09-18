@@ -1,11 +1,8 @@
 import utils as ut
 from utils import Pangraph, Path, Block, Node, Substitution
 from collections import Counter, defaultdict
+from remove_nodes import remove_emtpy_nodes
 
-# remove empty nodes:
-# - for blocks that originate from a new merger or split
-# - goes through each block and removes any node with an empty sequence
-# - also remove the node from the graph node list and paths
 
 # reconsensus function:
 # - for blocks that:
@@ -15,60 +12,6 @@ from collections import Counter, defaultdict
 #   - for mutations, changes any mutated position. Also update the alignment (this is straightforward)
 #   - for any in/del present in > M/2 sites, appends it to the consensus
 # - if the consensus has updated indels, then re-aligns all the sequences to the new consensus
-
-
-def find_empty_nodes(graph: Pangraph, block_ids: list[int]) -> list[int]:
-    """
-    Finds nodes with empty sequences (full deletion) in the graph.
-    It only checks specific blocks (the ones that were updated by a merger/split).
-    """
-    node_ids_to_delete = []
-    for block_id in block_ids:
-        block = graph.blocks[block_id]
-        L = len(block.consensus)
-        for node_id, edits in block.alignment.items():
-            if len(edits.ins) != 0 or len(edits.subs) != 0 or len(edits.dels) == 0:
-                continue
-            if sum([d.length for d in edits.dels]) == L:
-                node_ids_to_delete.append(node_id)
-                # debug assert: node should have size zero
-                node = graph.nodes[node_id]
-                assert node.position[0] == node.position[1], "node has non-zero size"
-
-    return node_ids_to_delete
-
-
-def remove_nodes_from_graph(graph: Pangraph, node_ids: list[int]):
-    """
-    Removes each node from the graph inplace. The node gets removed from:
-    - the node dictionary
-    - the alignment object in block
-    - the path
-    """
-    for node_id in node_ids:
-        node = graph.nodes[node_id]
-        path_id = node.path_id
-        block_id = node.block_id
-
-        # remove from node dictionary
-        del graph.nodes[node_id]
-
-        # remove from path
-        path_nodes = graph.paths[path_id].nodes
-        node_idx = path_nodes.index(node_id)
-        path_nodes.pop(node_idx)
-
-        # remove from block alignment
-        del graph.blocks[block_id].alignment[node_id]
-
-
-def remove_emtpy_nodes(graph: Pangraph, block_ids: list[int]):
-    """
-    If present, removes empty nodes from a graph inplace. Only specified
-    blocks are checked for empty nodes.
-    """
-    node_ids = find_empty_nodes(graph, block_ids)
-    remove_nodes_from_graph(graph, node_ids)
 
 
 def reconsensus_graph(graph: Pangraph, ids_updated_blocks: list[int]):
@@ -185,4 +128,20 @@ def update_block_consensus(block: Block, consensus: str):
     """
     updates the consensus sequence of the block and re-aligns the sequences to the new consensus.
     """
-    pass
+    # reconstruct block sequences
+    # NB: the "apply_edits_to_ref" function is the one defined in:
+    # https://github.com/neherlab/pangraph/blob/d4272ece3ee326ca8228652667f9682f34d570a1/packages/pangraph/src/pangraph/edits.rs#L172
+    seqs = {
+        nid: ut.apply_edits_to_ref(edit, block.consensus)
+        for nid, edit in block.alignment.items()
+    }
+    # update consensus
+    block.consensus = consensus
+    # re-align sequences
+    # NB: map_variations is the function defined in:
+    # https://github.com/neherlab/pangraph/blob/d4272ece3ee326ca8228652667f9682f34d570a1/packages/pangraph/src/align/map_variations.rs#L8
+    # that uses nextalign to map the sequence to the consensus and extract the variations.
+    # here I re-implemented it for simplicity using biopython.
+    block.alignment = {
+        nid: ut.map_variations(consensus, seq) for nid, seq in seqs.items()
+    }
