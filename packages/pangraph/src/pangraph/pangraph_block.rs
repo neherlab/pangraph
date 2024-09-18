@@ -1,7 +1,6 @@
-use crate::align::map_variations::map_variations;
+use crate::io::seq::reverse_complement;
 use crate::pangraph::edits::Edit;
 use crate::pangraph::pangraph_node::NodeId;
-use crate::utils::id::id;
 use derive_more::{Display, From};
 use eyre::{Report, WrapErr};
 use getset::{CopyGetters, Getters};
@@ -22,6 +21,7 @@ impl BlockId {
   }
 }
 
+#[must_use]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Getters, CopyGetters)]
 pub struct PangraphBlock {
   #[get_copy = "pub"]
@@ -43,6 +43,20 @@ impl PangraphBlock {
       consensus,
       alignments,
     }
+  }
+
+  pub fn reverse_complement(&self) -> Result<Self, Report> {
+    let rev_cons = reverse_complement(&self.consensus)?;
+
+    let len = self.consensus_len();
+
+    let rev_aln = self
+      .alignments()
+      .iter()
+      .map(|(&nid, e)| Ok((nid, e.reverse_complement(len)?)))
+      .collect::<Result<_, Report>>()?;
+
+    Ok(Self::new(self.id(), rev_cons, rev_aln))
   }
 
   pub fn depth(&self) -> usize {

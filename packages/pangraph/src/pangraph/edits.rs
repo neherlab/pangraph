@@ -1,3 +1,4 @@
+use crate::io::seq::{complement, reverse_complement};
 use crate::utils::collections::insert_at_inplace;
 use crate::utils::interval::Interval;
 use eyre::Report;
@@ -5,6 +6,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
+#[must_use]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Sub {
   pub pos: usize,
@@ -15,8 +17,23 @@ impl Sub {
   pub fn new(pos: usize, alt: char) -> Self {
     Self { pos, alt }
   }
+
+  pub fn reverse_complement(&self, len: usize) -> Result<Self, Report> {
+    Ok(Self {
+      pos: len - self.pos - 1,
+      alt: complement(self.alt)?,
+    })
+  }
+
+  pub fn shift(&self, shift: isize) -> Self {
+    Self {
+      pos: (self.pos as isize + shift) as usize,
+      alt: self.alt,
+    }
+  }
 }
 
+#[must_use]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Del {
   pub pos: usize,
@@ -39,8 +56,23 @@ impl Del {
   pub fn interval(&self) -> Interval {
     Interval::new(self.pos, self.end())
   }
+
+  pub fn reverse_complement(&self, len: usize) -> Self {
+    Self {
+      pos: len - self.pos - self.len,
+      len: self.len,
+    }
+  }
+
+  pub fn shift(&self, shift: isize) -> Self {
+    Self {
+      pos: (self.pos as isize + shift) as usize,
+      len: self.len,
+    }
+  }
 }
 
+#[must_use]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub struct Ins {
   pub pos: usize,
@@ -54,8 +86,23 @@ impl Ins {
       seq: seq.as_ref().to_owned(),
     }
   }
+
+  pub fn reverse_complement(&self, len: usize) -> Result<Self, Report> {
+    Ok(Self {
+      pos: len - self.pos,
+      seq: reverse_complement(&self.seq)?,
+    })
+  }
+
+  pub fn shift(&self, shift: isize) -> Self {
+    Self {
+      pos: self.pos.saturating_add_signed(shift),
+      seq: self.seq.clone(),
+    }
+  }
 }
 
+#[must_use]
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Edit {
   pub subs: Vec<Sub>,
@@ -83,6 +130,42 @@ impl Edit {
       dels: dels.into(),
       inss: inss.into(),
     }
+  }
+
+  pub fn reverse_complement(&self, len: usize) -> Result<Self, Report> {
+    let subs = self
+      .subs
+      .iter()
+      .map(|s| s.reverse_complement(len))
+      .collect::<Result<Vec<_>, Report>>()?;
+
+    let dels = self.dels.iter().map(|d| d.reverse_complement(len)).collect_vec();
+
+    let inss = self
+      .inss
+      .iter()
+      .map(|i| i.reverse_complement(len))
+      .collect::<Result<Vec<_>, Report>>()?;
+
+    Ok(Self { subs, dels, inss })
+  }
+
+  pub fn shift(&self, shift: isize) -> Self {
+    Self {
+      inss: self.inss.iter().map(|i| i.shift(shift)).collect(),
+      dels: self.dels.iter().map(|d| d.shift(shift)).collect(),
+      subs: self.subs.iter().map(|s| s.shift(shift)).collect(),
+    }
+  }
+
+  pub fn concat(&self, other: &Self) -> Self {
+    let mut inss = self.inss.clone();
+    let mut dels = self.dels.clone();
+    let mut subs = self.subs.clone();
+    inss.extend(other.inss.iter().cloned());
+    dels.extend(other.dels.iter().cloned());
+    subs.extend(other.subs.iter().cloned());
+    Self { subs, dels, inss }
   }
 
   /// Apply the edits to the reference to obtain the query sequence

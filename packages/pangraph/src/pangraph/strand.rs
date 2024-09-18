@@ -2,14 +2,17 @@ use crate::{make_error, make_report};
 use eyre::Report;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
+use strum_macros::Display;
 
 #[must_use]
-#[derive(Copy, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, SmartDefault)]
+#[derive(Copy, Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Hash, SmartDefault)]
 pub enum Strand {
   #[default]
   #[serde(rename = "+")]
+  #[strum(serialize = "+")]
   Forward,
   #[serde(rename = "-")]
+  #[strum(serialize = "-")]
   Reverse,
 }
 
