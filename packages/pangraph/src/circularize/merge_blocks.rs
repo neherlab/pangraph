@@ -160,7 +160,6 @@ fn graph_merging_update(
         new_nodes
           .get(nid)
           .and_then(|new_node| (graph.nodes[nid].block_id() == bid_left).then_some(new_node.id()))
-          .or(Some(*nid))
       })
       .collect();
   }
