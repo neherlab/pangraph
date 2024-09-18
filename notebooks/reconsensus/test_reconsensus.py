@@ -7,7 +7,6 @@ from utils import (
     Deletion,
     Substitution,
     map_variations,
-    align_pairwise,
 )
 
 from reconsensus import (
@@ -15,11 +14,11 @@ from reconsensus import (
     Node,
     Path,
     Pangraph,
+    apply_indels,
     majority_deletions,
     majority_insertions,
-    apply_indels,
-    update_block_consensus,
     reconsensus_mutations,
+    reconsensus,
 )
 
 
@@ -191,3 +190,91 @@ def test_map_variations():
         dels=[Deletion(5, 2)],
         subs=[Substitution(15, "A")],
     )
+
+
+@pytest.fixture
+def block_3():
+    consensus = "GCCTCTTCCCGACCACGCGTTACAACATGGGACAGGCCTGCGCTTGAGGC"
+    #            0         1         2         3         4
+    #            01234567890123456789012345678901234567890123456789
+    # node 1)   ......A.............----...........................
+    # node 2)   ......A..............---............|..............|
+    # node 3)   ...............G............G......................
+    # node 4)   ......A..............---...........................|
+    # node 5)   ...................................................|
+    #  L = 50, N = 5
+    aln = {
+        1: Edit(
+            subs=[Substitution(5, "A")],
+            dels=[Deletion(19, 4)],
+            ins=[],
+        ),
+        2: Edit(
+            subs=[Substitution(5, "A")],
+            dels=[Deletion(20, 3)],
+            ins=[Insertion(35, "AA"), Insertion(50, "TT")],
+        ),
+        3: Edit(
+            subs=[Substitution(14, "G"), Substitution(27, "G")],
+            dels=[],
+            ins=[],
+        ),
+        4: Edit(
+            subs=[Substitution(5, "A")],
+            dels=[Deletion(20, 3)],
+            ins=[Insertion(50, "TT")],
+        ),
+        5: Edit(
+            subs=[],
+            dels=[],
+            ins=[Insertion(50, "TT")],
+        ),
+    }
+    return Block(3, consensus, alignment=aln)
+
+
+@pytest.fixture
+def block_3_reconsensus():
+    consensus = "GCCTCATCCCGACCACGCGTAACATGGGACAGGCCTGCGCTTGAGGCTT"
+    #            0         1         2         3         4
+    #            0123456789012345678901234567890123456789012345678
+    # node 1)   ....................-...........................--
+    # node 2)   .................................|................
+    # node 3)   ......T........G.....|..........................--
+    # node 4)   ..................................................
+    # node 5)   ......T..............|............................
+    #  L = 50, N = 5
+    aln = {
+        1: Edit(
+            subs=[],
+            dels=[Deletion(19, 1), Deletion(47, 2)],
+            ins=[],
+        ),
+        2: Edit(
+            subs=[],
+            dels=[],
+            ins=[Insertion(32, "AA")],
+        ),
+        3: Edit(
+            subs=[Substitution(5, "T"), Substitution(14, "G"), Substitution(24, "G")],
+            dels=[Deletion(47, 2)],
+            ins=[Insertion(20, "TAC")],
+        ),
+        4: Edit(
+            subs=[],
+            dels=[],
+            ins=[],
+        ),
+        5: Edit(
+            subs=[Substitution(5, "T")],
+            dels=[],
+            ins=[Insertion(20, "TAC")],
+        ),
+    }
+    return Block(3, consensus, alignment=aln)
+
+
+def test_reconsensus(block_3, block_3_reconsensus):
+    reconsensus(block_3)
+    assert block_3.consensus == block_3_reconsensus.consensus
+    assert block_3.alignment == block_3_reconsensus.alignment
