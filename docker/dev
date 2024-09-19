@@ -358,6 +358,10 @@ case "${1:-}" in
   WATCH=0
   FIX="--check"
   ;;
+"p" | "py")
+  shift
+  DOCKER_TARGET="py"
+  ;;
 "jupyter" | "j")
   shift
   JUPYTER=1

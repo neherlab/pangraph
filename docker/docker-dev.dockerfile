@@ -598,10 +598,12 @@ RUN set -euxo pipefail >/dev/null \
   'blas=*.*=*mkl*' \
   'conda-forge::blas=*.*=*mkl*' \
   'conda-forge::libblas=*.*=*mkl*' \
+  'biopython' \
   'bokeh' \
   'cython' \
   'dill' \
   'ipywidgets' \
+  'jsonpickle' \
   'jupyter-dash' \
   'jupyterlab' \
   'jupyterlab_widgets' \
@@ -614,6 +616,7 @@ RUN set -euxo pipefail >/dev/null \
   'pathos' \
   'plotly' \
   'polars' \
+  'pytest' \
   'scipy' \
   'seaborn' \
   'statsmodels' \
@@ -625,9 +628,3 @@ RUN set -euxo pipefail >/dev/null \
 # Import matplotlib the first time to build the font cache.
 RUN set -euxo pipefail >/dev/null \
 && python -c "import matplotlib.pyplot"
-
-RUN set -euxo pipefail >/dev/null \
-&& export EVCXR_JUPYTER_VERSION="0.17.0" \
-&& curl -sSL "https://github.com/evcxr/evcxr/releases/download/v${EVCXR_JUPYTER_VERSION}/evcxr_jupyter-v${EVCXR_JUPYTER_VERSION}-x86_64-unknown-linux-gnu.tar.gz" | tar -C "${CARGO_HOME}/bin" --strip-components=1 -xz "evcxr_jupyter-v${EVCXR_JUPYTER_VERSION}-x86_64-unknown-linux-gnu/evcxr_jupyter" \
-&& chmod +x "${CARGO_HOME}/bin/evcxr_jupyter" \
-&& evcxr_jupyter --install
