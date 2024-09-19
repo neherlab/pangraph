@@ -2,11 +2,12 @@ use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::pangraph_node::PangraphNode;
 use crate::pangraph::strand::Strand;
 use itertools::Itertools;
+use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
 #[must_use]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct SimpleNode {
   pub bid: BlockId,
   pub strand: Strand,
@@ -36,7 +37,7 @@ impl Display for SimpleNode {
 }
 
 #[must_use]
-#[derive(Clone, Copy, Debug, Eq)]
+#[derive(Clone, Copy, Debug, Eq, Serialize, Deserialize)]
 pub struct Edge {
   pub n1: SimpleNode,
   pub n2: SimpleNode,
@@ -88,7 +89,7 @@ impl Display for Edge {
 }
 
 #[must_use]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct SimplePath {
   pub nodes: Vec<SimpleNode>,
   pub circular: bool,
