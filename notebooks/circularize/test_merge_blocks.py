@@ -1,7 +1,7 @@
-from utils import Block, Node, Path, Pangraph, Edit, Substitution, Insertion, Deletion
-from circularize_utils import SimpleNode, Edge
-from circularize import remove_transitive_edges
-from merge_blocks import merge_blocks, find_node_pairings, concatenate_alignments
+from .utils import Block, Node, Path, Pangraph, Edit, Substitution, Insertion, Deletion
+from .circularize_utils import SimpleNode, Edge
+from .circularize import remove_transitive_edges
+from .merge_blocks import merge_blocks, find_node_pairings, concatenate_alignments
 import pytest
 
 

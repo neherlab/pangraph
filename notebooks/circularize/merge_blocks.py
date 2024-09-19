@@ -1,6 +1,6 @@
-from utils import Pangraph, Block, reverse_complement
-from circularize_utils import Edge, SimpleNode
-from utils import Node
+from .utils import Pangraph, Block, reverse_complement
+from .circularize_utils import Edge, SimpleNode
+from .utils import Node
 
 
 def merge_blocks(graph: Pangraph, edge: Edge):

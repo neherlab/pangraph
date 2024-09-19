@@ -1,7 +1,7 @@
 from collections import Counter
-from utils import Pangraph
-from merge_blocks import merge_blocks
-from circularize_utils import Edge, SimpleNode, SimplePath
+from .utils import Pangraph
+from .merge_blocks import merge_blocks
+from .circularize_utils import Edge, SimpleNode, SimplePath
 
 
 def block_depths(graph: Pangraph) -> dict[int, int]:
