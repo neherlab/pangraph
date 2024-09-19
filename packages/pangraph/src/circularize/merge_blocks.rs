@@ -152,22 +152,22 @@ fn graph_merging_update(
   graph.blocks.insert(new_block.id(), new_block);
 
   let bid_left = edge.n1.bid;
+
   graph_merging_remove_paths(graph, new_nodes, bid_left);
 
   graph_merging_remove_nodes(graph, new_nodes, bid_left);
 }
 
 fn graph_merging_remove_paths(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId, PangraphNode>, bid_left: BlockId) {
-  for path in graph.paths.values_mut() {
-    path.nodes = path
-      .nodes
-      .iter()
-      .filter_map(|nid| {
-        new_nodes
-          .get(nid)
-          .and_then(|new_node| (graph.nodes[nid].block_id() == bid_left).then_some(new_node.id()))
-      })
-      .collect();
+  for path in &mut graph.paths.values_mut() {
+    path.nodes.retain_mut(|nid| match new_nodes.get(nid) {
+      Some(new_node) if graph.nodes[nid].block_id() == bid_left => {
+        *nid = new_node.id();
+        true
+      }
+      Some(_) => false,
+      None => true,
+    });
   }
 }
 
