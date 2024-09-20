@@ -34,12 +34,37 @@ pub struct Verbosity {
 }
 
 impl Verbosity {
-  pub const fn get_filter_level(&self) -> LevelFilter {
-    // --verbosity=<level> and --silent take priority over -v and -q
+  pub fn get_filter_level(&self) -> LevelFilter {
     if self.silent {
+      // --verbosity=<level> and --silent take priority over -v and -q
       LevelFilter::Off
     } else {
-      self.verbosity
+      let ilevel = level_to_int(self.verbosity);
+      let ilevel = ilevel.saturating_add(self.verbose);
+      let ilevel = ilevel.saturating_sub(self.quiet);
+      level_from_int(ilevel)
     }
+  }
+}
+
+fn level_to_int(level: LevelFilter) -> u8 {
+  match level {
+    LevelFilter::Off => 0,
+    LevelFilter::Error => 1,
+    LevelFilter::Warn => 2,
+    LevelFilter::Info => 3,
+    LevelFilter::Debug => 4,
+    LevelFilter::Trace => 5,
+  }
+}
+
+fn level_from_int(verbosity: u8) -> LevelFilter {
+  match verbosity {
+    0 => LevelFilter::Off,
+    1 => LevelFilter::Error,
+    2 => LevelFilter::Warn,
+    3 => LevelFilter::Info,
+    4 => LevelFilter::Debug,
+    5.. => LevelFilter::Trace,
   }
 }
