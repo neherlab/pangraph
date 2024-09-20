@@ -159,12 +159,12 @@ fn graph_merging_update(
 
   let bid_left = edge.n1.bid;
 
-  graph_merging_remove_paths(graph, new_nodes, bid_left);
+  graph_merging_update_paths(graph, new_nodes, bid_left);
 
-  graph_merging_remove_nodes(graph, new_nodes, bid_left);
+  graph_merging_update_nodes(graph, new_nodes, bid_left);
 }
 
-fn graph_merging_remove_paths(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId, PangraphNode>, bid_left: BlockId) {
+fn graph_merging_update_paths(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId, PangraphNode>, bid_left: BlockId) {
   for path in &mut graph.paths.values_mut() {
     path.nodes.retain_mut(|nid| match new_nodes.get(nid) {
       Some(new_node) if graph.nodes[nid].block_id() == bid_left => {
@@ -177,7 +177,7 @@ fn graph_merging_remove_paths(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId,
   }
 }
 
-fn graph_merging_remove_nodes(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId, PangraphNode>, bid_left: BlockId) {
+fn graph_merging_update_nodes(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId, PangraphNode>, bid_left: BlockId) {
   for (&nid, n) in new_nodes {
     if graph.nodes[&nid].block_id() == bid_left {
       graph.nodes.insert(n.id(), n.clone());
@@ -346,16 +346,31 @@ mod tests {
     assert_eq!(block_2_revcomp(), block_2().reverse_complement().unwrap());
   }
 
-  fn expected_new_node_ids() -> BTreeMap<NodeId, NodeId> {
+  fn expected_new_nodes() -> BTreeMap<NodeId, PangraphNode> {
     btreemap! {
-      NodeId(1) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)).id(),
-      NodeId(2) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)).id(),
-      NodeId(3) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)).id(),
-      NodeId(4) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)).id(),
-      NodeId(5) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)).id(),
-      NodeId(6) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)).id(),
+      NodeId(1) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)),
+      NodeId(2) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)),
+      NodeId(3) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)),
+      NodeId(4) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)),
+      NodeId(5) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)),
+      NodeId(6) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)),
     }
   }
+
+  fn expected_new_node_ids() -> BTreeMap<NodeId, NodeId> {
+    expected_new_nodes().iter().map(|(&k, v)| (k, v.id())).collect()
+  }
+
+  // fn expected_new_node_ids() -> BTreeMap<NodeId, NodeId> {
+  //   btreemap! {
+  //     NodeId(1) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)).id(),
+  //     NodeId(2) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)).id(),
+  //     NodeId(3) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)).id(),
+  //     NodeId(4) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)).id(),
+  //     NodeId(5) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)).id(),
+  //     NodeId(6) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)).id(),
+  //   }
+  // }
 
   fn expected_concat() -> PangraphBlock {
     //          0         1         2         3         4         5         6
@@ -431,6 +446,28 @@ mod tests {
     };
 
     Pangraph { paths, blocks, nodes }
+  }
+
+  #[test]
+  fn test_update_paths() {
+    let n1 = SimpleNode::new(BlockId(1), Forward);
+    let n2 = SimpleNode::new(BlockId(2), Reverse);
+    let edge = Edge::new(n1, n2);
+    let mut g = graph_a();
+    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    graph_merging_update_paths(&mut g, &new_nodes, BlockId(1));
+    assert_eq!(g.paths, expected_graph().paths);
+  }
+
+  #[test]
+  fn test_update_nodes() {
+    let n1 = SimpleNode::new(BlockId(1), Forward);
+    let n2 = SimpleNode::new(BlockId(2), Reverse);
+    let edge = Edge::new(n1, n2);
+    let mut g = graph_a();
+    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    graph_merging_update_nodes(&mut g, &new_nodes, BlockId(1));
+    assert_eq!(g.nodes, expected_graph().nodes);
   }
 
   #[test]
