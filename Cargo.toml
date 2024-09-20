@@ -86,51 +86,66 @@ zstd = { version = "=0.11.2", features = ["zstdmt"] }
 [workspace.lints.rust]
 # Lint groups
 # https://doc.rust-lang.org/rustc/lints/groups.html
-deprecated_in_future = "warn"
-future_incompatible = "warn"
-nonstandard_style = "warn"
-rust_2018_idioms = "warn"
-rust_2021_compatibility = "warn"
-trivial_numeric_casts = "warn"
+warnings = { level = "warn", priority = -100 }
+future_incompatible = { level = "warn", priority = -90 }
+deprecated_in_future = { level = "warn", priority = -80 }
+
+rust_2018_compatibility = { level = "warn", priority = -70 }
+rust_2018_idioms = { level = "warn", priority = -70 }
+rust_2021_compatibility = { level = "warn", priority = -70 }
+rust_2024_compatibility = { level = "warn", priority = -70 }
+
+let_underscore = { level = "warn", priority = -50 }
+nonstandard_style = { level = "warn", priority = -50 }
+refining_impl_trait = { level = "warn", priority = -50 }
+unused = { level = "warn", priority = -50 }
 
 # Disable some of the lints enabled by default
 # https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html
+edition_2024_expr_fragment_specifier = "allow"
 elided_lifetimes_in_paths = "allow"
-
-
-# Temporarily disable some of the lints enabled by default
-# FIXME: these issues should be eventually addressed. Set these lints to "warn" and fix the warnings.
-dead_code = "allow"
-single_use_lifetimes = "allow"
-unused_imports = "allow"
-unused_qualifications = "allow"
+non_snake_case = "allow"
 unused_variables = "allow"
 
 # Enable lints not enabled by default
 # https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
 absolute_paths_not_starting_with_crate = "warn"
+deprecated_safe = "warn"
 explicit_outlives_requirements = "warn"
 ffi_unwind_calls = "warn"
-keyword_idents = "warn"
+keyword_idents_2018 = "warn"
+keyword_idents_2024 = "warn"
 let_underscore_drop = "warn"
 macro_use_extern_crate = "warn"
 meta_variable_misuse = "warn"
 missing_abi = "warn"
+missing_unsafe_on_extern = "warn"
 non_ascii_idents = "warn"
+non_local_definitions = "warn"
+redundant_lifetimes = "warn"
 rust_2021_incompatible_closure_captures = "warn"
 rust_2021_incompatible_or_patterns = "warn"
 rust_2021_prefixes_incompatible_syntax = "warn"
 rust_2021_prelude_collisions = "warn"
+single_use_lifetimes = "warn"
 trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unit_bindings = "warn"
+unnameable_types = "warn"
 unsafe_code = "warn"
 unsafe_op_in_unsafe_fn = "warn"
+unstable_features = "warn"
+unused_extern_crates = "warn"
+unused_import_braces = "warn"
 unused_lifetimes = "warn"
 unused_macro_rules = "warn"
-unused_tuple_struct_fields = "warn"
+unused_qualifications = "warn"
 variant_size_differences = "warn"
+# unused_crate_dependencies = "warn"
+# unreachable_pub = "warn"
 # missing_copy_implementations = "warn"
 # missing_debug_implementations = "warn"
-# unit_bindings = "warn"
+
 
 [workspace.lints.clippy]
 # https://rust-lang.github.io/rust-clippy/stable/
@@ -145,9 +160,11 @@ nursery = { level = "warn", priority = -1 }
 # Disable some of the Clippy lints
 absolute_paths = "allow"
 allow_attributes = "allow"
+allow_attributes_without_reason = "allow"
 arithmetic_side_effects = "allow"
 as_conversions = "allow"
 assign_op_pattern = "allow"
+assigning_clones = "allow"
 bool_to_int_with_if = "allow"
 cast_lossless = "allow"
 cast_possible_truncation = "allow"
@@ -160,6 +177,7 @@ default_numeric_fallback = "allow"
 deref_by_slicing = "allow"
 doc_markdown = "allow"
 else_if_without_else = "allow"
+equatable_if_let = "allow"
 exhaustive_enums = "allow"
 exhaustive_structs = "allow"
 expect_used = "allow"
@@ -205,6 +223,7 @@ pub_use = "allow"
 pub_with_shorthand = "allow"
 question_mark_used = "allow"
 redundant_closure_for_method_calls = "allow"
+renamed_function_params = "allow"
 self_named_module_files = "allow"
 semicolon_inside_block = "allow"
 semicolon_outside_block = "allow"
@@ -213,11 +232,14 @@ shadow_reuse = "allow"
 shadow_same = "allow"
 shadow_unrelated = "allow"
 should_implement_trait = "allow"
+significant_drop_in_scrutinee = "allow"
+significant_drop_tightening = "allow"
 similar_names = "allow"
 single_call_fn = "allow"
 single_char_lifetime_names = "allow"
 std_instead_of_alloc = "allow"
 std_instead_of_core = "allow"
+struct_excessive_bools = "allow"
 struct_field_names = "allow"
 suboptimal_flops = "allow"
 too_many_arguments = "allow"
@@ -241,4 +263,3 @@ wildcard_enum_match_arm = "allow"
 [workspace.lints.rustdoc]
 broken_intra_doc_links = "warn"
 bare_urls = "warn"
-
