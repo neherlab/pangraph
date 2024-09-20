@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euxo pipefail
+set -euo pipefail
 trap "exit 0" INT
 
 # Runs smoke tests - basic use-case checks with default data
@@ -29,11 +29,12 @@ export INPUT_DIR="${ROOT_DIR}/data"
 export OUTPUT_DIR="${ROOT_DIR}/tmp/smoke-tests"
 
 function run_one() {
-  set -euxo pipefail
+  set -euo pipefail
 
   input_fasta="${1}"
   name="$(basename "${input_fasta}")"
 
+  set -x
   ${PANGRAPH_BIN} build \
     "${input_fasta}" \
     -o="${OUTPUT_DIR}/${name}.json" \
@@ -42,5 +43,5 @@ function run_one() {
 export -f run_one
 
 shopt -s nullglob
-all_data=$(ls "${INPUT_DIR}/"*.fa* "${INPUT_DIR}/"*.fasta*)
-parallel --keep-order --jobs=+0 run_one ::: "${all_data}"
+all_data=$(find "${INPUT_DIR}" -type f \( -name "*.fa*" -o -name "*.fasta*" \) | sort -h)
+parallel --group --jobs=+0 run_one ::: "${all_data}"
