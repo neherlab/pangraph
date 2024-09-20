@@ -7,7 +7,6 @@ use eyre::WrapErr;
 use noodles::sam::record::Cigar;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::str::FromStr;
 
 /// One side of a pairwise alignment between homologous sequences.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]

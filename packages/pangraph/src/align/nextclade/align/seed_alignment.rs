@@ -2,7 +2,6 @@ use crate::align::nextclade::align::band_2d::Stripe;
 use crate::align::nextclade::align::seed_match::SeedMatch2;
 use crate::align::nextclade::alphabet::letter::Letter;
 
-use log::trace;
 use num_traits::abs;
 use num_traits::clamp;
 use std::cmp::max;

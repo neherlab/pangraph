@@ -4,7 +4,6 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::pangraph_path::PathId;
 use eyre::Report;
-use maplit::btreemap;
 use std::collections::{BTreeMap, HashMap};
 
 /// Removes transitive edges from the graph inplace.

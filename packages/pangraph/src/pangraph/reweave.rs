@@ -2,11 +2,10 @@ use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
 use crate::align::map_variations::map_variations;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_error;
-use crate::pangraph::edits::{Del, Edit, Ins, Sub};
+use crate::pangraph::edits::Edit;
 use crate::pangraph::pangraph::{GraphUpdate, Pangraph};
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_interval::extract_intervals;
-use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::slice::block_slice;
 use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
@@ -15,7 +14,6 @@ use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
-use std::hash::Hash;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct MergePromise {
@@ -284,7 +282,7 @@ mod tests {
   use crate::align::alignment::Hit;
   use crate::io::seq::generate_random_nuc_sequence;
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
-  use crate::pangraph::pangraph_node::PangraphNode;
+  use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
   use crate::pangraph::pangraph_path::{PangraphPath, PathId};
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use crate::utils::interval::Interval;

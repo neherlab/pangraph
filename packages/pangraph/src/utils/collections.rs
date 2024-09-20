@@ -43,7 +43,7 @@ pub fn insert_at_inplace<T: Clone>(vec: &mut Vec<T>, index: usize, slice: &[T]) 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use eyre::Report;
+  
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 

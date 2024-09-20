@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use maplit::btreemap;
 use std::collections::BTreeMap;
 
 pub type Fun<K, V> = fn((K, V), (K, V)) -> V;
@@ -40,6 +39,7 @@ where
 #[cfg(test)]
 mod tests {
   use super::*;
+  use maplit::btreemap;
 
   #[test]
   fn test_map_merge_both_empty() {

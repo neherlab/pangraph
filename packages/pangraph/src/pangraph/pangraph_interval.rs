@@ -8,7 +8,6 @@ use color_eyre::{Section, SectionExt};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct PangraphInterval {

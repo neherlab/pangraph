@@ -1,18 +1,14 @@
 use crate::align::alignment::Alignment;
 use crate::align::alignment_args::AlignmentArgs;
-use crate::align::bam::cigar::parse_cigar_str;
-use crate::align::minimap2::minimap2_paf::MinimapPafTsvRecord;
-use crate::io::fasta::{write_one_fasta, FastaWriter};
-use crate::io::file::{create_file_or_stdout, open_file_or_stdin};
+use crate::io::fasta::FastaWriter;
+use crate::io::file::open_file_or_stdin;
 use crate::io::fs::path_to_str;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::utils::subprocess::create_arg_optional;
 use cmd_lib::run_cmd;
 use eyre::{Report, WrapErr};
 use num_traits::clamp_min;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::io::Write;
 use tempfile::Builder as TempDirBuilder;
 
 pub fn align_with_minimap2(

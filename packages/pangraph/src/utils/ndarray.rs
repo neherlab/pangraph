@@ -1,7 +1,7 @@
 use crate::make_internal_report;
 use eyre::Report;
 use ndarray::{ArrayBase, ArrayView, Data, Dimension, IntoDimension};
-use std::fmt::{Debug, Display};
+use std::fmt::Debug;
 
 /// Broadcasts array to given shape or fails with an error.
 ///

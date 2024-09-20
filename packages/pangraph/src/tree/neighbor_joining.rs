@@ -10,9 +10,8 @@ use crate::utils::lock::Lock;
 use crate::utils::ndarray::broadcast;
 use eyre::Report;
 use itertools::Itertools;
-use ndarray::{array, s, Array1, Array2, AssignElem, Axis};
+use ndarray::{s, Array1, Array2, Axis};
 use ndarray_stats::QuantileExt;
-use serde::{Deserialize, Serialize};
 
 /// Generate guide tree using neighbor joining method.
 pub fn build_tree_using_neighbor_joining(

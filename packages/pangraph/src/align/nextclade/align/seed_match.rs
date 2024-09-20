@@ -2,7 +2,6 @@ use crate::align::nextclade::align::params::NextalignParams;
 use crate::align::nextclade::alphabet::complement::reverse_complement_in_place;
 use crate::align::nextclade::alphabet::letter::Letter;
 use crate::align::nextclade::alphabet::nuc::{from_nuc_seq, Nuc};
-use crate::make_error;
 use bio::alphabets;
 use bio::data_structures::bwt::{bwt, less, Less, Occ, BWT};
 use bio::data_structures::fmindex::{BackwardSearchResult, FMIndex, FMIndexable};

@@ -7,15 +7,13 @@ use crate::commands::reconstruct::reconstruct_args::PangraphReconstructArgs;
 use crate::commands::verbosity::{Verbosity, WarnLevel};
 use crate::utils::global_init::setup_logger;
 use clap::{AppSettings, ArgEnum, CommandFactory, Parser, Subcommand};
-use clap_complete::{generate, Generator, Shell};
+use clap_complete::{generate, Shell};
 use clap_complete_fig::Fig;
 use eyre::{eyre, Report};
-use itertools::Itertools;
 use lazy_static::lazy_static;
 use num_cpus;
 use std::fmt::Debug;
 use std::io;
-use std::str::FromStr;
 
 lazy_static! {
   static ref SHELLS: &'static [&'static str] = &["bash", "elvish", "fish", "fig", "powershell", "zsh"];

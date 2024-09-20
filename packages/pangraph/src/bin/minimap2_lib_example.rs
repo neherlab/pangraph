@@ -11,7 +11,6 @@ use pangraph::io::json::json_write;
 use pangraph::utils::global_init::global_init;
 use rayon::prelude::*;
 use std::path::PathBuf;
-use std::str::FromStr;
 
 #[ctor]
 fn init() {

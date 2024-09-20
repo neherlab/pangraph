@@ -2,7 +2,6 @@
 
 use color_eyre::Report;
 use eyre::eyre;
-use itertools::Itertools;
 use std::str::FromStr;
 
 pub fn report_to_string(report: &Report) -> String {

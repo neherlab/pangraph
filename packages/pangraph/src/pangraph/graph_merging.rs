@@ -14,7 +14,7 @@ use crate::utils::interval::{have_no_overlap, Interval};
 use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
-use log::{debug, info, trace};
+use log::{debug, trace};
 use maplit::btreemap;
 use ordered_float::OrderedFloat;
 use rayon::prelude::*;

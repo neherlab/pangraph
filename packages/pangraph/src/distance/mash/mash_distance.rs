@@ -2,7 +2,6 @@ use crate::distance::mash::minimizer::{minimizers_sketch, MinimizersParams};
 use crate::pangraph::pangraph::Pangraph;
 use itertools::Itertools;
 use ndarray::{array, Array, Array2};
-use serde::{Deserialize, Serialize};
 
 /// Compute the pairwise distance between all input graphs.
 /// Distance is the set distance between minimizers.

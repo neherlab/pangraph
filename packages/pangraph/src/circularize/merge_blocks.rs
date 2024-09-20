@@ -3,7 +3,6 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use eyre::Report;
-use itertools::Itertools;
 use maplit::btreemap;
 use std::borrow::Cow;
 use std::collections::BTreeMap;
@@ -193,6 +192,7 @@ mod tests {
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
   use crate::pangraph::pangraph_path::{PangraphPath, PathId};
   use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use itertools::Itertools;
   use maplit::btreemap;
   use pretty_assertions::assert_eq;
 

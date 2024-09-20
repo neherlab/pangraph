@@ -120,7 +120,7 @@ impl Alignment {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use super::*;
+  
   use crate::align::alignment::Hit;
   use crate::align::bam::cigar::parse_cigar_str;
   use crate::io::fasta::read_many_fasta_str;
