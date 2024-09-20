@@ -1,7 +1,5 @@
-from .utils import Pangraph, Block, reverse_complement
+from .utils import Pangraph, Block, Node
 from .circularize_utils import Edge, SimpleNode
-from .utils import Node
-from notebooks.dump import dump
 
 
 def merge_blocks(graph: Pangraph, edge: Edge):
@@ -54,8 +52,8 @@ def find_node_pairings(graph: Pangraph, edge: Edge) -> dict[int, int]:
     new_nodes = {}
     for path_id, path in graph.paths.items():
         N = len(path.nodes)  # number of nodes
-        I = N if path.circular else N - 1  # number of edges
-        for i in range(I):
+        N_edges = N if path.circular else N - 1  # number of edges
+        for i in range(N_edges):
             # get node ids, nodes, block ids and strandedness of the two nodes
             nid1, nid2 = path.nodes[i], path.nodes[(i + 1) % N]
             n1, n2 = graph.nodes[nid1], graph.nodes[nid2]
