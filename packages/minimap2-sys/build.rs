@@ -127,7 +127,7 @@ fn compile() {
   let mut cc = cc::Build::new();
 
   cc.warnings(false);
-  cc.flag("-Wc++-compat");
+  cc.flag("-w");
   cc.out_dir(&out_path);
 
   configure(&mut cc);
