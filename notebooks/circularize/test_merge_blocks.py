@@ -7,7 +7,6 @@ from .merge_blocks import (
     concatenate_alignments,
     graph_merging_update_nodes,
     graph_merging_update_paths,
-    graph_merging_update,
 )
 import pytest
 
@@ -212,7 +211,7 @@ def expected_graph(expected_concat, new_node_ids):
     # p1) (b1+|-----------|n1) -> (b3+|n7)  l=80
     #      (10|-----------|72)     (72|10)
     # p2) (b1+|-----------|n2) -> (b3+|n8)  l=83
-    #      (40|-----------|40)
+    #       (5|-----------|5)
     # p3) (b1-|-----------|n3)              l=67
     blocks = {
         1: expected_concat,
