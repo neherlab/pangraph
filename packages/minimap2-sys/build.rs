@@ -1,10 +1,37 @@
 use bindgen::Formatter;
+use std::collections::VecDeque;
 use std::env;
+use std::fs::read_dir;
 use std::path::PathBuf;
+
+fn list_files(root: impl Into<PathBuf>) -> impl Iterator<Item = PathBuf> {
+  let mut stack = VecDeque::new();
+  stack.push_back(root.into());
+  std::iter::from_fn(move || {
+    while let Some(current_dir) = stack.pop_front() {
+      if let Ok(entries) = read_dir(&current_dir) {
+        for entry in entries.flatten() {
+          let entry_path = entry.path();
+          if entry_path.is_file() {
+            return Some(entry_path);
+          } else if entry_path.is_dir() {
+            stack.push_back(entry_path);
+          }
+        }
+      }
+    }
+    None
+  })
+}
 
 // Configure for minimap2
 fn configure(cc: &mut cc::Build) {
-  println!("cargo:rerun-if-changed=minimap2/*.c");
+  println!("cargo:rerun-if-changed=minimap2.h");
+  println!("cargo:rerun-if-changed=mm2-fast.h");
+  println!("cargo:rerun-if-changed=mm2_fast_glue.c");
+  for file in list_files("minimap2") {
+    println!("cargo:rerun-if-changed={}", file.display());
+  }
 
   cc.include("minimap2");
   cc.opt_level(2);
@@ -19,10 +46,7 @@ fn configure(cc: &mut cc::Build) {
   cc.include("minimap2/");
   // cc.include("minimap2/");
 
-  let files: Vec<_> = std::fs::read_dir("minimap2")
-    .unwrap()
-    .map(|f| f.unwrap().path())
-    .collect();
+  let files: Vec<_> = read_dir("minimap2").unwrap().map(|f| f.unwrap().path()).collect();
 
   assert_ne!(
     files.len(),
