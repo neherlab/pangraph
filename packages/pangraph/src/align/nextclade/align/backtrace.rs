@@ -5,10 +5,6 @@ use crate::align::nextclade::align::score_matrix::{
 use crate::align::nextclade::alphabet::letter::Letter;
 use serde::{Deserialize, Serialize};
 
-const fn index_to_shift(si: i32, band_width: i32, mean_shift: i32) -> i32 {
-  si - band_width + mean_shift
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AlignmentOutput<T> {
   pub qry_seq: Vec<T>,

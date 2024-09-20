@@ -1,3 +1,5 @@
+#![allow(unused_qualifications)]
+
 use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::commands::export::export_args::PangraphExportArgs;
 use crate::commands::generate::generate_args::PangraphGenerateArgs;

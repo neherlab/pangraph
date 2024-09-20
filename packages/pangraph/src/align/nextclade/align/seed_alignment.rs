@@ -1,32 +1,9 @@
 use crate::align::nextclade::align::band_2d::Stripe;
 use crate::align::nextclade::align::seed_match::SeedMatch2;
-use crate::align::nextclade::alphabet::letter::Letter;
-
 use num_traits::abs;
 use num_traits::clamp;
 use std::cmp::max;
 use std::cmp::min;
-
-/// generate a vector of query sequence positions that are followed by at least `seed_length`
-/// valid characters. Positions in this vector are thus "good" positions to start a query k-mer.
-fn get_map_to_good_positions<L: Letter<L>>(qry_seq: &[L], seed_length: usize) -> Vec<usize> {
-  let qry_len = qry_seq.len();
-
-  let mut map_to_good_positions = Vec::<usize>::with_capacity(qry_len);
-  let mut distance_to_last_bad_pos: i32 = 0;
-
-  for (i, letter) in qry_seq.iter().enumerate() {
-    // TODO: Exclude ambiguous letters
-    if letter.is_unknown() {
-      distance_to_last_bad_pos = 0;
-    } else if distance_to_last_bad_pos >= seed_length as i32 {
-      map_to_good_positions.push(i - seed_length);
-    }
-    distance_to_last_bad_pos += 1;
-  }
-
-  map_to_good_positions
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct SeedMatch {

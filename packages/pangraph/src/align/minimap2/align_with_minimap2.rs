@@ -26,7 +26,7 @@ pub fn align_with_minimap2(
     let mut writer = FastaWriter::from_path(&input_path)?;
     blocks
       .iter()
-      .try_for_each(|(id, block)| writer.write(&id.to_string(), block.consensus()))?;
+      .try_for_each(|(id, block)| writer.write(id.to_string(), block.consensus()))?;
   }
 
   let kmer_size = create_arg_optional("-k", &params.kmer_length);

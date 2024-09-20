@@ -68,6 +68,7 @@ struct ToMerge {
 }
 
 impl ToMerge {
+  #[allow(dead_code)]
   pub fn new(block: PangraphBlock, is_anchor: bool, orientation: Strand) -> Self {
     Self {
       block,
@@ -840,7 +841,7 @@ mod tests {
 
     let bid20_1 = G.nodes[&nid_200_1].block_id();
     for n in &[nid_100_2, nid_300_5, nid_300_6] {
-      assert_eq!(G.nodes[&n].block_id(), bid20_1);
+      assert_eq!(G.nodes[n].block_id(), bid20_1);
     }
 
     // merge promises

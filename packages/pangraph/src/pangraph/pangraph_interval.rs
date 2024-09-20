@@ -147,7 +147,7 @@ fn check_interval_conditions(
   left_len: usize,
   right_len: usize,
   thr_len: usize,
-  intervals: &Vec<PangraphInterval>,
+  intervals: &[PangraphInterval],
 ) -> Result<(), Report> {
   if interval.aligned {
     return make_internal_error!("Aligned interval at index {n} is shorter than the threshold length ({thr_len}).")

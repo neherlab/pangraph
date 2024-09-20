@@ -72,7 +72,7 @@ impl Pangraph {
     );
 
     for (old_node_id, new_nodes) in &u.n_new {
-      let path_id = self.nodes[&old_node_id].path_id();
+      let path_id = self.nodes[old_node_id].path_id();
 
       let path = self.paths.get_mut(&path_id).unwrap(); // FIXME
 

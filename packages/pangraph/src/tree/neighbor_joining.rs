@@ -69,27 +69,6 @@ fn create_Q_matrix(D: &Array2<f64>) -> Result<Array2<f64>, Report> {
   Ok(Q)
 }
 
-fn create_Q_matrix_native(D: &Array2<f64>) -> Array2<f64> {
-  let n = D.len_of(Axis(0));
-  assert!(n > 2);
-
-  let mut Q = Array2::zeros((n, n));
-  for i in 0..n {
-    for j in 0..n {
-      let mut sum_0 = 0.0;
-      let mut sum_1 = 0.0;
-      for k in 0..n {
-        sum_0 += D[(i, k)];
-        sum_1 += D[(j, k)];
-      }
-      Q[(i, j)] = ((n as f64) - 2.0) * D[(i, j)] - sum_0 - sum_1;
-    }
-  }
-
-  Q.diag_mut().fill(f64::INFINITY);
-  Q
-}
-
 fn pair(Q: &Array2<f64>) -> Result<(usize, usize), Report> {
   let iota = Q.argmin()?;
   Ok(if iota.0 > iota.1 {
@@ -109,7 +88,7 @@ fn dist(D: &Array2<f64>, i: usize, j: usize) -> Array1<f64> {
 }
 
 fn join_in_place<T: Default>(D: &mut Array2<f64>, nodes: &mut Vec<Lock<Clade<T>>>) -> Result<(), Report> {
-  let q = create_Q_matrix(D).unwrap();
+  let q = create_Q_matrix(D)?;
   let (i, j) = pair(&q)?;
 
   let node = Lock::new(Clade::from_children(T::default(), &nodes[i], &nodes[j]));
@@ -151,31 +130,6 @@ mod tests {
     ];
 
     let actual = create_Q_matrix(&distance).unwrap();
-
-    #[rustfmt::skip]
-    let expected = array![
-      [  INF, -50.0, -38.0 , -34.0, -34.0],
-      [-50.0,   INF, -38.0,  -34.0, -34.0],
-      [-38.0, -38.0,   INF , -40.0, -40.0],
-      [-34.0, -34.0,  -40.0,   INF, -48.0],
-      [-34.0, -34.0,  -40.0, -48.0,   INF],
-    ];
-
-    assert_eq!(actual, expected);
-  }
-
-  #[rstest]
-  fn test_create_Q_matrix_native() {
-    #[rustfmt::skip]
-    let distance = array![
-      [0.0,  5.0,  9.0,  9.0, 8.0],
-      [5.0,  0.0, 10.0, 10.0, 9.0],
-      [9.0, 10.0,  0.0,  8.0, 7.0],
-      [9.0, 10.0,  8.0,  0.0, 3.0],
-      [8.0,  9.0,  7.0,  3.0, 0.0],
-    ];
-
-    let actual = create_Q_matrix_native(&distance);
 
     #[rustfmt::skip]
     let expected = array![

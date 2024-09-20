@@ -28,7 +28,7 @@ pub fn align_with_mmseqs(
     let mut writer = FastaWriter::from_path(&input_path)?;
     blocks
       .iter()
-      .try_for_each(|(id, block)| writer.write(&id.to_string(), block.consensus()))?;
+      .try_for_each(|(id, block)| writer.write(id.to_string(), block.consensus()))?;
   }
 
   let output_column_names = PafTsvRecord::fields_names().join(",");

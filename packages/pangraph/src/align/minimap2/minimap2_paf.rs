@@ -8,6 +8,7 @@ use serde::Deserialize;
 use std::io::Cursor;
 
 /// Represents one row in the PAF file emitted by mmseqs
+#[allow(dead_code)]
 #[derive(Clone, Debug, Deserialize)]
 pub struct MinimapPafTsvRecord {
   /* 01 */ query: BlockId,
