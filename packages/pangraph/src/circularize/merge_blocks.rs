@@ -190,13 +190,11 @@ fn graph_merging_update_nodes(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId,
 mod tests {
   use super::*;
   use crate::circularize::circularize::remove_transitive_edges;
-  use crate::io::json::json_read_str;
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
   use crate::pangraph::pangraph_path::{PangraphPath, PathId};
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use maplit::btreemap;
   use pretty_assertions::assert_eq;
-  use rayon::vec;
 
   fn block_1() -> PangraphBlock {
     //          0         1         2         3
