@@ -173,7 +173,7 @@ def expected_concat():
                 subs=[Substitution(59, "A")],
                 dels=[Deletion(13, 3)],
             ),
-            -1349251919941764633: Edit(
+            893596598396622086: Edit(
                 ins=[Insertion(32, "CCC"), Insertion(63, "AAA")],
                 subs=[],
                 dels=[Deletion(61, 2)],
@@ -187,10 +187,10 @@ def new_node_ids():
     return {
         1: -9124324634939260889,
         2: -8785834526545769370,
-        3: -1349251919941764633,
+        3: 893596598396622086,
         4: -9124324634939260889,
         5: -8785834526545769370,
-        6: -1349251919941764633,
+        6: 893596598396622086,
     }
 
 
@@ -245,7 +245,7 @@ def expected_graph(expected_concat, new_node_ids):
             id=new_node_ids[3],
             block_id=1,
             path_id=3,
-            position=(40, 40),
+            position=(5, 5),
             strandedness=False,
         ),
         7: Node(id=7, block_id=3, path_id=1, position=(61, 0), strandedness=True),

@@ -70,15 +70,14 @@ fn find_node_pairings(graph: &Pangraph, edge: &Edge) -> (BTreeMap<NodeId, NodeId
       if *edge == e {
         node_pairings.insert(nid1, nid2);
         node_pairings.insert(nid2, nid1);
-        let (new_s, new_e, new_strand) = {
-          if edge.n1 == sn1 {
-            debug_assert!(n1.position().1 % path.tot_len() == n2.position().0 % path.tot_len());
-            (n1.position().0, n2.position().1, n1.strand())
-          } else {
-            debug_assert!(n2.position().1 % path.tot_len() == n1.position().0 % path.tot_len());
-            (n2.position().0, n1.position().1, n2.strand())
-          }
-        };
+        let (new_s, new_e) = (n1.position().0, n2.position().1);
+        let new_strand = if edge.n1 == sn1 { n1.strand() } else { n2.strand() };
+        debug_assert!(
+          n1.position().1 % path.tot_len() == n2.position().0 % path.tot_len(),
+          "nodes should be adjacent:\nn1: {:?},\nn2: {:?}",
+          n1,
+          n2
+        );
 
         let new_node = PangraphNode::new(None, edge.n1.bid, path_id, new_strand, (new_s, new_e));
         new_nodes.insert(nid1, new_node.clone());
