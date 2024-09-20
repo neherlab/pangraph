@@ -361,17 +361,6 @@ mod tests {
     expected_new_nodes().iter().map(|(&k, v)| (k, v.id())).collect()
   }
 
-  // fn expected_new_node_ids() -> BTreeMap<NodeId, NodeId> {
-  //   btreemap! {
-  //     NodeId(1) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)).id(),
-  //     NodeId(2) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)).id(),
-  //     NodeId(3) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)).id(),
-  //     NodeId(4) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)).id(),
-  //     NodeId(5) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)).id(),
-  //     NodeId(6) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)).id(),
-  //   }
-  // }
-
   fn expected_concat() -> PangraphBlock {
     //          0         1         2         3         4         5         6
     //          012345678901234567890123456789012345678901234567890123456789012
