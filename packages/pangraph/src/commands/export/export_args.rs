@@ -57,7 +57,7 @@ pub struct PangraphExportArgs {
   pub maximum_depth: usize,
 
   /// Path to directory where output will be stored
-  #[clap(long, short = 'o', parse(from_os_str), default_value = "export")]
+  #[clap(long, short = 'o', default_value = "export")]
   #[clap(value_hint = ValueHint::DirPath)]
   pub output_directory: PathBuf,
 

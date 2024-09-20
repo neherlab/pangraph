@@ -22,8 +22,7 @@ pub struct PangraphMarginalizeArgs {
   pub output_path: PathBuf,
 
   /// Isolates to project onto: collapse the graph to only blocks contained by paths of the given isolates. Comma seperated list, no spaces.
-  #[clap(long, short = 's')]
-  #[clap(takes_value = true, multiple_values = true, use_value_delimiter = true)]
+  #[clap(long, short = 's', num_args=1.., use_value_delimiter = true)]
   pub strains: Vec<String>,
 
   /// Random seed

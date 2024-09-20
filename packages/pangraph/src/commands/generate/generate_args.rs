@@ -44,7 +44,7 @@ pub struct PangraphGenerateArgs {
   pub invert_rate: f64,
 
   /// Path where to output graph
-  #[clap(long, short = 'o', parse(from_os_str), default_value = "-")]
+  #[clap(long, short = 'o', default_value = "-")]
   #[clap(value_hint = ValueHint::FilePath)]
   pub graph_output: PathBuf,
 

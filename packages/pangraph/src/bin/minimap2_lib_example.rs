@@ -1,7 +1,7 @@
 #![allow(non_snake_case)]
 #![allow(clippy::struct_excessive_bools)]
 
-use clap::{AppSettings, ArgEnum, Parser};
+use clap::{Parser, ValueEnum};
 use ctor::ctor;
 use eyre::{Report, WrapErr};
 use itertools::{izip, Itertools};
@@ -50,7 +50,6 @@ fn main() -> Result<(), Report> {
 #[derive(Debug, Parser)]
 #[clap(name = "minimap2_lib_example", trailing_var_arg = true)]
 #[clap(author, version)]
-#[clap(global_setting(AppSettings::DeriveDisplayOrder))]
 #[clap(verbatim_doc_comment)]
 struct Minimap2CliArgs {
   #[clap(display_order = 1)]
@@ -67,7 +66,7 @@ struct Minimap2CliArgs {
   // pub output_aln: PathBuf,
   //
   /// Preset (always applied before other options)
-  #[clap(arg_enum, short = 'x')]
+  #[clap(value_enum, short = 'x')]
   pub preset: Option<Minimap2CliPreset>,
 
   /// k-mer size (no larger than 28)
@@ -417,7 +416,7 @@ fn parse_i32_tuple(s: &str) -> Result<(i32, i32), &'static str> {
   }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum Minimap2CliPreset {
   LrHqae,
   LrHq,

@@ -1,19 +1,29 @@
 use crate::align::alignment_args::AlignmentArgs;
-use clap::{ArgEnum, Parser, ValueHint};
+use clap::{Parser, ValueEnum, ValueHint};
+use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 use std::fmt::Debug;
 use std::path::PathBuf;
+use strum_macros::Display;
 
-#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum, SmartDefault)]
-#[clap(rename = "kebab-case")]
+#[derive(
+  Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, SmartDefault, Display, Serialize, Deserialize,
+)]
+#[clap(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
 pub enum DistanceBackend {
   #[default]
   Native,
   Mash,
 }
 
-#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum, SmartDefault)]
-#[clap(rename = "kebab-case")]
+#[derive(
+  Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, SmartDefault, Display, Serialize, Deserialize,
+)]
+#[clap(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
 pub enum AlignmentBackend {
   #[default]
   Minimap2Lib,
@@ -46,7 +56,7 @@ pub struct PangraphBuildArgs {
   #[clap(value_hint = ValueHint::AnyPath)]
   pub output_json: PathBuf,
 
-  #[clap(flatten, next_help_heading = "  Alignment")]
+  #[clap(flatten, next_help_heading = "Alignment")]
   pub aln_args: AlignmentArgs,
 
   /// Toggle if input genomes are circular
@@ -63,12 +73,12 @@ pub struct PangraphBuildArgs {
   pub max_self_map: usize,
 
   /// Backend to use for genome similarity estimation. Similarity impacts the guide tree.
-  #[clap(long, short = 'd', arg_enum, default_value_t = DistanceBackend::default())]
+  #[clap(long, short = 'd', default_value_t = DistanceBackend::default())]
   #[clap(value_hint = ValueHint::Other)]
   pub distance_backend: DistanceBackend,
 
   /// Backend to use for pairwise genome alignment
-  #[clap(long, short = 'k', arg_enum, default_value_t = AlignmentBackend::default())]
+  #[clap(long, short = 'k',  default_value_t = AlignmentBackend::default())]
   #[clap(value_hint = ValueHint::Other)]
   pub alignment_kernel: AlignmentBackend,
 

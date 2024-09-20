@@ -174,7 +174,7 @@ fn group_promises(h: &[ToMerge]) -> Result<Vec<MergePromise>, Report> {
   let groups = h
     .iter()
     .sorted_by_key(|x| x.block_id())
-    .group_by(|x| x.block_id())
+    .chunk_by(|x| x.block_id())
     .into_iter()
     .map(|(a, b)| (a, b.collect_vec()))
     .collect::<BTreeMap<_, _>>();

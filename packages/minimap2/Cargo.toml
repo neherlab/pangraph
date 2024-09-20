@@ -58,7 +58,7 @@ rand = { workspace = true }
 rand_distr = { workspace = true }
 rand_isaac = { workspace = true }
 rayon = { workspace = true }
-serde = { version = "=1.0.143", features = ["derive"], optional = true }
+serde = { workspace = true, optional = true }
 serde-aux = { workspace = true }
 serde_json = { workspace = true }
 serde_stacker = { workspace = true }
