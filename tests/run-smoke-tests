@@ -1,47 +1,186 @@
-#!/usr/bin/env bash
-set -euo pipefail
-trap "exit 0" INT
+#!/usr/bin/env python3
 
-# Runs smoke tests - basic use-case checks with default data
-# https://en.wikipedia.org/wiki/Smoke_testing_(software)
-#
-# Dependencies:
-#   sudo apt-get install -y bash curl parallel
-#
-# Usage:
-#
-#     ./tests/run-smoke-tests target/release/pangraph
-#
-# with additional args to pangraph build:
-#
-#     ./tests/run-smoke-tests target/release/pangraph -b 20 -l 500
-#
-# (NOTE: you must build and re-build the executable yourself, this script does not do that):
+"""
+Run smoke tests - basic use-case checks with default data
 
-export PANGRAPH_BIN="${1:? "Usage: ${0} <path_to_pangraph> [extra_args...]"}"
-export EXTRA_ARGS="${*:2}"
+https://en.wikipedia.org/wiki/Smoke_testing_(software)
 
-THIS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")";  pwd)
-export THIS_DIR
+Usage:
 
-export ROOT_DIR="${THIS_DIR}/.."
-export INPUT_DIR="${ROOT_DIR}/data"
-export OUTPUT_DIR="${ROOT_DIR}/tmp/smoke-tests"
+    ./tests/run-smoke-tests 'target/release/pangraph'
 
-function run_one() {
-  set -euo pipefail
+NOTE: you must build and re-build the tested executable yourself, this script does not do that
 
-  input_fasta="${1}"
-  name="$(basename "${input_fasta}")"
+"""
 
-  set -x
-  ${PANGRAPH_BIN} build \
-    "${input_fasta}" \
-    -o="${OUTPUT_DIR}/${name}.json" \
-    ${EXTRA_ARGS}
-}
-export -f run_one
+import os
+from os import environ
+import subprocess
+import sys
+from multiprocessing import Pool, cpu_count
+from pathlib import Path
+from signal import signal, SIGINT, SIG_IGN
+from textwrap import dedent
+from typing import List
 
-shopt -s nullglob
-all_data=$(find "${INPUT_DIR}" -type f \( -name "*.fa*" -o -name "*.fasta*" \) | sort -h)
-parallel --group --jobs=+0 run_one ::: "${all_data}"
+verbose = True
+
+
+# Add arbitrary CLI invocations here
+def make_commands(exe, data_dir, out_dir):
+    # fmt: off
+    # @formatter:off
+    return [
+      f"{exe} --help",
+      f"{exe} build --help",
+      f"{exe} build {data_dir}/ecoli.fa.gz    -o {out_dir}/ecoli.json",
+      f"{exe} build {data_dir}/ges-1.fa       -o {out_dir}/ges-1.json",
+      f"{exe} build {data_dir}/example-rev.fa -o {out_dir}/example-rev.json",
+      f"{exe} build {data_dir}/example.fa     -o {out_dir}/example.json",
+      f"{exe} build {data_dir}/flu-h1.fa      -o {out_dir}/flu-h1.json",
+      f"{exe} build {data_dir}/flu-h3.fa      -o {out_dir}/flu-h3.json",
+
+      f"{exe} build {data_dir}/ecoli.fa.gz    -o {out_dir}/ecoli.json         -c   -b 5 -s 20 -l 100",
+      f"{exe} build {data_dir}/ges-1.fa       -o {out_dir}/ges-1.json         -c   -b 5 -s 20 -l 100",
+      f"{exe} build {data_dir}/example-rev.fa -o {out_dir}/example-rev.json   -c   -b 5 -s 20 -l 100",
+      f"{exe} build {data_dir}/example.fa     -o {out_dir}/example.json       -c   -b 5 -s 20 -l 100",
+      f"{exe} build {data_dir}/flu-h1.fa      -o {out_dir}/flu-h1.json        -c   -b 5 -s 20 -l 100",
+      f"{exe} build {data_dir}/flu-h3.fa      -o {out_dir}/flu-h3.json        -c   -b 5 -s 20 -l 100",
+
+
+      # f"{exe} build {data_dir}/klebs.fa.gz    -o {out_dir}/klebs.json",
+      # f"{exe} build {data_dir}/mpox.fa        -o {out_dir}/mpox.json",
+      # f"{exe} build {data_dir}/sc2.fa         -o {out_dir}/sc2.json"
+    ]
+    # fmt: on
+    # @formatter:on
+
+
+def blue(text):
+    return f"\033[38;5;32m{text}\033[0m"
+
+
+def red(text):
+    return f"\033[38;5;203m{text}\033[0m"
+
+
+def orange(text):
+    return f"\033[38;5;166m{text}\033[0m"
+
+
+def green(text):
+    return f"\033[38;5;113m{text}\033[0m"
+
+
+def grey(text):
+    return f"\033[38;5;244m{text}\033[0m"
+
+
+def _run_cmd_impl(cmd: str):
+    output = []
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            env={**environ, "CLICOLOR_FORCE": "1"},
+        )
+        output.append(result.stderr or "")
+        code = result.returncode
+    except subprocess.CalledProcessError as e:
+        output.append(e.output)
+        code = e.returncode
+    return output, code
+
+
+def clean_cmd(cmd: str) -> str:
+    return " ".join(dedent(cmd).splitlines()).strip()
+
+
+def clean_outputs(output: List[str]) -> List[str]:
+    return [o.strip() for o in output if o.strip()]
+
+
+def run_cmd(cmd):
+    cmd = clean_cmd(cmd)
+    output, code = _run_cmd_impl(cmd)
+    output = clean_outputs(output)
+    if code != 0 or verbose:
+        status = "🟥 Failed:" if code != 0 else "✅"
+        clr = red if code != 0 else grey
+        cmd = clr(f"{cmd}")
+        print("\n".join([f"{status} {cmd}"] + output))
+    return {"cmd": cmd, "code": code}
+
+
+def init_worker():
+    signal(SIGINT, SIG_IGN)
+
+
+def count_by(predicate, arr):
+    return sum(map(predicate, arr))
+
+
+def print_summary(results: List[dict]):
+    n = len(results)
+    failures = list(filter(lambda res: res["code"] != 0, results))
+    n_err = len(failures)
+    n_ok = n - n_err
+
+    if n > 0:
+        f_color = red if n_err > 0 else lambda x: x
+        print(
+            "\n".join(
+                [
+                    "",
+                    blue(f"Total tests: {n}"),
+                    green(f"  Succeeded: {n_ok}"),
+                    f_color(f"  Failed:    {n_err}"),
+                    "",
+                ]
+            )
+        )
+
+        if n_err > 0:
+            failures = [""] + [failure["cmd"] for failure in failures]
+            print(red("Failed commands:" + "\n\n  ".join(failures) + "\n\n"))
+
+        sys.exit(0 if n_err == 0 else 1)
+    else:
+        print("No tests found")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        sys.exit(f"Usage: {sys.argv[0]} <path_to_executable>")
+
+    def normpath(path: Path) -> str:
+        return str(path.resolve())
+
+    THIS_DIR = normpath(Path(__file__).parent)
+    PROJECT_ROOT = normpath(Path(THIS_DIR) / "..")
+
+    def relpath(path: Path) -> str:
+        return os.path.relpath(normpath(path), PROJECT_ROOT)
+
+    PANGRAPH_BIN = relpath(Path(sys.argv[1]))
+    DATA_DIR = relpath(Path(PROJECT_ROOT) / "data")
+    RESULTS_DIR = relpath(Path(PROJECT_ROOT) / "tmp/smoke-tests")
+
+    num_cores = cpu_count()
+
+    commands = make_commands(PANGRAPH_BIN, DATA_DIR, RESULTS_DIR)
+    with Pool(processes=num_cores, initializer=init_worker) as pool:
+        try:
+            results = pool.map_async(run_cmd, commands)
+            results = results.get()
+            print_summary(results)
+        except KeyboardInterrupt:
+            pool.terminate()
+            pool.close()
+        finally:
+            pool.close()
+            pool.join()
