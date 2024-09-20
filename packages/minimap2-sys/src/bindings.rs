@@ -5028,10 +5028,7 @@ extern "C" {
   ) -> ::std::os::raw::c_int;
 }
 extern "C" {
-  pub fn aligned_alloc(
-    __alignment: ::std::os::raw::c_ulong,
-    __size: ::std::os::raw::c_ulong,
-  ) -> *mut ::std::os::raw::c_void;
+  pub fn aligned_alloc(__alignment: usize, __size: usize) -> *mut ::std::os::raw::c_void;
 }
 extern "C" {
   pub fn abort() -> !;

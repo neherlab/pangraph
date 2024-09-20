@@ -1212,7 +1212,7 @@ mod tests {
 
     let bid_left = BlockId(1);
 
-    graph_merging_remove_paths(&mut graph, &new_nodes, bid_left);
+    graph_merging_remove_nodes(&mut graph, &new_nodes, bid_left);
 
     assert_eq!(&expected, &graph);
   }
