@@ -31,26 +31,28 @@ def make_commands(exe, data_dir, out_dir):
     # fmt: off
     # @formatter:off
     return [
-      f"{exe} --help",
-      f"{exe} build --help",
-      f"{exe} build {data_dir}/ecoli.fa.gz    -o {out_dir}/ecoli.json",
-      f"{exe} build {data_dir}/ges-1.fa       -o {out_dir}/ges-1.json",
-      f"{exe} build {data_dir}/example-rev.fa -o {out_dir}/example-rev.json",
-      f"{exe} build {data_dir}/example.fa     -o {out_dir}/example.json",
-      f"{exe} build {data_dir}/flu-h1.fa      -o {out_dir}/flu-h1.json",
-      f"{exe} build {data_dir}/flu-h3.fa      -o {out_dir}/flu-h3.json",
+        f"{exe} --help",
+        f"{exe} build --help",
 
-      f"{exe} build {data_dir}/ecoli.fa.gz    -o {out_dir}/ecoli.json         -c   -b 5 -s 20 -l 100",
-      f"{exe} build {data_dir}/ges-1.fa       -o {out_dir}/ges-1.json         -c   -b 5 -s 20 -l 100",
-      f"{exe} build {data_dir}/example-rev.fa -o {out_dir}/example-rev.json   -c   -b 5 -s 20 -l 100",
-      f"{exe} build {data_dir}/example.fa     -o {out_dir}/example.json       -c   -b 5 -s 20 -l 100",
-      f"{exe} build {data_dir}/flu-h1.fa      -o {out_dir}/flu-h1.json        -c   -b 5 -s 20 -l 100",
-      f"{exe} build {data_dir}/flu-h3.fa      -o {out_dir}/flu-h3.json        -c   -b 5 -s 20 -l 100",
+        f"{exe} build {data_dir}/ecoli.fa.gz         -o {out_dir}/ecoli_default.json",
+        f"{exe} build {data_dir}/ges-1.fa            -o {out_dir}/ges-1_default.json",
+        f"{exe} build {data_dir}/example-rev.fa      -o {out_dir}/example-rev_default.json",
+        f"{exe} build {data_dir}/example.fa          -o {out_dir}/example_default.json",
+        f"{exe} build {data_dir}/flu-h1.fa           -o {out_dir}/flu-h1_default.json",
+        f"{exe} build {data_dir}/flu-h3.fa           -o {out_dir}/flu-h3_default.json",
+        f"{exe} build {data_dir}/klebs.fa.gz         -o {out_dir}/klebs_default.json",
+        f"{exe} build {data_dir}/mpox.fa             -o {out_dir}/mpox_default.json",
+        f"{exe} build {data_dir}/sc2.fa              -o {out_dir}/sc2_default.json",
 
-
-      # f"{exe} build {data_dir}/klebs.fa.gz    -o {out_dir}/klebs.json",
-      # f"{exe} build {data_dir}/mpox.fa        -o {out_dir}/mpox.json",
-      # f"{exe} build {data_dir}/sc2.fa         -o {out_dir}/sc2.json"
+        f"{exe} build {data_dir}/ecoli.fa.gz         -o {out_dir}/ecoli_c-b5-s20-l100.json        -c -b 5 -s 20 -l 100",
+        f"{exe} build {data_dir}/ges-1.fa            -o {out_dir}/ges-1_c-b5-s20-l100.json        -c -b 5 -s 20 -l 100",
+        f"{exe} build {data_dir}/example-rev.fa      -o {out_dir}/example-rev_c-b5-s20-l100.json  -c -b 5 -s 20 -l 100",
+        f"{exe} build {data_dir}/example.fa          -o {out_dir}/example_c-b5-s20-l100.json      -c -b 5 -s 20 -l 100",
+        f"{exe} build {data_dir}/flu-h1.fa           -o {out_dir}/flu-h1_c-b5-s20-l100.json       -c -b 5 -s 20 -l 100",
+        f"{exe} build {data_dir}/flu-h3.fa           -o {out_dir}/flu-h3_c-b5-s20-l100.json       -c -b 5 -s 20 -l 100",
+        f"{exe} build {data_dir}/klebs.fa.gz         -o {out_dir}/klebs_c-b5-s20-l100.json        -c -b 5 -s 20 -l 100",
+        f"{exe} build {data_dir}/mpox.fa             -o {out_dir}/mpox_c-b5-s20-l100.json         -c -b 5 -s 20 -l 100",
+        f"{exe} build {data_dir}/sc2.fa              -o {out_dir}/sc2_c-b5-s20-l100.json          -c -b 5 -s 20 -l 100",
     ]
     # fmt: on
     # @formatter:on
