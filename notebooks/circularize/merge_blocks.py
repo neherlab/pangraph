@@ -1,7 +1,6 @@
-from .utils import Pangraph, Block, reverse_complement
+from .utils import Pangraph, Block, Node
 from .circularize_utils import Edge, SimpleNode
-from .utils import Node
-from notebooks.dump import dump
+
 
 def merge_blocks(graph: Pangraph, edge: Edge):
     """
@@ -53,8 +52,8 @@ def find_node_pairings(graph: Pangraph, edge: Edge) -> dict[int, int]:
     new_nodes = {}
     for path_id, path in graph.paths.items():
         N = len(path.nodes)  # number of nodes
-        I = N if path.circular else N - 1  # number of edges
-        for i in range(I):
+        N_edges = N if path.circular else N - 1  # number of edges
+        for i in range(N_edges):
             # get node ids, nodes, block ids and strandedness of the two nodes
             nid1, nid2 = path.nodes[i], path.nodes[(i + 1) % N]
             n1, n2 = graph.nodes[nid1], graph.nodes[nid2]
@@ -144,6 +143,38 @@ def merge_alignment(
     return new_block
 
 
+def graph_merging_update_paths(
+    graph: Pangraph, new_nodes: dict[int, Node], bid_left: int
+):
+    """
+    Updates the paths in the graph: removes nodes corresponding to the two merged
+    blocks and substitutes them with a new node for the merged block.
+    """
+    for pid, path in graph.paths.items():
+        for i, nid in enumerate(path.nodes):
+            if nid in new_nodes:
+                old_node_bid = graph.nodes[nid].block_id
+                if old_node_bid == bid_left:
+                    path.nodes[i] = new_nodes[nid].id
+                else:
+                    path.nodes[i] = None
+        # remove missing nodes
+        path.nodes = [nid for nid in path.nodes if nid is not None]
+
+
+def graph_merging_update_nodes(
+    graph: Pangraph, new_nodes: dict[int, Node], bid_left: int
+):
+    """
+    Updates the node dictionary in the graph: removes nodes corresponding
+    to the two merged blocks and substitutes them with a new node for the merged block.
+    """
+    for nid, n in new_nodes.items():
+        if graph.nodes[nid].block_id == bid_left:
+            graph.nodes[n.id] = n
+        del graph.nodes[nid]
+
+
 def graph_merging_update(
     graph: Pangraph,
     new_block: Block,
@@ -160,51 +191,8 @@ def graph_merging_update(
 
     bid_left = edge.n1.bid
 
-    dump({
-        "what": "------------------------BEFORE------------------------",
-        "bid_left": bid_left,
-        "graph": graph,
-        "new_block": new_block,
-        "new_nodes": new_nodes,
-        "edge": edge,
-    }, "01_before.json")
-
     # update paths
-    for pid, path in graph.paths.items():
-        for i, nid in enumerate(path.nodes):
-            if nid in new_nodes:
-                old_node_bid = graph.nodes[nid].block_id
-                if old_node_bid == bid_left:
-                    path.nodes[i] = new_nodes[nid].id
-                else:
-                    path.nodes[i] = None
-        # remove missing nodes
-        path.nodes = [nid for nid in path.nodes if nid is not None]
-
-    dump({
-        "what": "------------------------AFTER PATHS------------------------",
-        "bid_left": bid_left,
-        "graph": graph,
-        "new_block": new_block,
-        "new_nodes": new_nodes,
-        "edge": edge,
-    }, "02_after_paths.json")
+    graph_merging_update_paths(graph, new_nodes, bid_left)
 
     # delete old nodes and add new ones
-    for nid, n in new_nodes.items():
-        if graph.nodes[nid].block_id == edge.n1.bid:
-            graph.nodes[n.id] = n
-        del graph.nodes[nid]
-
-    dump({
-        "what": "------------------------AFTER NODES------------------------",
-        "bid_left": bid_left,
-        "graph": graph,
-        "new_block": new_block,
-        "new_nodes": new_nodes,
-        "edge": edge,
-    }, "03_after_nodes.json")
-
-    exit(0)
-
-
+    graph_merging_update_nodes(graph, new_nodes, bid_left)

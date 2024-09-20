@@ -70,9 +70,15 @@ fn find_node_pairings(graph: &Pangraph, edge: &Edge) -> (BTreeMap<NodeId, NodeId
       if *edge == e {
         node_pairings.insert(nid1, nid2);
         node_pairings.insert(nid2, nid1);
-        let new_s = n1.position().0;
-        let new_e = n2.position().1;
-        let new_strand = strand1;
+        let (new_s, new_e, new_strand) = {
+          if edge.n1 == sn1 {
+            debug_assert!(n1.position().1 % path.tot_len() == n2.position().0 % path.tot_len());
+            (n1.position().0, n2.position().1, n1.strand())
+          } else {
+            debug_assert!(n2.position().1 % path.tot_len() == n1.position().0 % path.tot_len());
+            (n2.position().0, n1.position().1, n2.strand())
+          }
+        };
 
         let new_node = PangraphNode::new(None, edge.n1.bid, path_id, new_strand, (new_s, new_e));
         new_nodes.insert(nid1, new_node.clone());
@@ -153,12 +159,12 @@ fn graph_merging_update(
 
   let bid_left = edge.n1.bid;
 
-  graph_merging_remove_paths(graph, new_nodes, bid_left);
+  graph_merging_update_paths(graph, new_nodes, bid_left);
 
-  graph_merging_remove_nodes(graph, new_nodes, bid_left);
+  graph_merging_update_nodes(graph, new_nodes, bid_left);
 }
 
-fn graph_merging_remove_paths(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId, PangraphNode>, bid_left: BlockId) {
+fn graph_merging_update_paths(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId, PangraphNode>, bid_left: BlockId) {
   for path in &mut graph.paths.values_mut() {
     path.nodes.retain_mut(|nid| match new_nodes.get(nid) {
       Some(new_node) if graph.nodes[nid].block_id() == bid_left => {
@@ -171,7 +177,7 @@ fn graph_merging_remove_paths(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId,
   }
 }
 
-fn graph_merging_remove_nodes(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId, PangraphNode>, bid_left: BlockId) {
+fn graph_merging_update_nodes(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId, PangraphNode>, bid_left: BlockId) {
   for (&nid, n) in new_nodes {
     if graph.nodes[&nid].block_id() == bid_left {
       graph.nodes.insert(n.id(), n.clone());
@@ -190,1032 +196,7 @@ mod tests {
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use maplit::btreemap;
   use pretty_assertions::assert_eq;
-
-  #[test]
-  fn test_graph_merging_remove_paths() {
-    let mut graph: Pangraph = json_read_str(
-      /* language=JSON */
-      r#"
-      {
-        "paths": {
-          "1": {
-            "id": 1,
-            "nodes": [
-              1,
-              4,
-              7
-            ],
-            "tot_len": 80,
-            "circular": true
-          },
-          "2": {
-            "id": 2,
-            "nodes": [
-              2,
-              5,
-              8
-            ],
-            "tot_len": 83,
-            "circular": true
-          },
-          "3": {
-            "id": 3,
-            "nodes": [
-              6,
-              3
-            ],
-            "tot_len": 67,
-            "circular": true
-          }
-        },
-        "blocks": {
-          "3": {
-            "id": 3,
-            "consensus": "CTATTACTAGGGGGACCACTA",
-            "alignments": {
-              "7": {
-                "inss": [],
-                "dels": [
-                  {
-                    "pos": 15,
-                    "len": 2
-                  }
-                ],
-                "subs": []
-              },
-              "8": {
-                "inss": [],
-                "dels": [],
-                "subs": [
-                  {
-                    "pos": 3,
-                    "alt": "C"
-                  }
-                ]
-              }
-            }
-          },
-          "1": {
-            "id": 1,
-            "consensus": "ACTATATTACGGCGATCGATCGATTACTCGCTCGACTCCTATGATAGGGATGATCCTAAGATC",
-            "alignments": {
-              "9124324634939260889": {
-                "inss": [],
-                "dels": [
-                  {
-                    "pos": 36,
-                    "len": 2
-                  }
-                ],
-                "subs": [
-                  {
-                    "pos": 3,
-                    "alt": "G"
-                  }
-                ]
-              },
-              "8785834526545769370": {
-                "inss": [
-                  {
-                    "pos": 7,
-                    "seq": "AA"
-                  }
-                ],
-                "dels": [
-                  {
-                    "pos": 13,
-                    "len": 3
-                  }
-                ],
-                "subs": [
-                  {
-                    "pos": 59,
-                    "alt": "A"
-                  }
-                ]
-              },
-              "1349251919941764633": {
-                "inss": [
-                  {
-                    "pos": 32,
-                    "seq": "CCC"
-                  },
-                  {
-                    "pos": 63,
-                    "seq": "AAA"
-                  }
-                ],
-                "dels": [
-                  {
-                    "pos": 61,
-                    "len": 2
-                  }
-                ],
-                "subs": []
-              }
-            }
-          }
-        },
-        "nodes": {
-          "1": {
-            "id": 1,
-            "block_id": 1,
-            "path_id": 1,
-            "position": [
-              0,
-              32
-            ],
-            "strand": "+"
-          },
-          "2": {
-            "id": 2,
-            "block_id": 1,
-            "path_id": 2,
-            "position": [
-              10,
-              41
-            ],
-            "strand": "+"
-          },
-          "3": {
-            "id": 3,
-            "block_id": 1,
-            "path_id": 3,
-            "position": [
-              40,
-              5
-            ],
-            "strand": "-"
-          },
-          "4": {
-            "id": 4,
-            "block_id": 2,
-            "path_id": 1,
-            "position": [
-              32,
-              61
-            ],
-            "strand": "-"
-          },
-          "5": {
-            "id": 5,
-            "block_id": 2,
-            "path_id": 2,
-            "position": [
-              41,
-              72
-            ],
-            "strand": "-"
-          },
-          "6": {
-            "id": 6,
-            "block_id": 2,
-            "path_id": 3,
-            "position": [
-              5,
-              40
-            ],
-            "strand": "+"
-          },
-          "7": {
-            "id": 7,
-            "block_id": 3,
-            "path_id": 1,
-            "position": [
-              61,
-              0
-            ],
-            "strand": "+"
-          },
-          "8": {
-            "id": 8,
-            "block_id": 3,
-            "path_id": 2,
-            "position": [
-              72,
-              10
-            ],
-            "strand": "+"
-          }
-        }
-      }"#,
-    )
-    .unwrap();
-
-    let new_nodes: BTreeMap<NodeId, PangraphNode> = json_read_str(
-      /* language=JSON */
-      r#"{
-        "1": {
-          "id": 9124324634939260889,
-          "block_id": 1,
-          "path_id": 1,
-          "position": [
-            0,
-            61
-          ],
-          "strand": "+"
-        },
-        "4": {
-          "id": 9124324634939260889,
-          "block_id": 1,
-          "path_id": 1,
-          "position": [
-            0,
-            61
-          ],
-          "strand": "+"
-        },
-        "2": {
-          "id": 8785834526545769370,
-          "block_id": 1,
-          "path_id": 2,
-          "position": [
-            10,
-            72
-          ],
-          "strand": "+"
-        },
-        "5": {
-          "id": 8785834526545769370,
-          "block_id": 1,
-          "path_id": 2,
-          "position": [
-            10,
-            72
-          ],
-          "strand": "+"
-        },
-        "6": {
-          "id": 1349251919941764633,
-          "block_id": 1,
-          "path_id": 3,
-          "position": [
-            40,
-            40
-          ],
-          "strand": "-"
-        },
-        "3": {
-          "id": 1349251919941764633,
-          "block_id": 1,
-          "path_id": 3,
-          "position": [
-            40,
-            40
-          ],
-          "strand": "-"
-        }
-      }"#,
-    )
-    .unwrap();
-
-    let expected: Pangraph = json_read_str(
-      /* language=JSON */
-      r#"{
-      "paths": {
-        "1": {
-          "id": 1,
-          "nodes": [
-            9124324634939260889,
-            7
-          ],
-          "tot_len": 80,
-          "circular": true
-        },
-        "2": {
-          "id": 2,
-          "nodes": [
-            8785834526545769370,
-            8
-          ],
-          "tot_len": 83,
-          "circular": true
-        },
-        "3": {
-          "id": 3,
-          "nodes": [
-            1349251919941764633
-          ],
-          "tot_len": 67,
-          "circular": true
-        }
-      },
-      "blocks": {
-        "3": {
-          "id": 3,
-          "consensus": "CTATTACTAGGGGGACCACTA",
-          "alignments": {
-            "7": {
-              "inss": [],
-              "dels": [
-                {
-                  "pos": 15,
-                  "len": 2
-                }
-              ],
-              "subs": []
-            },
-            "8": {
-              "inss": [],
-              "dels": [],
-              "subs": [
-                {
-                  "pos": 3,
-                  "alt": "C"
-                }
-              ]
-            }
-          }
-        },
-        "1": {
-          "id": 1,
-          "consensus": "ACTATATTACGGCGATCGATCGATTACTCGCTCGACTCCTATGATAGGGATGATCCTAAGATC",
-          "alignments": {
-            "9124324634939260889": {
-              "inss": [],
-              "dels": [
-                {
-                  "pos": 36,
-                  "len": 2
-                }
-              ],
-              "subs": [
-                {
-                  "pos": 3,
-                  "alt": "G"
-                }
-              ]
-            },
-            "8785834526545769370": {
-              "inss": [
-                {
-                  "pos": 7,
-                  "seq": "AA"
-                }
-              ],
-              "dels": [
-                {
-                  "pos": 13,
-                  "len": 3
-                }
-              ],
-              "subs": [
-                {
-                  "pos": 59,
-                  "alt": "A"
-                }
-              ]
-            },
-            "1349251919941764633": {
-              "inss": [
-                {
-                  "pos": 32,
-                  "seq": "CCC"
-                },
-                {
-                  "pos": 63,
-                  "seq": "AAA"
-                }
-              ],
-              "dels": [
-                {
-                  "pos": 61,
-                  "len": 2
-                }
-              ],
-              "subs": []
-            }
-          }
-        }
-      },
-      "nodes": {
-        "1": {
-          "id": 1,
-          "block_id": 1,
-          "path_id": 1,
-          "position": [
-            0,
-            32
-          ],
-          "strand": "+"
-        },
-        "2": {
-          "id": 2,
-          "block_id": 1,
-          "path_id": 2,
-          "position": [
-            10,
-            41
-          ],
-          "strand": "+"
-        },
-        "3": {
-          "id": 3,
-          "block_id": 1,
-          "path_id": 3,
-          "position": [
-            40,
-            5
-          ],
-          "strand": "-"
-        },
-        "4": {
-          "id": 4,
-          "block_id": 2,
-          "path_id": 1,
-          "position": [
-            32,
-            61
-          ],
-          "strand": "-"
-        },
-        "5": {
-          "id": 5,
-          "block_id": 2,
-          "path_id": 2,
-          "position": [
-            41,
-            72
-          ],
-          "strand": "-"
-        },
-        "6": {
-          "id": 6,
-          "block_id": 2,
-          "path_id": 3,
-          "position": [
-            5,
-            40
-          ],
-          "strand": "+"
-        },
-        "7": {
-          "id": 7,
-          "block_id": 3,
-          "path_id": 1,
-          "position": [
-            61,
-            0
-          ],
-          "strand": "+"
-        },
-        "8": {
-          "id": 8,
-          "block_id": 3,
-          "path_id": 2,
-          "position": [
-            72,
-            10
-          ],
-          "strand": "+"
-        }
-      }
-    }"#,
-    )
-    .unwrap();
-
-    let bid_left = BlockId(1);
-
-    graph_merging_remove_paths(&mut graph, &new_nodes, bid_left);
-
-    assert_eq!(&expected, &graph);
-  }
-
-  #[test]
-  fn test_graph_merging_remove_nodes() {
-    let mut graph: Pangraph = json_read_str(
-      /* language=JSON */
-      r#"{
-      "paths": {
-        "1": {
-          "id": 1,
-          "nodes": [
-            9124324634939260889,
-            7
-          ],
-          "tot_len": 80,
-          "circular": true
-        },
-        "2": {
-          "id": 2,
-          "nodes": [
-            8785834526545769370,
-            8
-          ],
-          "tot_len": 83,
-          "circular": true
-        },
-        "3": {
-          "id": 3,
-          "nodes": [
-            1349251919941764633
-          ],
-          "tot_len": 67,
-          "circular": true
-        }
-      },
-      "blocks": {
-        "3": {
-          "id": 3,
-          "consensus": "CTATTACTAGGGGGACCACTA",
-          "alignments": {
-            "7": {
-              "inss": [],
-              "dels": [
-                {
-                  "pos": 15,
-                  "len": 2
-                }
-              ],
-              "subs": []
-            },
-            "8": {
-              "inss": [],
-              "dels": [],
-              "subs": [
-                {
-                  "pos": 3,
-                  "alt": "C"
-                }
-              ]
-            }
-          }
-        },
-        "1": {
-          "id": 1,
-          "consensus": "ACTATATTACGGCGATCGATCGATTACTCGCTCGACTCCTATGATAGGGATGATCCTAAGATC",
-          "alignments": {
-            "9124324634939260889": {
-              "inss": [],
-              "dels": [
-                {
-                  "pos": 36,
-                  "len": 2
-                }
-              ],
-              "subs": [
-                {
-                  "pos": 3,
-                  "alt": "G"
-                }
-              ]
-            },
-            "8785834526545769370": {
-              "inss": [
-                {
-                  "pos": 7,
-                  "seq": "AA"
-                }
-              ],
-              "dels": [
-                {
-                  "pos": 13,
-                  "len": 3
-                }
-              ],
-              "subs": [
-                {
-                  "pos": 59,
-                  "alt": "A"
-                }
-              ]
-            },
-            "1349251919941764633": {
-              "inss": [
-                {
-                  "pos": 32,
-                  "seq": "CCC"
-                },
-                {
-                  "pos": 63,
-                  "seq": "AAA"
-                }
-              ],
-              "dels": [
-                {
-                  "pos": 61,
-                  "len": 2
-                }
-              ],
-              "subs": []
-            }
-          }
-        }
-      },
-      "nodes": {
-        "1": {
-          "id": 1,
-          "block_id": 1,
-          "path_id": 1,
-          "position": [
-            0,
-            32
-          ],
-          "strand": "+"
-        },
-        "2": {
-          "id": 2,
-          "block_id": 1,
-          "path_id": 2,
-          "position": [
-            10,
-            41
-          ],
-          "strand": "+"
-        },
-        "3": {
-          "id": 3,
-          "block_id": 1,
-          "path_id": 3,
-          "position": [
-            40,
-            5
-          ],
-          "strand": "-"
-        },
-        "4": {
-          "id": 4,
-          "block_id": 2,
-          "path_id": 1,
-          "position": [
-            32,
-            61
-          ],
-          "strand": "-"
-        },
-        "5": {
-          "id": 5,
-          "block_id": 2,
-          "path_id": 2,
-          "position": [
-            41,
-            72
-          ],
-          "strand": "-"
-        },
-        "6": {
-          "id": 6,
-          "block_id": 2,
-          "path_id": 3,
-          "position": [
-            5,
-            40
-          ],
-          "strand": "+"
-        },
-        "7": {
-          "id": 7,
-          "block_id": 3,
-          "path_id": 1,
-          "position": [
-            61,
-            0
-          ],
-          "strand": "+"
-        },
-        "8": {
-          "id": 8,
-          "block_id": 3,
-          "path_id": 2,
-          "position": [
-            72,
-            10
-          ],
-          "strand": "+"
-        }
-      }
-    }"#,
-    )
-    .unwrap();
-
-    let new_block: PangraphBlock = json_read_str(
-      /* language=JSON */
-      r#"{
-        "id": 1,
-        "consensus": "ACTATATTACGGCGATCGATCGATTACTCGCTCGACTCCTATGATAGGGATGATCCTAAGATC",
-        "alignments": {
-          "9124324634939260889": {
-            "inss": [],
-            "dels": [
-              {
-                "pos": 36,
-                "len": 2
-              }
-            ],
-            "subs": [
-              {
-                "pos": 3,
-                "alt": "G"
-              }
-            ]
-          },
-          "8785834526545769370": {
-            "inss": [
-              {
-                "pos": 7,
-                "seq": "AA"
-              }
-            ],
-            "dels": [
-              {
-                "pos": 13,
-                "len": 3
-              }
-            ],
-            "subs": [
-              {
-                "pos": 59,
-                "alt": "A"
-              }
-            ]
-          },
-          "1349251919941764633": {
-            "inss": [
-              {
-                "pos": 32,
-                "seq": "CCC"
-              },
-              {
-                "pos": 63,
-                "seq": "AAA"
-              }
-            ],
-            "dels": [
-              {
-                "pos": 61,
-                "len": 2
-              }
-            ],
-            "subs": []
-          }
-        }
-      }"#,
-    )
-    .unwrap();
-
-    let new_nodes: BTreeMap<NodeId, PangraphNode> = json_read_str(
-      /* language=JSON */
-      r#"{
-        "1": {
-          "id": 9124324634939260889,
-          "block_id": 1,
-          "path_id": 1,
-          "position": [
-            0,
-            61
-          ],
-          "strand": "+"
-        },
-        "4": {
-          "id": 9124324634939260889,
-          "block_id": 1,
-          "path_id": 1,
-          "position": [
-            0,
-            61
-          ],
-          "strand": "+"
-        },
-        "2": {
-          "id": 8785834526545769370,
-          "block_id": 1,
-          "path_id": 2,
-          "position": [
-            10,
-            72
-          ],
-          "strand": "+"
-        },
-        "5": {
-          "id": 8785834526545769370,
-          "block_id": 1,
-          "path_id": 2,
-          "position": [
-            10,
-            72
-          ],
-          "strand": "+"
-        },
-        "6": {
-          "id": 1349251919941764633,
-          "block_id": 1,
-          "path_id": 3,
-          "position": [
-            40,
-            40
-          ],
-          "strand": "-"
-        },
-        "3": {
-          "id": 1349251919941764633,
-          "block_id": 1,
-          "path_id": 3,
-          "position": [
-            40,
-            40
-          ],
-          "strand": "-"
-        }
-      }"#,
-    )
-    .unwrap();
-
-    let edge: Edge = json_read_str(
-      /* language=JSON */
-      r#"{
-        "n1": {
-          "bid": 1,
-          "strand": "+"
-        },
-        "n2": {
-          "bid": 2,
-          "strand": "-"
-        }
-      }"#,
-    )
-    .unwrap();
-
-    let expected: Pangraph = json_read_str(
-      /* language=JSON */
-      r#"{
-        "paths": {
-          "1": {
-            "id": 1,
-            "nodes": [
-              9124324634939260889,
-              7
-            ],
-            "tot_len": 80,
-            "circular": true
-          },
-          "2": {
-            "id": 2,
-            "nodes": [
-              8785834526545769370,
-              8
-            ],
-            "tot_len": 83,
-            "circular": true
-          },
-          "3": {
-            "id": 3,
-            "nodes": [
-              1349251919941764633
-            ],
-            "tot_len": 67,
-            "circular": true
-          }
-        },
-        "blocks": {
-          "3": {
-            "id": 3,
-            "consensus": "CTATTACTAGGGGGACCACTA",
-            "alignments": {
-              "7": {
-                "inss": [],
-                "dels": [
-                  {
-                    "pos": 15,
-                    "len": 2
-                  }
-                ],
-                "subs": []
-              },
-              "8": {
-                "inss": [],
-                "dels": [],
-                "subs": [
-                  {
-                    "pos": 3,
-                    "alt": "C"
-                  }
-                ]
-              }
-            }
-          },
-          "1": {
-            "id": 1,
-            "consensus": "ACTATATTACGGCGATCGATCGATTACTCGCTCGACTCCTATGATAGGGATGATCCTAAGATC",
-            "alignments": {
-              "9124324634939260889": {
-                "inss": [],
-                "dels": [
-                  {
-                    "pos": 36,
-                    "len": 2
-                  }
-                ],
-                "subs": [
-                  {
-                    "pos": 3,
-                    "alt": "G"
-                  }
-                ]
-              },
-              "8785834526545769370": {
-                "inss": [
-                  {
-                    "pos": 7,
-                    "seq": "AA"
-                  }
-                ],
-                "dels": [
-                  {
-                    "pos": 13,
-                    "len": 3
-                  }
-                ],
-                "subs": [
-                  {
-                    "pos": 59,
-                    "alt": "A"
-                  }
-                ]
-              },
-              "1349251919941764633": {
-                "inss": [
-                  {
-                    "pos": 32,
-                    "seq": "CCC"
-                  },
-                  {
-                    "pos": 63,
-                    "seq": "AAA"
-                  }
-                ],
-                "dels": [
-                  {
-                    "pos": 61,
-                    "len": 2
-                  }
-                ],
-                "subs": []
-              }
-            }
-          }
-        },
-        "nodes": {
-          "7": {
-            "id": 7,
-            "block_id": 3,
-            "path_id": 1,
-            "position": [
-              61,
-              0
-            ],
-            "strand": "+"
-          },
-          "8": {
-            "id": 8,
-            "block_id": 3,
-            "path_id": 2,
-            "position": [
-              72,
-              10
-            ],
-            "strand": "+"
-          },
-          "9124324634939260889": {
-            "id": 9124324634939260889,
-            "block_id": 1,
-            "path_id": 1,
-            "position": [
-              0,
-              61
-            ],
-            "strand": "+"
-          },
-          "8785834526545769370": {
-            "id": 8785834526545769370,
-            "block_id": 1,
-            "path_id": 2,
-            "position": [
-              10,
-              72
-            ],
-            "strand": "+"
-          },
-          "1349251919941764633": {
-            "id": 1349251919941764633,
-            "block_id": 1,
-            "path_id": 3,
-            "position": [
-              40,
-              40
-            ],
-            "strand": "-"
-          }
-        }
-      }"#,
-    )
-    .unwrap();
-
-    let bid_left = BlockId(1);
-
-    graph_merging_remove_nodes(&mut graph, &new_nodes, bid_left);
-
-    assert_eq!(&expected, &graph);
-  }
+  use rayon::vec;
 
   fn block_1() -> PangraphBlock {
     //          0         1         2         3
@@ -1311,7 +292,7 @@ mod tests {
     let paths = btreemap! {
       PathId(1) => PangraphPath::new(Some(PathId(1)), [1, 4, 7].into_iter().map(NodeId).collect_vec(), 80, true,  None),
       PathId(2) => PangraphPath::new(Some(PathId(2)), [2, 5, 8].into_iter().map(NodeId).collect_vec(), 83, true,  None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [6, 3].into_iter().map(NodeId).collect_vec(),    67, false, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [6, 3].into_iter().map(NodeId).collect_vec(),    67, true, None),
     };
 
     let blocks = btreemap! {
@@ -1365,6 +346,21 @@ mod tests {
     assert_eq!(block_2_revcomp(), block_2().reverse_complement().unwrap());
   }
 
+  fn expected_new_nodes() -> BTreeMap<NodeId, PangraphNode> {
+    btreemap! {
+      NodeId(1) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)),
+      NodeId(2) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)),
+      NodeId(3) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)),
+      NodeId(4) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)),
+      NodeId(5) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)),
+      NodeId(6) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)),
+    }
+  }
+
+  fn expected_new_node_ids() -> BTreeMap<NodeId, NodeId> {
+    expected_new_nodes().iter().map(|(&k, v)| (k, v.id())).collect()
+  }
+
   fn expected_concat() -> PangraphBlock {
     //          0         1         2         3         4         5         6
     //          012345678901234567890123456789012345678901234567890123456789012
@@ -1372,10 +368,11 @@ mod tests {
     //   n1:    ...G................................xx.........................  l = 32 + 29
     //   n2:    .......|.....xxx...........................................A...  l = 31 + 31
     //   n3:    ................................|............................xx| l = 35 + 32
+    let new_ids = expected_new_node_ids();
     let aln = btreemap! {
-      NodeId(1) => Edit::new(vec![],                                         vec![Del::new(36, 2)], vec![Sub::new(3 , 'G')]),
-      NodeId(2) => Edit::new(vec![Ins::new(7, "AA")],                        vec![Del::new(13, 3)], vec![Sub::new(59, 'A')]),
-      NodeId(3) => Edit::new(vec![Ins::new(32, "CCC"), Ins::new(63, "AAA")], vec![Del::new(61, 2)], vec![]                 ),
+      new_ids[&NodeId(1)] => Edit::new(vec![],                                         vec![Del::new(36, 2)], vec![Sub::new(3 , 'G')]),
+      new_ids[&NodeId(2)] => Edit::new(vec![Ins::new(7, "AA")],                        vec![Del::new(13, 3)], vec![Sub::new(59, 'A')]),
+      new_ids[&NodeId(3)] => Edit::new(vec![Ins::new(32, "CCC"), Ins::new(63, "AAA")], vec![Del::new(61, 2)], vec![]                 ),
     };
 
     PangraphBlock::new(
@@ -1393,15 +390,7 @@ mod tests {
 
     let (pairings, new_nodes) = find_node_pairings(&graph_a(), &edge);
 
-    let new_nodes_ids = btreemap! {
-      NodeId(1) => NodeId(1),
-      NodeId(2) => NodeId(2),
-      NodeId(3) => NodeId(3),
-      NodeId(4) => NodeId(1),
-      NodeId(5) => NodeId(2),
-      NodeId(6) => NodeId(3),
-    };
-
+    let new_nodes_ids = expected_new_node_ids();
     let block = concatenate_alignments(
       &block_1(),
       &block_2().reverse_complement().unwrap(),
@@ -1420,7 +409,9 @@ mod tests {
     //      (40|-----------|40)
     // p3) (b1-|-----------|n3)              l=67
 
-    let mut blocks = btreemap! {
+    let new_ids = expected_new_node_ids();
+
+    let blocks = btreemap! {
       BlockId(1) => expected_concat(),
       BlockId(3) => PangraphBlock::new(BlockId(3), "CTATTACTAGGGGGACCACTA", btreemap! {
         NodeId(7) => Edit::new(vec![], vec![Del::new(15, 2)], vec![]                ),
@@ -1428,36 +419,44 @@ mod tests {
       })
     };
 
-    let mut nodes = btreemap! {
-      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(1), PathId(1), Forward, (0 , 61)),
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(1), PathId(2), Forward, (10, 72)),
-      NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(1), PathId(3), Reverse, (40, 40)),
+    let nodes = btreemap! {
+      new_ids[&NodeId(1)] => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)),
+      new_ids[&NodeId(2)] => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)),
+      new_ids[&NodeId(3)] => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)),
       NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(3), PathId(1), Forward, (61, 0 )),
       NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(2), Forward, (72, 10)),
     };
 
-    let mut new_ids = btreemap! {};
-    for &nid in &[1, 2, 3] {
-      let n = nodes.remove(&NodeId(nid)).unwrap();
-      let new_id = n.id();
-      nodes.insert(new_id, n);
-      new_ids.insert(nid, new_id);
-    }
-
-    let mut alns = blocks.get_mut(&BlockId(1)).unwrap().alignments().clone();
-    for (&old_nid, &new_nid) in &new_ids {
-      let aln = alns.remove(&NodeId(old_nid)).unwrap();
-      blocks.get_mut(&BlockId(1)).unwrap().alignment_insert(new_nid, aln);
-    }
-
     #[rustfmt::skip]
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [new_ids[&1], NodeId(7)], 80, true, None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [new_ids[&2], NodeId(8)], 83, true, None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [new_ids[&3]],            67, true, None)
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [new_ids[&NodeId(1)], NodeId(7)], 80, true, None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [new_ids[&NodeId(2)], NodeId(8)], 83, true, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [new_ids[&NodeId(3)]],            67, true, None)
     };
 
     Pangraph { paths, blocks, nodes }
+  }
+
+  #[test]
+  fn test_update_paths() {
+    let n1 = SimpleNode::new(BlockId(1), Forward);
+    let n2 = SimpleNode::new(BlockId(2), Reverse);
+    let edge = Edge::new(n1, n2);
+    let mut g = graph_a();
+    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    graph_merging_update_paths(&mut g, &new_nodes, BlockId(1));
+    assert_eq!(g.paths, expected_graph().paths);
+  }
+
+  #[test]
+  fn test_update_nodes() {
+    let n1 = SimpleNode::new(BlockId(1), Forward);
+    let n2 = SimpleNode::new(BlockId(2), Reverse);
+    let edge = Edge::new(n1, n2);
+    let mut g = graph_a();
+    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    graph_merging_update_nodes(&mut g, &new_nodes, BlockId(1));
+    assert_eq!(g.nodes, expected_graph().nodes);
   }
 
   #[test]
