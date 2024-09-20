@@ -64,6 +64,7 @@ def find_node_pairings(graph: Pangraph, edge: Edge) -> dict[int, int]:
             sn1, sn2 = SimpleNode(bid1, strand1), SimpleNode(bid2, strand2)
             e = Edge(sn1, sn2)
             if edge == e:
+                print(e, edge)
                 # create node pairings
                 node_pairings[nid1] = nid2
                 node_pairings[nid2] = nid1
@@ -71,22 +72,20 @@ def find_node_pairings(graph: Pangraph, edge: Edge) -> dict[int, int]:
                 # create new node, in the orientation of the left edge
                 s1, e1 = n1.position
                 s2, e2 = n2.position
+                new_s, new_e = s1, e2
+                print(s1, e1, s2, e2)
+                assert (e1 % path.L) == (s2 % path.L), "nodes must be adjacent"
                 if edge.n1 == sn1:
                     # edge orientation is the same as the path
-                    new_s = s1
-                    new_e = e2
-                    assert (e1 % path.L) == (s2 % path.L), "nodes must be adjacent"
                     new_strand = strand1
                 elif edge.n1 == ~sn2:
                     # edge orientation is the opposite of the path
-                    new_s = s2
-                    new_e = e1
-                    assert (e2 % path.L) == (s1 % path.L), "nodes must be adjacent"
                     new_strand = strand2
                 else:
                     raise ValueError("unexpected edge orientation")
                 # create new node and assign new id based on hash
                 new_node = Node(None, edge.n1.bid, path_id, (new_s, new_e), new_strand)
+                print(new_node)
                 new_node.id = new_node.calculate_id()
                 new_nodes[nid1] = new_node
                 new_nodes[nid2] = new_node
