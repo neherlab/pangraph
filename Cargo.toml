@@ -65,7 +65,7 @@ parking_lot = { version = "=0.12.3", features = ["deadlock_detection", "hardware
 pretty_assertions = "=1.4.1"
 pretty_dtoa = "=0.3.0"
 rand = { version = "=0.8.5", features = ["serde1", "log"] }
-rand_distr = { version = "=0.4.3", feaures = ["serde1", "std_math"] }
+rand_distr = { version = "=0.4.3", features = ["serde1", "std_math"] }
 rand_isaac = { version = "=0.3.0", features = ["serde1"] }
 rayon = "=1.10.0"
 rstest = "=0.22.0"
