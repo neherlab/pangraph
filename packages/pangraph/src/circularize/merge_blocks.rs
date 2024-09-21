@@ -347,10 +347,10 @@ mod tests {
     btreemap! {
       NodeId(1) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)),
       NodeId(2) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)),
-      NodeId(3) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)),
+      NodeId(3) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (5, 5)),
       NodeId(4) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)),
       NodeId(5) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)),
-      NodeId(6) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)),
+      NodeId(6) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (5, 5)),
     }
   }
 
@@ -419,7 +419,7 @@ mod tests {
     let nodes = btreemap! {
       new_ids[&NodeId(1)] => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)),
       new_ids[&NodeId(2)] => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)),
-      new_ids[&NodeId(3)] => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (40, 40)),
+      new_ids[&NodeId(3)] => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (5, 5)),
       NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(3), PathId(1), Forward, (61, 0 )),
       NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(2), Forward, (72, 10)),
     };
