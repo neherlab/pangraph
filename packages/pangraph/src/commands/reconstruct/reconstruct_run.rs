@@ -63,11 +63,27 @@ pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord,
 }
 
 fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<String, Report> {
-  path
+  // if empty path return empty string
+  if path.nodes.is_empty() {
+    return Ok(String::new());
+  }
+
+  let first_node_id = path.nodes.first().ok_or_else(|| make_internal_report!("Empty path"))?;
+  let first_node_pos = graph.nodes.get(first_node_id).unwrap().position().0;
+  let genome: String = path
     .nodes
     .iter()
-    .map(|node_id| reconstruct_block_sequence(graph, *node_id))
-    .collect()
+    .map(|node_id| reconstruct_block_sequence(graph, *node_id).unwrap())
+    .collect();
+
+  let genome_len = path.tot_len();
+  assert_eq!(genome.len(), genome_len);
+  assert!(first_node_pos < genome_len);
+  let cut_position = genome_len - first_node_pos;
+  // split the sequence at first node position, and join the two parts
+  let (first, second) = genome.split_at(cut_position);
+  let seq = format!("{}{}", second, first);
+  return Ok(seq);
 }
 
 fn reconstruct_block_sequence(graph: &Pangraph, node_id: NodeId) -> Result<String, Report> {
