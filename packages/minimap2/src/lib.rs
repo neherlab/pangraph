@@ -1,4 +1,4 @@
-#![allow(unsafe_code)]
+#![allow(unsafe_code, dead_code, unnameable_types, clippy::redundant_pub_crate)]
 
 mod buf;
 mod index;

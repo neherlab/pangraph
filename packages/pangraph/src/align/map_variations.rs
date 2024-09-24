@@ -1,4 +1,3 @@
-use crate::align::nextclade::align::params::GapAlignmentSide;
 use crate::align::nextclade::align_with_nextclade::{align_with_nextclade, AlignWithNextcladeOutput, NextalignParams};
 use crate::align::nextclade::alphabet::nuc::{from_nuc, from_nuc_seq};
 use crate::pangraph::edits::{Del, Edit, Ins, Sub};

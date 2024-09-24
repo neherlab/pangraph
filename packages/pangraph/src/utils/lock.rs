@@ -65,7 +65,7 @@ where
 
 impl<'de, T> Deserialize<'de> for Lock<T>
 where
-  T: Deserialize<'de> + ?Sized,
+  T: Deserialize<'de>,
 {
   fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
   where

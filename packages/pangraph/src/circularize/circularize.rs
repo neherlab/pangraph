@@ -4,7 +4,6 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::pangraph_path::PathId;
 use eyre::Report;
-use maplit::btreemap;
 use std::collections::{BTreeMap, HashMap};
 
 /// Removes transitive edges from the graph inplace.
@@ -22,6 +21,8 @@ fn find_transitive_edges(graph: &Pangraph) -> Vec<Edge> {
   let block_depths = calculate_block_depths(graph);
   let edge_counts = count_edges(graph);
   let mut transitive_edges = Vec::new();
+
+  #[allow(clippy::iter_over_hash_type)]
   for (edge, edge_count) in edge_counts {
     let bid1 = edge.n1.bid;
     let bid2 = edge.n2.bid;

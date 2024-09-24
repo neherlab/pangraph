@@ -1,7 +1,5 @@
 use eyre::{Report, WrapErr};
-use itertools::Itertools;
 use noodles::sam::record::cigar::op::Kind;
-use noodles::sam::record::cigar::Op;
 use noodles::sam::record::Cigar;
 use std::str::FromStr;
 

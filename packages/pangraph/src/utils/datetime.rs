@@ -1,6 +1,5 @@
 use chrono::{DateTime, FixedOffset, Utc};
 use eyre::Report;
-use itertools::Itertools;
 use std::time::{Duration, UNIX_EPOCH};
 
 pub fn date_now() -> DateTime<Utc> {

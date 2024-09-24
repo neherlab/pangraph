@@ -1,5 +1,4 @@
 use itertools::Itertools;
-use maplit::btreemap;
 use std::collections::BTreeMap;
 
 pub type Fun<K, V> = fn((K, V), (K, V)) -> V;
@@ -40,6 +39,7 @@ where
 #[cfg(test)]
 mod tests {
   use super::*;
+  use maplit::btreemap;
 
   #[test]
   fn test_map_merge_both_empty() {
@@ -53,6 +53,7 @@ mod tests {
     assert_eq!(merged, btreemap! {1 => 10, 2 => 20});
   }
 
+  #[test]
   fn test_map_merge_right_map_empty_left() {
     let merged = map_merge(&btreemap! {}, &btreemap! {1 => 10, 2 => 20}, ConflictResolution::Left);
     assert_eq!(merged, btreemap! {1 => 10, 2 => 20});

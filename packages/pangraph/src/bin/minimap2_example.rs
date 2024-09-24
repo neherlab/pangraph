@@ -1,7 +1,6 @@
 use clap::{Parser, ValueHint};
 use ctor::ctor;
 use eyre::Report;
-use itertools::Itertools;
 use maplit::btreemap;
 use pangraph::align::alignment_args::AlignmentArgs;
 use pangraph::align::minimap2::align_with_minimap2::align_with_minimap2;

@@ -3,12 +3,8 @@ use crate::align::nextclade::alphabet::nuc::{from_nuc, Nuc};
 use crate::align::nextclade::analyze::abstract_mutation::{AbstractMutation, MutParams, Pos, QryLetter, RefLetter};
 use crate::align::nextclade::analyze::nuc_del::NucDel;
 use crate::align::nextclade::coord::position::NucRefGlobalPosition;
-use crate::make_error;
-use eyre::{Report, WrapErr};
-use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
-use std::str::FromStr;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize, Hash)]
 #[serde(rename_all = "camelCase")]

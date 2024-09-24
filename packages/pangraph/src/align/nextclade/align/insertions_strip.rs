@@ -1,7 +1,6 @@
 use crate::align::nextclade::alphabet::aa::Aa;
 use crate::align::nextclade::alphabet::letter::{serde_deserialize_seq, serde_serialize_seq, Letter};
 use crate::align::nextclade::alphabet::nuc::Nuc;
-use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 

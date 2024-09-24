@@ -1,7 +1,5 @@
 use crate::align::alignment::{Alignment, Hit};
 use crate::align::alignment_args::AlignmentArgs;
-use clap::Args;
-use serde::{Deserialize, Serialize};
 
 /// Calculate the energy of the alignment.
 ///
@@ -59,13 +57,13 @@ pub fn alignment_energy2(aln: &Alignment, args: &AlignmentArgs) -> f64 {
 mod tests {
   use super::*;
   use crate::align::bam::cigar::parse_cigar_str;
-  use crate::o;
+  
   use crate::pangraph::pangraph_block::BlockId;
   use crate::pangraph::strand::Strand;
-  use crate::utils::interval::Interval;
+  
   use approx::assert_ulps_eq;
-  use eyre::Report;
-  use pretty_assertions::assert_eq;
+  
+  
   use rstest::rstest;
 
   #[rstest]

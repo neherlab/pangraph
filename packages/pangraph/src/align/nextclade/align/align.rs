@@ -7,7 +7,6 @@ use crate::align::nextclade::align::seed_alignment::create_alignment_band;
 use crate::align::nextclade::align::seed_match::{
   get_seed_matches_maybe_reverse_complement, CodonSpacedIndex, SeedMatchesResult,
 };
-use crate::align::nextclade::alphabet::aa::Aa;
 use crate::align::nextclade::alphabet::letter::Letter;
 use crate::align::nextclade::alphabet::nuc::Nuc;
 use crate::make_error;

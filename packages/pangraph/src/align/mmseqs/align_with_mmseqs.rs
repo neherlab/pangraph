@@ -1,20 +1,15 @@
 use crate::align::alignment::Alignment;
 use crate::align::alignment_args::AlignmentArgs;
 use crate::align::mmseqs::paf::PafTsvRecord;
-use crate::io::fasta::{write_one_fasta, FastaRecord, FastaWriter};
+use crate::io::fasta::FastaWriter;
 use crate::io::file::open_file_or_stdin;
 use crate::io::fs::path_to_str;
-use crate::o;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
-use crate::utils::subprocess::{create_arg_optional, subprocess, subprocess_with_args};
+use crate::utils::subprocess::create_arg_optional;
 use cmd_lib::run_cmd;
-use color_eyre::{Section, SectionExt};
 use eyre::{Report, WrapErr};
-use itertools::Itertools;
-use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::io::Read;
-use std::str::FromStr;
 use tempfile::Builder as TempDirBuilder;
 
 pub fn align_with_mmseqs(
@@ -33,7 +28,7 @@ pub fn align_with_mmseqs(
     let mut writer = FastaWriter::from_path(&input_path)?;
     blocks
       .iter()
-      .try_for_each(|(id, block)| writer.write(&id.to_string(), block.consensus()))?;
+      .try_for_each(|(id, block)| writer.write(id.to_string(), block.consensus()))?;
   }
 
   let output_column_names = PafTsvRecord::fields_names().join(",");

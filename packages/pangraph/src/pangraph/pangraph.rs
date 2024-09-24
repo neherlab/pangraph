@@ -14,7 +14,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::str::FromStr;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Hash)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct Pangraph {
   pub paths: BTreeMap<PathId, PangraphPath>,
   pub blocks: BTreeMap<BlockId, PangraphBlock>,
@@ -72,7 +72,7 @@ impl Pangraph {
     );
 
     for (old_node_id, new_nodes) in &u.n_new {
-      let path_id = self.nodes[&old_node_id].path_id();
+      let path_id = self.nodes[old_node_id].path_id();
 
       let path = self.paths.get_mut(&path_id).unwrap(); // FIXME
 

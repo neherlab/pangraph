@@ -2,11 +2,10 @@ use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
 use crate::align::map_variations::map_variations;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_error;
-use crate::pangraph::edits::{Del, Edit, Ins, Sub};
+use crate::pangraph::edits::Edit;
 use crate::pangraph::pangraph::{GraphUpdate, Pangraph};
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_interval::extract_intervals;
-use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::slice::block_slice;
 use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
@@ -15,7 +14,6 @@ use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
-use std::hash::Hash;
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct MergePromise {
@@ -70,6 +68,7 @@ struct ToMerge {
 }
 
 impl ToMerge {
+  #[allow(dead_code)]
   pub fn new(block: PangraphBlock, is_anchor: bool, orientation: Strand) -> Self {
     Self {
       block,
@@ -175,7 +174,7 @@ fn group_promises(h: &[ToMerge]) -> Result<Vec<MergePromise>, Report> {
   let groups = h
     .iter()
     .sorted_by_key(|x| x.block_id())
-    .group_by(|x| x.block_id())
+    .chunk_by(|x| x.block_id())
     .into_iter()
     .map(|(a, b)| (a, b.collect_vec()))
     .collect::<BTreeMap<_, _>>();
@@ -284,7 +283,7 @@ mod tests {
   use crate::align::alignment::Hit;
   use crate::io::seq::generate_random_nuc_sequence;
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
-  use crate::pangraph::pangraph_node::PangraphNode;
+  use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
   use crate::pangraph::pangraph_path::{PangraphPath, PathId};
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use crate::utils::interval::Interval;
@@ -842,7 +841,7 @@ mod tests {
 
     let bid20_1 = G.nodes[&nid_200_1].block_id();
     for n in &[nid_100_2, nid_300_5, nid_300_6] {
-      assert_eq!(G.nodes[&n].block_id(), bid20_1);
+      assert_eq!(G.nodes[n].block_id(), bid20_1);
     }
 
     // merge promises

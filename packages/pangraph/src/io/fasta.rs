@@ -5,10 +5,8 @@ use crate::make_error;
 use eyre::Report;
 use log::info;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-use std::io::{BufRead, BufReader, Read};
+use std::io::{BufRead, BufReader};
 use std::path::Path;
-use std::str::FromStr;
 
 const VALID_CHARS: &[char] = &[
   'A', 'C', 'G', 'T', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N', '-',

@@ -1,4 +1,4 @@
-use clap::{Args, ValueHint};
+use clap::{value_parser, Args, ValueHint};
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 
@@ -24,7 +24,7 @@ pub struct AlignmentArgs {
 
   /// Used to set pairwise alignment sensitivity for minimap aligner. Corresponds to option -x asm5/asm10/asm20 in minimap2
   #[default = 10]
-  #[clap(long, short = 's', possible_values(&["5", "10", "20"]), default_value_t = AlignmentArgs::default().sensitivity)]
+  #[clap(long, short = 's', value_parser = value_parser!(usize), default_value_t = AlignmentArgs::default().sensitivity)]
   #[clap(value_hint = ValueHint::Other)]
   pub sensitivity: usize,
 

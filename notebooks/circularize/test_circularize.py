@@ -1,7 +1,7 @@
 import pytest
 
-from utils import Pangraph, Path, Block, Node, Edit, Substitution, Insertion, Deletion
-from circularize import (
+from .utils import Pangraph, Path, Block, Node, Edit, Substitution, Insertion, Deletion
+from .circularize import (
     Edge,
     SimpleNode,
     block_depths,

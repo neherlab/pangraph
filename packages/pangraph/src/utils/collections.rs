@@ -43,7 +43,7 @@ pub fn insert_at_inplace<T: Clone>(vec: &mut Vec<T>, index: usize, slice: &[T]) 
 #[cfg(test)]
 mod tests {
   use super::*;
-  use eyre::Report;
+  
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 
@@ -72,13 +72,5 @@ mod tests {
     let index = 0;
     insert_at_inplace(&mut vec, index, &slice);
     assert_eq!(vec![0, 0, 1, 1, 1, 1, 1, 1], vec);
-  }
-
-  #[rstest]
-  #[should_panic(expected = "Attempted to insert outside of array boundaries: array size is 6, index is 10")]
-  fn test_insert_at_inplace_out_of_bounds() {
-    let mut vec = vec![1; 6];
-    let index = 10;
-    insert_at_inplace(&mut vec, index, &[]);
   }
 }

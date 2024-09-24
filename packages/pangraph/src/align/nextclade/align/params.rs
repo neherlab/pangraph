@@ -1,3 +1,5 @@
+#![allow(unused_qualifications)]
+
 use crate::{make_error, o};
 use clap::{Parser, ValueEnum};
 use eyre::Report;

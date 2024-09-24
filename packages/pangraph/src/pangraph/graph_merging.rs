@@ -4,6 +4,7 @@ use crate::align::energy::alignment_energy2;
 use crate::align::minimap2::align_with_minimap2::align_with_minimap2;
 use crate::align::minimap2_lib::align_with_minimap2_lib::align_with_minimap2_lib;
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
+use crate::circularize::circularize::remove_transitive_edges;
 use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
@@ -13,7 +14,7 @@ use crate::utils::interval::{have_no_overlap, Interval};
 use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
-use log::{debug, info, trace};
+use log::{debug, trace};
 use maplit::btreemap;
 use ordered_float::OrderedFloat;
 use rayon::prelude::*;
@@ -48,10 +49,15 @@ pub fn merge_graphs(
     // stop when no more mergers are possible
     if !has_changed {
       debug!("Graph merge {left_keys} <---> {right_keys} complete.");
-      break Ok(graph);
+      break;
     }
     i += 1;
   }
+
+  debug!("Removing transitive edges");
+  remove_transitive_edges(&mut graph).wrap_err("When removing transitive edges")?;
+
+  Ok(graph)
 }
 
 pub fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {

@@ -1,6 +1,6 @@
 use crate::utils::lock::Lock;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Hash)]
 pub struct Clade<T> {

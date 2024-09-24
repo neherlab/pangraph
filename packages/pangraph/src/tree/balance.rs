@@ -1,6 +1,5 @@
 use crate::tree::clade::Clade;
 use crate::utils::lock::Lock;
-use itertools::Itertools;
 
 // Rotate a binary tree to a balanced configuration.
 // Preserves the topological ordering of the leaves.
