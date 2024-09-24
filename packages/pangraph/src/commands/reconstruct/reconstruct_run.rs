@@ -70,11 +70,16 @@ fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<St
 
   let first_node_id = path.nodes.first().ok_or_else(|| make_internal_report!("Empty path"))?;
   let first_node_pos = graph.nodes.get(first_node_id).unwrap().position().0;
+
   let genome: String = path
     .nodes
     .iter()
     .map(|node_id| reconstruct_block_sequence(graph, *node_id).unwrap())
     .collect();
+
+  if first_node_pos == 0 {
+    return Ok(genome);
+  }
 
   let genome_len = path.tot_len();
   assert_eq!(genome.len(), genome_len);
