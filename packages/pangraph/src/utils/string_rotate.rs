@@ -15,6 +15,23 @@ impl StringRotateLeft for String {
   }
 }
 
+pub trait StringRotateRight {
+  fn rotate_right(&mut self, mid: usize);
+}
+
+impl StringRotateRight for String {
+  fn rotate_right(&mut self, mid: usize) {
+    assert!(mid <= self.len());
+    debug_assert!(self.is_ascii());
+
+    // SAFETY: String must be valid UTF-8 when string is used.
+    // In our case the char set is ASCII, so it does not change after rotation.
+    #[allow(unsafe_code)]
+    let slice = unsafe { self.as_bytes_mut() };
+    slice.rotate_right(mid);
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -48,6 +65,36 @@ mod tests {
     input.rotate_left(5);
     let mut expected = original;
     expected.rotate_left(8); // Combine rotations (3 + 5 = 8)
+    assert_eq!(input, expected);
+  }
+
+  #[rstest]
+  #[case("hello world", 5, "worldhello ")]
+  #[case("hello world", 3, "rldhello wo")]
+  #[case("hello world", 0, "hello world")]
+  #[case("hello world", 11, "hello world")]
+  #[case("", 0, "")]
+  fn test_string_rotate_right_basic(#[case] mut input: String, #[case] mid: usize, #[case] expected: &str) {
+    input.rotate_right(mid);
+    pretty_assert_eq!(input, expected);
+  }
+
+  #[test]
+  fn test_string_rotate_right_idempotence() {
+    let mut input = o!("hello world");
+    let original = input.clone();
+    input.rotate_right(input.len());
+    pretty_assert_eq!(input, original);
+  }
+
+  #[test]
+  fn test_string_rotate_right_associativity() {
+    let mut input = o!("hello world");
+    let original = input.clone();
+    input.rotate_right(3);
+    input.rotate_right(5);
+    let mut expected = original;
+    expected.rotate_right(8); // Combine rotations (3 + 5 = 8)
     assert_eq!(input, expected);
   }
 }

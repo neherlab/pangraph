@@ -6,7 +6,7 @@ use crate::make_internal_report;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::pangraph_path::PangraphPath;
-use crate::utils::string_rotate::StringRotateLeft;
+use crate::utils::string_rotate::StringRotateRight;
 use eyre::Report;
 use itertools::Itertools;
 use log::info;
@@ -76,7 +76,7 @@ fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<St
     let genome_len = path.tot_len();
     assert_eq!(genome.len(), genome_len);
 
-    genome.rotate_left(first_node_pos);
+    genome.rotate_right(first_node_pos);
 
     Ok(genome)
   } else {
