@@ -64,35 +64,24 @@ pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord,
 }
 
 fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<String, Report> {
-  // if empty path return empty string
-  if path.nodes.is_empty() {
-    return Ok(String::new());
+  if let Some(first_node_id) = path.nodes.first() {
+    let first_node_pos = graph.nodes[first_node_id].position().0;
+
+    let mut genome: String = path
+      .nodes
+      .iter()
+      .map(|node_id| reconstruct_block_sequence(graph, *node_id))
+      .collect::<Result<String, Report>>()?;
+
+    let genome_len = path.tot_len();
+    assert_eq!(genome.len(), genome_len);
+
+    genome.rotate_left(first_node_pos);
+
+    Ok(genome)
+  } else {
+    Ok(String::new())
   }
-
-  let first_node_id = path.nodes.first().ok_or_else(|| make_internal_report!("Empty path"))?;
-  let first_node_pos = graph
-    .nodes
-    .get(first_node_id)
-    .ok_or_else(|| make_internal_report!("Node not found"))?
-    .position()
-    .0;
-
-  let mut genome = path
-    .nodes
-    .iter()
-    .map(|node_id| reconstruct_block_sequence(graph, *node_id))
-    .collect::<Result<String, Report>>()?;
-
-  if first_node_pos == 0 {
-    return Ok(genome);
-  }
-
-  let genome_len = path.tot_len();
-  assert_eq!(genome.len(), genome_len);
-
-  genome.rotate_left(first_node_pos);
-
-  Ok(genome)
 }
 
 fn reconstruct_block_sequence(graph: &Pangraph, node_id: NodeId) -> Result<String, Report> {
