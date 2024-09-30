@@ -12,5 +12,6 @@ pub mod ndarray;
 pub mod number_min_max;
 pub mod random;
 pub mod string;
+pub mod string_rotate;
 pub mod subprocess;
 pub mod vec;

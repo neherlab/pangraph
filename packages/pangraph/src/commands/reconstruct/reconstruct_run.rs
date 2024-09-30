@@ -6,6 +6,7 @@ use crate::make_internal_report;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::pangraph_path::PangraphPath;
+use crate::utils::string_rotate::StringRotateLeft;
 use eyre::Report;
 use itertools::Itertools;
 use log::info;
@@ -76,7 +77,7 @@ fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<St
     .position()
     .0;
 
-  let genome = path
+  let mut genome = path
     .nodes
     .iter()
     .map(|node_id| reconstruct_block_sequence(graph, *node_id))
@@ -88,12 +89,10 @@ fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<St
 
   let genome_len = path.tot_len();
   assert_eq!(genome.len(), genome_len);
-  assert!(first_node_pos < genome_len);
-  let cut_position = genome_len - first_node_pos;
-  // split the sequence at first node position, and join the two parts
-  let (first, second) = genome.split_at(cut_position);
-  let seq = format!("{}{}", second, first);
-  Ok(seq)
+
+  genome.rotate_left(first_node_pos);
+
+  Ok(genome)
 }
 
 fn reconstruct_block_sequence(graph: &Pangraph, node_id: NodeId) -> Result<String, Report> {
