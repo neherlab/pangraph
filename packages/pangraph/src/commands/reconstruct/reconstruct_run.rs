@@ -69,13 +69,18 @@ fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<St
   }
 
   let first_node_id = path.nodes.first().ok_or_else(|| make_internal_report!("Empty path"))?;
-  let first_node_pos = graph.nodes.get(first_node_id).unwrap().position().0;
+  let first_node_pos = graph
+    .nodes
+    .get(first_node_id)
+    .ok_or_else(|| make_internal_report!("Node not found"))?
+    .position()
+    .0;
 
-  let genome: String = path
+  let genome = path
     .nodes
     .iter()
-    .map(|node_id| reconstruct_block_sequence(graph, *node_id).unwrap())
-    .collect();
+    .map(|node_id| reconstruct_block_sequence(graph, *node_id))
+    .collect::<Result<String, Report>>()?;
 
   if first_node_pos == 0 {
     return Ok(genome);
@@ -88,7 +93,7 @@ fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<St
   // split the sequence at first node position, and join the two parts
   let (first, second) = genome.split_at(cut_position);
   let seq = format!("{}{}", second, first);
-  return Ok(seq);
+  Ok(seq)
 }
 
 fn reconstruct_block_sequence(graph: &Pangraph, node_id: NodeId) -> Result<String, Report> {
