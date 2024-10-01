@@ -69,7 +69,7 @@ pub fn align_with_nextclade(
 mod tests {
   use super::*;
   use crate::align::nextclade::coord::position::NucRefGlobalPosition;
-  
+
   use crate::o;
   use eyre::Report;
   use pretty_assertions::assert_eq;

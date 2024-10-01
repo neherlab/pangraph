@@ -57,13 +57,12 @@ pub fn alignment_energy2(aln: &Alignment, args: &AlignmentArgs) -> f64 {
 mod tests {
   use super::*;
   use crate::align::bam::cigar::parse_cigar_str;
-  
+
   use crate::pangraph::pangraph_block::BlockId;
   use crate::pangraph::strand::Strand;
-  
+
   use approx::assert_ulps_eq;
-  
-  
+
   use rstest::rstest;
 
   #[rstest]
