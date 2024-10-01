@@ -1,4 +1,8 @@
-## Glossary
+---
+sidebar_position: 9999
+---
+
+# Glossary
 
 This section describes terms and concepts used in the pangraph codebase, issues, documentation, etc.
 

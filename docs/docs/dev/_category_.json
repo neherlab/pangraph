@@ -1,0 +1,8 @@
+{
+  "label": "Development",
+  "position": 998,
+  "link": {
+    "type": "generated-index",
+    "description": "This section describes how to setup development environment and how to contribute changes to Pangraph software"
+  }
+}
