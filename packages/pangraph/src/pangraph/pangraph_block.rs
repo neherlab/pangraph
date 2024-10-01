@@ -67,12 +67,33 @@ impl PangraphBlock {
     self.consensus.as_str()
   }
 
+  pub fn consensus_mut(&mut self) -> &mut str {
+    self.consensus.as_mut_str()
+  }
+
+  pub fn set_consensus(&mut self, consensus: impl Into<String>) {
+    self.consensus = consensus.into();
+  }
+
+  #[allow(unsafe_code)]
+  pub fn set_consensus_char(&mut self, pos: usize, c: char) {
+    debug_assert!(self.consensus.is_ascii());
+    // FIXME: we REALLY should not use strings for sequences anymore
+    // SAFETY: safe as long as we have ASCII strings
+    let target = unsafe { &mut self.consensus.as_bytes_mut()[pos] };
+    *target = c as u8;
+  }
+
   pub fn consensus_len(&self) -> usize {
     self.consensus.len()
   }
 
   pub fn alignment(&self, nid: NodeId) -> &Edit {
     &self.alignments[&nid]
+  }
+
+  pub fn alignment_mut(&mut self, nid: NodeId) -> &mut Edit {
+    self.alignments.get_mut(&nid).unwrap()
   }
 
   pub fn alignment_keys(&self) -> BTreeSet<NodeId> {
@@ -83,7 +104,15 @@ impl PangraphBlock {
     &self.alignments
   }
 
+  pub fn alignments_mut(&mut self) -> &mut BTreeMap<NodeId, Edit> {
+    &mut self.alignments
+  }
+
   pub fn alignment_insert(&mut self, node_id: NodeId, edit: Edit) -> Option<Edit> {
     self.alignments.insert(node_id, edit)
+  }
+
+  pub fn alignment_remove(&mut self, node_id: NodeId) -> Edit {
+    self.alignments.remove(&node_id).unwrap()
   }
 }

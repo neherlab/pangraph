@@ -4,6 +4,7 @@ pub mod commands;
 pub mod distance;
 pub mod io;
 pub mod pangraph;
+pub mod reconsensus;
 pub mod tree;
 pub mod utils;
 

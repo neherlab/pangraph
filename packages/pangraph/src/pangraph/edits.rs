@@ -70,6 +70,10 @@ impl Del {
       len: self.len,
     }
   }
+
+  pub fn contains(&self, pos: usize) -> bool {
+    self.range().contains(&pos)
+  }
 }
 
 #[must_use]
@@ -113,6 +117,10 @@ pub struct Edit {
 impl Edit {
   pub fn empty() -> Self {
     Self::default()
+  }
+
+  pub fn is_empty(&self) -> bool {
+    self.subs.is_empty() && self.dels.is_empty() && self.inss.is_empty()
   }
 
   /// Construct edit which consists of a deletion of length `len`
