@@ -10,6 +10,7 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::reweave::reweave;
 use crate::pangraph::split_matches::split_matches;
+use crate::reconsensus::reconsensus::reconsensus_graph;
 use crate::utils::interval::{have_no_overlap, Interval};
 use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::{Report, WrapErr};
@@ -149,10 +150,9 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
     ConflictResolution::Custom(|(k1, _), (k2, _)| panic!("Conflicting key '{k1}'")),
   );
 
-  // we might need this step for some final updates and consistency checks.
-  // TODO: here we could also take care of transitive edges, which is useful
-  // in the case of circular paths.
-  let graph = consolidate(graph);
+  // update consensus and alignment of merged blocks.
+  let merge_block_ids = merged_blocks.keys().cloned().collect_vec();
+  reconsensus_graph(&mut graph, merge_block_ids).wrap_err("During reconsensus")?;
 
   Ok((graph, true))
 }
@@ -225,18 +225,6 @@ pub fn update_intervals(aln: &Alignment, accepted_intervals: &mut BTreeMap<Block
     .entry(aln.qry.name)
     .or_default()
     .push(aln.qry.interval.clone());
-}
-
-pub fn consolidate(graph: Pangraph) -> Pangraph {
-  // TODO: final updates and consistency checks.
-  // - we can take care of removing _transitive edges_, i.e.
-  //   pairs of blocks that are always adjacent and connected in the same
-  //   way. We have an algorithm to quickly check for this. This is useful when
-  //   dealing with circular paths.
-  // - we can also add optional consistency checks, to make sure that sequence
-  //   lengths and path lengths are conserved, and optionally check that we can
-  //   reconstruct the full genomes exactly.
-  graph
 }
 
 #[cfg(test)]
