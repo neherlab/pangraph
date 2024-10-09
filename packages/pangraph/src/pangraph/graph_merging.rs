@@ -227,18 +227,6 @@ pub fn update_intervals(aln: &Alignment, accepted_intervals: &mut BTreeMap<Block
     .push(aln.qry.interval.clone());
 }
 
-pub fn consolidate(graph: Pangraph) -> Pangraph {
-  // TODO: final updates and consistency checks.
-  // - we can take care of removing _transitive edges_, i.e.
-  //   pairs of blocks that are always adjacent and connected in the same
-  //   way. We have an algorithm to quickly check for this. This is useful when
-  //   dealing with circular paths.
-  // - we can also add optional consistency checks, to make sure that sequence
-  //   lengths and path lengths are conserved, and optionally check that we can
-  //   reconstruct the full genomes exactly.
-  graph
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
