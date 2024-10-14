@@ -33,7 +33,7 @@ python3 python/example.py path/to/your/pangraph/output.json
 
 ```
 
-In this example the generated `Pangraph.py` file will contain the Python dataclasses. The example reads the Pangraph CLI file and casts it to the generated `Pangraph` dataclass types using `dacite` library. You can then access to the data in a type-safe manner, and most text editors should also provide code completions.
+In this example the generated `Pangraph.py` file will contain the Python dataclasses. The example reads the Pangraph CLI output JSON file and casts the resulting dict to the generated dataclasses (recursively) types using `dacite` library. You can then access to the data in a convenient and type-safe manner, and most text editors should also provide code completions.
 
 JSON Schema is a popular type definition format, so most programming languages have tools and libraries to work with it. Feel free explore some of the libraries in your favourite language! There are also multi-language tools and even online generators like [Qucktype](https://quicktype.io/). Quicktype also has a Node.js CLI:
 
