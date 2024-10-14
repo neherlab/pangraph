@@ -1,6 +1,6 @@
 # Pangraph schemas
 
-This directory contains [JSON Schema](https://json-schema.org/) definitions for Pangraph types in the current branch of the project. They are automatically generated from Rust types using [`packages/pangraph-cli/build.rs`](`packages/pangraph-cli/build.rs`) build script (See: [Cargo build script docs](https://doc.rust-lang.org/cargo/reference/build-scripts.html)), which runs every time Pangraph CLI is built.
+This directory contains [JSON Schema](https://json-schema.org/) definitions for Pangraph types in the current branch of the project. They are automatically generated from Rust types using [`packages/pangraph-cli/build.rs`](../pangraph-cli/src/build.rs) build script (See: [Cargo build script docs](https://doc.rust-lang.org/cargo/reference/build-scripts.html)), which runs every time Pangraph CLI is built.
 
 Note that these definitions correspond to the current commit in the Pangraph source code repo. As project changes, the type definitions can also change and not necessarily reflect the format used in the particular version of Pangraph you are using.
 
