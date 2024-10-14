@@ -2,7 +2,10 @@
 resolver = '2'
 
 members = [
-  "packages/*",
+  "packages/minimap2",
+  "packages/minimap2-sys",
+  "packages/pangraph",
+  "packages/pangraph-cli",
 ]
 
 [workspace.package]
@@ -70,10 +73,12 @@ rand_isaac = { version = "=0.3.0", features = ["serde1"] }
 rayon = "=1.10.0"
 rstest = "=0.22.0"
 rstest_reuse = "=0.7.0"
+schemars = { version = "=1.0.0-alpha.15", features = ["chrono04", "either1", "enumset1", "indexmap2", "raw_value", "schemars_derive", "preserve_order"] }
 serde = { version = "=1.0.210", features = ["derive"] }
 serde-aux = "=4.5.0"
 serde_json = { version = "=1.0.128", features = ["preserve_order", "unbounded_depth"] }
 serde_stacker = { version = "=0.1.11" }
+serde_yaml = "=0.9.33"
 smart-default = "=0.7.1"
 strum = "=0.26.3"
 strum_macros = "=0.26.4"

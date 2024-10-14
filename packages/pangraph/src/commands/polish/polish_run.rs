@@ -1,5 +1,5 @@
 use crate::commands::polish::polish_args::PangraphPolishArgs;
-use crate::io::json::json_write;
+use crate::io::json::{json_write_file, JsonPretty};
 use crate::pangraph::pangraph::Pangraph;
 use eyre::Report;
 
@@ -12,7 +12,7 @@ pub fn polish_run(args: &PangraphPolishArgs) -> Result<(), Report> {
 
   let input_pangraph_json = Pangraph::from_path(input_json)?;
   let output_pangraph_json = polish(&input_pangraph_json, args)?;
-  json_write("-", &output_pangraph_json)?;
+  json_write_file("-", &output_pangraph_json, JsonPretty(true))?;
 
   Ok(())
 }

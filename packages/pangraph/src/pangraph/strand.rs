@@ -1,11 +1,12 @@
 use crate::{make_error, make_report};
 use eyre::Report;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 use strum_macros::Display;
 
 #[must_use]
-#[derive(Copy, Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Hash, SmartDefault)]
+#[derive(Copy, Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Hash, SmartDefault, JsonSchema)]
 pub enum Strand {
   #[default]
   #[serde(rename = "+")]

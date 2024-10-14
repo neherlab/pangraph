@@ -1,12 +1,33 @@
 use crate::io::file::{create_file_or_stdout, open_file_or_stdin};
+use crate::io::yaml::yaml_write_file;
 use eyre::{Report, WrapErr};
 use serde::{Deserialize, Serialize};
 use serde_json::{de::Read, Deserializer};
+use std::io::{Cursor, Write};
 use std::path::Path;
+
+pub fn json_read_file<T: for<'de> Deserialize<'de>, P: AsRef<Path>>(filepath: &Option<P>) -> Result<T, Report> {
+  let reader = open_file_or_stdin(filepath)?;
+  json_read(reader).wrap_err_with(|| {
+    format!(
+      "Error reading JSON from file: {:?}",
+      filepath.as_ref().map(|p| p.as_ref())
+    )
+  })
+}
+
+pub fn json_read_str<T: for<'de> Deserialize<'de>>(s: impl AsRef<str>) -> Result<T, Report> {
+  json_read(Cursor::new(s.as_ref())).wrap_err("When reading JSON string")
+}
+
+pub fn json_read<T: for<'de> Deserialize<'de>>(reader: impl std::io::Read) -> Result<T, Report> {
+  let mut de = Deserializer::from_reader(reader);
+  deserialize_without_recursion_limit(&mut de).wrap_err("When reading JSON")
+}
 
 /// Mitigates recursion limit error when parsing large JSONs
 /// See https://github.com/serde-rs/json/issues/334
-pub fn deserialize_without_recursion_limit<'de, R: Read<'de>, T: Deserialize<'de>>(
+fn deserialize_without_recursion_limit<'de, R: Read<'de>, T: Deserialize<'de>>(
   de: &mut Deserializer<R>,
 ) -> Result<T, Report> {
   de.disable_recursion_limit();
@@ -15,32 +36,40 @@ pub fn deserialize_without_recursion_limit<'de, R: Read<'de>, T: Deserialize<'de
   Ok(obj)
 }
 
-pub fn json_read_str<T: for<'de> Deserialize<'de>>(s: &str) -> Result<T, Report> {
-  let mut de = Deserializer::from_str(s);
-  deserialize_without_recursion_limit(&mut de)
-}
+#[derive(Clone, Copy, Debug)]
+pub struct JsonPretty(pub bool);
 
-pub fn json_read_bytes<T: for<'de> Deserialize<'de>>(bytes: &[u8]) -> Result<T, Report> {
-  let mut de = Deserializer::from_slice(bytes);
-  deserialize_without_recursion_limit(&mut de)
-}
-
-pub fn json_read_file<T: for<'de> Deserialize<'de>, P: AsRef<Path>>(filepath: &Option<P>) -> Result<T, Report> {
-  let r = open_file_or_stdin(filepath)?;
-  json_read_reader(r)
-}
-
-pub fn json_read_reader<T: for<'de> Deserialize<'de>>(r: impl std::io::Read) -> Result<T, Report> {
-  let mut de = Deserializer::from_reader(r);
-  deserialize_without_recursion_limit(&mut de)
-}
-
-pub fn json_stringify<T: Serialize>(obj: &T) -> Result<String, Report> {
-  serde_json::to_string_pretty(obj).wrap_err("When converting an entry to JSON string")
-}
-
-pub fn json_write<T: Serialize>(filepath: impl AsRef<Path>, obj: &T) -> Result<(), Report> {
+pub fn json_write_file<T: Serialize>(filepath: impl AsRef<Path>, obj: &T, pretty: JsonPretty) -> Result<(), Report> {
   let filepath = filepath.as_ref();
-  let file = create_file_or_stdout(filepath)?;
-  serde_json::to_writer_pretty(file, obj).wrap_err("When writing JSON to file: {filepath:#?}")
+  json_write(create_file_or_stdout(filepath)?, &obj, pretty)
+    .wrap_err_with(|| format!("When writing JSON file: {filepath:#?}"))
+}
+
+pub fn json_write_str<T: Serialize>(obj: &T, pretty: JsonPretty) -> Result<String, Report> {
+  if pretty.0 {
+    serde_json::to_string_pretty(obj)
+  } else {
+    serde_json::to_string(obj)
+  }
+  .wrap_err("When writing JSON string")
+}
+
+pub fn json_write<W: Write, T: Serialize>(writer: W, obj: &T, pretty: JsonPretty) -> Result<(), Report> {
+  if pretty.0 {
+    serde_json::to_writer_pretty(writer, &obj)
+  } else {
+    serde_json::to_writer(writer, &obj)
+  }
+  .wrap_err("When writing JSON")
+}
+
+/// Writes JSON or YAML file depending on file extension
+pub fn json_or_yaml_write_file<T: Serialize>(filepath: impl AsRef<Path>, obj: &T) -> Result<(), Report> {
+  let filepath = filepath.as_ref();
+  let filepath_str = filepath.to_string_lossy().to_lowercase();
+  if filepath_str.ends_with("yaml") || filepath_str.ends_with("yml") {
+    yaml_write_file(filepath, &obj)
+  } else {
+    json_write_file(filepath, &obj, JsonPretty(true))
+  }
 }

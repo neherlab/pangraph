@@ -1,7 +1,7 @@
 use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::commands::reconstruct::reconstruct_run::{compare_sequences, reconstruct};
 use crate::io::fasta::{read_many_fasta, FastaRecord};
-use crate::io::json::json_write;
+use crate::io::json::{json_write_file, JsonPretty};
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::strand::Strand::Forward;
@@ -38,7 +38,7 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
     build(fastas, args)
   }?;
 
-  json_write(&args.output_json, &pangraph)?;
+  json_write_file(&args.output_json, &pangraph, JsonPretty(true))?;
 
   Ok(())
 }

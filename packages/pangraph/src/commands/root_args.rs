@@ -6,6 +6,7 @@ use crate::commands::generate::generate_args::PangraphGenerateArgs;
 use crate::commands::marginalize::marginalize_args::PangraphMarginalizeArgs;
 use crate::commands::polish::polish_args::PangraphPolishArgs;
 use crate::commands::reconstruct::reconstruct_args::PangraphReconstructArgs;
+use crate::commands::schema::generate_schema::PangraphGenerateSchemaArgs;
 use crate::commands::verbosity::Verbosity;
 use crate::utils::global_init::setup_logger;
 use clap::builder::styling;
@@ -80,6 +81,9 @@ pub enum PangraphCommands {
 
   /// Reconstruct input fasta sequences from graph
   Reconstruct(PangraphReconstructArgs),
+
+  /// Generate JSON schema for Pangraph file format
+  Schema(PangraphGenerateSchemaArgs),
 
   /// Generate shell completions.
   ///
