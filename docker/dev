@@ -114,7 +114,7 @@ export BUILD_DIR_REL=".build/docker${CROSS:+-$CROSS}/${PACKAGE_DIR_REL}"
 export BUILD_DIR="$(abspath "${PACKAGE_DIR}/${BUILD_DIR_REL}")"
 export BUILD_DIR_TEST="${BUILD_DIR}/test"
 
-export CACHE_DIR_REL=".cache/docker/${PACKAGE_DIR_REL}"
+export CACHE_DIR_REL=".cache/docker${CROSS:+-$CROSS}/${PACKAGE_DIR_REL}"
 export CACHE_DIR="$(abspath "${PACKAGE_DIR}/${CACHE_DIR_REL}")"
 
 export NICE="nice -14 ionice -c2 -n3"
@@ -493,18 +493,18 @@ if ! docker inspect --format '{{.Id}}' "${DOCKER_REPO}:${DOCKER_TARGET}-${DOCKER
     --target="${DOCKER_TARGET}" \
     --tag="${DOCKER_REPO}:${DOCKER_TARGET}" \
     --tag="${DOCKER_REPO}:${DOCKER_TARGET}-${DOCKER_IMAGE_VERSION}" \
-    --cache-from="${DOCKER_REPO}" \
     --cache-from="${DOCKER_REPO}:dev" \
     --cache-from="${DOCKER_REPO}:dev-${DOCKER_IMAGE_VERSION}" \
     --cache-from="${DOCKER_REPO}:${DOCKER_TARGET}" \
     --cache-from="${DOCKER_REPO}:${DOCKER_TARGET}-${DOCKER_IMAGE_VERSION}" \
-    --cache-to="type=local,dest=${BUILDX_CACHE_DIR},mode=max,compression=zstd,scope=${CACHE_SCOPE},ignore-error=true" \
+    --cache-from="type=local,src=${BUILDX_CACHE_DIR}" \
+    --cache-to="type=local,dest=${BUILDX_CACHE_DIR},mode=max,compression=zstd,ignore-error=true" \
     --build-arg="DOCKER_BASE_IMAGE=${DOCKER_BASE_IMAGE}" \
     --build-arg="CLANG_VERSION=${CLANG_VERSION}" \
     --build-arg="UID=$(id -u)" \
     --build-arg="GID=$(id -g)" \
-    --build-arg="USER=user" \
-    --build-arg="GROUP=user" \
+    --build-arg="USER=${USER}" \
+    --build-arg="GROUP=${GROUP}" \
     ${ADDITIONAL_DOCKER_BUILD_ARGS} \
     . \
     >/dev/null
