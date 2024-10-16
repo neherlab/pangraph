@@ -446,16 +446,22 @@ if ! docker inspect --format '{{.Id}}' "${DOCKER_REPO}:${DOCKER_TARGET}-${DOCKER
   export BUILDKIT_PROGRESS=plain
   export PROGRESS_NO_TRUNC=1
 
-  ADDITIONAL_DOCKER_BUILD_ARGS=
+  BUILDX_BUILDER=${DOCKER_IMAGE_NAME_SAFE}-${DOCKER_TARGET}_builder
+  if ! docker buildx inspect "${BUILDX_BUILDER}" &>/dev/null; then
+      # Using a persistent builder allows for faster local development.
+      # However, if this is changed and it was previously run on your machine,
+      # you may need to remove the builder manually before running the script:
+      #     docker buildx rm $BUILDX_BUILDER
+      # Use this command to list builders:
+      #     docker buildx ls
+      docker buildx create --name="${BUILDX_BUILDER}" --driver="docker-container" --driver-opt="network=host"
+  fi
+
+  ADDITIONAL_DOCKER_BUILD_ARGS="--builder=${BUILDX_BUILDER}"
   if [[ "${DOCKER_TARGET}" == *apple* ]]; then
     # shellcheck disable=SC2089
 
     ADDITIONAL_DOCKER_BUILD_ARGS="--build-arg OSXCROSS_URL=${OSXCROSS_URL}"
-  fi
-
-  ADDITIONAL_DOCKER_BUILD_ARGS="${ADDITIONAL_DOCKER_BUILD_ARGS} --builder=${DOCKER_IMAGE_NAME_SAFE}"
-  if ! docker buildx inspect "${DOCKER_IMAGE_NAME_SAFE}" &>/dev/null; then
-    docker buildx create --use --name "${DOCKER_IMAGE_NAME_SAFE}" --driver docker-container >/dev/null
   fi
 
   if [ "${DOCKER_IMAGE_PUSH}" == "1" ]; then
@@ -473,12 +479,8 @@ if ! docker inspect --format '{{.Id}}' "${DOCKER_REPO}:${DOCKER_TARGET}-${DOCKER
     ADDITIONAL_DOCKER_BUILD_ARGS="${ADDITIONAL_DOCKER_BUILD_ARGS} --cache-from=\"type=local,src=${BUILDX_CACHE_DIR},scope=${CACHE_SCOPE}\""
   fi
 
-#  if [ "${VERBOSE:=0}" != "1" ]; then
-#    ADDITIONAL_DOCKER_BUILD_ARGS="${ADDITIONAL_DOCKER_BUILD_ARGS} -q"
-#  fi
-
-#    --progress=quiet \
   ${NICE} docker buildx build \
+    --builder="${BUILDX_BUILDER}" \
     --file="docker/docker-dev.dockerfile" \
     --target="${DOCKER_TARGET}" \
     --tag="${DOCKER_REPO}:${DOCKER_TARGET}" \
