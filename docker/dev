@@ -236,48 +236,56 @@ case "${1:-}" in
   ;;
 "web" | "a")
   shift
+  DOCKER_TARGET="web"
   WEB=1
   RELEASE="dev"
   WATCH=0
   ;;
 "web-release" | "ar")
   shift
+  DOCKER_TARGET="web"
   WEB=1
   RELEASE="prod:build"
   WATCH=0
   ;;
 "web-release-serve" | "ars")
   shift
+  DOCKER_TARGET="web"
   WEB=1
   RELEASE="prod"
   WATCH=0
   ;;
 "watch-web-release" | "war")
   shift
+  DOCKER_TARGET="web"
   WEB=1
   RELEASE="prod:watch"
   WATCH=0
   ;;
 "docs" | "d")
   shift
+  DOCKER_TARGET="web"
   DOCS=1
   RELEASE="dev"
   WATCH=0
   ;;
 "docs-release" | "dr")
   shift
+  DOCKER_TARGET="web"
   DOCS=1
   RELEASE="prod:build"
   WATCH=0
   ;;
 "docs-release-serve" | "drs")
   shift
+  DOCKER_TARGET="web"
   DOCS=1
   RELEASE="prod"
   WATCH=0
   ;;
 "watch-docs-release" | "wdr")
   shift
+  DOCKER_TARGET="web"
   DOCS=1
   RELEASE="prod:watch"
   WATCH=0

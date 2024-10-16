@@ -124,8 +124,7 @@ ENV HOME="/home/${USER}"
 ENV CARGO_HOME="${HOME}/.cargo"
 ENV CARGO_INSTALL_ROOT="${HOME}/.cargo/install"
 ENV RUSTUP_HOME="${HOME}/.rustup"
-ENV NODE_DIR="/opt/node"
-ENV PATH="/usr/lib/llvm-${CLANG_VERSION}/bin:${NODE_DIR}/bin:${HOME}/.local/bin:${HOME}/.cargo/bin:${HOME}/.cargo/install/bin:${PATH}"
+ENV PATH="/usr/lib/llvm-${CLANG_VERSION}/bin:${HOME}/.local/bin:${HOME}/.cargo/bin:${HOME}/.cargo/install/bin:${PATH}"
 
 RUN set -euxo pipefail >/dev/null \
 && pip3 install --user --upgrade cram
@@ -144,15 +143,6 @@ RUN set -euxo pipefail >/dev/null \
 && curl -sSL "https://github.com/watchexec/watchexec/releases/download/cli-v${WATCHEXEC_VERSION}/watchexec-${WATCHEXEC_VERSION}-x86_64-unknown-linux-musl.tar.xz" | tar -C "/usr/bin/" -xJ --strip-components=1 "watchexec-${WATCHEXEC_VERSION}-x86_64-unknown-linux-musl/watchexec" \
 && chmod +x "/usr/bin/watchexec" \
 && watchexec --version
-
-# Install Node.js
-COPY .nvmrc /
-RUN set -eux >dev/null \
-&& mkdir -p "${NODE_DIR}" \
-&& cd "${NODE_DIR}" \
-&& NODE_VERSION=$(cat /.nvmrc) \
-&& curl -fsSL  "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" | tar -xJ --strip-components=1 \
-&& npm install -g nodemon@${NODEMON_VERSION} bun@${BUN_VERSION} >/dev/null
 
 # Make a user and group
 RUN set -euxo pipefail >/dev/null \
@@ -312,6 +302,28 @@ FROM base as dev
 
 ENV CC_x86_64-unknown-linux-gnu=clang
 ENV CXX_x86_64-unknown-linux-gnu=clang++
+
+
+
+
+FROM dev as web
+
+USER 0
+
+ENV NODE_DIR="/opt/node"
+ENV PATH="${NODE_DIR}/bin:${PATH}"
+
+# Install Node.js
+COPY .nvmrc /
+RUN set -euxo pipefail >/dev/null \
+&& mkdir -p "${NODE_DIR}" \
+&& cd "${NODE_DIR}" \
+&& NODE_VERSION=$(cat /.nvmrc) \
+&& curl -fsSL  "https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz" | tar -xJ --strip-components=1 \
+&& npm install -g nodemon@${NODEMON_VERSION} bun@${BUN_VERSION} >/dev/null
+
+USER ${USER}
+
 
 
 # Cross-compilation for Linux x86_64 with gnu-libc
