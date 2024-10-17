@@ -7,7 +7,7 @@ use eyre::{Report, WrapErr};
 use itertools::{izip, Itertools};
 use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset, Minimap2Result};
 use pangraph::io::fasta::read_many_fasta;
-use pangraph::io::json::{json_write, json_write_file, JsonPretty};
+use pangraph::io::json::{json_write_file, JsonPretty};
 use pangraph::utils::global_init::global_init;
 use rayon::prelude::*;
 use std::path::PathBuf;
