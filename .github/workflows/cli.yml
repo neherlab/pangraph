@@ -235,6 +235,7 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - name: "Install dependencies"
         run: |
@@ -251,16 +252,7 @@ jobs:
 
       - name: "Run smoke tests (linux)"
         run: |
-          ls -al data/ || true
-
-          tree data/ || true
-
-          ( du -bsch data/* 2>/dev/null | sort -h ) || true
-
-          cat data/example.fa || true
-
           chmod +x ./.out/*
-
           JOBS=2 ./tests/run-smoke-tests ./.out/pangraph-x86_64-unknown-linux-gnu
 
   run-linux-distros-test:
@@ -331,7 +323,6 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
-          lfs: true
 
       - name: "Download build artifacts"
         uses: actions/download-artifact@v4
