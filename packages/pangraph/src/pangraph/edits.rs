@@ -3,11 +3,12 @@ use crate::utils::collections::insert_at_inplace;
 use crate::utils::interval::Interval;
 use eyre::Report;
 use itertools::Itertools;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
 
 #[must_use]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, JsonSchema)]
 pub struct Sub {
   pub pos: usize,
   pub alt: char,
@@ -34,7 +35,7 @@ impl Sub {
 }
 
 #[must_use]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, JsonSchema)]
 pub struct Del {
   pub pos: usize,
   pub len: usize,
@@ -77,7 +78,7 @@ impl Del {
 }
 
 #[must_use]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, Hash, JsonSchema)]
 pub struct Ins {
   pub pos: usize,
   pub seq: String,
@@ -107,7 +108,7 @@ impl Ins {
 }
 
 #[must_use]
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq, Hash, JsonSchema)]
 pub struct Edit {
   pub subs: Vec<Sub>,
   pub dels: Vec<Del>,

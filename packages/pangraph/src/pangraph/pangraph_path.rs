@@ -2,12 +2,15 @@ use crate::pangraph::pangraph_node::NodeId;
 use crate::utils::id::id;
 use derive_more::{Display, From};
 use getset::{CopyGetters, Getters};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug, Display, From, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+  Copy, Clone, Debug, Display, From, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize, JsonSchema,
+)]
 pub struct PathId(pub usize);
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Getters, CopyGetters)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Getters, CopyGetters, JsonSchema)]
 pub struct PangraphPath {
   #[getset(get_copy = "pub")]
   pub id: PathId,

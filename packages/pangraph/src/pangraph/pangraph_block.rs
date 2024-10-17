@@ -5,11 +5,14 @@ use derive_more::{Display, From};
 use eyre::{Report, WrapErr};
 use getset::{CopyGetters, Getters};
 use maplit::btreemap;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::hash::Hash;
 
-#[derive(Copy, Clone, Debug, Display, From, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+  Copy, Clone, Debug, Display, From, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize, JsonSchema,
+)]
 pub struct BlockId(pub usize);
 
 impl BlockId {
@@ -22,7 +25,7 @@ impl BlockId {
 }
 
 #[must_use]
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Getters, CopyGetters)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Getters, CopyGetters, JsonSchema)]
 pub struct PangraphBlock {
   #[get_copy = "pub"]
   id: BlockId,

@@ -4,13 +4,16 @@ use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
 use derive_more::{Display, From};
 use getset::CopyGetters;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
-#[derive(Copy, Clone, Debug, Display, From, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
+#[derive(
+  Copy, Clone, Debug, Display, From, PartialEq, Eq, Ord, PartialOrd, Hash, Serialize, Deserialize, JsonSchema,
+)]
 pub struct NodeId(pub usize);
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, CopyGetters)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, CopyGetters, JsonSchema)]
 #[get_copy = "pub"]
 pub struct PangraphNode {
   id: NodeId,

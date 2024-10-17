@@ -9,12 +9,13 @@ use crate::pangraph::strand::Strand;
 use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::{Report, WrapErr};
 use maplit::btreemap;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::str::FromStr;
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, Hash, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Hash, PartialEq, Eq, JsonSchema)]
 pub struct Pangraph {
   pub paths: BTreeMap<PathId, PangraphPath>,
   pub blocks: BTreeMap<BlockId, PangraphBlock>,
