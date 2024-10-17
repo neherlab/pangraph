@@ -1,5 +1,6 @@
 pub mod build;
 pub mod export;
+pub mod main;
 pub mod marginalize;
 pub mod md_help;
 pub mod reconstruct;
