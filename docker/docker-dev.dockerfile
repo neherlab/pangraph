@@ -455,12 +455,12 @@ USER 0
 
 ARG OSXCROSS_URL
 
-# Install cargo-quickinstall
 RUN set -euxo pipefail >/dev/null \
 && mkdir -p "/opt/osxcross" \
 && curl -fsSL "${OSXCROSS_URL}" | tar -C "/opt/osxcross" -xJ
 
 USER ${USER}
+
 
 
 # Cross-compilation for macOS x86_64
@@ -473,42 +473,36 @@ USER ${USER}
 RUN set -euxo pipefail >/dev/null \
 && rustup target add x86_64-apple-darwin
 
+ENV OSXCROSS_MP_INC=1
+ENV MACOSX_DEPLOYMENT_TARGET=10.7
 ENV CARGO_BUILD_TARGET=x86_64-apple-darwin
 ENV OSX_TRIPLET=x86_64-apple-darwin20.2
 
-ENV OSX_CROSS_PATH=/opt/osxcross
+ENV OSX_CROSS_PATH="/opt/osxcross"
+ENV MY_SYSROOT="${OSX_CROSS_PATH}/SDK/MacOSX11.1.sdk"
 ENV PATH="${OSX_CROSS_PATH}/bin/:${PATH}"
 
-ENV C_INCLUDE_PATH="${OSX_CROSS_PATH}/SDK/MacOSX11.1.sdk/usr/include"
-ENV CPLUS_INCLUDE_PATH="${C_INCLUDE_PATH}"
-ENV LIBRARY_PATH="${OSX_CROSS_PATH}/SDK/MacOSX11.1.sdk/usr/lib"
+ENV CC_x86_64-apple-darwin="${OSX_CROSS_PATH}/bin/o64-clang"
+ENV CXX_x86_64-apple-darwin="${OSX_CROSS_PATH}/bin/o64-clang++"
 
-ENV CC="${OSX_CROSS_PATH}/bin/o64-clang"
-ENV CXX="${OSX_CROSS_PATH}/bin/o64-clang++"
+ENV AR_x86_64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ar"
+ENV AS_x86_64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-as"
+ENV CMAKE_x86_64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-cmake"
+ENV DSYMUTIL_x86_64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-dsymutil"
+ENV LD_x86_64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ld"
+ENV LIBTOOL_x86_64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-libtool"
+ENV NM_x86_64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-nm"
+ENV PKG_CONFIG_x86_64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-pkg-config"
+ENV STRIP_x86_64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-strip"
 
-ENV AR="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ar"
-ENV AS="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-as"
-ENV CMAKE="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-cmake"
-ENV DSYMUTIL="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-dsymutil"
-ENV LD="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ld"
-ENV LIBTOOL="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-libtool"
-ENV NM="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-nm"
-ENV PKG_CONFIG="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-pkg-config"
-ENV STRIP="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-strip"
+ENV CARGO_TARGET_X86_64_APPLE_DARWIN_AR="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ar"
+ENV CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER="${OSX_CROSS_PATH}/bin/o64-clang"
+ENV CARGO_TARGET_X86_64_APPLE_DARWIN_STRIP="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-strip"
 
-ENV CARGO_TARGET_X86_64_APPLE_DARWIN_AR="${AR}"
-ENV CARGO_TARGET_X86_64_APPLE_DARWIN_LINKER="${CC}"
-ENV CARGO_TARGET_X86_64_APPLE_DARWIN_STRIP="${STRIP}"
-
-USER 0
-
-ENV OSXCROSS_MP_INC=1
-ENV MACOSX_DEPLOYMENT_TARGET=10.7
-
-RUN set -euxo pipefail >/dev/null \
-&& echo "1" | osxcross-macports install openssl -v
+ENV BINDGEN_EXTRA_CLANG_ARGS_x86_64-apple-darwin="--sysroot ${MY_SYSROOT}"
 
 USER ${USER}
+
 
 
 # Cross-compilation for macOS ARM64
@@ -521,40 +515,33 @@ USER ${USER}
 RUN set -euxo pipefail >/dev/null \
 && rustup target add aarch64-apple-darwin
 
+ENV OSXCROSS_MP_INC=1
+ENV MACOSX_DEPLOYMENT_TARGET=10.7
 ENV CARGO_BUILD_TARGET=aarch64-apple-darwin
 ENV OSX_TRIPLET=aarch64-apple-darwin20.2
 
-ENV OSX_CROSS_PATH=/opt/osxcross
+ENV OSX_CROSS_PATH="/opt/osxcross"
+ENV MY_SYSROOT="${OSX_CROSS_PATH}/SDK/MacOSX11.1.sdk"
 ENV PATH="${OSX_CROSS_PATH}/bin/:${PATH}"
 
-ENV C_INCLUDE_PATH="${OSX_CROSS_PATH}/SDK/MacOSX11.1.sdk/usr/include"
-ENV CPLUS_INCLUDE_PATH="${C_INCLUDE_PATH}"
-ENV LIBRARY_PATH="${OSX_CROSS_PATH}/SDK/MacOSX11.1.sdk/usr/lib"
+ENV CC_aarch64-apple-darwin="${OSX_CROSS_PATH}/bin/oa64-clang"
+ENV CXX_aarch64-apple-darwin="${OSX_CROSS_PATH}/bin/oa64-clang++"
 
-ENV CC="${OSX_CROSS_PATH}/bin/oa64-clang"
-ENV CXX="${OSX_CROSS_PATH}/bin/oa64-clang++"
+ENV AR_aarch64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ar"
+ENV AS_aarch64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-as"
+ENV CMAKE_aarch64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-cmake"
+ENV DSYMUTIL_aarch64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-dsymutil"
+ENV LD_aarch64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ld"
+ENV LIBTOOL_aarch64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-libtool"
+ENV NM_aarch64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-nm"
+ENV PKG_CONFIG_aarch64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-pkg-config"
+ENV STRIP_aarch64-apple-darwin="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-strip"
 
-ENV AR="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ar"
-ENV AS="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-as"
-ENV CMAKE="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-cmake"
-ENV DSYMUTIL="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-dsymutil"
-ENV LD="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ld"
-ENV LIBTOOL="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-libtool"
-ENV NM="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-nm"
-ENV PKG_CONFIG="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-pkg-config"
-ENV STRIP="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-strip"
+ENV CARGO_TARGET_AARCH64_APPLE_DARWIN_AR="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-ar"
+ENV CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER="${OSX_CROSS_PATH}/bin/oa64-clang"
+ENV CARGO_TARGET_AARCH64_APPLE_DARWIN_STRIP="${OSX_CROSS_PATH}/bin/${OSX_TRIPLET}-strip"
 
-ENV CARGO_TARGET_AARCH64_APPLE_DARWIN_AR="${AR}"
-ENV CARGO_TARGET_AARCH64_APPLE_DARWIN_LINKER="${CC}"
-ENV CARGO_TARGET_AARCH64_APPLE_DARWIN_STRIP="${STRIP}"
-
-USER 0
-
-ENV OSXCROSS_MP_INC=1
-ENV MACOSX_DEPLOYMENT_TARGET=10.7
-
-RUN set -euxo pipefail >/dev/null \
-&& echo "1" | osxcross-macports install openssl -v
+ENV BINDGEN_EXTRA_CLANG_ARGS_aarch64-apple-darwin="--sysroot ${MY_SYSROOT}"
 
 USER ${USER}
 
