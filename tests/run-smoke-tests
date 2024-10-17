@@ -27,35 +27,45 @@ verbose = True
 
 
 # Add arbitrary CLI invocations here
-def make_commands(exe, data_dir, out_dir):
+def make_commands(exe, data_dir, out_dir, fast=False):
     # fmt: off
     # @formatter:off
-    return [
+    fast_cmds = [
         f"{exe} --help",
         f"{exe} build --help",
 
-        f"{exe} build {data_dir}/ecoli.fa.gz         -o {out_dir}/ecoli_default.json",
         f"{exe} build {data_dir}/ges-1.fa            -o {out_dir}/ges-1_default.json",
-        f"{exe} build {data_dir}/example-rev.fa      -o {out_dir}/example-rev_default.json",
-        f"{exe} build {data_dir}/example.fa          -o {out_dir}/example_default.json",
-        f"{exe} build {data_dir}/flu-h1.fa           -o {out_dir}/flu-h1_default.json",
-        f"{exe} build {data_dir}/flu-h3.fa           -o {out_dir}/flu-h3_default.json",
-        f"{exe} build {data_dir}/klebs.fa.gz         -o {out_dir}/klebs_default.json",
-        f"{exe} build {data_dir}/mpox.fa             -o {out_dir}/mpox_default.json",
-        f"{exe} build {data_dir}/sc2.fa              -o {out_dir}/sc2_default.json",
-
-        f"{exe} build {data_dir}/ecoli.fa.gz         -o {out_dir}/ecoli_c-b5-s20-l100.json        -c -b 5 -s 20 -l 100",
         f"{exe} build {data_dir}/ges-1.fa            -o {out_dir}/ges-1_c-b5-s20-l100.json        -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/example-rev.fa      -o {out_dir}/example-rev_default.json",
         f"{exe} build {data_dir}/example-rev.fa      -o {out_dir}/example-rev_c-b5-s20-l100.json  -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/example.fa          -o {out_dir}/example_default.json",
         f"{exe} build {data_dir}/example.fa          -o {out_dir}/example_c-b5-s20-l100.json      -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/flu-h1.fa           -o {out_dir}/flu-h1_default.json",
         f"{exe} build {data_dir}/flu-h1.fa           -o {out_dir}/flu-h1_c-b5-s20-l100.json       -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/flu-h3.fa           -o {out_dir}/flu-h3_default.json",
         f"{exe} build {data_dir}/flu-h3.fa           -o {out_dir}/flu-h3_c-b5-s20-l100.json       -c -b 5 -s 20 -l 100",
+    ]
+    all_cmds = fast_cmds + [
+        f"{exe} build {data_dir}/ecoli.fa.gz         -o {out_dir}/ecoli_default.json",
+        f"{exe} build {data_dir}/ecoli.fa.gz         -o {out_dir}/ecoli_c-b5-s20-l100.json        -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/klebs.fa.gz         -o {out_dir}/klebs_default.json",
         f"{exe} build {data_dir}/klebs.fa.gz         -o {out_dir}/klebs_c-b5-s20-l100.json        -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/mpox.fa             -o {out_dir}/mpox_default.json",
         f"{exe} build {data_dir}/mpox.fa             -o {out_dir}/mpox_c-b5-s20-l100.json         -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/sc2.fa              -o {out_dir}/sc2_default.json",
         f"{exe} build {data_dir}/sc2.fa              -o {out_dir}/sc2_c-b5-s20-l100.json          -c -b 5 -s 20 -l 100",
     ]
     # fmt: on
     # @formatter:on
+
+    return fast_cmds if fast else all_cmds
 
 
 def blue(text):
@@ -155,26 +165,29 @@ def print_summary(results: List[dict]):
         sys.exit(1)
 
 
+def normpath(path: Path) -> str:
+    return str(path.resolve())
+
+
+def relpath(path: Path, relative_to) -> str:
+    return os.path.relpath(normpath(path), relative_to)
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        sys.exit(f"Usage: {sys.argv[0]} <path_to_executable>")
+        sys.exit(f"Usage: {sys.argv[0]} <path_to_executable> [--fast]")
 
-    def normpath(path: Path) -> str:
-        return str(path.resolve())
+    fast_mode = "--fast" in sys.argv
 
     THIS_DIR = normpath(Path(__file__).parent)
     PROJECT_ROOT = normpath(Path(THIS_DIR) / "..")
-
-    def relpath(path: Path) -> str:
-        return os.path.relpath(normpath(path), PROJECT_ROOT)
-
-    PANGRAPH_BIN = relpath(Path(sys.argv[1]))
-    DATA_DIR = relpath(Path(PROJECT_ROOT) / "data")
-    RESULTS_DIR = relpath(Path(PROJECT_ROOT) / "tmp/smoke-tests")
+    PANGRAPH_BIN = relpath(Path(sys.argv[1]), PROJECT_ROOT)
+    DATA_DIR = relpath(Path(PROJECT_ROOT) / "data", PROJECT_ROOT)
+    RESULTS_DIR = relpath(Path(PROJECT_ROOT) / "tmp/smoke-tests", PROJECT_ROOT)
 
     num_cores = cpu_count()
 
-    commands = make_commands(PANGRAPH_BIN, DATA_DIR, RESULTS_DIR)
+    commands = make_commands(PANGRAPH_BIN, DATA_DIR, RESULTS_DIR, fast=fast_mode)
     with Pool(processes=num_cores, initializer=init_worker) as pool:
         try:
             results = pool.map_async(run_cmd, commands)
