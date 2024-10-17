@@ -42,7 +42,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: docker.io
-          username: neherlab-bot
+          username: ${{ secrets.NEHERLAB_BOT_DOCKERHUB_USERNAME }}
           password: ${{ secrets.NEHERLAB_BOT_DOCKERHUB_TOKEN }}
 
       - name: "Get docker build checksum"
