@@ -438,15 +438,7 @@ if [ -n "${CROSS:-}" ]; then
   RUST_TARGET="--target=${CROSS}"
 fi
 
-DOCKER_IMAGE_VERSION="$(cat \
-  .dockerignore \
-  .env* \
-  .gitignore \
-  .nvmrc \
-  rust-toolchain.toml \
-  $(find docker/ -type f) \
-| sha256sum | cut -f 1 -d " " \
-)"
+DOCKER_IMAGE_VERSION="$(./scripts/docker_build_checksum.sh)"
 
 if ! docker inspect --format '{{.Id}}' "${DOCKER_REPO}:${DOCKER_TARGET}-${DOCKER_IMAGE_VERSION}" &>/dev/null ||
   [ -n "${FORCE_DOCKER_IMAGE_BUILD}" ]; then
