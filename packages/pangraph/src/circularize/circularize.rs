@@ -4,19 +4,21 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::pangraph_path::PathId;
 use eyre::Report;
+use log::warn;
 use std::collections::{BTreeMap, HashMap};
 
 /// Removes transitive edges from the graph inplace.
 pub fn remove_transitive_edges(graph: &mut Pangraph) -> Result<(), Report> {
   while let Some(edge) = find_transitive_edges(graph).first() {
+    warn!("merging blocks {:?} and {:?}", edge.n1.bid, edge.n2.bid);
     merge_blocks(graph, *edge)?;
   }
   Ok(())
 }
 
 /// Find transitive edges between two different blocks in the graph (no self-loops).
-///
-/// TODO: explain what transitive edges are
+/// Transitive edges happen whenever two blocks always follow each other in all paths.
+/// They could therefore be merged in a single block.
 fn find_transitive_edges(graph: &Pangraph) -> Vec<Edge> {
   let block_depths = calculate_block_depths(graph);
   let edge_counts = count_edges(graph);
