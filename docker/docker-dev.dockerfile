@@ -76,7 +76,6 @@ RUN set -euxo pipefail >/dev/null \
   build-essential \
   ca-certificates \
   curl \
-  gfortran \
   git \
   gnupg \
   libssl-dev \
@@ -350,8 +349,9 @@ RUN set -euxo pipefail >/dev/null \
 
 ENV CC_x86_64_unknown_linux_musl=x86_64-linux-musl-gcc
 ENV CXX_x86_64_unknown_linux_musl=x86_64-linux-musl-g++
+ENV AR_x86_64_unknown_linux_musl=x86_64-linux-musl-ar
 ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=x86_64-linux-musl-gcc
-ENV BINDGEN_EXTRA_CLANG_ARGS="--sysroot /usr/x86_64-linux-musl"
+ENV BINDGEN_EXTRA_CLANG_ARGS_x86_64_unknown_linux_musl="--sysroot /usr/x86_64-linux-musl"
 
 
 # Cross-compilation to WebAssembly
@@ -410,14 +410,9 @@ RUN set -euxo pipefail >/dev/null \
 
 ENV CC_aarch64_unknown_linux_musl=aarch64-linux-musl-gcc
 ENV CXX_aarch64_unknown_linux_musl=aarch64-linux-musl-g++
+ENV AR_aarch64_unknown_linux_musl=aarch64-linux-musl-ar
 ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_LINKER=aarch64-linux-musl-gcc
-ENV BINDGEN_EXTRA_CLANG_ARGS="--sysroot /usr/aarch64-linux-musl"
-
-# Linker error: undefined reference to `getauxval'
-# https://github.com/rust-lang/rustup/issues/3324
-# https://github.com/rust-lang/rust/issues/89626#issuecomment-945814003
-ENV CFLAGS="-mno-outline-atomics"
-ENV CXXFLAGS="-mno-outline-atomics"
+ENV BINDGEN_EXTRA_CLANG_ARGS_aarch64_unknown_linux_musl="--sysroot /usr/aarch64-linux-musl"
 
 
 # Cross-compilation for Windows x86_64
