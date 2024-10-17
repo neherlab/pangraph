@@ -70,7 +70,7 @@ jobs:
       - name: "Setup cache for Docker buildx (${{ matrix.arch }})"
         uses: actions/cache@v4
         with:
-          path: .cache/docker/buildx
+          path: .cache/docker-${{ matrix.arch }}/buildx
           key: neherlab-pangraph-cli-cache-v1-buildx-${{ runner.os }}-${{ matrix.arch }}-${{ steps.docker-build-checksum.outputs.checksum }}
           restore-keys: |
             neherlab-pangraph-cli-cache-v1-buildx-${{ runner.os }}-${{ matrix.arch }}-${{ steps.docker-build-checksum.outputs.checksum }}
@@ -82,7 +82,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            .cache/docker/.cargo
+            .cache/docker-${{ matrix.arch }}/.cargo
             .build/
           key: neherlab-pangraph-cli-cache-v1-cargo-${{ runner.os }}-${{ matrix.arch }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
@@ -145,7 +145,7 @@ jobs:
       - name: "Setup cache for Docker buildx"
         uses: actions/cache@v4
         with:
-          path: .cache/docker/buildx
+          path: .cache-${{ matrix.arch }}/docker/buildx
           key: neherlab-pangraph-cli-cache-v1-buildx-unit-tests-${{ runner.os }}-${{ steps.docker-build-checksum.outputs.checksum }}
           restore-keys: |
             neherlab-pangraph-cli-cache-v1-buildx-unit-tests-${{ runner.os }}-${{ steps.docker-build-checksum.outputs.checksum }}
@@ -155,7 +155,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            .cache/docker/.cargo
+            .cache-${{ matrix.arch }}/docker/.cargo
             .build/
           key: neherlab-pangraph-cli-cache-v1-cargo-unit-tests-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
@@ -194,7 +194,7 @@ jobs:
       - name: "Setup cache for Docker buildx"
         uses: actions/cache@v4
         with:
-          path: .cache/docker/buildx
+          path: .cache/docker-${{ matrix.arch }}/buildx
           key: neherlab-pangraph-cli-cache-v1-buildx-lints-${{ runner.os }}-${{ steps.docker-build-checksum.outputs.checksum }}
           restore-keys: |
             neherlab-pangraph-cli-cache-v1-buildx-lints-${{ runner.os }}-${{ steps.docker-build-checksum.outputs.checksum }}
@@ -204,7 +204,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
-            .cache/docker/.cargo
+            .cache/docker-${{ matrix.arch }}/.cargo
             .build/
           key: neherlab-pangraph-cli-cache-v1-cargo-lints-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
