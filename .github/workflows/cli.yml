@@ -322,6 +322,7 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - name: "Download build artifacts"
         uses: actions/download-artifact@v4
