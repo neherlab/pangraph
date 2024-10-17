@@ -35,6 +35,7 @@ bio-types = "=1.0.4"
 bzip2 = { version = "=0.4.4", features = ["static"] }
 chrono = { version = "=0.4.38", default-features = false, features = ["clock", "std", "wasmbind"] }
 clap = { version = "=4.5.17", features = ["derive", "color", "unicode", "unstable-styles"] }
+clap-markdown = "=0.1.4"
 clap_complete = "=4.5.28"
 clap_complete_fig = "=4.5.2"
 cmd_lib = "=1.9.4"
@@ -71,6 +72,7 @@ rand = { version = "=0.8.5", features = ["serde1", "log"] }
 rand_distr = { version = "=0.4.3", features = ["serde1", "std_math"] }
 rand_isaac = { version = "=0.3.0", features = ["serde1"] }
 rayon = "=1.10.0"
+regex = "=1.11.0"
 rstest = "=0.22.0"
 rstest_reuse = "=0.7.0"
 schemars = { version = "=1.0.0-alpha.15", features = ["chrono04", "either1", "enumset1", "indexmap2", "raw_value", "schemars_derive", "preserve_order"] }

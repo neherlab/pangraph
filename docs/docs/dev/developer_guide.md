@@ -141,6 +141,11 @@ from [cargo-edit](https://github.com/killercup/cargo-edit) package.
 cargo upgrade --workspace
 ```
 
+### Documentation
+
+End-user and developer documentation is in `docs/` subdirectory. For details, see `README.md` file there.
+
+
 ### Versioning
 
 TODO

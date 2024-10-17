@@ -24,6 +24,7 @@ bio = { workspace = true }
 bio-types = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
+clap-markdown = { workspace = true }
 clap_complete = { workspace = true }
 clap_complete_fig = { workspace = true }
 cmd_lib = { workspace = true }
@@ -59,6 +60,7 @@ rand = { workspace = true }
 rand_distr = { workspace = true }
 rand_isaac = { workspace = true }
 rayon = { workspace = true }
+regex = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }
 serde-aux = { workspace = true }

@@ -90,6 +90,9 @@ pub enum PangraphCommands {
     #[clap(value_name = "SHELL", default_value_t = String::from("bash"), value_parser = SHELLS.clone())]
     shell: String,
   },
+
+  /// Print command-line reference documentation in Markdown format
+  HelpMarkdown,
 }
 
 pub fn generate_shell_completions(shell: &str) -> Result<(), Report> {
