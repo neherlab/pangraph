@@ -4,6 +4,7 @@ use log::info;
 use pangraph::commands::build::build_run::build_run;
 use pangraph::commands::export::export_run::export_run;
 use pangraph::commands::marginalize::marginalize_run::marginalize_run;
+use pangraph::commands::md_help::print_help_markdown::print_help_markdown;
 use pangraph::commands::reconstruct::reconstruct_run::reconstruct_run;
 use pangraph::commands::root_args::{generate_shell_completions, parse_cli_args, PangraphCommands};
 use pangraph::commands::schema::generate_schema::generate_schema;
@@ -27,6 +28,7 @@ fn main() -> Result<(), Report> {
     PangraphCommands::Marginalize(args) => marginalize_run(&args),
     PangraphCommands::Reconstruct(args) => reconstruct_run(&args),
     PangraphCommands::Schema(args) => generate_schema(&args),
+    PangraphCommands::HelpMarkdown => print_help_markdown(),
     PangraphCommands::Completions { shell } => generate_shell_completions(&shell),
   }
 }

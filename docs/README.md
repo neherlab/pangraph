@@ -46,6 +46,12 @@ bun prod:serve
 
 The `build` command will produce the directory with HTML, CSS and JS files ready to be deployed to a web hosting. The `serve` command will serve these files on port `5000`.
 
+
+## Command-line reference generation
+
+The `reference.md` file is generated using script `./scripts/update_cli_reference_docs`.
+
+
 ## Deployment
 
 TODO
