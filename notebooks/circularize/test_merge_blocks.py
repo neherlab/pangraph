@@ -94,11 +94,47 @@ def graph_A(block_1, block_2, block_3):
     return Pangraph(paths=paths, blocks=blocks, nodes=nodes)
 
 
+@pytest.fixture
+def graph_B(block_1, block_2, block_3):
+    #     (0|32)      (32|61)     (61|0)
+    # p1) (b1-|n1) -> (b2+|n4) -> (b3+|n7)  l=80
+    #      (10|41)     (41|72)     (72|10)
+    # p2) (b1-|n2) -> (b2+|n5) -> (b3+|n8)  l=83
+    #      (5|40)      (40|5)
+    # p3) (b2-|n6) -> (b1+|n3)              l=67
+
+    paths = {
+        1: Path(id=1, nodes=[1, 4, 7], L=80, circular=True),
+        2: Path(id=2, nodes=[2, 5, 8], L=83, circular=True),
+        3: Path(id=3, nodes=[6, 3], L=67, circular=True),
+    }
+    blocks = {b.id: b for b in [block_1, block_2, block_3]}
+    nodes = {
+        1: Node(id=1, block_id=1, path_id=1, position=(0, 32), strandedness=False),
+        2: Node(id=2, block_id=1, path_id=2, position=(10, 41), strandedness=False),
+        3: Node(id=3, block_id=1, path_id=3, position=(40, 5), strandedness=True),
+        4: Node(id=4, block_id=2, path_id=1, position=(32, 61), strandedness=True),
+        5: Node(id=5, block_id=2, path_id=2, position=(41, 72), strandedness=True),
+        6: Node(id=6, block_id=2, path_id=3, position=(5, 40), strandedness=False),
+        7: Node(id=7, block_id=3, path_id=1, position=(61, 0), strandedness=True),
+        8: Node(id=8, block_id=3, path_id=2, position=(72, 10), strandedness=True),
+    }
+    return Pangraph(paths=paths, blocks=blocks, nodes=nodes)
+
+
 def test_find_node_pairings_A(graph_A):
     n1 = SimpleNode(1, True)
     n2 = SimpleNode(2, False)
     edge = Edge(n1, n2)
     pairings, new_nodes = find_node_pairings(graph_A, edge)
+    assert pairings == {1: 4, 2: 5, 3: 6, 4: 1, 5: 2, 6: 3}
+
+
+def test_find_node_pairings_B(graph_B):
+    n1 = SimpleNode(1, False)
+    n2 = SimpleNode(2, True)
+    edge = Edge(n1, n2)
+    pairings, new_nodes = find_node_pairings(graph_B, edge)
     assert pairings == {1: 4, 2: 5, 3: 6, 4: 1, 5: 2, 6: 3}
 
 
@@ -151,7 +187,7 @@ def test_reverse_complement_2(block_2, block_2_revcomp):
 
 
 @pytest.fixture
-def expected_concat():
+def expected_concat_A():
     #          0         1         2         3         4         5         6
     #          012345678901234567890123456789012345678901234567890123456789012
     # cons:    ACTATATTACGGCGATCGATCGATTACTCGCTCGACTCCTATGATAGGGATGATCCTAAGATC
@@ -182,6 +218,37 @@ def expected_concat():
 
 
 @pytest.fixture
+def expected_concat_B():
+    #          0         1         2         3         4         5         6
+    #          012345678901234567890123456789012345678901234567890123456789012
+    # cons:    CGACTCCTATGATAGGGATGATCCTAAGATCACTATATTACGGCGATCGATCGATTACTCGCT
+    #   n1:    ....xx............................G............................  l = 32 + 29
+    #   n2:    ...........................A..........|.....xxx................  l = 31 + 31
+    #   n3:    .............................xx|...............................| l = 35 + 32
+    return Block(
+        id=1,
+        consensus="CGACTCCTATGATAGGGATGATCCTAAGATCACTATATTACGGCGATCGATCGATTACTCGCT",
+        alignment={
+            -9124324634939260889: Edit(
+                ins=[],
+                subs=[Substitution(34, "G")],
+                dels=[Deletion(4, 2)],
+            ),
+            -8785834526545769370: Edit(
+                ins=[Insertion(38, "AA")],
+                subs=[Substitution(27, "A")],
+                dels=[Deletion(44, 3)],
+            ),
+            893596598396622086: Edit(
+                ins=[Insertion(31, "AAA"), Insertion(63, "CCC")],
+                subs=[],
+                dels=[Deletion(29, 2)],
+            ),
+        },
+    )
+
+
+@pytest.fixture
 def new_node_ids():
     return {
         1: -9124324634939260889,
@@ -193,7 +260,9 @@ def new_node_ids():
     }
 
 
-def test_concatenate_blocks(graph_A, block_1, block_2, expected_concat, new_node_ids):
+def test_concatenate_blocks_A(
+    graph_A, block_1, block_2, expected_concat_A, new_node_ids
+):
     n1 = SimpleNode(1, True)
     n2 = SimpleNode(2, False)
     edge = Edge(n1, n2)
@@ -202,11 +271,25 @@ def test_concatenate_blocks(graph_A, block_1, block_2, expected_concat, new_node
     block = concatenate_alignments(
         block_1, block_2.reverse_complement(), pairings, new_node_ids, new_block_id
     )
-    assert block == expected_concat
+    assert block == expected_concat_A
+
+
+def test_concatenate_blocks_B(
+    graph_B, block_1, block_2, expected_concat_B, new_node_ids
+):
+    n1 = SimpleNode(1, False)
+    n2 = SimpleNode(2, True)
+    edge = Edge(n1, n2)
+    pairings, new_nodes = find_node_pairings(graph_B, edge)
+    new_block_id = 1
+    block = concatenate_alignments(
+        block_2.reverse_complement(), block_1, pairings, new_node_ids, new_block_id
+    )
+    assert block == expected_concat_B
 
 
 @pytest.fixture
-def expected_graph(expected_concat, new_node_ids):
+def expected_graph_A(expected_concat_A, new_node_ids):
     #       (0|-----------|61)     (61|0)
     # p1) (b1+|-----------|n1) -> (b3+|n7)  l=80
     #      (10|-----------|72)     (72|10)
@@ -214,7 +297,7 @@ def expected_graph(expected_concat, new_node_ids):
     #       (5|-----------|5)
     # p3) (b1-|-----------|n3)              l=67
     blocks = {
-        1: expected_concat,
+        1: expected_concat_A,
         3: Block(
             id=3,
             consensus="CTATTACTAGGGGGACCACTA",
@@ -260,36 +343,126 @@ def expected_graph(expected_concat, new_node_ids):
     return Pangraph(paths=paths, blocks=blocks, nodes=nodes)
 
 
-def test_graph_merging_update_paths(graph_A, expected_graph, new_node_ids):
+@pytest.fixture
+def expected_graph_B(expected_concat_B, new_node_ids):
+    #       (0|-----------|61)     (61|0)
+    # p1) (b1-|-----------|n1) -> (b3+|n7)  l=80
+    #      (10|-----------|72)     (72|10)
+    # p2) (b1-|-----------|n2) -> (b3+|n8)  l=83
+    #       (5|-----------|5)
+    # p3) (b1+|-----------|n3)              l=67
+    blocks = {
+        1: expected_concat_B,
+        3: Block(
+            id=3,
+            consensus="CTATTACTAGGGGGACCACTA",
+            alignment={
+                7: Edit(ins=[], subs=[], dels=[Deletion(15, 2)]),
+                8: Edit(ins=[], subs=[Substitution(3, "C")], dels=[]),
+            },
+        ),
+    }
+
+    nodes = {
+        new_node_ids[1]: Node(
+            id=new_node_ids[1],
+            block_id=1,
+            path_id=1,
+            position=(0, 61),
+            strandedness=False,
+        ),
+        new_node_ids[2]: Node(
+            id=new_node_ids[2],
+            block_id=1,
+            path_id=2,
+            position=(10, 72),
+            strandedness=False,
+        ),
+        new_node_ids[3]: Node(
+            id=new_node_ids[3],
+            block_id=1,
+            path_id=3,
+            position=(5, 5),
+            strandedness=True,
+        ),
+        7: Node(id=7, block_id=3, path_id=1, position=(61, 0), strandedness=True),
+        8: Node(id=8, block_id=3, path_id=2, position=(72, 10), strandedness=True),
+    }
+
+    paths = {
+        1: Path(id=1, nodes=[new_node_ids[1], 7], L=80, circular=True),
+        2: Path(id=2, nodes=[new_node_ids[2], 8], L=83, circular=True),
+        3: Path(id=3, nodes=[new_node_ids[3]], L=67, circular=True),
+    }
+    print(nodes)
+    return Pangraph(paths=paths, blocks=blocks, nodes=nodes)
+
+
+def test_graph_merging_update_paths_A(graph_A, expected_graph_A, new_node_ids):
     n1 = SimpleNode(1, True)
     n2 = SimpleNode(2, False)
     edge = Edge(n1, n2)
     pairings, new_nodes = find_node_pairings(graph_A, edge)
     graph_merging_update_paths(graph_A, new_nodes, bid_left=1)
-    assert graph_A.paths == expected_graph.paths
+    assert graph_A.paths == expected_graph_A.paths
 
 
-def test_graph_merging_update_nodes(graph_A, expected_graph, new_node_ids):
+def test_graph_merging_update_paths_B(graph_B, expected_graph_B, new_node_ids):
+    n1 = SimpleNode(1, False)
+    n2 = SimpleNode(2, True)
+    edge = Edge(n1, n2)
+    pairings, new_nodes = find_node_pairings(graph_B, edge)
+    graph_merging_update_paths(graph_B, new_nodes, bid_left=1)
+    assert graph_B.paths == expected_graph_B.paths
+
+
+def test_graph_merging_update_nodes_A(graph_A, expected_graph_A, new_node_ids):
     n1 = SimpleNode(1, True)
     n2 = SimpleNode(2, False)
     edge = Edge(n1, n2)
     pairings, new_nodes = find_node_pairings(graph_A, edge)
     graph_merging_update_nodes(graph_A, new_nodes, bid_left=1)
-    assert graph_A.nodes == expected_graph.nodes
+    assert graph_A.nodes == expected_graph_A.nodes
 
 
-def test_merge_blocks(graph_A, expected_graph):
+def test_graph_merging_update_nodes_B(graph_B, expected_graph_B, new_node_ids):
+    n1 = SimpleNode(1, False)
+    n2 = SimpleNode(2, True)
+    edge = Edge(n1, n2)
+    pairings, new_nodes = find_node_pairings(graph_B, edge)
+    graph_merging_update_nodes(graph_B, new_nodes, bid_left=1)
+    assert graph_B.nodes == expected_graph_B.nodes
+
+
+def test_merge_blocks_A(graph_A, expected_graph_A):
     n1 = SimpleNode(1, True)
     n2 = SimpleNode(2, False)
     edge = Edge(n1, n2)
     merge_blocks(graph_A, edge)
-    assert graph_A.nodes == expected_graph.nodes
-    assert graph_A.blocks == expected_graph.blocks
-    assert graph_A.paths == expected_graph.paths
+    assert graph_A.nodes == expected_graph_A.nodes
+    assert graph_A.blocks == expected_graph_A.blocks
+    assert graph_A.paths == expected_graph_A.paths
 
 
-def test_remove_transitive_edges(graph_A, expected_graph):
+def test_merge_blocks_B(graph_B, expected_graph_B):
+    n1 = SimpleNode(1, False)
+    n2 = SimpleNode(2, True)
+    edge = Edge(n1, n2)
+    merge_blocks(graph_B, edge)
+    assert graph_B.nodes == expected_graph_B.nodes
+    assert graph_B.blocks == expected_graph_B.blocks
+    assert graph_B.paths == expected_graph_B.paths
+
+
+def test_remove_transitive_edges_A(graph_A, expected_graph_A):
     remove_transitive_edges(graph_A)
-    assert graph_A.nodes == expected_graph.nodes
-    assert graph_A.blocks == expected_graph.blocks
-    assert graph_A.paths == expected_graph.paths
+    assert graph_A.nodes == expected_graph_A.nodes
+    assert graph_A.blocks == expected_graph_A.blocks
+    assert graph_A.paths == expected_graph_A.paths
+
+
+def test_remove_transitive_edges_B(graph_B, expected_graph_B):
+    remove_transitive_edges(graph_B)
+    assert graph_B.nodes == expected_graph_B.nodes
+    assert graph_B.blocks == expected_graph_B.blocks
+    assert graph_B.paths == expected_graph_B.paths

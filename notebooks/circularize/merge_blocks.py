@@ -123,15 +123,15 @@ def merge_alignment(
     b1 = graph.blocks[edge.n1.bid]
     b2 = graph.blocks[edge.n2.bid]
 
-    # make sure n1 is forward when merging
+    # if they are not co-oriented then reverse complement block 2
+    if edge.n1.strand != edge.n2.strand:
+        b2 = b2.reverse_complement()
+
+    # make sure block 1 is forward when merging
     if edge.n1.strand:
         b_left, b_right = b1, b2
     else:
         b_left, b_right = b2, b1
-
-    # if they are not co-oriented then reverse complement the right block
-    if edge.n1.strand != edge.n2.strand:
-        b_right = b_right.reverse_complement()
 
     # assign the id equal to the id of the first block of the edge
     new_block_id = edge.n1.bid
