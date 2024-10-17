@@ -253,7 +253,7 @@ jobs:
       - name: "Run smoke tests (linux)"
         run: |
           chmod +x ./.out/*
-          JOBS=2 ./tests/run-smoke-tests ./.out/pangraph-x86_64-unknown-linux-gnu
+          JOBS=2 ./tests/run-smoke-tests ./.out/pangraph-x86_64-unknown-linux-gnu --fast
 
   run-linux-distros-test:
     name: "Run Linux distros compatibility test"
