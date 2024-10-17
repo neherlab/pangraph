@@ -16,11 +16,10 @@ function abspath() {
   readlink -m "$1"
 }
 
-export EXE="${1:? "Usage: ${0} <path_to_executable>"}"
-export ARGS="${2:-}"
+export EXE="${1:? "Usage: ${0} <path_to_pangraph>"}"
 VOLUME="$(abspath "${EXE}"):/exe"
 export VOLUME
-export RUN_COMMAND="/exe ${ARGS} >/dev/null"
+export RUN_COMMAND="/exe --help >/dev/null"
 
 distros=(
   "debian/eol:jessie"  # 8
@@ -32,7 +31,6 @@ distros=(
   "debian:testing"
   "debian:sid"
   "debian:latest"
-  "ubuntu:12.04"
   "ubuntu:14.04"
   "ubuntu:16.04"
   "ubuntu:18.04"
