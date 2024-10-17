@@ -108,7 +108,7 @@ fn merge_alignment(
 
   Ok(concatenate_alignments(
     b_left,
-    &b_right,
+    b_right,
     node_map,
     &new_node_ids,
     edge.n1.bid,
