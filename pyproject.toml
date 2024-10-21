@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pypangraph"
-version = "0.1.3"
+version = "0.2.0"
 authors = [
   { name="Marco Molari", email="mmolari91@gmail.com" },
 ]
@@ -22,7 +22,6 @@ dependencies = [
   "pandas",
   "biopython",
   "scipy",
-  "networkx"
 ]
 
 [project.urls]
