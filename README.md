@@ -10,9 +10,9 @@ Install the package in dev mode:
 pip install -e .
 ```
 
-- [ ] parse the graph
-  - [ ] update alignment format
-- [ ] produce block statistics
+- [x] parse the graph
+  - [x] update alignment format
+- [x] produce block statistics
 - [ ] produce alignments
   - [ ] set of unaligned fasta records
   - [ ] biopython alignment, but without insertions
@@ -23,11 +23,3 @@ pip install -e .
   - [ ] rebuild sub-graphs
   - [ ] analyze sub-graphs
 - [ ] locator: from position on the genome to position in the graph, and vice-versa.
-
-
-### in development
-
-- [ ] Block class
-  - [ ] alignment
-  - [ ] block class retrieve alignment
-- [ ] Node class

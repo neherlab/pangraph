@@ -1,3 +1,6 @@
+import pandas as pd
+
+
 def parse_strandedness(strand: str) -> bool:
     """Parse strandedness from a string to a boolean:
     + -> True,
@@ -12,20 +15,55 @@ def parse_strandedness(strand: str) -> bool:
             raise ValueError(f"Strand {strand} not recognized.")
 
 
-class Node:
-    """Pangraph node object. It has attributes:
-    - name (str): strain name
-    - circular (bool): whether the path object is circular
-    - nodes (list): list of node ids in the path
-    - nuc_len (int): total length of the path in base-pairs
+class Nodes:
+    """Dataset with pangraph nodes information:
+    - id (str): node id. Index of the dataframe
+    - block_id (str): block id
+    - path_id (str): path id
+    - strand (bool): strandedness of the node
+    - position (tuple): position of the node in the genome (start, end)
     """
 
-    def __init__(self, node):
-        self.id = node["id"]
-        self.block_id = node["block_id"]
-        self.path_id = node["path_id"]
-        self.strand = parse_strandedness(node["strand"])
-        self.position = tuple(node["position"])
+    def __init__(self, nodes_dict):
+        self.df = pd.DataFrame.from_dict(
+            {
+                node_id: {
+                    "block_id": node["block_id"],
+                    "path_id": node["path_id"],
+                    "strand": parse_strandedness(node["strand"]),
+                    "start": node["position"][0],
+                    "end": node["position"][1],
+                }
+                for node_id, node in nodes_dict.items()
+            }
+        ).T
 
-    def __str__(self):
-        return f"node {self.id} (block={self.block_id}, path={self.path_id})"
+    def block_path_counts(self) -> pd.DataFrame:
+        """Returns a dataframe with columsns=paths, index=blocks, values=counts"""
+        return self.df.pivot_table(
+            index="block_id", columns="path_id", aggfunc="size", fill_value=0
+        )
+
+    def block_counts(self) -> pd.Series:
+        """Returns a pandas series with columns=blocks, values=#nodes"""
+        return self.df["block_id"].value_counts()
+
+    def block_n_strains(self) -> pd.Series:
+        """Returns a pandas series with columns=blocks, values=#paths in which the block is present"""
+        return self.df.groupby("block_id")["path_id"].nunique()
+
+    def to_blockstats_df(self) -> pd.DataFrame:
+        """Returns a dataframe containing statistics about blocks distribution.
+        - count: n. times the block occurs
+        - n. strains: number of strains in which the block is observed
+        - duplicated: whether the block is duplicated in at least one strain
+        - core: whether a block occurrs exactly once per strain
+        """
+        block_counts = self.block_counts()
+        block_n_strains = self.block_n_strains()
+
+        df = pd.DataFrame({"count": block_counts, "n_strains": block_n_strains})
+        df["duplicated"] = df["count"] > df["n_strains"]
+        df["core"] = df["n_strains"] == len(self.df["path_id"].unique())
+        df["core"] &= ~df["duplicated"]
+        return df

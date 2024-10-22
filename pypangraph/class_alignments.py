@@ -1,9 +1,6 @@
 # Class containing information on a pangraph block alignment.
-# It contains utilities to reconstruct the alignment, the sequences
-# And the set of SNPs in the columns of the alignment without gaps
+# It contains utilities to reconstruct the sequences and their alignment
 
-import numpy as np
-from Bio import SeqRecord, Seq, AlignIO
 from dataclasses import dataclass
 
 
@@ -77,27 +74,26 @@ class Alignment:
         self.consensus = block["consensus"]
         self.edits = {node_id: Edits(e) for node_id, e in block["alignments"].items()}
 
+    def __len__(self):
+        """Returns the number of sequences in the block"""
+        return len(self.edits)
+
     def node_ids(self):
         """Returns the list of node ids"""
         return list(self.edits.keys())
 
-    def generate_sequences(self, which=None):
-        """Returns the non-aligned set of sequences corresponding to the same block,
-        together with the corresponding list of occurrences (strain, occurrence_n, strand).
-        Optionally a subset of occurrences can be selected. These must be elements of `self.occs`
-        """
-        alns, which = self.generate_alignments(which)
-        seqs = [aln.replace("-", "") for aln in alns]  # remove gaps "-"
-        return seqs, which
+    def generate_sequences(self):
+        """returns the unaligned set of reconstructed sequenes for the block"""
+        return {
+            node_id: e.apply_edits(self.consensus) for node_id, e in self.edits.items()
+        }
 
-    def to_biopython_aln(self):
-        """Returns a biopython alignment object for the block"""
-        seqs, which = self.generate_alignments()
-        records = []
-        for seq, occ in zip(seqs, which):
-            block_id, n, strand = occ
-            record = SeqRecord.SeqRecord(
-                Seq.Seq(seq), id=f"{block_id=}|{n=}|{strand=}", description=""
-            )
-            records.append(record)
-        return AlignIO.MultipleSeqAlignment(records)
+    def generate_alignment(self) -> dict[int, str]:
+        """returns a dictionary node_id -> aligned sequence, excluding insertions."""
+        return {
+            node_id: e.aligned_seq(self.consensus) for node_id, e in self.edits.items()
+        }
+
+    def depth(self):
+        """Returns the number of occurrences of the block"""
+        return len(self.edits)

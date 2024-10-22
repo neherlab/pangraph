@@ -1,18 +1,19 @@
 # file containing utilities to run pangraph from python code
-
 import subprocess
 
+
 def __check_pangraph_command():
-    rc = subprocess.call(['which', 'pangraph'])
+    rc = subprocess.call(["which", "pangraph"])
     assert rc == 0, "pangraph command not present on path."
 
-def pangraph_command(
+
+def pangraph_build(
     input_file,
     output_file,
     circular=False,
     min_block_len=None,
-    junction_cost=None,
-    diversity_cost=None,
+    alpha=None,
+    beta=None,
     verbose=True,
 ):
     """Python wrapper for the pangraph pipeline. It executes pangraph on the
@@ -48,11 +49,11 @@ def pangraph_command(
     if circular:
         command.append("--circular")
     if min_block_len is not None:
-        command += ["--len", f"{int(min_block_len)}"]
-    if junction_cost is not None:
-        command += ["--mu", f"{int(junction_cost)}"]
-    if diversity_cost is not None:
-        command += ["--beta", f"{int(diversity_cost)}"]
+        command += ["-l", f"{int(min_block_len)}"]
+    if alpha is not None:
+        command += ["-a", f"{int(alpha)}"]
+    if beta is not None:
+        command += ["-b", f"{int(beta)}"]
 
     # input file
     command.append(f"{input_file}")
@@ -65,7 +66,7 @@ def pangraph_command(
 
     printv("executing pangraph with command:")
     printv(" ".join(command))
-    printv(f"saving output in:")
+    printv("saving output in:")
     printv(output_file)
     # run the command and save the results in the specified output
     with open(output_file, "w") as f_out:

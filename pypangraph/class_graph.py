@@ -1,4 +1,4 @@
-# Wrapper to import in python the results of the Pangraph pipeline.
+# Wrapper class to load a Pangraph object from a .json file.
 
 import numpy as np
 import json
@@ -8,15 +8,18 @@ from Bio import SeqRecord, Seq, AlignIO
 
 from collections import Counter, defaultdict
 
-from .indexed_collection import PathCollection, BlockCollection, NodeCollection
+from .class_path import PathCollection
+from .class_block import BlockCollection
+from .class_node import Nodes
 from .pangraph_schema import schema
 
 
 class Pangraph:
     """Wrapper class to load and interact with the output of the Pangraph pipeline.
-    The class has two main attributes:
+    The class has three main attributes:
     - `paths` : each strain has a path representaiton. A path consists in a series of blocks.
     - `blocks` : the alignment of each homologous sequence is represented as a block.
+    - `nodes` : each node represents a particular occurrence of a block on a path.
     """
 
     def __init__(self, pan_json):
@@ -27,7 +30,7 @@ class Pangraph:
         """
         self.paths = PathCollection(pan_json["paths"])
         self.blocks = BlockCollection(pan_json["blocks"])
-        self.nodes = NodeCollection(pan_json["nodes"])
+        self.nodes = Nodes(pan_json["nodes"])
 
     @staticmethod
     def load_json(filename):
@@ -58,26 +61,16 @@ class Pangraph:
 
     def strains(self):
         """Return lists of strain names"""
-        return self.paths.ids_copy()
-
-    def block_ids(self):
-        """Returns the list of block ids"""
-        return self.blocks.ids_copy()
-
-    def to_paths_dict(self):
-        """Generates a compressed representation of paths as simply lists of
-        block ids. Returns a dictionary strain name -> list of block ids.
-        """
-        return self.paths.to_block_dict()
+        return list(self.paths.keys())
 
     def to_blockcount_df(self):
         """Returns a dataframe whose rows are strain names, and columns are block
         names. Values indicate the number of times a block is present. This can
         also be used to build a presence / absence matrix."""
-        block_counters = {}
-        for path in self.paths:
-            block_counters[path.name] = Counter(path.block_ids)
-        return pd.DataFrame(block_counters).fillna(0).T
+        df = self.nodes.block_path_counts()
+        path_name_dict = {path.id: path.name for name, path in self.paths.items()}
+        df.rename(columns=path_name_dict, inplace=True)
+        return df
 
     def to_blockstats_df(self):
         """Returns a dataframe containing statistics about blocks distribution.
@@ -88,23 +81,12 @@ class Pangraph:
         - len: average block length from pangraph.
         - core: whether a gene occurrs exactly once per strain
         """
-        block_counter = Counter()
-        str_counter = Counter()
-
-        for path in self.paths:
-            block_counter.update(path.block_ids)
-            str_counter.update(np.unique(path.block_ids))
-
-        lengths = {block.id: len(block.sequence) for block in self.blocks}
-
-        df = pd.DataFrame(
-            {"count": block_counter, "n. strains": str_counter, "len": lengths}
-        )
-        df["duplicated"] = df["count"] > df["n. strains"]
-        df["core"] = (df["n. strains"] == len(self.paths)) & (~df["duplicated"])
+        df = self.nodes.to_blockstats_df()
+        df["len"] = [len(self.blocks[bid]) for bid in df.index]
         return df
 
     def core_genome_alignment(self, guide_strain=None):
+        # TODO
         """Returns the core genome aligment, in a biopython alignment object.
         The order of the blocks is determined by the guide strain, if provided.
         """
