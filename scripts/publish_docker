@@ -28,11 +28,10 @@ case "${1:-}" in
   ;;
 esac
 
-DOCKER_ORG="nextstrain"
+DOCKER_ORG="neherlab"
 
 declare -a PROJECT_NAMES=(
-  "nextclade"
-  "nextalign"
+  "pangraph"
 )
 
 declare -a BASE_IMAGES=(
