@@ -3,20 +3,18 @@ from . import class_alignments as pga
 
 
 class Block:
-    """Python wrapper for pangraph block object. It has attributes:
+    """Pangraph block object. It has attributes:
     - id (str): block id
-    - sequence (str): sequence of the block
-    - gaps (list): list of gap occurrences in the alignment, as returned by
-        pangraph
+    - sequence (str): consensus sequence of the block
     - alignment (pan_alignment): object containing the information provided by
         pangraph that can be used to build alignments. See `pan_alignment`
         class for details.
     """
 
-    def __init__(self, pan_block):
-        self.id = pan_block["id"]
-        self.sequence = pan_block["sequence"]
-        self.alignment = pga.pan_alignment(pan_block)
+    def __init__(self, block):
+        self.id = block["id"]
+        self.sequence = block["consensus"]
+        self.alignment = pga.Alignment(block)
 
     def __len__(self):
         """Length of the sequence in base-pairs."""

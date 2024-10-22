@@ -11,17 +11,10 @@ class IndexedCollection:
     - list: ordered list of items
     - id_to_pos: dictionary mapping ids to their position in the list.
 
-    An element of the class can be indexed in these different ways:
-    - through its id (string)
-    - through its position on the list
-    - though a list of ids
-    - through a list of positions
-    - though a boolean mask on the list
-
-    This is handled by the __getitem__ function.
-
-    Moreover the object can be cast to iterators, in which case an iterator over
-    the list items is returned.
+    The object can be:
+    - indexed by id, and the corresponding item is returned.
+    - iterated over, yielding the id and the item, as in a dictionary.
+    - queried for the list of ids with the `keys` function (like a dictionary).
 
     The object's `len` is the lentgth of the list.
     """
@@ -31,51 +24,29 @@ class IndexedCollection:
         self.list = np.array(items)
         self.id_to_pos = {id: n for n, id in enumerate(ids)}
 
+    def __contains__(self, id_):
+        """Returns whether the id is in the collection"""
+        return id_ in self.id_to_pos
+
     def __iter__(self):
-        return iter(self.list)
+        """Returns an iterator over the items, like a dictionary key-value pair"""
+        return iter(zip(self.ids, self.list))
 
     def __len__(self):
         return len(self.list)
 
-    def __getitem__(self, idx):
-        # if indexed by block id
-        if isinstance(idx, str):
-            pos = self.id_to_pos[idx]
+    def __getitem__(self, id_):
+        """Returns the item corresponding to the id"""
+        try:
+            pos = self.id_to_pos[id_]
             return self.list[pos]
+        except KeyError:
+            raise KeyError(
+                f"Id {id_} not found in collection {self.__class__.__name__}"
+            )
 
-        # if indexed by integer
-        if isinstance(idx, (int, np.integer)):
-            return self.list[idx]
-
-        # if indexed by list or numpy array
-        if isinstance(idx, (list, np.ndarray)):
-            # if list is empty return empty list
-            if len(idx) == 0:
-                return []
-
-            idx0 = idx[0]
-            # if the type is integer, return corresponding items
-            if isinstance(idx0, (int, np.integer)) and not isinstance(idx0, bool):
-                return self.list[idx]
-
-            # if the type is string, return corresponding ids
-            if isinstance(idx0, str):
-                return [self.__getitem__(idx_i) for idx_i in idx]
-
-            # if the type is bool (a mask)
-            if isinstance(idx0, np.bool_):
-                return self.list[idx]
-
-        # if no condition is matched, then raise an error
-        message = """
-        the index object passed does not match any of the allowed types:
-        - integer or string
-        - list of integers or strings
-        - boolean numpy array (mask)
-        """
-        raise TypeError(message)
-
-    def ids_copy(self):
+    def keys(self):
+        """Returns the list of ids (like a dictionary)"""
         return self.ids.copy()
 
 
@@ -85,8 +56,8 @@ class BlockCollection(IndexedCollection):
     """
 
     def __init__(self, pan_blocks):
-        ids = [block["id"] for block in pan_blocks]
-        items = [Block(block) for block in pan_blocks]
+        ids = [block["id"] for block in pan_blocks.values()]
+        items = [Block(block) for block in pan_blocks.values()]
         IndexedCollection.__init__(self, ids, items)
 
 
@@ -96,12 +67,9 @@ class PathCollection(IndexedCollection):
     """
 
     def __init__(self, pan_paths):
-        ids = [path["name"] for path in pan_paths]
-        items = [Path(path) for path in pan_paths]
+        ids = [path["name"] for path in pan_paths.values()]
+        items = [Path(path) for path in pan_paths.values()]
         IndexedCollection.__init__(self, ids, items)
-
-    def to_block_dict(self):
-        return {path.name: path.block_ids.copy() for path in self}
 
 
 class NodeCollection(IndexedCollection):
@@ -110,6 +78,6 @@ class NodeCollection(IndexedCollection):
     """
 
     def __init__(self, pan_nodes):
-        ids = [node["name"] for node in pan_nodes]
-        items = [Node(node) for node in pan_nodes]
+        ids = [node["id"] for node in pan_nodes.values()]
+        items = [Node(node) for node in pan_nodes.values()]
         IndexedCollection.__init__(self, ids, items)

@@ -23,3 +23,11 @@ pip install -e .
   - [ ] rebuild sub-graphs
   - [ ] analyze sub-graphs
 - [ ] locator: from position on the genome to position in the graph, and vice-versa.
+
+
+### in development
+
+- [ ] Block class
+  - [ ] alignment
+  - [ ] block class retrieve alignment
+- [ ] Node class
