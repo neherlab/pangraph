@@ -48,9 +48,9 @@ class Edits:
                 sq[D.pos + idx] = ""
         for I in self.inss:
             if I.pos > 0:
-                sq[I.pos - 1] += I.ins
+                sq[I.pos - 1] += I.seq
             elif I.pos == 0:
-                sq[0] = I.ins + sq[0]
+                sq[0] = I.seq + sq[0]
         return "".join(sq)
 
     def aligned_seq(self, cons: str) -> str:

@@ -1,4 +1,3 @@
-import numpy as np
 from . import class_alignments as pga
 from .indexed_collection import IndexedCollection
 

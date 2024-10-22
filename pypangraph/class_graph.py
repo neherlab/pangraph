@@ -2,11 +2,10 @@
 
 import numpy as np
 import json
-import pandas as pd
 import jsonschema
 from Bio import SeqRecord, Seq, AlignIO
 
-from collections import Counter, defaultdict
+from collections import defaultdict
 
 from .class_path import PathCollection
 from .class_block import BlockCollection
@@ -103,9 +102,13 @@ class Pangraph:
             guide_strain in strains
         ), f"Guide strain {guide_strain} not found in the dataset"
         guide_path = self.paths[guide_strain]
+        guide_path_nodes = np.array(guide_path.nodes, dtype=str)
+        guide_path_block_ids = self.nodes.df.loc[guide_path_nodes, "block_id"]
+        guide_path_block_strands = self.nodes.df.loc[guide_path_nodes, "strand"]
+
         core_blocks = [
             (bid, strand)
-            for bid, strand in zip(guide_path.block_ids, guide_path.block_strands)
+            for bid, strand in zip(guide_path_block_ids, guide_path_block_strands)
             if bid in core_blocks
         ]
 
@@ -113,18 +116,23 @@ class Pangraph:
         alignment = defaultdict(str)
         for bid, guide_strand in core_blocks:
             block = self.blocks[bid]
-            seqs, which = block.alignment.generate_alignments()
-            assert set([w[0] for w in which]) == set(
+            aln_dict = block.to_alignment()
+            aln_strains = []
+            assert len(aln_dict) == len(
                 strains
-            ), f"error: strain missing in block {block}"
-            for seq, occ in zip(seqs, which):
-                strain, occ_n, strand = occ
-                assert (
-                    occ_n == 1
-                ), f"error in {bid=} | {occ=}, only one occurrence is expected"
-                if not guide_strand:
-                    seq = str(Seq.Seq(seq).reverse_complement())
-                alignment[strain] += seq
+            ), f"error: unexpected number of strains {bid}"
+            for node_id, seq in aln_dict.items():
+                path_id = self.nodes.df.loc[node_id, "path_id"]
+                strain = self.paths.id_to_name[path_id]
+                aln_strains.append(strain)
+                if guide_strand:
+                    alignment[strain] += seq
+                else:
+                    print(f"reverse complementing {strain}")
+                    alignment[strain] += str(Seq.Seq(seq).reverse_complement())
+            assert (
+                set(strains) == set(aln_strains)
+            ), f"error: strain missing in block {bid}: {set(strains) - set(aln_strains)}"
 
         # convert to biopython alignment
         records = []

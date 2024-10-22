@@ -1,5 +1,6 @@
 import pytest
 import pypangraph as pp
+import numpy as np
 
 
 @pytest.fixture
@@ -9,6 +10,12 @@ def graph():
     return pan
 
 
+def test_get_sequences(graph):
+    block = graph.blocks[68429315432730903]
+    seqs = block.to_sequences()
+    assert len(seqs) == 15
+
+
 def test_get_alignment(graph):
     block = graph.blocks[68429315432730903]
     aln = block.to_alignment()
@@ -16,3 +23,10 @@ def test_get_alignment(graph):
     assert len(set(len(seq) for seq in aln.values())) == 1
     # all sequences have the same length as the consensus
     assert len(block.consensus()) == len(list(aln.values())[0])
+
+
+def test_core_alignment(graph):
+    aln = graph.core_genome_alignment()
+    A = np.array(aln)
+    assert A.shape[0] == 15
+    assert A.shape[1] == 64929
