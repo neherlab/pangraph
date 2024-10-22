@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 /// Compute all pairwise marginalizations of a multiple sequence alignment graph
 #[derive(Parser, Debug)]
-pub struct PangraphMarginalizeArgs {
+pub struct PangraphSimplifyArgs {
   /// Path to multiple sequence alignment file in JSON format.
   ///
   /// Accepts plain or compressed file. If a compressed file is provided, it will be transparently

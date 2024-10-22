@@ -14,7 +14,7 @@ If you have Pangraph CLI installed, you can type `pangraph --help` to read the l
 * [`pangraph`↴](#pangraph)
 * [`pangraph build`↴](#pangraph-build)
 * [`pangraph export`↴](#pangraph-export)
-* [`pangraph marginalize`↴](#pangraph-marginalize)
+* [`pangraph simplify`↴](#pangraph-simplify)
 * [`pangraph reconstruct`↴](#pangraph-reconstruct)
 * [`pangraph schema`↴](#pangraph-schema)
 * [`pangraph completions`↴](#pangraph-completions)
@@ -41,7 +41,7 @@ Questions, ideas, bug reports: https://github.com/neherlab/pangraph/issues
 
 * `build` — Align genomes into a multiple sequence alignment graph
 * `export` — Export a pangraph to a chosen file format(s)
-* `marginalize` — Compute all pairwise marginalizations of a multiple sequence alignment graph
+* `simplify` — Compute all pairwise marginalizations of a multiple sequence alignment graph
 * `reconstruct` — Reconstruct input fasta sequences from graph
 * `schema` — Generate JSON schema for Pangraph file format
 * `completions` — Generate shell completions
@@ -175,11 +175,11 @@ Export a pangraph to a chosen file format(s)
 
 
 
-## `pangraph marginalize`
+## `pangraph simplify`
 
 Compute all pairwise marginalizations of a multiple sequence alignment graph
 
-**Usage:** `pangraph marginalize [OPTIONS] --output-path <OUTPUT_PATH> [INPUT_ALN]`
+**Usage:** `pangraph simplify [OPTIONS] --output-path <OUTPUT_PATH> [INPUT_ALN]`
 
 ###### **Arguments:**
 

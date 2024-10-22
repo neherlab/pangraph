@@ -1,10 +1,10 @@
-use crate::commands::marginalize::marginalize_args::PangraphMarginalizeArgs;
+use crate::commands::simplify::simplify_args::PangraphSimplifyArgs;
 use crate::pangraph::pangraph::Pangraph;
 use crate::utils::random::get_random_number_generator;
 use eyre::Report;
 
-pub fn marginalize_run(args: &PangraphMarginalizeArgs) -> Result<(), Report> {
-  let PangraphMarginalizeArgs {
+pub fn simplify_run(args: &PangraphSimplifyArgs) -> Result<(), Report> {
+  let PangraphSimplifyArgs {
     input_aln,
     output_path,
     strains,

@@ -2,9 +2,9 @@
 
 use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::commands::export::export_args::PangraphExportArgs;
-use crate::commands::marginalize::marginalize_args::PangraphMarginalizeArgs;
 use crate::commands::reconstruct::reconstruct_args::PangraphReconstructArgs;
 use crate::commands::schema::generate_schema::PangraphGenerateSchemaArgs;
+use crate::commands::simplify::simplify_args::PangraphSimplifyArgs;
 use crate::commands::verbosity::Verbosity;
 use crate::utils::global_init::setup_logger;
 use clap::builder::styling;
@@ -69,7 +69,7 @@ pub enum PangraphCommands {
   Export(PangraphExportArgs),
 
   /// Compute all pairwise marginalizations of a multiple sequence alignment graph
-  Marginalize(PangraphMarginalizeArgs),
+  Simplify(PangraphSimplifyArgs),
 
   /// Reconstruct input fasta sequences from graph
   Reconstruct(PangraphReconstructArgs),
