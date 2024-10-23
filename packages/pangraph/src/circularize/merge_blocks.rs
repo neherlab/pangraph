@@ -394,6 +394,41 @@ mod tests {
     Pangraph { paths, blocks, nodes }
   }
 
+  fn graph_c() -> Pangraph {
+    //      (0|32)      (32|61)     (61|0)
+    // p1) (b1+|n1) -> (b2+|n4) -> (b3+|n7)  l=80
+    //      (10|41)     (41|72)     (72|10)
+    // p2) (b1+|n2) -> (b2+|n5) -> (b3+|n8)  l=83
+    //      (5|40)      (40|5)
+    // p3) (b2-|n6) -> (b1-|n3)              l=67
+
+    #[rustfmt::skip]
+    let paths = btreemap! {
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [1, 4, 7].into_iter().map(NodeId).collect_vec(), 80, true,  None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [2, 5, 8].into_iter().map(NodeId).collect_vec(), 83, true,  None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [6, 3].into_iter().map(NodeId).collect_vec(),    67, true, None),
+    };
+
+    let blocks = btreemap! {
+      BlockId(1) => block_1(),
+      BlockId(2) => block_2(),
+      BlockId(3) => block_3(),
+    };
+
+    let nodes = btreemap! {
+      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(1), PathId(1), Forward, (0,  32)),
+      NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(1), PathId(2), Forward, (10, 41)),
+      NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(1), PathId(3), Reverse, (40, 5 )),
+      NodeId(4) => PangraphNode::new(Some(NodeId(4)), BlockId(2), PathId(1), Forward, (32, 61)),
+      NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(2), PathId(2), Forward, (41, 72)),
+      NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(2), PathId(3), Reverse, (5,  40)),
+      NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(3), PathId(1), Forward, (61, 0 )),
+      NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(2), Forward, (72, 10)),
+    };
+
+    Pangraph { paths, blocks, nodes }
+  }
+
   #[test]
   fn test_find_node_pairings_a() {
     let n1 = SimpleNode::new(BlockId(1), Reverse);
@@ -422,6 +457,27 @@ mod tests {
     let edge = Edge { n1, n2 };
 
     let (pairings, new_nodes) = find_node_pairings(&graph_a(), &edge);
+
+    assert_eq!(
+      pairings,
+      btreemap! {
+        NodeId(1) => NodeId(4),
+        NodeId(2) => NodeId(5),
+        NodeId(3) => NodeId(6),
+        NodeId(4) => NodeId(1),
+        NodeId(5) => NodeId(2),
+        NodeId(6) => NodeId(3),
+      }
+    );
+  }
+
+  #[test]
+  fn test_find_node_pairings_c() {
+    let n1 = SimpleNode::new(BlockId(1), Forward);
+    let n2 = SimpleNode::new(BlockId(2), Forward);
+    let edge = Edge { n1, n2 };
+
+    let (pairings, new_nodes) = find_node_pairings(&graph_c(), &edge);
 
     assert_eq!(
       pairings,
@@ -468,12 +524,27 @@ mod tests {
     }
   }
 
+  fn expected_new_nodes_c() -> BTreeMap<NodeId, PangraphNode> {
+    btreemap! {
+      NodeId(1) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)),
+      NodeId(2) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)),
+      NodeId(3) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (5, 5)),
+      NodeId(4) => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)),
+      NodeId(5) => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)),
+      NodeId(6) => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (5, 5)),
+    }
+  }
+
   fn expected_new_node_ids_a() -> BTreeMap<NodeId, NodeId> {
     expected_new_nodes_a().iter().map(|(&k, v)| (k, v.id())).collect()
   }
 
   fn expected_new_node_ids_b() -> BTreeMap<NodeId, NodeId> {
     expected_new_nodes_b().iter().map(|(&k, v)| (k, v.id())).collect()
+  }
+
+  fn expected_new_node_ids_c() -> BTreeMap<NodeId, NodeId> {
+    expected_new_nodes_c().iter().map(|(&k, v)| (k, v.id())).collect()
   }
 
   fn expected_concat_a() -> PangraphBlock {
@@ -518,6 +589,27 @@ mod tests {
     )
   }
 
+  fn expected_concat_c() -> PangraphBlock {
+    //          0         1         2         3         4         5         6
+    //          01234567890123456789012345678901  2345678901234567890123456789012
+    // cons:    ACTATATTACGGCGATCGATCGATTACTCGCT  GATCTTAGGATCATCCCTATCATAGGAGTCG
+    //   n1:    ...G............................  .........................xx....
+    //   n2:    .......|.....xxx................  ...T...........................
+    //   n3:    ................................||xx.............................
+    let new_ids = expected_new_node_ids_a();
+    let aln = btreemap! {
+      new_ids[&NodeId(1)] => Edit::new(vec![],                        vec![Del::new(57, 2)], vec![Sub::new(3 , 'G')]),
+      new_ids[&NodeId(2)] => Edit::new(vec![Ins::new(7, "AA")],       vec![Del::new(13, 3)], vec![Sub::new(35, 'T')]),
+      new_ids[&NodeId(3)] => Edit::new(vec![Ins::new(32, "CCCTTT")],  vec![Del::new(32, 2)], vec![]                 ),
+    };
+
+    PangraphBlock::new(
+      BlockId(1),
+      "ACTATATTACGGCGATCGATCGATTACTCGCTGATCTTAGGATCATCCCTATCATAGGAGTCG",
+      aln,
+    )
+  }
+
   #[test]
   fn test_concatenate_blocks_a() {
     let n1 = SimpleNode::new(BlockId(1), Forward);
@@ -554,6 +646,19 @@ mod tests {
       BlockId(1),
     );
     assert_eq!(block, expected_concat_b());
+  }
+
+  #[test]
+  fn test_concatenate_blocks_c() {
+    let n1 = SimpleNode::new(BlockId(1), Forward);
+    let n2 = SimpleNode::new(BlockId(2), Forward);
+    let edge = Edge::new(n1, n2);
+
+    let (pairings, new_nodes) = find_node_pairings(&graph_c(), &edge);
+
+    let new_nodes_ids = expected_new_node_ids_c();
+    let block = concatenate_alignments(&block_1(), &block_2(), &pairings, &new_nodes_ids, BlockId(1));
+    assert_eq!(block, expected_concat_c());
   }
 
   fn expected_graph_a() -> Pangraph {
@@ -628,6 +733,42 @@ mod tests {
     Pangraph { paths, blocks, nodes }
   }
 
+  fn expected_graph_c() -> Pangraph {
+    //       (0|-----------|61)     (61|0)
+    // p1) (b1+|-----------|n1) -> (b3+|n7)  l=80
+    //      (10|-----------|72)     (72|10)
+    // p2) (b1+|-----------|n2) -> (b3+|n8)  l=83
+    //      (40|-----------|40)
+    // p3) (b1-|-----------|n3)              l=67
+
+    let new_ids = expected_new_node_ids_c();
+
+    let blocks = btreemap! {
+      BlockId(1) => expected_concat_c(),
+      BlockId(3) => PangraphBlock::new(BlockId(3), "CTATTACTAGGGGGACCACTA", btreemap! {
+        NodeId(7) => Edit::new(vec![], vec![Del::new(15, 2)], vec![]                ),
+        NodeId(8) => Edit::new(vec![], vec![],                vec![Sub::new(3, 'C')]),
+      })
+    };
+
+    let nodes = btreemap! {
+      new_ids[&NodeId(1)] => PangraphNode::new(None, BlockId(1), PathId(1), Forward, (0 , 61)),
+      new_ids[&NodeId(2)] => PangraphNode::new(None, BlockId(1), PathId(2), Forward, (10, 72)),
+      new_ids[&NodeId(3)] => PangraphNode::new(None, BlockId(1), PathId(3), Reverse, (5, 5)),
+      NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(3), PathId(1), Forward, (61, 0 )),
+      NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(2), Forward, (72, 10)),
+    };
+
+    #[rustfmt::skip]
+    let paths = btreemap! {
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [new_ids[&NodeId(1)], NodeId(7)], 80, true, None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [new_ids[&NodeId(2)], NodeId(8)], 83, true, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [new_ids[&NodeId(3)]],            67, true, None)
+    };
+
+    Pangraph { paths, blocks, nodes }
+  }
+
   #[test]
   fn test_update_paths_a() {
     let n1 = SimpleNode::new(BlockId(1), Forward);
@@ -651,6 +792,17 @@ mod tests {
   }
 
   #[test]
+  fn test_update_paths_c() {
+    let n1 = SimpleNode::new(BlockId(1), Forward);
+    let n2 = SimpleNode::new(BlockId(2), Forward);
+    let edge = Edge::new(n1, n2);
+    let mut g = graph_c();
+    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    graph_merging_update_paths(&mut g, &new_nodes, BlockId(1));
+    assert_eq!(g.paths, expected_graph_c().paths);
+  }
+
+  #[test]
   fn test_update_nodes_a() {
     let n1 = SimpleNode::new(BlockId(1), Forward);
     let n2 = SimpleNode::new(BlockId(2), Reverse);
@@ -670,6 +822,17 @@ mod tests {
     let (pairings, new_nodes) = find_node_pairings(&g, &edge);
     graph_merging_update_nodes(&mut g, &new_nodes, BlockId(1));
     assert_eq!(g.nodes, expected_graph_b().nodes);
+  }
+
+  #[test]
+  fn test_update_nodes_c() {
+    let n1 = SimpleNode::new(BlockId(1), Forward);
+    let n2 = SimpleNode::new(BlockId(2), Forward);
+    let edge = Edge::new(n1, n2);
+    let mut g = graph_c();
+    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    graph_merging_update_nodes(&mut g, &new_nodes, BlockId(1));
+    assert_eq!(g.nodes, expected_graph_c().nodes);
   }
 
   #[test]
@@ -697,6 +860,18 @@ mod tests {
   }
 
   #[test]
+  fn test_merge_blocks_c() {
+    let n1 = SimpleNode::new(BlockId(1), Forward);
+    let n2 = SimpleNode::new(BlockId(2), Forward);
+    let edge = Edge::new(n1, n2);
+    let mut g = graph_c();
+    merge_blocks(&mut g, edge).unwrap();
+    assert_eq!(g.nodes, expected_graph_c().nodes);
+    assert_eq!(g.blocks, expected_graph_c().blocks);
+    assert_eq!(g.paths, expected_graph_c().paths);
+  }
+
+  #[test]
   fn test_remove_transitive_edges_a() {
     let mut g = graph_a();
     remove_transitive_edges(&mut g).unwrap();
@@ -712,5 +887,14 @@ mod tests {
     assert_eq!(g.nodes, expected_graph_b().nodes);
     assert_eq!(g.blocks, expected_graph_b().blocks);
     assert_eq!(g.paths, expected_graph_b().paths);
+  }
+
+  #[test]
+  fn test_remove_transitive_edges_c() {
+    let mut g = graph_c();
+    remove_transitive_edges(&mut g).unwrap();
+    assert_eq!(g.nodes, expected_graph_c().nodes);
+    assert_eq!(g.blocks, expected_graph_c().blocks);
+    assert_eq!(g.paths, expected_graph_c().paths);
   }
 }
