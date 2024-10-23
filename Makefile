@@ -42,3 +42,8 @@ $(SCHEMA_FILE_PYPANGRAPH): $(SCHEMA_FILE)
 
 $(OUTPUT_FILE_PYPANGRAPH): $(OUTPUT_FILE_EXAMPLE)
 	cp $(OUTPUT_FILE_EXAMPLE) $(OUTPUT_FILE_PYPANGRAPH)
+
+
+build:
+	cd packages/pypangraph
+	python3 -m build
