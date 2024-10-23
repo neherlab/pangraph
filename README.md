@@ -13,11 +13,8 @@ pip install -e .
 - [x] parse the graph
   - [x] update alignment format
 - [x] produce block statistics
-- [ ] produce alignments
-  - [ ] set of unaligned fasta records
-  - [ ] biopython alignment, but without insertions
-  - [ ] biopython alignment, without insertions or deletions
-- [ ] core-sinteny analysis
+- [x] produce alignments
+- [x] core-sinteny analysis
 - [ ] find core-junctions
 - [ ] run core-junction analysis
   - [ ] rebuild sub-graphs
