@@ -38,6 +38,9 @@ class Edits:
             [Deletion(d["pos"], d["len"]) for d in edits["dels"]], key=lambda x: x.pos
         )
 
+    def __str__(self):
+        return f"Subs: {self.subs}\nInss: {self.inss}\nDels: {self.dels}"
+
     def apply_edits(self, cons: str) -> str:
         """Applies the edits to the consensus sequence and returns the edited sequence"""
         sq = list(cons)
