@@ -1,0 +1,3 @@
+dacite
+datamodel-code-generator
+pydantic
