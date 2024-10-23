@@ -3,6 +3,7 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use eyre::Report;
+use log::warn;
 use maplit::btreemap;
 use std::collections::BTreeMap;
 
@@ -135,7 +136,57 @@ fn concatenate_alignments(
     aln.insert(new_id, e1.concat(&e2.shift(bl1.consensus_len() as isize)));
   }
 
-  PangraphBlock::new(new_block_id, seq, aln)
+  let new_bl = PangraphBlock::new(new_block_id, seq, aln);
+
+  #[cfg(any(debug_assertions, test))]
+  check_sequence_reconstruction(bl1, bl2, &new_bl, node_map, new_nodes_id).unwrap();
+
+  new_bl
+}
+
+#[allow(dead_code)]
+fn check_sequence_reconstruction(
+  block_1: &PangraphBlock,
+  block_2: &PangraphBlock,
+  new_block: &PangraphBlock,
+  node_map: &BTreeMap<NodeId, NodeId>,
+  new_nodes_id: &BTreeMap<NodeId, NodeId>,
+) -> Result<(), Report> {
+  let new_aln = new_block.alignments();
+
+  for (&nid1, e1) in block_1.alignments() {
+    // reconstruct seq1
+    let seq1 = e1.apply(block_1.consensus())?;
+
+    // reconstruct seq2
+    let nid2 = node_map[&nid1];
+    let e2 = &block_2.alignment(nid2);
+    let seq2 = e2.apply(block_2.consensus())?;
+
+    // concatenate
+    let seq = [seq1, seq2].concat();
+
+    // reconstruct new sequence
+    let new_id = new_nodes_id[&nid1];
+    let new_e = &new_aln[&new_id];
+    let new_seq = new_e.apply(new_block.consensus())?;
+
+    // check if sequences are the same. If not, print the sequences and edits
+    if seq != new_seq {
+      warn!("seq1: {}", e1.apply(block_1.consensus())?);
+      warn!("cons1: {}", block_1.consensus());
+      warn!("e1: {:?}", e1);
+      warn!("seq2: {}", e2.apply(block_2.consensus())?);
+      warn!("cons2: {}", block_2.consensus());
+      warn!("e2: {:?}", e2);
+
+      warn!("new_seq: {}", new_seq);
+      warn!("new_cons: {}", new_block.consensus());
+      warn!("new_e: {:?}", new_e);
+    }
+    debug_assert_eq!(seq, new_seq);
+  }
+  Ok(())
 }
 
 /// Updates the graph in place after merging two blocks.

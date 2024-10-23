@@ -167,13 +167,23 @@ impl Edit {
     }
   }
 
-  pub fn concat(&self, other: &Self) -> Self {
+  pub fn concat(&self, next: &Self) -> Self {
     let mut inss = self.inss.clone();
     let mut dels = self.dels.clone();
     let mut subs = self.subs.clone();
-    inss.extend(other.inss.iter().cloned());
-    dels.extend(other.dels.iter().cloned());
-    subs.extend(other.subs.iter().cloned());
+
+    // if two insertions have the same position,
+    // concatenate self + next
+    for ins in &next.inss {
+      if let Some(prev) = inss.iter_mut().find(|i| i.pos == ins.pos) {
+        prev.seq.push_str(&ins.seq);
+      } else {
+        inss.push(ins.clone());
+      }
+    }
+
+    dels.extend(next.dels.iter().cloned());
+    subs.extend(next.subs.iter().cloned());
     Self { subs, dels, inss }
   }
 
