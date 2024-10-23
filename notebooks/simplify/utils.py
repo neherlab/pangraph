@@ -29,6 +29,7 @@ class Path:
     nodes: list[int]  # list of node ids
     L: int  # total length of the genome
     circular: bool = None  # whether the genome is circular
+    name: str = None  # name of the path
 
 
 @dataclass
