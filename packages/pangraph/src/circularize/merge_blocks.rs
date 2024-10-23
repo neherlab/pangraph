@@ -3,9 +3,11 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use eyre::Report;
-use log::warn;
 use maplit::btreemap;
 use std::collections::BTreeMap;
+
+#[cfg(any(debug_assertions, test))]
+use log::warn;
 
 /// Merges the two blocks from the same edge into a single block,
 /// modifying the graph in place.
@@ -144,7 +146,7 @@ fn concatenate_alignments(
   new_bl
 }
 
-#[allow(dead_code)]
+#[cfg(any(debug_assertions, test))]
 fn check_sequence_reconstruction(
   block_1: &PangraphBlock,
   block_2: &PangraphBlock,
