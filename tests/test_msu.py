@@ -120,13 +120,13 @@ def test_find_mergers(generate_core_paths):
     assert {"H"} in sources
 
 
-# @pytest.fixture
-# def load_graph():
-#     return pp.Pangraph.load_json("tests/data/plasmid_graph.json")
+@pytest.fixture
+def load_graph():
+    return pp.Pangraph.load_json("tests/data/plasmid_graph.json")
 
 
-# def test_msu(load_graph):
-#     pan = load_graph
-#     MSU_mergers, MSU_paths, MSU_len = msu.minimal_synteny_units(
-#         pan, L_thr=50, rotate=True
-#     )
+def test_msu(load_graph):
+    pan = load_graph
+    MSU_mergers, MSU_paths, MSU_len = msu.minimal_synteny_units(
+        pan, L_thr=50, rotate=True
+    )

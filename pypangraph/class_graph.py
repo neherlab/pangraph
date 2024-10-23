@@ -85,7 +85,6 @@ class Pangraph:
         return df
 
     def core_genome_alignment(self, guide_strain=None):
-        # TODO
         """Returns the core genome aligment, in a biopython alignment object.
         The order of the blocks is determined by the guide strain, if provided.
         """
@@ -102,14 +101,10 @@ class Pangraph:
             guide_strain in strains
         ), f"Guide strain {guide_strain} not found in the dataset"
         guide_path = self.paths[guide_strain]
-        guide_path_nodes = np.array(guide_path.nodes, dtype=str)
-        guide_path_block_ids = self.nodes.df.loc[guide_path_nodes, "block_id"]
-        guide_path_block_strands = self.nodes.df.loc[guide_path_nodes, "strand"]
+        GB, GS = self.nodes.nodes_to_blocks(guide_path.nodes)
 
         core_blocks = [
-            (bid, strand)
-            for bid, strand in zip(guide_path_block_ids, guide_path_block_strands)
-            if bid in core_blocks
+            (bid, strand) for bid, strand in zip(GB, GS) if bid in core_blocks
         ]
 
         # get alignment
@@ -128,11 +123,10 @@ class Pangraph:
                 if guide_strand:
                     alignment[strain] += seq
                 else:
-                    print(f"reverse complementing {strain}")
                     alignment[strain] += str(Seq.Seq(seq).reverse_complement())
             assert (
                 set(strains) == set(aln_strains)
-            ), f"error: strain missing in block {bid}: {set(strains) - set(aln_strains)}"
+            ), f"error: strain missing in block {bid}: {set(strains)} != {set(aln_strains)}"
 
         # convert to biopython alignment
         records = []

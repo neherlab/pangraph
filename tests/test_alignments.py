@@ -11,13 +11,15 @@ def graph():
 
 
 def test_get_sequences(graph):
-    block = graph.blocks[68429315432730903]
+    bid = graph.blocks.keys()[0]
+    block = graph.blocks[bid]
     seqs = block.to_sequences()
     assert len(seqs) == 15
 
 
 def test_get_alignment(graph):
-    block = graph.blocks[68429315432730903]
+    bid = graph.blocks.keys()[0]
+    block = graph.blocks[bid]
     aln = block.to_alignment()
     # all sequences have the same length
     assert len(set(len(seq) for seq in aln.values())) == 1
@@ -29,4 +31,4 @@ def test_core_alignment(graph):
     aln = graph.core_genome_alignment()
     A = np.array(aln)
     assert A.shape[0] == 15
-    assert A.shape[1] == 64929
+    assert A.shape[1] == 64989

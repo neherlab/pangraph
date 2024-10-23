@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 
 
 def parse_strandedness(strand: str) -> bool:
@@ -67,3 +68,12 @@ class Nodes:
         df["core"] = df["n_strains"] == len(self.df["path_id"].unique())
         df["core"] &= ~df["duplicated"]
         return df
+
+    def node_to_block(self, node_id: int) -> tuple[int, bool]:
+        """Returns the node's block id and strandedness"""
+        return self.df.loc[str(node_id), ["block_id", "strand"]]
+
+    def nodes_to_blocks(self, node_ids: list[int]) -> tuple[list[int], list[bool]]:
+        """Returns the block id and strandedness of a list of nodes"""
+        N = np.array(node_ids, dtype=str)
+        return self.df.loc[N, ["block_id", "strand"]].values.T

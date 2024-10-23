@@ -140,10 +140,8 @@ class Edge:
 def pangraph_to_path_dict(pan):
     """Creates a dictionary isolate -> path objects"""
     res = {}
-    for path in pan.paths:
-        name = path.name
-        B = path.block_ids
-        S = path.block_strands
+    for name, path in pan.paths.items():
+        B, S = pan.nodes.nodes_to_blocks(path.nodes)
         nodes = [Node(b, s) for b, s in zip(B, S)]
         res[name] = Path(nodes, path.circular)
     return res

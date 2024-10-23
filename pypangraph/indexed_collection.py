@@ -18,9 +18,9 @@ class IndexedCollection:
     """
 
     def __init__(self, ids, items):
-        self.ids = np.array(ids)
-        self.list = np.array(items)
-        self.id_to_pos = {id: n for n, id in enumerate(ids)}
+        self.ids = ids
+        self.list = items
+        self.id_to_pos = {id_: n for n, id_ in enumerate(ids)}
 
     def __contains__(self, id_):
         """Returns whether the id is in the collection"""
