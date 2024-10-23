@@ -1,3 +1,4 @@
 dacite
 datamodel-code-generator
+jsonschema
 pydantic

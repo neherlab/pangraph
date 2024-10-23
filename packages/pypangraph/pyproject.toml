@@ -21,7 +21,11 @@ dependencies = [
   "numpy",
   "pandas",
   "biopython",
+  "jsonschema",
 ]
+
+[tool.setuptools.package-data]
+"Pangraph.schema.json" = ["Pangraph.schema.json"]
 
 [project.urls]
 Homepage = "https://github.com/mmolari/pypangraph"
