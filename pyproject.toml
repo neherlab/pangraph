@@ -21,7 +21,6 @@ dependencies = [
   "numpy",
   "pandas",
   "biopython",
-  "scipy",
 ]
 
 [project.urls]

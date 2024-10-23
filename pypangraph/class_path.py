@@ -36,4 +36,4 @@ class PathCollection(IndexedCollection):
             raise ValueError("Duplicated path names found in the input json file.")
         items = [Path(path) for path in pan_paths.values()]
         IndexedCollection.__init__(self, ids, items)
-        self.id_to_name = {path.id: path.name for path in items}
+        self.idx_to_name = {path.id: path.name for path in items}

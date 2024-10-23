@@ -101,8 +101,11 @@ class Pangraph:
             guide_strain in strains
         ), f"Guide strain {guide_strain} not found in the dataset"
         guide_path = self.paths[guide_strain]
+
+        # core block ids and strandedness
         GB, GS = self.nodes.nodes_to_blocks(guide_path.nodes)
 
+        # filter core blocks
         core_blocks = [
             (bid, strand) for bid, strand in zip(GB, GS) if bid in core_blocks
         ]
@@ -110,20 +113,24 @@ class Pangraph:
         # get alignment
         alignment = defaultdict(str)
         for bid, guide_strand in core_blocks:
-            block = self.blocks[bid]
-            aln_dict = block.to_alignment()
-            aln_strains = []
+            # get block alignment
+            aln_dict = self.blocks[bid].to_alignment()
             assert len(aln_dict) == len(
                 strains
             ), f"error: unexpected number of strains {bid}"
+
+            # append alignment to the final alignment for each strain
+            aln_strains = []
             for node_id, seq in aln_dict.items():
                 path_id = self.nodes.df.loc[node_id, "path_id"]
-                strain = self.paths.id_to_name[path_id]
-                aln_strains.append(strain)
+                strain = self.paths.idx_to_name[path_id]
                 if guide_strand:
                     alignment[strain] += seq
                 else:
                     alignment[strain] += str(Seq.Seq(seq).reverse_complement())
+                aln_strains.append(strain)
+
+            # sanity check: core-blocks are present once per strain
             assert (
                 set(strains) == set(aln_strains)
             ), f"error: strain missing in block {bid}: {set(strains)} != {set(aln_strains)}"
