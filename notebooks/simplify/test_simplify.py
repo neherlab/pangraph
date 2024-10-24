@@ -18,7 +18,7 @@ def block_A():
         alignment={
             1: Edit(ins=[], subs=[Substitution(3, "G")], dels=[]),
             2: Edit(ins=[Insertion(7, "AA")], subs=[], dels=[Deletion(13, 3)]),
-            3: Edit(ins=[Insertion(31, "CCC")], subs=[], dels=[]),
+            3: Edit(ins=[Insertion(32, "CCC")], subs=[], dels=[]),
         },
     )
 
@@ -30,9 +30,9 @@ def block_B():
     # cons:    CATGCTACGCTACGCATTATCGATCGCATCGA
     #   n4:    ..........G.....................  l = 32
     #   n5:    .............xxx................  l = 29
-    #   n6:    ................................|  l = 35
+    #   n6:    ................................| l = 35
     return Block(
-        id=1,
+        id=2,
         consensus="CATGCTACGCTACGCATTATCGATCGCATCGA",
         alignment={
             4: Edit(ins=[], subs=[Substitution(10, "G")], dels=[]),
@@ -50,7 +50,7 @@ def block_C():
     #   n7:    ................. l = 17
     #   n8:    ............C.... l = 17
     return Block(
-        id=1,
+        id=3,
         consensus="ACGTGTACTAGTACTGC",
         alignment={
             7: Edit(ins=[], subs=[], dels=[]),
@@ -59,18 +59,30 @@ def block_C():
     )
 
 
-nid11 = -956790416118992873
-nid12 = -550362699546468170
-new_block_id = 2
+new_block_id = 1
+nid11 = Node(
+    id=None,
+    block_id=new_block_id,
+    path_id=1,
+    strandedness=True,
+    position=(0, 64),
+).calculate_id()
+nid12 = Node(
+    id=None,
+    block_id=new_block_id,
+    path_id=2,
+    strandedness=True,
+    position=(0, 60),
+).calculate_id()
 
 
 @pytest.fixture
 def block_AB():
     #          0         1         2         3         4         5         6
-    #          01234567890123456789012345678901 23456789012345678901234567890123
-    # cons:    ACTATATTACGGCGATCGATCGATTACTCGCT CATGCTACGCTACGCATTATCGATCGCATCGA
-    #  n10:    ...G............................ ..........G.....................
-    #  n11:    .......|.....xxx................ .............xxx................
+    #          0123456789012345678901234567890123456789012345678901234567890123
+    # cons:    ACTATATTACGGCGATCGATCGATTACTCGCTCATGCTACGCTACGCATTATCGATCGCATCGA
+    #  n10:    ...G......................................G.....................
+    #  n11:    .......|.....xxx.............................xxx................
 
     return Block(
         id=new_block_id,
@@ -120,8 +132,8 @@ def graph(nodes, block_A, block_B, block_C):
 
 @pytest.fixture
 def expected_graph(block_AB, block_C):
-    # n1+|n4+ -> n7+
-    # n2+|n5+ -> n8-
+    # (n1+|n4+) -> n7+
+    # (n2+|n5+) -> n8-
     return Pangraph(
         nodes={
             nid11: Node(
@@ -169,11 +181,11 @@ def test_remove_path(graph):
             consensus="ACTATATTACGGCGATCGATCGATTACTCGCT",
             alignment={
                 2: Edit(ins=[Insertion(7, "AA")], subs=[], dels=[Deletion(13, 3)]),
-                3: Edit(ins=[Insertion(31, "CCC")], subs=[], dels=[]),
+                3: Edit(ins=[Insertion(32, "CCC")], subs=[], dels=[]),
             },
         ),
         2: Block(
-            id=1,
+            id=2,
             consensus="CATGCTACGCTACGCATTATCGATCGCATCGA",
             alignment={
                 5: Edit(ins=[], subs=[], dels=[Deletion(13, 3)]),
@@ -181,7 +193,7 @@ def test_remove_path(graph):
             },
         ),
         3: Block(
-            id=1,
+            id=3,
             consensus="ACGTGTACTAGTACTGC",
             alignment={
                 8: Edit(ins=[], subs=[Substitution(12, "C")], dels=[]),
