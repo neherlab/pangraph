@@ -179,11 +179,11 @@ Export a pangraph to a chosen file format(s)
 
 Compute all pairwise marginalizations of a multiple sequence alignment graph
 
-**Usage:** `pangraph simplify [OPTIONS] --output-path <OUTPUT_PATH> [INPUT_ALN]`
+**Usage:** `pangraph simplify [OPTIONS] [INPUT]`
 
 ###### **Arguments:**
 
-* `<INPUT_ALN>` — Path to multiple sequence alignment file in JSON format.
+* `<INPUT>` — Path to Pangraph JSON.
 
    Accepts plain or compressed file. If a compressed file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension.
 
@@ -191,9 +191,10 @@ Compute all pairwise marginalizations of a multiple sequence alignment graph
 
 ###### **Options:**
 
-* `-o`, `--output-path <OUTPUT_PATH>` — Path to directory where all pairwise marginalizations will be stored
-* `-s`, `--strains <STRAINS>` — Isolates to project onto: collapse the graph to only blocks contained by paths of the given isolates. Comma seperated list, no spaces
-* `--seed <SEED>` — Random seed
+* `-o`, `--output <OUTPUT>`
+
+  Default value: `-`
+* `-s`, `--strains <STRAINS>` — Isolates to project onto: collapse the graph to only blocks contained by paths of the given isolates. List of strain names, comma-delimited without spaces
 
 
 
