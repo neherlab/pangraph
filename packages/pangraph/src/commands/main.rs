@@ -17,7 +17,7 @@ pub fn pangraph_main() -> Result<(), Report> {
 
   match args.command {
     PangraphCommands::Build(args) => build_run(&args),
-    PangraphCommands::Export(args) => export_run(&args),
+    PangraphCommands::Export(args) => export_run(args),
     PangraphCommands::Simplify(args) => simplify_run(args),
     PangraphCommands::Reconstruct(args) => reconstruct_run(&args),
     PangraphCommands::Schema(args) => generate_schema(&args),

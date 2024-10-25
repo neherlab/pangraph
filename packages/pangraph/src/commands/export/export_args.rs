@@ -56,29 +56,17 @@ pub struct PangraphExportArgs {
   #[clap(value_hint = ValueHint::Other)]
   pub maximum_depth: usize,
 
-  /// Path to directory where output will be stored
-  #[clap(long, short = 'o', default_value = "export")]
-  #[clap(value_hint = ValueHint::DirPath)]
-  pub output_directory: PathBuf,
-
-  /// Basename of files
-  #[clap(long, short = 'p', default_value = "pangraph")]
-  #[clap(value_hint = ValueHint::DirPath)]
-  pub prefix: String,
-
-  /// Do not emit GFA file
-  #[clap(long, alias = "ng")]
-  pub no_export_gfa: bool,
-
-  /// Emit vis directory to input to panX-visualization
-  #[clap(long, alias = "px")]
-  pub export_panx: bool,
-
   /// Do not export any block that contains at least one strain more than once
   #[clap(long, alias = "nd")]
   pub no_duplications: bool,
 
-  /// Random seed
-  #[clap(long)]
-  pub seed: Option<u64>,
+  /// Path to output GFA file
+  #[clap(long, alias = "gfa")]
+  #[clap(value_hint = ValueHint::Other)]
+  pub output_gfa: Option<PathBuf>,
+
+  /// Path to output directory where PanX visualization files will be written
+  #[clap(long, alias = "panx")]
+  #[clap(value_hint = ValueHint::DirPath)]
+  pub output_panx: Option<PathBuf>,
 }

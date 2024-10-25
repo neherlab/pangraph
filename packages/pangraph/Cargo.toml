@@ -37,6 +37,8 @@ eyre = { workspace = true }
 flate2 = { workspace = true }
 gcollections = { workspace = true }
 getset = { workspace = true }
+gfa = { workspace = true }
+indoc = { workspace = true }
 intervallum = { workspace = true }
 itertools = { workspace = true }
 lazy_static = { workspace = true }
