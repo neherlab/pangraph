@@ -94,6 +94,19 @@ impl Pangraph {
       }
     }
   }
+
+  #[allow(unused_must_use)]
+  pub fn remove_path(&mut self, pid: PathId) {
+    if let Some(path) = self.paths.remove(&pid) {
+      for nid in path.nodes {
+        if let Some(node) = self.nodes.remove(&nid) {
+          if let Some(block) = self.blocks.get_mut(&node.block_id()) {
+            block.alignment_remove(nid);
+          }
+        }
+      }
+    }
+  }
 }
 
 impl FromStr for Pangraph {
