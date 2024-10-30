@@ -1,7 +1,7 @@
 use crate::io::seq::{complement, reverse_complement};
 use crate::utils::collections::insert_at_inplace;
 use crate::utils::interval::Interval;
-use eyre::Report;
+use eyre::{eyre, Report};
 use itertools::Itertools;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -214,6 +214,60 @@ impl Edit {
 
     let qry = String::from_iter(&qry);
     Ok(qry)
+  }
+
+  #[cfg(any(test, debug_assertions))]
+  pub fn sanity_check(&self, len: usize) -> Result<(), Report> {
+    for sub in &self.subs {
+      if sub.pos >= len {
+        return Err(eyre!(
+          "Substitution position {} is out of bounds for sequence of length {}",
+          sub.pos,
+          len
+        ));
+      }
+      if sub.alt == '-' {
+        return Err(eyre!("Substitution with deletion character '-' is not allowed"));
+      }
+    }
+
+    for del in &self.dels {
+      if del.pos >= len {
+        return Err(eyre!(
+          "Deletion position {} is out of bounds for sequence of length {}",
+          del.pos,
+          len
+        ));
+      }
+      if del.end() > len {
+        return Err(eyre!(
+          "Deletion end position {} is out of bounds for sequence of length {}",
+          del.end(),
+          len
+        ));
+      }
+    }
+
+    for ins in &self.inss {
+      if ins.pos > len {
+        return Err(eyre!(
+          "Insertion position {} is out of bounds for sequence of length {}",
+          ins.pos,
+          len
+        ));
+      }
+    }
+
+    // check that substitutions do not overlap with deletions
+    for sub in &self.subs {
+      for del in &self.dels {
+        if del.contains(sub.pos) {
+          return Err(eyre!("Substitution {:?} overlaps with deletion {:?}", sub, del));
+        }
+      }
+    }
+
+    Ok(())
   }
 }
 
