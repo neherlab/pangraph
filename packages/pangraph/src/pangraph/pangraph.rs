@@ -107,6 +107,40 @@ impl Pangraph {
       }
     }
   }
+
+  #[cfg(any(test, debug_assertions))]
+  pub fn sanity_check(&self) -> Result<(), Report> {
+    for (node_id, node) in &self.nodes {
+      let block = &self.blocks[&node.block_id()];
+      let path = &self.paths[&node.path_id()];
+
+      if !block.alignments().contains_key(node_id) {
+        return Err(eyre::eyre!("Node {} not found in block {}", node_id, block.id()));
+      }
+
+      if !path.nodes.contains(node_id) {
+        return Err(eyre::eyre!("Node {} not found in path {}", node_id, path.id()));
+      }
+    }
+
+    for (block_id, block) in &self.blocks {
+      for (node_id, _) in block.alignments() {
+        if !self.nodes.contains_key(node_id) {
+          return Err(eyre::eyre!("Node {} not found in graph", node_id));
+        }
+      }
+    }
+
+    for (path_id, path) in &self.paths {
+      for node_id in &path.nodes {
+        if !self.nodes.contains_key(node_id) {
+          return Err(eyre::eyre!("Node {} not found in graph", node_id));
+        }
+      }
+    }
+
+    Ok(())
+  }
 }
 
 impl FromStr for Pangraph {

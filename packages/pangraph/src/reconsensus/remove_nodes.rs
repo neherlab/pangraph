@@ -23,11 +23,29 @@ fn find_empty_nodes(graph: &Pangraph, block_ids: &[BlockId]) -> Vec<NodeId> {
     let cons_len = block.consensus_len();
     for (&node_id, edits) in block.alignments() {
       if !edits.inss.is_empty() || !edits.subs.is_empty() || edits.dels.is_empty() {
+        // check that the node is not empty
+        debug_assert!(
+          !graph.nodes[&node_id].is_empty(),
+          "Node {} with edits {:?} and consensus length {} is empty and should have been removed",
+          node_id,
+          edits,
+          cons_len
+        );
+
         continue;
       }
       if edits.dels.iter().map(|d| d.len).sum::<usize>() == cons_len {
         node_ids_to_delete.push(node_id);
         debug_assert!(graph.nodes[&node_id].is_empty());
+      } else {
+        // check that the node is not empty
+        debug_assert!(
+          !graph.nodes[&node_id].is_empty(),
+          "Node {} with edits {:?} and consensus length {} is empty and should have been removed",
+          node_id,
+          edits,
+          cons_len
+        );
       }
     }
   }
