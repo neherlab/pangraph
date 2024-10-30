@@ -1,11 +1,14 @@
 use crate::io::seq::{complement, reverse_complement};
 use crate::utils::collections::insert_at_inplace;
 use crate::utils::interval::Interval;
-use eyre::{eyre, Report};
+use eyre::Report;
 use itertools::Itertools;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
+
+#[cfg(any(test, debug_assertions))]
+use eyre::eyre;
 
 #[must_use]
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, JsonSchema)]
