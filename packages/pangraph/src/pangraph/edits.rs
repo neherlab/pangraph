@@ -221,8 +221,10 @@ impl Edit {
 
   #[cfg(any(test, debug_assertions))]
   pub fn sanity_check(&self, len: usize) -> Result<(), Report> {
+    let block_interval = Interval::new(0, len);
+    // === substitution checks ===
     for sub in &self.subs {
-      if sub.pos >= len {
+      if !block_interval.contains(sub.pos) {
         return Err(eyre!(
           "Substitution position {} is out of bounds for sequence of length {}",
           sub.pos,
@@ -234,30 +236,16 @@ impl Edit {
       }
     }
 
-    for del in &self.dels {
-      if del.pos >= len {
-        return Err(eyre!(
-          "Deletion position {} is out of bounds for sequence of length {}",
-          del.pos,
-          len
-        ));
-      }
-      if del.end() > len {
-        return Err(eyre!(
-          "Deletion end position {} is out of bounds for sequence of length {}",
-          del.end(),
-          len
-        ));
-      }
-    }
-
-    for ins in &self.inss {
-      if ins.pos > len {
-        return Err(eyre!(
-          "Insertion position {} is out of bounds for sequence of length {}",
-          ins.pos,
-          len
-        ));
+    // check that there are no two substitutions at the same position
+    for i in 0..self.subs.len() {
+      for j in i + 1..self.subs.len() {
+        if self.subs[i].pos == self.subs[j].pos {
+          return Err(eyre!(
+            "Substitution {:?} overlaps with substitution {:?}",
+            self.subs[i],
+            self.subs[j]
+          ));
+        }
       }
     }
 
@@ -267,6 +255,52 @@ impl Edit {
         if del.contains(sub.pos) {
           return Err(eyre!("Substitution {:?} overlaps with deletion {:?}", sub, del));
         }
+      }
+    }
+
+    // === deletion checks ===
+    for del in &self.dels {
+      if del.len == 0 {
+        return Err(eyre!("Deletion {:?} has length 0", del));
+      }
+
+      if !block_interval.contains(del.pos) {
+        return Err(eyre!(
+          "Deletion {:?} is out of bounds for sequence of length {}",
+          del,
+          len
+        ));
+      }
+
+      if del.end() > len {
+        return Err(eyre!(
+          "Deletion {:?} is out of bounds for sequence of length {}",
+          del,
+          len
+        ));
+      }
+    }
+
+    // check that deletions are non-overlapping
+    // for all pairs of deletions
+    for i in 0..self.dels.len() {
+      for j in i + 1..self.dels.len() {
+        let del_i = &self.dels[i];
+        let del_j = &self.dels[j];
+        if del_i.interval().has_overlap_with(&del_j.interval()) {
+          return Err(eyre!("Deletion {:?} overlaps with deletion {:?}", del_i, del_j));
+        }
+      }
+    }
+
+    // === insertion checks ===
+    for ins in &self.inss {
+      if ins.pos > len {
+        return Err(eyre!(
+          "Insertion position {} is out of bounds for sequence of length {}",
+          ins.pos,
+          len
+        ));
       }
     }
 
