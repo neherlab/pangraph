@@ -11,6 +11,7 @@ use crate::utils::random::get_random_number_generator;
 use crate::{make_internal_error, make_internal_report};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
+use log::info;
 
 pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   let PangraphBuildArgs { input_fastas, seed, .. } = &args;
@@ -67,6 +68,12 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
         // Assumption: Child nodes are assumed to be already visited at this point.
         if let (Some(left), Some(right)) = (&left.read().data, &right.read().data) {
           clade.data = Some(merge_graphs(left, right, args).wrap_err("When merging graphs")?);
+          info!(
+            "Merged graphs of clades with size {} and {} into {}",
+            left.paths.len(),
+            right.paths.len(),
+            clade.data.as_ref().unwrap().paths.len()
+          );
           Ok(())
         } else {
           make_internal_error!("Found internal clade with two children, of which one or both have no graph attached.")
