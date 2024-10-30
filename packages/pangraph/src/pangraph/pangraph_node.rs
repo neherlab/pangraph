@@ -41,12 +41,8 @@ impl PangraphNode {
     }
   }
 
-  pub fn len(&self) -> usize {
-    self.position.1.saturating_sub(self.position.1)
-  }
-
   pub fn is_empty(&self) -> bool {
-    self.len() == 0
+    self.position.0 == self.position.1
   }
 }
 
