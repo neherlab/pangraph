@@ -26,8 +26,7 @@ fn find_empty_nodes(graph: &Pangraph, block_ids: &[BlockId]) -> Vec<NodeId> {
 
     debug_assert!(
       cons_len > 0,
-      "Block {} has a consensus length of 0 and should have been removed",
-      block_id
+      "Block {block_id} has a consensus length of 0 and should have been removed",
     );
 
     for (&node_id, edits) in block.alignments() {
@@ -41,10 +40,7 @@ fn find_empty_nodes(graph: &Pangraph, block_ids: &[BlockId]) -> Vec<NodeId> {
         // check that the node is not empty
         debug_assert!(
           !graph.nodes[&node_id].start_is_end(),
-          "Node {} with edits {:?} and consensus length {} is empty and should have been removed",
-          node_id,
-          edits,
-          cons_len
+          "Node {node_id} with edits {edits:?} and consensus length {cons_len} is empty and should have been removed",
         );
 
         continue;

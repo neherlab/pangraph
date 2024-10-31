@@ -124,7 +124,7 @@ impl Pangraph {
     }
 
     for (block_id, block) in &self.blocks {
-      for (node_id, _) in block.alignments() {
+      for node_id in block.alignments().keys() {
         if !self.nodes.contains_key(node_id) {
           return Err(eyre::eyre!("Node {} not found in graph", node_id));
         }
@@ -139,29 +139,22 @@ impl Pangraph {
       }
 
       // check that nodes in the same path have contiguous positions
-      let mut prev_pos = self.nodes[&path.nodes.first().unwrap()].position().1;
+      let mut prev_pos = self.nodes[path.nodes.first().unwrap()].position().1;
       for &node_id in &path.nodes[1..] {
         let pos = self.nodes[&node_id].position().0;
         if pos != prev_pos {
           return Err(eyre::eyre!(
-            "Node {} in path {} has position {} but previous node has position {}",
-            node_id,
-            path_id,
-            pos,
-            prev_pos
+            "Node {node_id} in path {path_id} has position {pos} but previous node has position {prev_pos}",
           ));
         }
         prev_pos = self.nodes[&node_id].position().1;
       }
       if path.circular() {
-        let first_pos = self.nodes[&path.nodes.first().unwrap()].position().0;
-        let last_pos = self.nodes[&path.nodes.last().unwrap()].position().1;
+        let first_pos = self.nodes[path.nodes.first().unwrap()].position().0;
+        let last_pos = self.nodes[path.nodes.last().unwrap()].position().1;
         if first_pos != last_pos {
           return Err(eyre::eyre!(
-            "Circular path {} has first node position {} different from last node position {}",
-            path_id,
-            first_pos,
-            last_pos
+            "Circular path {path_id} has first node position {first_pos} different from last node position {last_pos}",
           ));
         }
       }
