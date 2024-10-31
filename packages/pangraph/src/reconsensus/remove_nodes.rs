@@ -35,85 +35,31 @@ fn find_empty_nodes(graph: &Pangraph, block_ids: &[BlockId]) -> Vec<NodeId> {
       #[cfg(any(test, debug_assertions))]
       edits.sanity_check(cons_len).unwrap();
 
-      // ============== alternative implementation ==============
-      if graph.nodes[&node_id].is_empty() {
-        node_ids_to_delete.push(node_id);
-        // print info: empty node deleted
+      //  if the node has insertions or substitutions, or the total deletion size is less than the consensus length
+      // then it is not empty
+      if !edits.inss.is_empty() || !edits.subs.is_empty() || edits.dels.is_empty() {
+        // check that the node is not empty
+        debug_assert!(
+          !graph.nodes[&node_id].start_is_end(),
+          "Node {} with edits {:?} and consensus length {} is empty and should have been removed",
+          node_id,
+          edits,
+          cons_len
+        );
+
+        continue;
+      }
+
+      // if the node has no insertions or substitutions and the total deletion size is equal to the consensus length
+      // then it is empty and should be removed
+      if edits.dels.iter().map(|d| d.len).sum::<usize>() == cons_len {
         info!(
           "empty node {} with edits {:?} and consensus length {} is empty: to be removed",
           node_id, edits, cons_len
         );
-        // debug checks
-        #[cfg(any(test, debug_assertions))]
-        {
-          // check that there are no insertions or substitutions
-          debug_assert!(
-            edits.inss.is_empty() && edits.subs.is_empty(),
-            "Node {} with edits {:?} and consensus length {} has insertions or substitutions",
-            node_id,
-            edits,
-            cons_len
-          );
-          // check that the total deletion size is equal to the consensus length
-          debug_assert!(
-            edits.dels.iter().map(|d| d.len).sum::<usize>() == cons_len,
-            "Node {} with edits {:?} and consensus length {} is not empty",
-            node_id,
-            edits,
-            cons_len
-          );
-        }
-      } else {
-        // debug checks
-        #[cfg(any(test, debug_assertions))]
-        {
-          // check that either there are insertions or the are no insertions
-          // or the total deletion size is less than the consensus length
-          debug_assert!(
-            !edits.inss.is_empty() || edits.dels.iter().map(|d| d.len).sum::<usize>() < cons_len,
-            "Node {} with edits {:?} and consensus length {} is not empty",
-            node_id,
-            edits,
-            cons_len
-          );
-        }
+        debug_assert!(graph.nodes[&node_id].start_is_end());
+        node_ids_to_delete.push(node_id);
       }
-
-      // ============== alternative implementation ==============
-      // //  if the node has insertions or substitutions, or the total deletion size is less than the consensus length
-      // // then it is not empty
-      // if !edits.inss.is_empty() || !edits.subs.is_empty() || edits.dels.is_empty() {
-      //   // check that the node is not empty
-      //   debug_assert!(
-      //     !graph.nodes[&node_id].is_empty(),
-      //     "Node {} with edits {:?} and consensus length {} is empty and should have been removed",
-      //     node_id,
-      //     edits,
-      //     cons_len
-      //   );
-
-      //   continue;
-      // }
-
-      // // if the node has no insertions or substitutions and the total deletion size is equal to the consensus length
-      // // then it is empty and should be removed
-      // if edits.dels.iter().map(|d| d.len).sum::<usize>() == cons_len {
-      //   info!(
-      //     "empty node {} with edits {:?} and consensus length {} is empty: to be removed",
-      //     node_id, edits, cons_len
-      //   );
-      //   node_ids_to_delete.push(node_id);
-      //   debug_assert!(graph.nodes[&node_id].is_empty());
-      // } else {
-      //   // check that the node is not empty
-      //   debug_assert!(
-      //     !graph.nodes[&node_id].is_empty(),
-      //     "Node {} with edits {:?} and consensus length {} is empty and should have been removed",
-      //     node_id,
-      //     edits,
-      //     cons_len
-      //   );
-      // }
     }
   }
   node_ids_to_delete
