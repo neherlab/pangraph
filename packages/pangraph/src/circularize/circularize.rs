@@ -4,11 +4,16 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::pangraph_path::PathId;
 use eyre::Report;
+use log::info;
 use std::collections::{BTreeMap, HashMap};
 
 /// Removes transitive edges from the graph inplace.
 pub fn remove_transitive_edges(graph: &mut Pangraph) -> Result<(), Report> {
   while let Some(edge) = find_transitive_edges(graph).first() {
+    info!(
+      "--- Merging transitive edge between blocks {:?} and {:?}",
+      edge.n1.bid, edge.n2.bid
+    );
     merge_blocks(graph, *edge)?;
   }
   Ok(())
