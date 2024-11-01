@@ -74,10 +74,19 @@ fn remove_nodes_from_graph(graph: &mut Pangraph, node_ids: &[NodeId]) {
     // remove from node dictionary
     graph.nodes.remove(&node_id);
 
-    // remove from path
+    // === old implementation. Assumes only one node to remove per path ===
+    // === but there currently is an edge case where multiple empty nodes with the same id could be present ===
+    // // remove from path
+    // let path_nodes = &mut graph.paths.get_mut(&path_id).unwrap().nodes;
+    // let node_idx = path_nodes.iter().position(|&n| n == node_id).unwrap();
+    // path_nodes.remove(node_idx);
+
+    //  remove all nodes with the same id
     let path_nodes = &mut graph.paths.get_mut(&path_id).unwrap().nodes;
-    let node_idx = path_nodes.iter().position(|&n| n == node_id).unwrap();
-    path_nodes.remove(node_idx);
+    // while there is a node with this id, remove it:
+    while let Some(node_idx) = path_nodes.iter().position(|&n| n == node_id) {
+      path_nodes.remove(node_idx);
+    }
 
     // remove from block alignment
     let _removed = graph.blocks.get_mut(&block_id).unwrap().alignment_remove(node_id);
