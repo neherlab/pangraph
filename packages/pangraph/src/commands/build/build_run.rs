@@ -82,6 +82,14 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
             clade.data.as_ref().unwrap().paths.len()
           );
 
+          #[cfg(debug_assertions)]
+          clade
+            .data
+            .as_ref()
+            .unwrap()
+            .sanity_check()
+            .wrap_err("failed sanity check after merging graphs.")?;
+
           Ok(())
         } else {
           make_internal_error!("Found internal clade with two children, of which one or both have no graph attached.")
