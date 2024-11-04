@@ -19,7 +19,7 @@ fn init() {
 #[derive(Parser, Debug)]
 struct Args {
   #[clap(flatten)]
-  build_args: PangraphBuildArgs,
+  pub build_args: PangraphBuildArgs,
 
   #[clap(long, short = 'L')]
   #[clap(value_hint = ValueHint::FilePath)]
@@ -49,7 +49,7 @@ fn main() -> Result<(), Report> {
   info!("left graph sanity check");
   #[cfg(debug_assertions)]
   left.sanity_check()?;
-  
+
   info!("right graph sanity check");
   #[cfg(debug_assertions)]
   right.sanity_check()?;
