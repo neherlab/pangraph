@@ -41,12 +41,12 @@ impl PangraphNode {
     }
   }
 
-  pub fn len(&self) -> usize {
-    self.position.1.saturating_sub(self.position.1)
-  }
-
-  pub fn is_empty(&self) -> bool {
-    self.len() == 0
+  // this is almost equivalent to checking if the node is empty
+  // except for an edge case: when a circular path contains only
+  // one node. In this case even if the node is not empty, the
+  // start and end are the same.
+  pub fn start_is_end(&self) -> bool {
+    self.position.0 == self.position.1
   }
 }
 

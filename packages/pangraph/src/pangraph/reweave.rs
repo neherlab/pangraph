@@ -49,6 +49,9 @@ impl MergePromise {
           map_variations(self.anchor_block.consensus(), seq)?
         };
 
+        #[cfg(any(test, debug_assertions))]
+        edits.sanity_check(self.anchor_block.consensus().len())?;
+
         Ok((*node_id, edits))
       })
       .collect::<Result<Vec<_>, Report>>()?

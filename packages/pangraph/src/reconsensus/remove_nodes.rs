@@ -1,3 +1,5 @@
+use log::info;
+
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::pangraph_node::NodeId;
@@ -21,13 +23,38 @@ fn find_empty_nodes(graph: &Pangraph, block_ids: &[BlockId]) -> Vec<NodeId> {
   for &block_id in block_ids {
     let block = &graph.blocks[&block_id];
     let cons_len = block.consensus_len();
+
+    debug_assert!(
+      cons_len > 0,
+      "Block {block_id} has a consensus length of 0 and should have been removed",
+    );
+
     for (&node_id, edits) in block.alignments() {
+      // check that edits are non-overlapping and well-defined
+      #[cfg(any(test, debug_assertions))]
+      edits.sanity_check(cons_len).unwrap();
+
+      //  if the node has insertions or substitutions, or the total deletion size is less than the consensus length
+      // then it is not empty
       if !edits.inss.is_empty() || !edits.subs.is_empty() || edits.dels.is_empty() {
+        // check that the node is not empty
+        debug_assert!(
+          !graph.nodes[&node_id].start_is_end(),
+          "Node {node_id} with edits {edits:?} and consensus length {cons_len} is empty and should have been removed",
+        );
+
         continue;
       }
+
+      // if the node has no insertions or substitutions and the total deletion size is equal to the consensus length
+      // then it is empty and should be removed
       if edits.dels.iter().map(|d| d.len).sum::<usize>() == cons_len {
+        info!(
+          "empty node {} with edits {:?} and consensus length {} is empty: to be removed",
+          node_id, edits, cons_len
+        );
+        debug_assert!(graph.nodes[&node_id].start_is_end());
         node_ids_to_delete.push(node_id);
-        debug_assert!(graph.nodes[&node_id].is_empty());
       }
     }
   }
@@ -47,10 +74,19 @@ fn remove_nodes_from_graph(graph: &mut Pangraph, node_ids: &[NodeId]) {
     // remove from node dictionary
     graph.nodes.remove(&node_id);
 
-    // remove from path
+    // === old implementation. Assumes only one node to remove per path ===
+    // === but there currently is an edge case where multiple empty nodes with the same id could be present ===
+    // // remove from path
+    // let path_nodes = &mut graph.paths.get_mut(&path_id).unwrap().nodes;
+    // let node_idx = path_nodes.iter().position(|&n| n == node_id).unwrap();
+    // path_nodes.remove(node_idx);
+
+    //  remove all nodes with the same id
     let path_nodes = &mut graph.paths.get_mut(&path_id).unwrap().nodes;
-    let node_idx = path_nodes.iter().position(|&n| n == node_id).unwrap();
-    path_nodes.remove(node_idx);
+    // while there is a node with this id, remove it:
+    while let Some(node_idx) = path_nodes.iter().position(|&n| n == node_id) {
+      path_nodes.remove(node_idx);
+    }
 
     // remove from block alignment
     let _removed = graph.blocks.get_mut(&block_id).unwrap().alignment_remove(node_id);

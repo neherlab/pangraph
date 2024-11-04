@@ -116,6 +116,9 @@ pub fn block_slice(
   let mut new_alignment = BTreeMap::new();
 
   for (old_node_id, edits) in b.alignments() {
+    #[cfg(any(debug_assertions, test))]
+    edits.sanity_check(b.consensus_len()).unwrap();
+
     let old_node = &G.nodes[old_node_id];
     let old_strandedness = old_node.strand();
 
@@ -137,6 +140,10 @@ pub fn block_slice(
     node_updates.insert(*old_node_id, new_node.clone());
 
     let new_edits = slice_edits(i, edits, block_L);
+
+    #[cfg(any(debug_assertions, test))]
+    new_edits.sanity_check(new_consensus.len()).unwrap();
+
     let ovw = new_alignment.insert(new_node.id(), new_edits);
     debug_assert!(ovw.is_none()); // new node id is not already in new_alignment
   }

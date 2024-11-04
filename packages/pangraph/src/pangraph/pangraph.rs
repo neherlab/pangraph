@@ -107,6 +107,81 @@ impl Pangraph {
       }
     }
   }
+
+  #[cfg(any(test, debug_assertions))]
+  pub fn sanity_check(&self) -> Result<(), Report> {
+    for (node_id, node) in &self.nodes {
+      if !self.blocks.contains_key(&node.block_id()) {
+        return Err(eyre::eyre!("Block {} not found in graph", node.block_id()));
+      }
+      let block = &self.blocks[&node.block_id()];
+
+      if !self.paths.contains_key(&node.path_id()) {
+        return Err(eyre::eyre!("Path {} not found in graph", node.path_id()));
+      }
+      let path = &self.paths[&node.path_id()];
+
+      if !block.alignments().contains_key(node_id) {
+        return Err(eyre::eyre!("Node {} not found in block {}", node_id, block.id()));
+      }
+
+      if !path.nodes.contains(node_id) {
+        return Err(eyre::eyre!("Node {} not found in path {}", node_id, path.id()));
+      }
+    }
+
+    for (block_id, block) in &self.blocks {
+      if block.alignments().is_empty() {
+        return Err(eyre::eyre!("Block {} has no nodes", block_id));
+      }
+
+      for node_id in block.alignments().keys() {
+        if !self.nodes.contains_key(node_id) {
+          return Err(eyre::eyre!("Node {} not found in graph", node_id));
+        }
+      }
+    }
+
+    for (path_id, path) in &self.paths {
+      for node_id in &path.nodes {
+        if !self.nodes.contains_key(node_id) {
+          return Err(eyre::eyre!("Node {node_id} from path {path_id} not found in graph"));
+        }
+      }
+
+      // // check that there are no duplicated node ids
+      // // currently disabled because this could rarely happen for empty nodes
+      // let mut seen = BTreeSet::new();
+      // for node_id in &path.nodes {
+      //   if !seen.insert(node_id) {
+      //     return Err(eyre::eyre!("Node {node_id} appears more than once in path {path_id}",));
+      //   }
+      // }
+
+      // check that nodes in the same path have contiguous positions
+      let mut prev_pos = self.nodes[path.nodes.first().unwrap()].position().1;
+      for &node_id in &path.nodes[1..] {
+        let pos = self.nodes[&node_id].position().0;
+        if pos != prev_pos {
+          return Err(eyre::eyre!(
+            "Node {node_id} in path {path_id} has position {pos} but previous node has position {prev_pos}",
+          ));
+        }
+        prev_pos = self.nodes[&node_id].position().1;
+      }
+      if path.circular() {
+        let first_pos = self.nodes[path.nodes.first().unwrap()].position().0;
+        let last_pos = self.nodes[path.nodes.last().unwrap()].position().1;
+        if first_pos != last_pos {
+          return Err(eyre::eyre!(
+            "Circular path {path_id} has first node position {first_pos} different from last node position {last_pos}",
+          ));
+        }
+      }
+    }
+
+    Ok(())
+  }
 }
 
 impl FromStr for Pangraph {

@@ -58,6 +58,9 @@ pub fn merge_graphs(
   debug!("Removing transitive edges");
   remove_transitive_edges(&mut graph).wrap_err("When removing transitive edges")?;
 
+  #[cfg(any(test, debug_assertions))]
+  graph.sanity_check().wrap_err("After merging graphs")?;
+
   Ok(graph)
 }
 
