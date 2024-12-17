@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from .utils import Edit, Block
+from .utils import Edit, Pangraph, Block
 
 
 # see: https://github.com/neherlab/pangraph/blob/98886771cb20cd4bfe7ce33c52dafc2fc33f6faa/packages/pangraph/src/pangraph/edits.rs#L194
@@ -42,3 +42,32 @@ def write_to_file(records: list[FastaRecord], file_path: str):
     with open(file_path, "w") as f:
         for record in sorted(records, key=lambda x: x.idx):
             f.write(f">{record.name}\n{record.seq}\n")
+
+
+def create_record_id(graph: Pangraph, node_id: str) -> str:
+    """
+    Given a pangraph and a node id, returns the record id for the export fasta file.
+    This is in the format: 'node_id path_name-block_id [start-end|strand]'
+    """
+    node = graph.nodes[node_id]
+    block_id = node.block_id
+    path_name = graph.paths[node.path_id].name
+    start, end = node.position
+    strand = "+" if node.strandedness else "-"
+    return f"{node_id} {path_name}-{block_id} [{start}-{end}|{strand}]"
+
+
+def block_to_aln(
+    graph: Pangraph, block: Block, aligned: bool = False
+) -> list[FastaRecord]:
+    """
+    Given a block, returns a list of FastaRecord objects containing a sequence per node.
+    If aligned is True, it returns aligned sequences, with gaps for deletions and no insertions.
+    If aligned is False, it returns the full unaligned sequences.
+    """
+    records = []
+    for idx, (node_id, edits) in enumerate(block.alignment.items()):
+        record_id = create_record_id(graph, node_id)
+        seq = apply_edits_to_ref(edits, block.consensus, aligned=aligned)
+        records.append(FastaRecord(name=record_id, seq=seq, idx=idx))
+    return records

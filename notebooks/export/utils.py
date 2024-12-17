@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from collections import defaultdict
 from Bio.Seq import Seq
 from Bio.Align import PairwiseAligner
 

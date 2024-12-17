@@ -9,7 +9,7 @@ pangraph export gfa graph.json > graph.gfa
 pangraph export block-consensus graph.json > block_consensus.fa
 
 # export unaligned sequences, to be used in other tools
-pangraph export unaligned-sequences graph.json -o export_folder
+pangraph export block-sequences graph.json -o export_folder
 
 # export alignments for each block
 pangraph export block-alignments graph.json -o export_folder
