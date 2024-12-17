@@ -40,13 +40,5 @@ class FastaRecord:
 
 def write_to_file(records: list[FastaRecord], file_path: str):
     with open(file_path, "w") as f:
-        for record in records:
+        for record in sorted(records, key=lambda x: x.idx):
             f.write(f">{record.name}\n{record.seq}\n")
-
-
-def block_to_seqrecords(block: Block, aligned=False) -> list[FastaRecord]:
-    records = []
-    for idx, (node_id, edits) in block.alignment.items():
-        seq = apply_edits_to_ref(edits, block.consensus, aligned)
-        records.append(FastaRecord(name=node_id, seq=seq, idx=idx))
-    return records

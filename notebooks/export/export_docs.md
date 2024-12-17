@@ -3,7 +3,7 @@
 I imagine that the `export` command might be used to export in different formats. For example:
 ```bash
 # export to gfa
-pangraph export gfa graph.json -o export_folder
+pangraph export gfa graph.json > graph.gfa
 
 # export block consensus sequences
 pangraph export block-consensus graph.json > block_consensus.fa
