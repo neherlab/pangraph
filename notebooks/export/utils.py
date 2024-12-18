@@ -14,7 +14,7 @@ class Node:
     block_id: int  # block id
     path_id: int  # path id
     position: tuple[int]  # start/end position on the genome
-    strandedness: bool  # strandedness of the node
+    strand: bool  # strandedness of the node
 
     def calculate_id(self) -> int:
         """the id of the node is given by the hash of the tuple (block_id, path_id, start, end)"""
@@ -26,7 +26,7 @@ class Node:
 class Path:
     id: int  # path id
     nodes: list[int]  # list of node ids
-    L: int  # total length of the genome
+    tot_len: int  # total length of the genome
     circular: bool = None  # whether the genome is circular
     name: str = None  # name of the path
 
@@ -94,15 +94,23 @@ class Edit:
             subs=self.subs + other.subs,
         )
 
+    @staticmethod
+    def from_json_dict(json_dict: dict) -> "Edit":
+        """Creates an edit object from a json dictionary."""
+        ins = [Insertion(i["pos"], i["seq"]) for i in json_dict["inss"]]
+        dels = [Deletion(d["pos"], d["len"]) for d in json_dict["dels"]]
+        subs = [Substitution(**s) for s in json_dict["subs"]]
+        return Edit(ins, dels, subs)
+
 
 @dataclass
 class Block:
     id: int  # block id
     consensus: str  # consensus sequence of the block
-    alignment: dict[int, Edit]  # dict of node id to edit
+    alignments: dict[int, Edit]  # dict of node id to edit
 
     def depth(self) -> int:
-        return len(self.alignment)
+        return len(self.alignments)
 
     def consensus_len(self) -> int:
         return len(self.consensus)
@@ -111,8 +119,17 @@ class Block:
         """Returns a new block with the reverse complement of the consensus and alignment."""
         rev_cons = reverse_complement(self.consensus)
         L = self.consensus_len()
-        rev_aln = {nid: e.reverse_complement(L) for nid, e in self.alignment.items()}
+        rev_aln = {nid: e.reverse_complement(L) for nid, e in self.alignments.items()}
         return Block(self.id, rev_cons, rev_aln)
+
+    @staticmethod
+    def from_json_dict(json_dict: dict) -> "Block":
+        """Creates a block object from a json dictionary."""
+        alignments = {
+            int(nid): Edit.from_json_dict(edit)
+            for nid, edit in json_dict["alignments"].items()
+        }
+        return Block(json_dict["id"], json_dict["consensus"], alignments)
 
 
 @dataclass
@@ -164,7 +181,7 @@ class Pangraph:
         Nb: the updated already contains the correct order of nodes."""
 
         # consistency check: node ids
-        old_nodes_set_from_graph = set(self.blocks[u.b_old_id].alignment.keys())
+        old_nodes_set_from_graph = set(self.blocks[u.b_old_id].alignments.keys())
         old_nodes_set_from_update = set(u.n_new.keys())
         assert (
             old_nodes_set_from_graph == old_nodes_set_from_update
@@ -197,11 +214,49 @@ class Pangraph:
         for nid in nodes_to_remove:
             bid = self.nodes[nid].block_id
             # remove block alignment entry
-            self.blocks[bid].alignment.pop(nid)
+            self.blocks[bid].alignments.pop(nid)
             # remove node from node dictionary
             self.nodes.pop(nid)
         # remove path from path dictionary
         self.paths.pop(pid)
+
+    def path_ids(self) -> list[int]:
+        """Returns a list of path ids."""
+        return list(self.paths.keys())
+
+    def get_path_id(self, path_name: str) -> int:
+        """Returns the path id given the path name."""
+        for pid, path in self.paths.items():
+            if path.name == path_name:
+                return pid
+        raise ValueError(f"path {path_name} not found")
+
+    def get_core_block_ids(self) -> list[int]:
+        """
+        Returns a list of core block ids.
+        Core blocks are present exactly once in each path.
+        """
+        coreblock_ids = []
+        path_ids = self.path_ids()
+        for block_id, block in self.blocks.items():
+            block_node_ids = block.alignments.keys()
+            block_path_ids = [self.nodes[nid].path_id for nid in block_node_ids]
+            in_all_paths = set(block_path_ids) == set(path_ids)
+            not_duplicated = len(block_path_ids) == len(path_ids)
+            if in_all_paths and not_duplicated:
+                coreblock_ids.append(block_id)
+        return coreblock_ids
+
+    @staticmethod
+    def from_json_dict(json_dict: dict) -> "Pangraph":
+        """Creates a pangraph object from a json dictionary."""
+        paths = {int(pid): Path(**path) for pid, path in json_dict["paths"].items()}
+        blocks = {
+            int(bid): Block.from_json_dict(block)
+            for bid, block in json_dict["blocks"].items()
+        }
+        nodes = {int(nid): Node(**node) for nid, node in json_dict["nodes"].items()}
+        return Pangraph(paths, blocks, nodes)
 
 
 @dataclass

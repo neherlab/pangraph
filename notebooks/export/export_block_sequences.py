@@ -15,7 +15,7 @@ def export_block_seqs(graph: Pangraph, exp_folder: str, aligned: bool):
 
     # for each block, export the sequence and save the file
     for block_id, block in graph.blocks.items():
-        records = block_to_aln(graph, block, aligned=aligned)
+        records = block_to_aln(graph, block, aligned=aligned, record_naming="node")
         file_path = f"{exp_folder}/block_{block_id}.fa"
         write_to_file(records, file_path)
 
