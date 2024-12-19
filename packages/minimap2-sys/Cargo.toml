@@ -44,3 +44,5 @@ simde = []
 noopt = []
 zlib-ng = ["libz-sys/zlib-ng"]
 static = ["libz-sys/static"]
+stock-zlib = ["libz-sys/stock-zlib"]
+
