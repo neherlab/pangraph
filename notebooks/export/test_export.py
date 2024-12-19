@@ -12,7 +12,7 @@ from .fasta_utils import read_from_file
 
 @pytest.fixture
 def load_graph():
-    fname = "notebooks/export/test_graph.json"
+    fname = "notebooks/export/test_data/test_graph.json"
     with open(fname, "r") as f:
         data = json.load(f)
     graph = Pangraph.from_json_dict(data)
@@ -89,8 +89,8 @@ def test_export_core_alignment(load_graph, aligned):
         )
 
 
-@pytest.mark.parametrize("min_len", [None, 100])
-@pytest.mark.parametrize("min_depth", [None])
+@pytest.mark.parametrize("min_len", [None, 1000])
+@pytest.mark.parametrize("min_depth", [None, 2])
 @pytest.mark.parametrize("export_duplicated", [True, False])
 def test_graph_to_gfa(load_graph, min_len, export_duplicated, min_depth):
     gfa = graph_to_gfa(
@@ -99,15 +99,29 @@ def test_graph_to_gfa(load_graph, min_len, export_duplicated, min_depth):
         min_depth=min_depth,
         export_duplicated=export_duplicated,
     )
-    assert len(gfa.segments) == len(load_graph.blocks)
+
+    # how many unfiltered blocks?
+    n_blocks = 0
+    for block_id, block in load_graph.blocks.items():
+        isolates = [
+            load_graph.nodes[node_id].path_id for node_id in block.alignments.keys()
+        ]
+        is_duplicated = len(set(isolates)) < len(isolates)
+        if min_len is not None and len(block.consensus) < min_len:
+            continue
+        if min_depth is not None and len(block.alignments) < min_depth:
+            continue
+        if not export_duplicated and is_duplicated:
+            continue
+        n_blocks += 1
+
+    assert len(gfa.segments) == n_blocks
 
 
 @pytest.mark.parametrize("export_sequence", [True, False])
 def test_export_graph_to_gfa(load_graph, export_sequence):
     with tempfile.TemporaryDirectory() as tmpdirname:
         gfa_file = f"{tmpdirname}/graph.gfa"
-        # tag = "t" if export_sequence else "f"
-        # gfa_file = f"graph_{tag}.gfa"
         export_graph_to_gfa(
             load_graph,
             gfa_file,

@@ -77,5 +77,7 @@ The command uses the `export_core_alignment` function outlined in `export_core_a
 
 Fasta records are currently implemented [here](https://github.com/neherlab/pangraph/blob/rust/packages/pangraph/src/io/fasta.rs).
 
+Utilities functions contained in `circularize_utils.py` are already implemented [here](https://github.com/neherlab/pangraph/blob/rust/packages/pangraph/src/circularize/circularize_utils.rs)
+
 We can extend the [`apply_edits_to_ref`](https://github.com/neherlab/pangraph/blob/98886771cb20cd4bfe7ce33c52dafc2fc33f6faa/packages/pangraph/src/pangraph/edits.rs#L194) function to output also aligned seqeunces, i.e. sequences without insertions and with gaps at the place of deleted characters.
 In the draft code this is done by either adding an `aligned` binary argument to the function. But adding a new function would work as well.

@@ -21,6 +21,12 @@ class Node:
         nid = hash((self.block_id, self.path_id, self.position[0], self.position[1]))
         return nid
 
+    @staticmethod
+    def from_json_dict(json_dict: dict) -> "Node":
+        """Creates a node object from a json dictionary."""
+        json_dict["strand"] = json_dict["strand"] == "+"
+        return Node(**json_dict)
+
 
 @dataclass
 class Path:
@@ -255,7 +261,10 @@ class Pangraph:
             int(bid): Block.from_json_dict(block)
             for bid, block in json_dict["blocks"].items()
         }
-        nodes = {int(nid): Node(**node) for nid, node in json_dict["nodes"].items()}
+        nodes = {
+            int(nid): Node.from_json_dict(node)
+            for nid, node in json_dict["nodes"].items()
+        }
         return Pangraph(paths, blocks, nodes)
 
 
