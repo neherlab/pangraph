@@ -1,5 +1,5 @@
 from .utils import Pangraph
-from .fasta_utils import FastaRecord, block_to_aln, concatenate_records
+from .fasta_utils import FastaRecord, block_to_aln, concatenate_records, write_to_file
 
 
 def core_block_aln(
@@ -45,3 +45,16 @@ def core_block_aln(
     else:
         # else concatenate them in a single record set
         return concatenate_records(records)
+
+
+def export_core_alignment(
+    graph: Pangraph, guide_strain: str, output_file: str, aligned: bool = False
+):
+    """
+    Export the core block alignment of a pangraph to a fasta file.
+    If aligned is True, it exports aligned sequences, with gaps for deletions and no insertions.
+    If aligned is False, it exports the full unaligned sequences of core blocks, to be then
+    aligned with external tools.
+    """
+    records = core_block_aln(graph, guide_strain, aligned=aligned)
+    write_to_file(records, output_file)

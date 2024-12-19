@@ -5,7 +5,7 @@ import tempfile
 from .utils import Pangraph
 from .export_block_consensus import export_block_consensus
 from .export_block_sequences import export_block_seqs
-from .export_core_aln import core_block_aln
+from .export_core_aln import core_block_aln, export_core_alignment
 from .export_gfa import graph_to_gfa, export_graph_to_gfa
 from .fasta_utils import read_from_file
 
@@ -75,6 +75,54 @@ def test_core_block_aln(load_graph, aligned):
             assert len(record.seq) == L0
 
 
-def test_graph_to_gfa(load_graph):
-    gfa = graph_to_gfa(load_graph)
+@pytest.mark.parametrize("aligned", [True, False])
+def test_export_core_alignment(load_graph, aligned):
+    graph = load_graph
+    guide_strain = "pCAV1344-40"
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_file = f"{tmpdirname}/core_alignment.fa"
+        export_core_alignment(graph, guide_strain, output_file, aligned=aligned)
+        records = read_from_file(output_file)
+        assert len(records) == len(graph.paths)
+        assert set([record.name for record in records]) == set(
+            [path.name for path in graph.paths.values()]
+        )
+
+
+@pytest.mark.parametrize("min_len", [None, 100])
+@pytest.mark.parametrize("min_depth", [None])
+@pytest.mark.parametrize("export_duplicated", [True, False])
+def test_graph_to_gfa(load_graph, min_len, export_duplicated, min_depth):
+    gfa = graph_to_gfa(
+        load_graph,
+        min_len=min_len,
+        min_depth=min_depth,
+        export_duplicated=export_duplicated,
+    )
     assert len(gfa.segments) == len(load_graph.blocks)
+
+
+@pytest.mark.parametrize("export_sequence", [True, False])
+def test_export_graph_to_gfa(load_graph, export_sequence):
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        gfa_file = f"{tmpdirname}/graph.gfa"
+        # tag = "t" if export_sequence else "f"
+        # gfa_file = f"graph_{tag}.gfa"
+        export_graph_to_gfa(
+            load_graph,
+            gfa_file,
+            min_len=100,
+            min_depth=None,
+            export_duplicated=True,
+            export_sequence=export_sequence,
+        )
+
+        with open(gfa_file, "r") as f:
+            lines = f.readlines()
+
+        # check that the number of segments is correct
+        n_segments = 0
+        for line in lines:
+            if line.startswith("S"):
+                n_segments += 1
+        assert n_segments == len(load_graph.blocks)

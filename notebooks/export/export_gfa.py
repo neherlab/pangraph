@@ -9,7 +9,7 @@ from collections import defaultdict
 class GFA_segment:
     name: str  # block id
     sequence: str  # block sequence
-    read_count: int  # number of reads
+    depth: int  # number of block occurrences
     length: int  # block length
     duplicated: bool  # whether the block is duplicated
 
@@ -60,8 +60,9 @@ class GFA:
             for segment in self.segments.values():
                 segment_seq = f"{segment.sequence}" if export_sequence else "*"
                 duplicated_tag = "\tDP:Z:duplicated" if segment.duplicated else ""
+                read_count = segment.depth * segment.length
                 f.write(
-                    f"S\t{segment.name}\t{segment_seq}\tRC:i:{segment.read_count}\tLN:i:{segment.length}{duplicated_tag}\n"
+                    f"S\t{segment.name}\t{segment_seq}\tRC:i:{read_count}\tLN:i:{segment.length}{duplicated_tag}\n"
                 )
 
             # Write links
@@ -98,7 +99,7 @@ def graph_to_gfa_segment_dict(graph: Pangraph) -> Dict[int, GFA_segment]:
         segments[block_id] = GFA_segment(
             name=block_id,
             sequence=block.consensus,
-            read_count=len(block.alignments),
+            depth=len(block.alignments),
             length=len(block.consensus),
             duplicated=is_duplicated,
         )
@@ -124,20 +125,25 @@ def graph_to_gfa_paths(graph: Pangraph) -> List[GFA_path]:
 def filter_gfa_path(
     path: GFA_path,
     segments: Dict[int, GFA_segment],
-    export_duplicated: bool,
     min_length: int,
+    min_depth: int,
+    export_duplicated: bool,
 ) -> List[GFA_path]:
     """
-    Filter out segments in a path that are shorter than min_length
-    or are duplicated.
+    Optionally filters out segments in a path that are:
+    - shorter than min_length
+    - present less than min_depth times
+    - duplicated
     """
     new_segments = []
-    for segment in path.segments:
-        if min_length is not None and segments[segment.name].length < min_length:
+    for node in path.segments:
+        if min_length is not None and segments[node.bid].length < min_length:
             continue
-        if not export_duplicated and segments[segment.name].duplicated:
+        if min_depth is not None and segments[node.bid].depth < min_depth:
             continue
-        new_segments.append(segment)
+        if not export_duplicated and segments[node.bid].duplicated:
+            continue
+        new_segments.append(node)
     return GFA_path(
         path_name=path.path_name, segments=new_segments, circular=path.circular
     )
@@ -160,6 +166,7 @@ def gfa_links_from_paths(paths: List[GFA_path]) -> GFA_links:
 def graph_to_gfa(
     graph: Pangraph,
     min_len: int = None,
+    min_depth: int = None,
     export_duplicated: bool = True,
 ) -> GFA:
     """
@@ -169,7 +176,13 @@ def graph_to_gfa(
     GFA_segments = graph_to_gfa_segment_dict(graph)
     GFA_paths = graph_to_gfa_paths(graph)
     GFA_paths = [
-        filter_gfa_path(path, GFA_segments, export_duplicated, min_len)
+        filter_gfa_path(
+            path,
+            GFA_segments,
+            min_depth=min_depth,
+            min_length=min_len,
+            export_duplicated=export_duplicated,
+        )
         for path in GFA_paths
     ]
     # remove empty paths
@@ -189,13 +202,20 @@ def graph_to_gfa(
 
 def export_graph_to_gfa(
     graph: Pangraph,
-    min_len: int,
-    export_duplicated: bool,
     output_file: str,
+    min_len: int,
+    min_depth: int,
+    export_duplicated: bool,
     export_sequence: bool = False,
 ) -> None:
     """
     Export a pangraph to a GFA file.
     """
-    gfa = graph_to_gfa(graph, min_len, export_duplicated)
+    gfa = graph_to_gfa(
+        graph,
+        min_len=min_len,
+        min_depth=min_depth,
+        export_duplicated=export_duplicated,
+    )
+
     gfa.to_file(output_file, export_sequence)
