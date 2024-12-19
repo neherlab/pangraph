@@ -100,7 +100,7 @@ def test_graph_to_gfa(load_graph, min_len, export_duplicated, min_depth):
         export_duplicated=export_duplicated,
     )
 
-    # how many unfiltered blocks?
+    # how many blocks after filtering?
     n_blocks = 0
     for block_id, block in load_graph.blocks.items():
         isolates = [

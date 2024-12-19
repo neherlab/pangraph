@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Tuple, Dict
+from typing import List, Dict
 from .circularize_utils import SimpleNode, Edge
 from .utils import Pangraph
 from collections import defaultdict
