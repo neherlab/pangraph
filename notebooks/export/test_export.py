@@ -6,6 +6,7 @@ from .utils import Pangraph
 from .export_block_consensus import export_block_consensus
 from .export_block_sequences import export_block_seqs
 from .export_core_aln import core_block_aln
+from .export_gfa import graph_to_gfa, export_graph_to_gfa
 from .fasta_utils import read_from_file
 
 
@@ -72,3 +73,8 @@ def test_core_block_aln(load_graph, aligned):
         L0 = len(records[0].seq)
         for record in records:
             assert len(record.seq) == L0
+
+
+def test_graph_to_gfa(load_graph):
+    gfa = graph_to_gfa(load_graph)
+    assert len(gfa.segments) == len(load_graph.blocks)
