@@ -55,7 +55,7 @@ pangraph export block-sequences graph.json -o export_folder
 ```
 The only optional argument is `-o` or `--output` which specifies the output folder. Inside of this folder a series of files `block_<block_id>.fa` are created, each containing the sequences of the block with the corresponding id.
 
-The command used in both is `export_block_sequences` functions outlined in `export_block_sequences.py`, with the flag `aligned` set to `True` or `False` respectively.
+The python function used in both is `export_block_seqs`, outlined in `export_block_sequences.py`, with the flag `aligned` set to `True` or `False` respectively for exporting block alignments or block sequences.
 
 ## export core-genome alignment
 
