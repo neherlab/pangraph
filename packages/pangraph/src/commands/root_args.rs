@@ -66,7 +66,10 @@ pub enum PangraphCommands {
   Build(PangraphBuildArgs),
 
   /// Export a pangraph to a chosen file format(s)
-  Export(PangraphExportArgs),
+  Export {
+    #[clap(subcommand)]
+    args: PangraphExportArgs,
+  },
 
   /// Compute all pairwise marginalizations of a multiple sequence alignment graph
   Simplify(PangraphSimplifyArgs),
