@@ -13,11 +13,8 @@ pub fn export_run(args: PangraphExportArgs) -> Result<(), Report> {
     PangraphExportArgs::BlockConsensus(args) => {
       export_block_consensus(args)?;
     }
-    PangraphExportArgs::BlockAlignments(args) => {
-      export_block_sequences(args, false)?;
-    }
     PangraphExportArgs::BlockSequences(args) => {
-      export_block_sequences(args, true)?;
+      export_block_sequences(args)?;
     }
     PangraphExportArgs::CoreAlignment(args) => {
       export_core_genome(args)?;

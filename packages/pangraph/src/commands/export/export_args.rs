@@ -14,11 +14,8 @@ pub enum PangraphExportArgs {
   /// Export block consensus sequences to a fasta file
   BlockConsensus(PangraphExportBlockConsensusArgs),
 
-  /// Export aligned sequences for each block. Note that alignments exclude insertions
-  BlockAlignments(PangraphExportBlockAlignmentsArgs),
-
-  /// Export unaligned sequences for each block
-  BlockSequences(PangraphExportBlockAlignmentsArgs),
+  /// Export aligned or unaligned sequences for each block. Note that alignments exclude insertions
+  BlockSequences(PangraphExportBlockSequencesArgs),
 
   /// Export the core-genome alignment
   CoreAlignment(PangraphExportCoreAlignmentArgs),
@@ -95,7 +92,7 @@ pub struct PangraphExportBlockConsensusArgs {
 }
 
 #[derive(Parser, Debug, Clone)]
-pub struct PangraphExportBlockAlignmentsArgs {
+pub struct PangraphExportBlockSequencesArgs {
   /// Path to a pangraph file (native json).
   ///
   /// Accepts plain or compressed files. If a compressed file is provided, it will be transparently
@@ -111,6 +108,10 @@ pub struct PangraphExportBlockAlignmentsArgs {
   /// See: https://en.wikipedia.org/wiki/FASTA_format
   #[clap(long, short = 'o', value_hint = ValueHint::AnyPath)]
   pub output: PathBuf,
+
+  /// If set, then the full block sequences are exported but not aligned.
+  #[clap(long)]
+  pub unaligned: bool,
 }
 
 #[derive(Parser, Debug, Clone)]
