@@ -16,7 +16,7 @@ pub fn export_run(args: PangraphExportArgs) -> Result<(), Report> {
     PangraphExportArgs::BlockSequences(args) => {
       export_block_sequences(args)?;
     }
-    PangraphExportArgs::CoreAlignment(args) => {
+    PangraphExportArgs::CoreGenome(args) => {
       export_core_genome(args)?;
     }
   }

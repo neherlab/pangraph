@@ -18,7 +18,7 @@ pub enum PangraphExportArgs {
   BlockSequences(PangraphExportBlockSequencesArgs),
 
   /// Export the core-genome alignment
-  CoreAlignment(PangraphExportCoreAlignmentArgs),
+  CoreGenome(PangraphExportCoreAlignmentArgs),
 }
 
 #[derive(Parser, Debug, Clone)]
