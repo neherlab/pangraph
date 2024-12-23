@@ -14,6 +14,10 @@ If you have Pangraph CLI installed, you can type `pangraph --help` to read the l
 * [`pangraph`↴](#pangraph)
 * [`pangraph build`↴](#pangraph-build)
 * [`pangraph export`↴](#pangraph-export)
+* [`pangraph export gfa`↴](#pangraph-export-gfa)
+* [`pangraph export block-consensus`↴](#pangraph-export-block-consensus)
+* [`pangraph export block-sequences`↴](#pangraph-export-block-sequences)
+* [`pangraph export core-genome`↴](#pangraph-export-core-genome)
 * [`pangraph simplify`↴](#pangraph-simplify)
 * [`pangraph reconstruct`↴](#pangraph-reconstruct)
 * [`pangraph schema`↴](#pangraph-schema)
@@ -126,7 +130,24 @@ Align genomes into a multiple sequence alignment graph
 
 Export a pangraph to a chosen file format(s)
 
-**Usage:** `pangraph export [OPTIONS] [INPUT_JSON]`
+**Usage:** `pangraph export <COMMAND>`
+
+###### **Subcommands:**
+
+* `gfa` — Export to GFA v1 format
+* `block-consensus` — Export block consensus sequences to a fasta file
+* `block-sequences` — Export aligned or unaligned sequences for each block. Note that alignments exclude insertions
+* `core-genome` — Export the core-genome alignment
+
+
+
+## `pangraph export gfa`
+
+Export to GFA v1 format
+
+See GFA v1 format specifications: https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md
+
+**Usage:** `pangraph export gfa [OPTIONS] [INPUT_JSON]`
 
 ###### **Arguments:**
 
@@ -138,40 +159,104 @@ Export a pangraph to a chosen file format(s)
 
 ###### **Options:**
 
-* `--edge-minimum-length <EDGE_MINIMUM_LENGTH>` — Blocks below this length cutoff will be ignored for edges in graph
+* `-o`, `--output <OUTPUT>` — Path to output GFA file.
 
-  Default value: `200`
-* `--edge-maximum-length <EDGE_MAXIMUM_LENGTH>` — Blocks below this length cutoff will be ignored for edges in graph
+   See GFA v1 format specifications: https://github.com/GFA-spec/GFA-spec/blob/master/GFA1.md
 
-  Default value: `18446744073709551615`
-* `--edge-minimum-depth <EDGE_MINIMUM_DEPTH>` — Blocks below this depth cutoff will be ignored for edges in graph
+   If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
 
-  Default value: `0`
-* `--edge-maximum-depth <EDGE_MAXIMUM_DEPTH>` — Blocks above this depth cutoff will be ignored for edges in graph
+   Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
 
-  Default value: `18446744073709551615`
+  Default value: `-`
 * `--minimum-length <MINIMUM_LENGTH>` — Blocks below this length cutoff will not be exported
-
-  Default value: `200`
 * `--maximum-length <MAXIMUM_LENGTH>` — Blocks above this length cutoff will not be exported
-
-  Default value: `18446744073709551615`
 * `--minimum-depth <MINIMUM_DEPTH>` — Blocks below this depth cutoff will not be exported
-
-  Default value: `0`
 * `--maximum-depth <MAXIMUM_DEPTH>` — Blocks above this depth cutoff will not be exported
+* `--include-sequences` — Include block sequences in the GFA file
+* `--no-duplicated` — Exclude blocks that are duplicated in any path
 
-  Default value: `18446744073709551615`
-* `-o`, `--output-directory <OUTPUT_DIRECTORY>` — Path to directory where output will be stored
 
-  Default value: `export`
-* `-p`, `--prefix <PREFIX>` — Basename of files
 
-  Default value: `pangraph`
-* `--no-export-gfa` — Do not emit GFA file
-* `--export-panx` — Emit vis directory to input to panX-visualization
-* `--no-duplications` — Do not export any block that contains at least one strain more than once
-* `--seed <SEED>` — Random seed
+## `pangraph export block-consensus`
+
+Export block consensus sequences to a fasta file
+
+**Usage:** `pangraph export block-consensus [OPTIONS] [INPUT_JSON]`
+
+###### **Arguments:**
+
+* `<INPUT_JSON>` — Path to a pangraph file (native json).
+
+   Accepts plain or compressed files. If a compressed file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension.
+
+   If no path provided, the uncompressed input is read from standard input (stdin).
+
+###### **Options:**
+
+* `-o`, `--output <OUTPUT>` — Path to output FASTA file.
+
+   See: https://en.wikipedia.org/wiki/FASTA_format
+
+   If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
+
+   Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
+
+  Default value: `-`
+
+
+
+## `pangraph export block-sequences`
+
+Export aligned or unaligned sequences for each block. Note that alignments exclude insertions
+
+**Usage:** `pangraph export block-sequences [OPTIONS] --output <OUTPUT> [INPUT_JSON]`
+
+###### **Arguments:**
+
+* `<INPUT_JSON>` — Path to a pangraph file (native json).
+
+   Accepts plain or compressed files. If a compressed file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension.
+
+   If no path provided, the uncompressed input is read from standard input (stdin).
+
+###### **Options:**
+
+* `-o`, `--output <OUTPUT>` — Path to directory to write output FASTA files to
+
+   See: https://en.wikipedia.org/wiki/FASTA_format
+* `--unaligned` — If set, then the full block sequences are exported but not aligned
+
+
+
+## `pangraph export core-genome`
+
+Export the core-genome alignment
+
+**Usage:** `pangraph export core-genome [OPTIONS] [INPUT_JSON]`
+
+###### **Arguments:**
+
+* `<INPUT_JSON>` — Path to a pangraph file (native json).
+
+   Accepts plain or compressed files. If a compressed file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension.
+
+   If no path provided, the uncompressed input is read from standard input (stdin).
+
+###### **Options:**
+
+* `-o`, `--output <OUTPUT>` — Path to output FASTA file.
+
+   See: https://en.wikipedia.org/wiki/FASTA_format
+
+   If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
+
+   Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
+
+  Default value: `-`
+* `--guide-strain <GUIDE_STRAIN>` — Specify the strain to use as a reference for the alignment. Core blocks are ordered and oriented (forward or reverse) according to the reference strain
+* `--unaligned` — If set, then the full core sequences are exported but not aligned.
+
+   They should be linearly alignable and can be fed to an external aligner.
 
 
 
