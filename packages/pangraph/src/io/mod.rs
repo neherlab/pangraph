@@ -8,5 +8,4 @@ pub mod gfa;
 pub mod json;
 pub mod json_schema;
 pub mod seq;
-pub mod write;
 pub mod yaml;

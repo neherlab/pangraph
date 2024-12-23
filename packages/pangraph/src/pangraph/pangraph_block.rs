@@ -1,6 +1,9 @@
 use crate::io::seq::reverse_complement;
 use crate::pangraph::edits::Edit;
+use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_node::NodeId;
+use crate::pangraph::pangraph_path::PathId;
+use crate::utils::collections::has_duplicates;
 use derive_more::{Display, From};
 use eyre::{Report, WrapErr};
 use getset::{CopyGetters, Getters};
@@ -117,5 +120,13 @@ impl PangraphBlock {
 
   pub fn alignment_remove(&mut self, node_id: NodeId) -> Edit {
     self.alignments.remove(&node_id).unwrap()
+  }
+
+  pub fn isolates<'a>(&'a self, graph: &'a Pangraph) -> impl Iterator<Item = PathId> + 'a {
+    self.alignments.keys().map(|&node_id| graph.nodes[&node_id].path_id())
+  }
+
+  pub fn is_duplicated(&self, graph: &Pangraph) -> bool {
+    has_duplicates(self.isolates(graph))
   }
 }

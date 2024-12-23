@@ -1,87 +1,285 @@
 use crate::io::file::create_file_or_stdout;
-use crate::io::write::WriteAdapterIoToFmt;
-use crate::o;
 use crate::pangraph::pangraph::Pangraph;
+use crate::pangraph::pangraph_block::BlockId;
+use crate::pangraph::strand::Strand;
+use clap::Parser;
+use derive_more::Constructor;
 use eyre::{Context, Report};
-use gfa::gfa::Orientation::{Backward, Forward};
-use gfa::gfa::{Link, Path as GFAPath, Segment, GFA};
-use gfa::optfields::OptionalFields;
-use rayon::prelude::*;
+use itertools::Itertools;
+use std::collections::{BTreeMap, BTreeSet};
 use std::io::Write;
 use std::path::Path;
 
-pub fn gfa_write_file(filepath: impl AsRef<Path>, g: &Pangraph) -> Result<(), Report> {
-  let filepath = filepath.as_ref();
-  gfa_write(create_file_or_stdout(filepath)?, g).wrap_err_with(|| format!("When writing gfa file: {filepath:#?}"))
+#[derive(Parser, Debug, Default, Clone)]
+pub struct GfaWriteParams {
+  /// Blocks below this length cutoff will not be exported
+  #[clap(long)]
+  minimum_length: Option<usize>,
+
+  /// Blocks above this length cutoff will not be exported
+  #[clap(long)]
+  maximum_length: Option<usize>,
+
+  /// Blocks below this depth cutoff will not be exported
+  #[clap(long)]
+  minimum_depth: Option<usize>,
+
+  /// Blocks above this depth cutoff will not be exported
+  #[clap(long)]
+  maximum_depth: Option<usize>,
+
+  /// Include block sequences in the Gfa file
+  #[clap(long)]
+  include_sequences: bool,
+
+  /// Exclude blocks that are duplicated in any path
+  #[clap(long)]
+  no_duplicated: bool,
 }
 
-pub fn gfa_write_str(g: &Pangraph) -> Result<String, Report> {
+impl GfaWriteParams {
+  pub fn get_minimum_length(&self) -> usize {
+    self.minimum_length.unwrap_or(0)
+  }
+
+  pub fn get_maximum_length(&self) -> usize {
+    self.maximum_length.unwrap_or(usize::MAX)
+  }
+
+  pub fn get_minimum_depth(&self) -> usize {
+    self.minimum_depth.unwrap_or(0)
+  }
+
+  pub fn get_maximum_depth(&self) -> usize {
+    self.maximum_depth.unwrap_or(usize::MAX)
+  }
+
+  pub fn include_sequences(&self) -> bool {
+    self.include_sequences
+  }
+
+  pub fn no_duplicated(&self) -> bool {
+    self.no_duplicated
+  }
+}
+
+pub fn gfa_write_file(filepath: impl AsRef<Path>, g: &Pangraph, params: &GfaWriteParams) -> Result<(), Report> {
+  let filepath = filepath.as_ref();
+  gfa_write(create_file_or_stdout(filepath)?, g, params)
+    .wrap_err_with(|| format!("When writing gfa file: {filepath:#?}"))
+}
+
+pub fn gfa_write_str(g: &Pangraph, params: &GfaWriteParams) -> Result<String, Report> {
   let mut buf = vec![];
-  gfa_write(&mut buf, g)?;
+  gfa_write(&mut buf, g, params)?;
   Ok(String::from_utf8(buf)?)
 }
 
-pub fn gfa_write<W: Write>(writer: W, g: &Pangraph) -> Result<(), Report> {
-  let gfa = convert_pangraph_to_gfa(g)?;
-  gfa::writer::write_gfa(&gfa, &mut WriteAdapterIoToFmt(writer));
+pub fn gfa_write<W: Write>(mut writer: W, g: &Pangraph, params: &GfaWriteParams) -> Result<(), Report> {
+  let gfa = convert_pangraph_to_gfa(g, params)?;
+
+  writeln!(writer, "H\tVN:Z:1.0")?;
+
+  if !gfa.segments.is_empty() {
+    writeln!(writer, "# blocks")?;
+  }
+
+  for segment in gfa.segments.values() {
+    let segment_seq = if params.include_sequences() {
+      &segment.sequence
+    } else {
+      "*"
+    };
+    let name = segment.name;
+    let read_count = segment.depth * segment.length;
+    let length = segment.length;
+    let duplicated_tag = if segment.duplicated { "\tDP:Z:duplicated" } else { "" };
+    writeln!(
+      writer,
+      "S\t{name}\t{segment_seq}\tRC:i:{read_count}\tLN:i:{length}{duplicated_tag}",
+    )?;
+  }
+
+  if !gfa.links.edge_ct.is_empty() {
+    writeln!(writer, "# edges")?;
+  }
+
+  for (edge, read_count) in &gfa.links.edge_ct {
+    let bid1 = edge.n1.bid;
+    let strand1 = edge.n1.strand;
+    let bid2 = edge.n2.bid;
+    let strand2 = edge.n2.strand;
+    writeln!(writer, "L\t{bid1}\t{strand1}\t{bid2}\t{strand2}\t*\tRC:i:{read_count}",)?;
+  }
+
+  if !gfa.paths.is_empty() {
+    writeln!(writer, "# paths")?;
+  }
+  for path in &gfa.paths {
+    let circular_tag = if path.circular { "\tTP:Z:circular" } else { "" };
+    let segments = path
+      .segments
+      .iter()
+      .map(|node| format!("{}{}", node.bid, node.strand))
+      .join(",");
+    let path_name = &path.path_name;
+    writeln!(writer, "P\t{path_name}\t{segments}\t*{circular_tag}",)?;
+  }
   Ok(())
 }
 
-fn convert_pangraph_to_gfa(pangraph: &Pangraph) -> Result<GFA<Vec<u8>, OptionalFields>, Report> {
-  let mut gfa = GFA::<Vec<u8>, OptionalFields>::new();
+#[derive(Debug, Clone, Default)]
+pub struct Gfa {
+  segments: BTreeMap<BlockId, GfaSegment>,
+  links: GfaLinks,
+  paths: Vec<GfaPath>,
+}
 
-  gfa.segments = pangraph
+#[derive(Debug, Clone)]
+pub struct GfaSegment {
+  name: BlockId,
+  sequence: String,
+  depth: usize,
+  length: usize,
+  duplicated: bool,
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Constructor)]
+pub struct SimpleNode {
+  bid: BlockId,
+  strand: Strand,
+}
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Constructor)]
+pub struct Edge {
+  n1: SimpleNode,
+  n2: SimpleNode,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct GfaLinks {
+  edge_ct: BTreeMap<Edge, usize>,
+}
+
+impl GfaLinks {
+  pub fn add_edge(&mut self, bid1: BlockId, strand1: Strand, bid2: BlockId, strand2: Strand) {
+    let n1 = SimpleNode::new(bid1, strand1);
+    let n2 = SimpleNode::new(bid2, strand2);
+    let edge = Edge::new(n1, n2);
+    *self.edge_ct.entry(edge).or_insert(0) += 1;
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct GfaPath {
+  path_name: String,
+  segments: Vec<SimpleNode>,
+  circular: bool,
+}
+
+fn convert_pangraph_to_gfa(graph: &Pangraph, params: &GfaWriteParams) -> Result<Gfa, Report> {
+  let segments = graph_to_gfa_segment(graph);
+
+  let paths = graph_to_gfa_paths(graph)
+    .iter()
+    .map(|path| gfa_filter_path(path, &segments, params))
+    .filter(|path| !path.segments.is_empty())
+    .collect_vec();
+
+  let segment_ids = paths
+    .iter()
+    .flat_map(|path| path.segments.iter().map(|segment| segment.bid))
+    .collect::<BTreeSet<_>>();
+
+  let segments = segments.into_iter().filter(|(k, _)| segment_ids.contains(k)).collect();
+
+  let gfa_links = gfa_paths_to_links(&paths);
+
+  Ok(Gfa {
+    segments,
+    links: gfa_links,
+    paths,
+  })
+}
+
+fn gfa_paths_to_links(paths: &[GfaPath]) -> GfaLinks {
+  let mut links = GfaLinks::default();
+  for path in paths {
+    for window in path.segments.windows(2) {
+      assert!(window.len() > 1);
+      let (seg1, seg2) = (&window[0], &window[1]);
+      links.add_edge(seg1.bid, seg1.strand, seg2.bid, seg2.strand);
+    }
+    if path.circular {
+      let seg1 = path.segments.last().unwrap();
+      let seg2 = &path.segments[0];
+      links.add_edge(seg1.bid, seg1.strand, seg2.bid, seg2.strand);
+    }
+  }
+  links
+}
+
+fn graph_to_gfa_paths(graph: &Pangraph) -> Vec<GfaPath> {
+  let mut paths = Vec::new();
+  for path in graph.paths.values() {
+    let segments = path
+      .nodes
+      .iter()
+      .map(|node_id| {
+        let node = &graph.nodes[node_id];
+        SimpleNode::new(node.block_id(), node.strand())
+      })
+      .collect();
+
+    paths.push(GfaPath {
+      path_name: path.name.as_ref().unwrap().clone(),
+      segments,
+      circular: path.circular,
+    });
+  }
+  paths
+}
+
+fn gfa_filter_path(path: &GfaPath, segments: &BTreeMap<BlockId, GfaSegment>, params: &GfaWriteParams) -> GfaPath {
+  let new_segments: Vec<_> = path
+    .segments
+    .iter()
+    .filter(|node| {
+      let segment = &segments[&node.bid];
+      let length = segment.length;
+      let depth = segment.depth;
+
+      length >= params.get_minimum_length()
+        && length <= params.get_maximum_length()
+        && depth >= params.get_minimum_depth()
+        && depth <= params.get_maximum_depth()
+        && (!params.no_duplicated() || !segment.duplicated)
+    })
+    .cloned()
+    .collect();
+
+  GfaPath {
+    path_name: path.path_name.clone(),
+    segments: new_segments,
+    circular: path.circular,
+  }
+}
+
+fn graph_to_gfa_segment(graph: &Pangraph) -> BTreeMap<BlockId, GfaSegment> {
+  graph
     .blocks
-    .par_iter()
-    .map(|(_, block)| Segment {
-      name: block.id().to_string().as_bytes().to_vec(),
-      sequence: block.consensus().as_bytes().to_vec(),
-      optional: OptionalFields::new(),
+    .iter()
+    .map(|(block_id, block)| {
+      let segment = GfaSegment {
+        name: *block_id,
+        sequence: block.consensus().to_owned(),
+        depth: block.depth(),
+        length: block.consensus_len(),
+        duplicated: block.is_duplicated(graph),
+      };
+      (*block_id, segment)
     })
-    .collect();
-
-  gfa.links = pangraph
-    .nodes
-    .par_iter()
-    .map(|(_, node)| {
-      // FIXME: bogus data
-      Link::<Vec<u8>, OptionalFields> {
-        from_segment: o!("A").as_bytes().to_vec(),
-        from_orient: Backward,
-        to_segment: o!("B").as_bytes().to_vec(),
-        to_orient: Forward,
-        overlap: b"1M".to_vec(),
-        optional: OptionalFields::new(),
-      }
-    })
-    .collect();
-
-  gfa.paths = pangraph
-    .paths
-    .par_iter()
-    .map(|(_, path)| {
-      let segment_names = path
-        .nodes
-        .iter()
-        .map(|node_id| pangraph.nodes[node_id].block_id().to_string())
-        .collect::<Vec<_>>();
-
-      let path_name = path
-        .name
-        .clone()
-        .unwrap_or_else(|| path.id().to_string())
-        .as_bytes()
-        .to_vec();
-
-      let segment_names = segment_names.join(",").as_bytes().to_vec();
-      let overlaps = vec![None; segment_names.len() - 1];
-      let optional = OptionalFields::new();
-
-      GFAPath::new(path_name, segment_names, overlaps, optional)
-    })
-    .collect();
-
-  Ok(gfa)
+    .collect()
 }
 
 #[cfg(test)]
@@ -93,7 +291,7 @@ mod tests {
 
   #[test]
   fn test_gfa_empty() {
-    let actual = gfa_write_str(&Pangraph::default()).unwrap();
+    let actual = gfa_write_str(&Pangraph::default(), &GfaWriteParams::default()).unwrap();
     let expected = indoc! {r#"
     H	VN:Z:1.0
     "#};
@@ -194,7 +392,7 @@ mod tests {
     "#})
     .unwrap();
 
-    let actual = gfa_write_str(&g).unwrap();
+    let actual = gfa_write_str(&g, &GfaWriteParams::default()).unwrap();
 
     let expected = indoc! {r#"
     H	VN:Z:1.0
@@ -207,6 +405,6 @@ mod tests {
     P	Path C	12778560093473594666	*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*
     "#};
 
-    assert_eq!(actual, expected);
+    assert_eq!(expected, actual);
   }
 }

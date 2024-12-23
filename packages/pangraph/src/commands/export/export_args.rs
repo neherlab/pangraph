@@ -1,3 +1,4 @@
+use crate::io::gfa::GfaWriteParams;
 use clap::{Parser, Subcommand, ValueHint};
 use std::fmt::Debug;
 use std::path::PathBuf;
@@ -43,29 +44,8 @@ pub struct PangraphExportGfaArgs {
   #[clap(long, short = 'o', default_value = "-", value_hint = ValueHint::AnyPath)]
   pub output: PathBuf,
 
-  /// Blocks below this length cutoff will not be exported
-  #[clap(long, value_hint = ValueHint::Other)]
-  pub minimum_length: Option<usize>,
-
-  /// Blocks above this length cutoff will not be exported
-  #[clap(long, value_hint = ValueHint::Other)]
-  pub maximum_length: Option<usize>,
-
-  /// Blocks below this depth cutoff will not be exported
-  #[clap(long, value_hint = ValueHint::Other)]
-  pub minimum_depth: Option<usize>,
-
-  /// Blocks above this depth cutoff will not be exported
-  #[clap(long, value_hint = ValueHint::Other)]
-  pub maximum_depth: Option<usize>,
-
-  /// Include block sequences in the GFA file
-  #[clap(long)]
-  pub include_sequences: bool,
-
-  /// Exclude blocks that are duplicated in any path
-  #[clap(long)]
-  pub no_duplicated: bool,
+  #[clap(flatten)]
+  pub params: GfaWriteParams,
 }
 
 #[derive(Parser, Debug, Clone)]

@@ -6,7 +6,9 @@ use smart_default::SmartDefault;
 use strum_macros::Display;
 
 #[must_use]
-#[derive(Copy, Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Hash, SmartDefault, JsonSchema)]
+#[derive(
+  Copy, Clone, Debug, Display, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, Hash, SmartDefault, JsonSchema,
+)]
 pub enum Strand {
   #[default]
   #[serde(rename = "+")]
