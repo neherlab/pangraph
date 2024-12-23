@@ -20,20 +20,10 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-color-eyre = { workspace = true }
 ctor = { workspace = true }
 eyre = { workspace = true }
-log = { workspace = true }
 pangraph = { path = "../pangraph" }
-rayon = { workspace = true }
-schemars = { workspace = true }
-
-[dev-dependencies]
-pretty_assertions = { workspace = true }
-rstest = { workspace = true }
-rstest_reuse = { workspace = true }
 
 [build-dependencies]
 eyre = { workspace = true }
 pangraph = { path = "../pangraph" }
-schemars = { workspace = true }
