@@ -467,9 +467,9 @@ checksum = "1462739cb27611015575c0c11df5df7601141071f07518d56fcc1be504cbec97"
 
 [[package]]
 name = "cmake"
-version = "0.1.51"
+version = "0.1.52"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fb1e43aa7fd152b1f968787f7dbcdeb306d1867ff373c69955211876c053f91a"
+checksum = "c682c223677e0e5b6b7f63a64b9351844c3f1b1678a68b7ee617e30fb082620e"
 dependencies = [
  "cc",
 ]
@@ -1386,62 +1386,11 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 name = "minimap2"
 version = "1.0.0"
 dependencies = [
- "approx",
- "atty",
- "auto_ops",
- "bio",
- "bio-types",
- "bzip2",
- "chrono",
- "clap",
- "clap_complete",
- "clap_complete_fig",
- "cmd_lib",
- "color-eyre",
- "csv",
- "ctor",
- "derive_more",
- "env_logger 0.11.5",
  "eyre",
- "flate2",
- "gcollections",
- "getset",
- "intervallum",
  "itertools",
- "lazy_static",
- "log",
- "maplit",
- "memoize",
  "minimap2-sys",
- "ndarray",
- "ndarray-rand",
- "ndarray-stats",
- "noodles",
- "num",
- "num-integer",
- "num-traits",
- "num_cpus",
  "ordered-float",
- "parking_lot",
- "pretty_assertions",
- "pretty_dtoa",
- "rand",
- "rand_distr",
- "rand_isaac",
- "rayon",
- "rstest",
- "rstest_reuse",
  "serde",
- "serde-aux",
- "serde_json",
- "serde_stacker",
- "smart-default",
- "strum",
- "strum_macros",
- "tempfile",
- "twox-hash",
- "xz2",
- "zstd",
 ]
 
 [[package]]
