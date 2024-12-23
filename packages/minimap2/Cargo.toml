@@ -18,66 +18,13 @@ workspace = true
 crate-type = ["lib"]
 
 [dependencies]
-approx = { workspace = true }
-auto_ops = { workspace = true }
-bio = { workspace = true }
-bio-types = { workspace = true }
-chrono = { workspace = true }
-clap = { workspace = true }
-clap_complete = { workspace = true }
-clap_complete_fig = { workspace = true }
-cmd_lib = { workspace = true }
-color-eyre = { workspace = true }
-csv = { workspace = true }
-ctor = { workspace = true }
-derive_more = { workspace = true }
-env_logger = { workspace = true }
 eyre = { workspace = true }
-flate2 = { workspace = true }
-gcollections = { workspace = true }
-getset = { workspace = true }
-intervallum = { workspace = true }
 itertools = { workspace = true }
-lazy_static = { workspace = true }
-log = { workspace = true }
-maplit = { workspace = true }
-memoize = { workspace = true }
 minimap2-sys = { workspace = true }
-ndarray = { workspace = true }
-ndarray-rand = { workspace = true }
-ndarray-stats = { workspace = true }
-noodles = { workspace = true }
-num = { workspace = true }
-num-integer = { workspace = true }
-num-traits = { workspace = true }
-num_cpus = { workspace = true }
 ordered-float = { workspace = true }
-parking_lot = { workspace = true }
-pretty_dtoa = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
-rand_isaac = { workspace = true }
-rayon = { workspace = true }
 serde = { workspace = true, optional = true }
-serde-aux = { workspace = true }
-serde_json = { workspace = true }
-serde_stacker = { workspace = true }
-smart-default = { workspace = true }
-strum = { workspace = true }
-strum_macros = { workspace = true }
-tempfile = { workspace = true }
-twox-hash = { workspace = true }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-atty = { workspace = true }
-bzip2 = { workspace = true }
-xz2 = { workspace = true }
-zstd = { workspace = true }
 
 [dev-dependencies]
-pretty_assertions = { workspace = true }
-rstest = { workspace = true }
-rstest_reuse = { workspace = true }
 
 [features]
 serde = ["dep:serde"]

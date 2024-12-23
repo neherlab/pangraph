@@ -19,9 +19,10 @@ crate-type = ["lib"]
 
 [dependencies]
 approx = { workspace = true }
+atty = { workspace = true }
 auto_ops = { workspace = true }
 bio = { workspace = true }
-bio-types = { workspace = true }
+bzip2 = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true }
 clap-markdown = { workspace = true }
@@ -42,14 +43,11 @@ itertools = { workspace = true }
 lazy_static = { workspace = true }
 log = { workspace = true }
 maplit = { workspace = true }
-memoize = { workspace = true }
 minimap2 = { workspace = true }
 ndarray = { workspace = true }
-ndarray-rand = { workspace = true }
 ndarray-stats = { workspace = true }
 noodles = { workspace = true }
 num = { workspace = true }
-num-integer = { workspace = true }
 num-traits = { workspace = true }
 num_cpus = { workspace = true }
 ordered-float = { workspace = true }
@@ -57,7 +55,6 @@ parking_lot = { workspace = true }
 pretty_assertions = { workspace = true }
 pretty_dtoa = { workspace = true }
 rand = { workspace = true }
-rand_distr = { workspace = true }
 rand_isaac = { workspace = true }
 rayon = { workspace = true }
 regex = { workspace = true }
@@ -72,14 +69,9 @@ strum = { workspace = true }
 strum_macros = { workspace = true }
 tempfile = { workspace = true }
 twox-hash = { workspace = true }
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-atty = { workspace = true }
-bzip2 = { workspace = true }
 xz2 = { workspace = true }
 zstd = { workspace = true }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 rstest = { workspace = true }
-rstest_reuse = { workspace = true }

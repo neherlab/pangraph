@@ -33,14 +33,15 @@ exclude = [
 libz-sys = { version = "1.1.20", default-features = false }
 
 [build-dependencies]
-bindgen = { version = "0.70.1", features = ["which-rustfmt", "runtime"], optional = true }
+bindgen = { version = "0.70.1", features = ["which-rustfmt", "runtime"] }
 cc = { version = "1.1.21" }
 
 [features]
 default = ["libz-sys/libc"]
-vendored = ["bindgen"]
 sse2only = []
 simde = []
 noopt = []
 zlib-ng = ["libz-sys/zlib-ng"]
 static = ["libz-sys/static"]
+stock-zlib = ["libz-sys/stock-zlib"]
+
