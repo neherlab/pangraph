@@ -129,4 +129,36 @@ impl PangraphBlock {
   pub fn is_duplicated(&self, graph: &Pangraph) -> bool {
     has_duplicates(self.isolates(graph))
   }
+
+  pub fn sequences<'a>(
+    &'a self,
+    graph: &'a Pangraph,
+    aligned: bool,
+    record_naming: RecordNaming,
+  ) -> impl Iterator<Item = (String, Result<String, Report>)> + 'a {
+    self.alignments().iter().map(move |(node_id, edits)| {
+      let id = match record_naming {
+        RecordNaming::Node => {
+          let node = &graph.nodes[node_id];
+          let block_id = node.block_id();
+          let path_name = &graph.paths[&node.path_id()].name().as_ref().unwrap();
+          let (start, end) = node.position();
+          let strand = node.strand();
+          format!("{node_id} {path_name}-{block_id} [{start}-{end}|{strand}]")
+        }
+        RecordNaming::Path => {
+          let path_id = graph.nodes[node_id].path_id();
+          graph.paths[&path_id].name.as_ref().unwrap().clone()
+        }
+      };
+      let seq = edits.apply(self.consensus());
+      (id, seq)
+    })
+  }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RecordNaming {
+  Node,
+  Path,
 }
