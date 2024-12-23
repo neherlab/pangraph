@@ -33,6 +33,10 @@ fn configure(cc: &mut cc::Build) {
     println!("cargo:rerun-if-changed={}", file.display());
   }
 
+  println!("cargo:rerun-if-env-changed=DEP_Z_INCLUDE");
+  let zlib_include_path = env::var("DEP_Z_INCLUDE").unwrap();
+  cc.include(zlib_include_path);
+
   cc.include("minimap2");
   cc.opt_level(2);
 
@@ -133,7 +137,7 @@ fn simde(cc: &mut cc::Build) {
   cc.include("minimap2/lib/simde");
   cc.flag("-DSIMDE_ENABLE_NATIVE_ALIASES");
   cc.flag("-DUSE_SIMDE");
-  cc.flag("-std=c99");
+  cc.flag("-std=gnu99");
 }
 
 fn compile() {
@@ -205,7 +209,6 @@ fn sse2only(cc: &mut cc::Build) {
   }
 }
 
-#[cfg(feature = "bindgen")]
 fn gen_bindings() {
   let out_path = PathBuf::from(env::var_os("OUT_DIR").unwrap());
 
@@ -222,14 +225,7 @@ fn gen_bindings() {
   bigings
     .write_to_file(out_path.join("bindings.rs"))
     .expect("Unable to create bindings");
-
-  bigings
-    .write_to_file("src/bindings.rs")
-    .expect("Unable to create bindings");
 }
-
-#[cfg(not(feature = "bindgen"))]
-fn gen_bindings() {}
 
 fn main() {
   compile();

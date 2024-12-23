@@ -45,6 +45,10 @@ fn reconsensus(block: &mut PangraphBlock) -> Result<(), Report> {
   if !ins.is_empty() || !dels.is_empty() {
     let consensus = block.consensus();
     let consensus = apply_indels(consensus, &dels, &ins);
+
+    // debug assert: consensus is not empty
+    debug_assert!(!consensus.is_empty(), "Consensus is empty after indels");
+
     update_block_consensus(block, &consensus)?;
   }
   Ok(())
@@ -87,8 +91,11 @@ fn reconsensus_mutations(block: &mut PangraphBlock) -> Result<(), Report> {
       let subs_at_pos: Vec<_> = edit.subs.iter().filter(|s| s.pos == pos).cloned().collect();
       match subs_at_pos.len() {
         0 => {
-          edit.subs.push(Sub::new(pos, original));
-          edit.subs.sort_by_key(|s| s.pos);
+          // if the position is not in a deletion, append the mutation
+          if !edit.dels.iter().any(|d| d.contains(pos)) {
+            edit.subs.push(Sub::new(pos, original));
+            edit.subs.sort_by_key(|s| s.pos);
+          }
         }
         1 => {
           let s = &subs_at_pos[0];
@@ -177,6 +184,22 @@ fn update_block_consensus(block: &mut PangraphBlock, consensus: impl Into<String
     .map(|(&nid, edit)| Ok((nid, edit.apply(block.consensus())?)))
     .collect::<Result<BTreeMap<NodeId, String>, Report>>()?;
 
+  // debug assets: all sequences are non-empty
+  #[cfg(any(debug_assertions, test))]
+  {
+    for (nid, seq) in &seqs {
+      if seq.is_empty() {
+        return make_error!(
+          "node is empty!\nblock: {}\nnode: {}\nedits: {:?}\nconsensus: {}",
+          block.id(),
+          nid,
+          block.alignments().get(nid),
+          block.consensus()
+        );
+      }
+    }
+  }
+
   // Re-align sequences
   let alignments = seqs
     .into_iter()
@@ -203,14 +226,14 @@ mod tests {
     //               01234567890123456789012
     //    node 1)    .T...--..........A.....
     //    node 2)    .T...--...C......|.....
-    //    node 3)    .T...--...C............
+    //    node 3)    .T...--...C.....--.....
     //    node 4)    .C.......---.....A.....
     //    node 5)    .....|...........A.....
     //     L = 23, N = 5
     let aln = btreemap! {
       NodeId(1) => Edit::new(vec![],                      vec![Del::new(5, 2)],     vec![Sub::new(1, 'T'), Sub::new(17, 'A')]),
       NodeId(2) => Edit::new(vec![Ins::new(17, "CAAT")],  vec![Del::new(5, 2)],     vec![Sub::new(1, 'T'), Sub::new(10, 'C')]),
-      NodeId(3) => Edit::new(vec![],                      vec![Del::new(5, 2)],     vec![Sub::new(1, 'T'), Sub::new(10, 'C')]),
+      NodeId(3) => Edit::new(vec![],                      vec![Del::new(5, 2), Del::new(16,2)],     vec![Sub::new(1, 'T'), Sub::new(10, 'C')]),
       NodeId(4) => Edit::new(vec![],                      vec![Del::new(9, 3)],     vec![Sub::new(1, 'C'), Sub::new(17, 'A')]),
       NodeId(5) => Edit::new(vec![],                      vec![Del::new(5, 2)],     vec![Sub::new(17, 'A')]),
     };
@@ -223,14 +246,14 @@ mod tests {
     //               01234567890123456789012
     //    node 1)    .....--................
     //    node 2)    .....--...C......G|....
-    //    node 3)    .....--...C......G.....
+    //    node 3)    .....--...C.....--.....
     //    node 4)    .C.......---...........
     //    node 5)    .G...|.................
     //     L = 23, N = 5
     let aln = btreemap! {
       NodeId(1) => Edit::new(vec![],                      vec![Del::new(5, 2)],     vec![]),
       NodeId(2) => Edit::new(vec![Ins::new(17, "CAAT")],  vec![Del::new(5, 2)],     vec![Sub::new(10, 'C'), Sub::new(17, 'G')]),
-      NodeId(3) => Edit::new(vec![],                      vec![Del::new(5, 2)],     vec![Sub::new(10, 'C'), Sub::new(17, 'G')]),
+      NodeId(3) => Edit::new(vec![],                      vec![Del::new(5, 2), Del::new(16,2)],     vec![Sub::new(10, 'C')]),
       NodeId(4) => Edit::new(vec![],                      vec![Del::new(9, 3)],     vec![Sub::new(1, 'C')]),
       NodeId(5) => Edit::new(vec![],                      vec![Del::new(5, 2)],     vec![Sub::new(1, 'G')]),
     };
