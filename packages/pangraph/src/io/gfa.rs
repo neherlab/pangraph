@@ -392,7 +392,12 @@ mod tests {
     "#})
     .unwrap();
 
-    let actual = gfa_write_str(&g, &GfaWriteParams::default()).unwrap();
+    let params = GfaWriteParams {
+      include_sequences: true,
+      ..Default::default()
+    };
+
+    let actual = gfa_write_str(&g, &params).unwrap();
 
     let expected = indoc! {r#"
     H	VN:Z:1.0
