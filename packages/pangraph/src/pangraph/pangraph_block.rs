@@ -157,7 +157,8 @@ impl PangraphBlock {
   }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
 pub enum RecordNaming {
   Node,
   Path,
