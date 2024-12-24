@@ -1,3 +1,4 @@
+use crate::commands::export::export_block_sequences::ExportBlockSequencesParams;
 use crate::io::gfa::GfaWriteParams;
 use clap::{Parser, Subcommand, ValueHint};
 use std::fmt::Debug;
@@ -89,9 +90,8 @@ pub struct PangraphExportBlockSequencesArgs {
   #[clap(long, short = 'o', value_hint = ValueHint::AnyPath)]
   pub output: PathBuf,
 
-  /// If set, then the full block sequences are exported but not aligned.
-  #[clap(long)]
-  pub unaligned: bool,
+  #[clap(flatten)]
+  pub params: ExportBlockSequencesParams,
 }
 
 #[derive(Parser, Debug, Clone)]
