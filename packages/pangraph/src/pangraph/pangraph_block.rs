@@ -151,13 +151,19 @@ impl PangraphBlock {
           graph.paths[&path_id].name.as_ref().unwrap().clone()
         }
       };
-      let seq = edits.apply(self.consensus());
+
+      let seq = if aligned {
+        edits.apply_aligned(self.consensus())
+      } else {
+        edits.apply(self.consensus())
+      };
+
       (id, seq)
     })
   }
 }
 
-#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, Serialize, Deserialize)]
+#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum RecordNaming {
   Node,

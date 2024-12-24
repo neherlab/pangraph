@@ -219,6 +219,29 @@ impl Edit {
     Ok(qry)
   }
 
+  pub fn apply_aligned(&self, reff: impl AsRef<str>) -> Result<String, Report> {
+    // TODO: decide whether it's best to use chars, bytes of something else entirely
+    let mut qry: Vec<char> = reff.as_ref().chars().collect_vec();
+
+    for sub in &self.subs {
+      qry[sub.pos] = sub.alt;
+    }
+
+    for del in &self.dels {
+      for pos in del.range() {
+        qry[pos] = '-';
+      }
+    }
+
+    for ins in self.inss.iter().sorted().rev() {
+      let seq = ins.seq.chars().collect_vec();
+      insert_at_inplace(&mut qry, ins.pos, &seq);
+    }
+
+    let qry = String::from_iter(&qry);
+    Ok(qry)
+  }
+
   #[cfg(any(test, debug_assertions))]
   pub fn sanity_check(&self, len: usize) -> Result<(), Report> {
     let block_interval = Interval::new(0, len);
