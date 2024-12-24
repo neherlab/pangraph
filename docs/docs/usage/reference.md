@@ -232,7 +232,7 @@ Export aligned or unaligned sequences for each block. Note that alignments exclu
 
 Export the core-genome alignment
 
-**Usage:** `pangraph export core-genome [OPTIONS] [INPUT_JSON]`
+**Usage:** `pangraph export core-genome [OPTIONS] --guide-strain <GUIDE_STRAIN> [INPUT_JSON]`
 
 ###### **Arguments:**
 

@@ -28,7 +28,7 @@ pub struct GfaWriteParams {
   #[clap(long)]
   maximum_depth: Option<usize>,
 
-  /// Include block sequences in the Gfa file
+  /// Include block sequences in the GFA file
   #[clap(long)]
   include_sequences: bool,
 
