@@ -1,4 +1,5 @@
 use crate::commands::export::export_block_sequences::ExportBlockSequencesParams;
+use crate::commands::export::export_core_genome::ExportCoreAlignmentParams;
 use crate::io::gfa::GfaWriteParams;
 use clap::{Parser, Subcommand, ValueHint};
 use std::fmt::Debug;
@@ -116,13 +117,6 @@ pub struct PangraphExportCoreAlignmentArgs {
   #[clap(long, short = 'o', default_value = "-", value_hint = ValueHint::AnyPath)]
   pub output: PathBuf,
 
-  /// Specify the strain to use as a reference for the alignment. Core blocks are ordered and oriented (forward or reverse) according to the reference strain.
-  #[clap(long, value_hint = ValueHint::Other)]
-  pub guide_strain: Option<String>,
-
-  /// If set, then the full core sequences are exported but not aligned.
-  ///
-  /// They should be linearly alignable and can be fed to an external aligner.
-  #[clap(long)]
-  pub unaligned: bool,
+  #[clap(flatten)]
+  pub params: ExportCoreAlignmentParams,
 }

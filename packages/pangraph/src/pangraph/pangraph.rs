@@ -2,6 +2,7 @@ use crate::io::fasta::FastaRecord;
 use crate::io::file::open_file_or_stdin;
 use crate::io::fs::read_reader_to_string;
 use crate::io::json::json_read_str;
+use crate::make_internal_report;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::pangraph_path::{PangraphPath, PathId};
@@ -181,6 +182,49 @@ impl Pangraph {
     }
 
     Ok(())
+  }
+
+  pub fn path_ids(&self) -> impl Iterator<Item = PathId> + '_ {
+    self.paths.keys().copied()
+  }
+
+  pub fn block_ids(&self) -> impl Iterator<Item = BlockId> + '_ {
+    self.blocks.keys().copied()
+  }
+
+  pub fn node_ids(&self) -> impl Iterator<Item = NodeId> + '_ {
+    self.nodes.keys().copied()
+  }
+
+  pub fn path_names(&self) -> impl Iterator<Item = Option<&str>> {
+    self.paths.values().map(|path| path.name.as_deref())
+  }
+
+  /// Returns a list of core block ids. Core blocks are present exactly once in each path.
+  pub fn core_block_ids(&self) -> impl Iterator<Item = BlockId> + '_ {
+    let path_ids: BTreeSet<_> = self.path_ids().collect();
+    self.blocks.iter().filter_map(move |(block_id, block)| {
+      let block_path_ids: BTreeSet<_> = block
+        .alignment_keys()
+        .into_iter()
+        .map(|nid| self.nodes[&nid].path_id())
+        .collect();
+
+      let is_in_all_paths = block_path_ids == path_ids;
+      let is_not_duplicated = block_path_ids.len() == path_ids.len();
+      (is_in_all_paths && is_not_duplicated).then_some(*block_id)
+    })
+  }
+
+  // Returns the path id given the path name.
+  pub fn path_id_by_name(&self, path_name: impl AsRef<str>) -> Result<PathId, Report> {
+    let path_name = path_name.as_ref();
+    self
+      .paths
+      .iter()
+      .find(|(_, path)| path.name.as_deref() == Some(path_name))
+      .map(|(pid, _)| *pid)
+      .ok_or_else(|| make_internal_report!("When retrieving path id by name: path '{path_name}' not found"))
   }
 }
 
