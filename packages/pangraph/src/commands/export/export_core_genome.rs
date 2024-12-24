@@ -39,8 +39,9 @@ pub fn export_core_genome(args: PangraphExportCoreAlignmentArgs) -> Result<(), R
     .into_iter()
     .enumerate()
     .try_for_each(|(index, (id, seq))| {
-      { output_fasta.write(&id, &seq) }.wrap_err_with(|| format!("When writing sequence #{index} '{id}'"))
-      // .wrap_err_with(|| format!("When writing sequences of block {}", block.id()))
+      output_fasta
+        .write(&id, &seq)
+        .wrap_err_with(|| format!("When writing sequence #{index} '{id}'"))
     })?;
 
   Ok(())
@@ -111,6 +112,10 @@ fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Resul
 /// Given a list of lists of FastaRecord objects, concatenates all records
 /// with the same name in the same sequence, and returns a single list of FastaRecord objects.
 fn concatenate_records(records_list: &[Vec<(String, String)>]) -> Result<Vec<(String, String)>, Report> {
+  if records_list.is_empty() {
+    return Ok(vec![]);
+  }
+
   let mut records: BTreeMap<String, String> = records_list[0]
     .iter()
     .map(|(id, _)| (id.clone(), String::new()))
@@ -132,4 +137,157 @@ fn concatenate_records(records_list: &[Vec<(String, String)>]) -> Result<Vec<(St
     .collect_vec();
 
   Ok(records)
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::o;
+  use crate::utils::error::report_to_string;
+  use indoc::indoc;
+  use pretty_assertions::assert_eq;
+  use std::str::FromStr;
+
+  #[test]
+  fn test_core_block_aln_general_case() {
+    let graph = Pangraph::from_str(indoc! {
+    // language=json
+    r#"
+      {
+        "paths": {
+          "0": {
+            "id": 0,
+            "nodes": [1, 2],
+            "tot_len": 100,
+            "circular": false,
+            "name": "Path A"
+          },
+          "1": {
+            "id": 1,
+            "nodes": [3, 4],
+            "tot_len": 100,
+            "circular": false,
+            "name": "Path B"
+          }
+        },
+        "blocks": {
+          "1": {
+            "id": 1,
+            "consensus": "ACGTACGT",
+            "alignments": {
+              "1": {
+                "subs": [],
+                "dels": [],
+                "inss": []
+              },
+              "2": {
+                "subs": [{"pos": 3, "alt": "T"}],
+                "dels": [],
+                "inss": []
+              }
+            }
+          },
+          "2": {
+            "id": 2,
+            "consensus": "TTGCA",
+            "alignments": {
+              "3": {
+                "subs": [],
+                "dels": [{"pos": 2, "len": 1}],
+                "inss": []
+              },
+              "4": {
+                "subs": [],
+                "dels": [],
+                "inss": [{"pos": 0, "seq": "AAA"}]
+              }
+            }
+          }
+        },
+        "nodes": {
+          "1": {
+            "id": 1,
+            "block_id": 1,
+            "path_id": 0,
+            "strand": "+",
+            "position": [0, 8]
+          },
+          "2": {
+            "id": 2,
+            "block_id": 1,
+            "path_id": 0,
+            "strand": "-",
+            "position": [0, 8]
+          },
+          "3": {
+            "id": 3,
+            "block_id": 2,
+            "path_id": 1,
+            "strand": "+",
+            "position": [0, 5]
+          },
+          "4": {
+            "id": 4,
+            "block_id": 2,
+            "path_id": 1,
+            "strand": "+",
+            "position": [0, 5]
+          }
+        }
+      }
+      "#})
+    .unwrap();
+
+    let params = ExportCoreAlignmentParams {
+      guide_strain: o!("Path A"),
+      unaligned: true,
+    };
+
+    let expected = vec![(o!("Path A"), o!("ACGTTGTCA--")), (o!("Path B"), o!("TT--CGAATTTGCA"))];
+    let actual = core_block_aln(&graph, &params).unwrap();
+
+    assert_eq!(expected, actual);
+  }
+
+  #[test]
+  fn test_concatenate_records_general_case() {
+    let input = vec![
+      vec![(o!("name1"), o!("ATG")), (o!("name2"), o!("CCC"))],
+      vec![(o!("name1"), o!("TGA")), (o!("name2"), o!("GGG"))],
+    ];
+    let expected = vec![(o!("name1"), o!("ATGTGA")), (o!("name2"), o!("CCCGGG"))];
+    let actual = concatenate_records(&input).unwrap();
+    assert_eq!(expected, actual);
+  }
+
+  #[test]
+  fn test_concatenate_records_single_entry() {
+    let input = vec![vec![(o!("name1"), o!("ATG"))]];
+    let expected = vec![(o!("name1"), o!("ATG"))];
+    let actual = concatenate_records(&input).unwrap();
+    assert_eq!(expected, actual);
+  }
+
+  #[test]
+  fn test_concatenate_records_multiple_entries_same_name() {
+    let input = vec![
+      vec![(o!("name1"), o!("ATG")), (o!("name1"), o!("TGA"))],
+      vec![(o!("name1"), o!("CCC"))],
+    ];
+    let expected = vec![(o!("name1"), o!("ATGTGACCC"))];
+    let actual = concatenate_records(&input).unwrap();
+    assert_eq!(expected, actual);
+  }
+
+  #[test]
+  fn test_concatenate_records_missing_name_in_initial_set() {
+    let input = vec![
+      vec![(o!("name1"), o!("ATG")), (o!("name2"), o!("CCC"))],
+      vec![(o!("name3"), o!("TGA"))],
+    ];
+    let actual = report_to_string(&concatenate_records(&input).unwrap_err());
+    let expected =
+      "Sequence name 'name3' not found in the initial set. This is an internal error. Please report it to developers.";
+    assert_eq!(expected, actual);
+  }
 }
