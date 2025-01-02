@@ -94,6 +94,16 @@ impl PangraphBlock {
     self.consensus.len()
   }
 
+  pub fn unaligned_len_for_edit(&self, edits: &Edit) -> usize {
+    let total_dels: usize = edits.dels.iter().map(|del| del.len).sum();
+    let total_inss: usize = edits.inss.iter().map(|ins| ins.seq.len()).sum();
+    self.consensus_len() + total_inss - total_dels
+  }
+
+  pub fn unaligned_len_for_node(&self, node_id: &NodeId) -> usize {
+    self.unaligned_len_for_edit(&self.alignments[node_id])
+  }
+
   pub fn alignment(&self, nid: NodeId) -> &Edit {
     &self.alignments[&nid]
   }

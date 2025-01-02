@@ -3,6 +3,7 @@ use crate::pangraph::pangraph_path::PathId;
 use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
 use derive_more::{Display, From};
+use eyre::{Context, Report};
 use getset::CopyGetters;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,16 @@ pub struct PangraphNode {
   path_id: PathId,
   strand: Strand,
   position: (usize, usize),
+}
+
+impl NodeId {
+  pub fn from_str(s: impl AsRef<str>) -> Result<Self, Report> {
+    let s = s.as_ref();
+    let id = s
+      .parse::<usize>()
+      .wrap_err_with(|| format!("When parsing Node ID: expected unsigned integer, but got '{s}'"))?;
+    Ok(Self(id))
+  }
 }
 
 impl PangraphNode {
