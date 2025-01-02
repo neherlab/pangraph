@@ -20,7 +20,22 @@ Pangraph is written in Rust. The usual `rustup` & `cargo` workflow can be used:
 # These particular commands are specific for Ubuntu Linux and will work on some other Debian-based Linux distros.
 # Refer to documentation of your operating system to find how to install these dependencies.
 sudo apt-get update
-sudo apt-get install --yes bash curl clang git make pkg-config libssl-dev
+sudo apt-get install \
+  bash \
+  build-essential \
+  clang \
+  curl \
+  gcc \
+  git \
+  libbz2-dev \
+  libclang-dev \
+  liblzma-dev \
+  libopenblas-dev \
+  libssl-dev \
+  libzstd-dev \
+  make \
+  pkg-config \
+  zlib1g-dev \
 
 # Install Rustup, the Rust version manager (https://www.rust-lang.org/tools/install)
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y
