@@ -14,27 +14,27 @@ use std::path::Path;
 pub struct GfaWriteParams {
   /// Blocks below this length cutoff will not be exported
   #[clap(long)]
-  minimum_length: Option<usize>,
+  pub minimum_length: Option<usize>,
 
   /// Blocks above this length cutoff will not be exported
   #[clap(long)]
-  maximum_length: Option<usize>,
+  pub maximum_length: Option<usize>,
 
   /// Blocks below this depth cutoff will not be exported
   #[clap(long)]
-  minimum_depth: Option<usize>,
+  pub minimum_depth: Option<usize>,
 
   /// Blocks above this depth cutoff will not be exported
   #[clap(long)]
-  maximum_depth: Option<usize>,
+  pub maximum_depth: Option<usize>,
 
   /// Include block sequences in the GFA file
   #[clap(long)]
-  include_sequences: bool,
+  pub include_sequences: bool,
 
   /// Exclude blocks that are duplicated in any path
   #[clap(long)]
-  no_duplicated: bool,
+  pub no_duplicated: bool,
 }
 
 impl GfaWriteParams {
