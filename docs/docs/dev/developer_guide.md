@@ -10,7 +10,7 @@ the project.
 
 ## Setup developer environment
 
-This guide assumes Ubuntu 22.04 operating system, but will likely work similarly to any other Linux and Unix-like
+This guide assumes Ubuntu 24.04 operating system, but will likely work similarly to any other Linux and Unix-like
 machine.
 
 Pangraph is written in Rust. The usual `rustup` & `cargo` workflow can be used:
@@ -103,28 +103,71 @@ will automatically install Rust version required by the project. This may cause 
 
 ### Testing
 
+
+#### Install requirements
+
+We run tests using `cargo-nextest` (https://nexte.st/). You can install it from [GitHub Releases](https://github.com/nextest-rs/nextest/releases) or build and install from source with
+
+```bash
+cargo install cargo-nextest --locked
+```
+
+#### All tests
+
 Run all tests with:
 
 ```bash
-cargo test
+cargo nextest run
 ```
 
 Add `--no-fail-fast` flag to keep going even if there are failures.
 
-A subset of tests can be ran by providing a regex matching full test name. For example
+A subset of tests can be ran by providing a regex matching full test name. For example to run tests `test_foo` and `test_foo_bar`
 
 ```bash
-cargo test gtr
+cargo nextest run foo
 ```
 
-See also: [cargo-test](https://doc.rust-lang.org/cargo/commands/cargo-test.html)
+You may experiment with command line arguments and the `prettytest` script for the most useful and pleasant output:
+
+```bash
+cargo -q nextest run --success-output=immediate --workspace --cargo-quiet --no-fail-fast --hide-progress-bar --color=always | "./dev/prettytest"
+```
+
+Arguments of `cargo test` (and by extension `cargo nextest`) are somewhat confusing, so you could setup some personal shell scripts or aliases to simplify routine work on Rust projects.
+
+See also: 
+ 
+ - [cargo-test docs](https://doc.rust-lang.org/cargo/commands/cargo-test.html)
+ - [cargo-nextest docs](https://nexte.st/)
+ - Read more about different test types in [The Rust Book](https://doc.rust-lang.org/book/Rch11-03-test-organization.html) as well as in [Rust by Example](https://doc.rust-lang.org/rust-by-example/testing.html).
+
+#### Unit tests
+
+If you want to run only unit tests:
+
+```bash
+cargo nextest run --lib
+cargo nextest run --lib foo
+```
+
+#### Integration tests
+
+If you want to run only integration tests:
+
+```bash
+cargo nextest run --test='*'
+cargo nextest run --test='*' foo
+cargo nextest run --test='foo'
+```
+
 
 ### Linting (static analysis)
 
 Rust code is linted by running [Clippy](https://github.com/rust-lang/rust-clippy):
 
 ```bash
-cargo clippy
+cargo clippy --all-targets --all
 ```
 
 Clippy is configured in `clippy.toml` and `.cargo/config.toml`.
