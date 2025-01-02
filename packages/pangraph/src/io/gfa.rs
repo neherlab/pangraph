@@ -253,7 +253,7 @@ fn gfa_filter_path(path: &GfaPath, segments: &BTreeMap<BlockId, GfaSegment>, par
         && length <= params.get_maximum_length()
         && depth >= params.get_minimum_depth()
         && depth <= params.get_maximum_depth()
-        && (!params.no_duplicated() || !segment.duplicated)
+        && !(params.no_duplicated() && segment.duplicated)
     })
     .cloned()
     .collect();
