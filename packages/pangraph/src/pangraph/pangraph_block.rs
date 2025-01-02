@@ -1,6 +1,9 @@
 use crate::io::seq::reverse_complement;
 use crate::pangraph::edits::Edit;
+use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_node::NodeId;
+use crate::pangraph::pangraph_path::PathId;
+use crate::utils::collections::has_duplicates;
 use derive_more::{Display, From};
 use eyre::{Report, WrapErr};
 use getset::{CopyGetters, Getters};
@@ -91,6 +94,16 @@ impl PangraphBlock {
     self.consensus.len()
   }
 
+  pub fn unaligned_len_for_edit(&self, edits: &Edit) -> usize {
+    let total_dels: usize = edits.dels.iter().map(|del| del.len).sum();
+    let total_inss: usize = edits.inss.iter().map(|ins| ins.seq.len()).sum();
+    self.consensus_len() + total_inss - total_dels
+  }
+
+  pub fn unaligned_len_for_node(&self, node_id: &NodeId) -> usize {
+    self.unaligned_len_for_edit(&self.alignments[node_id])
+  }
+
   pub fn alignment(&self, nid: NodeId) -> &Edit {
     &self.alignments[&nid]
   }
@@ -118,4 +131,51 @@ impl PangraphBlock {
   pub fn alignment_remove(&mut self, node_id: NodeId) -> Edit {
     self.alignments.remove(&node_id).unwrap()
   }
+
+  pub fn isolates<'a>(&'a self, graph: &'a Pangraph) -> impl Iterator<Item = PathId> + 'a {
+    self.alignments.keys().map(|&node_id| graph.nodes[&node_id].path_id())
+  }
+
+  pub fn is_duplicated(&self, graph: &Pangraph) -> bool {
+    has_duplicates(self.isolates(graph))
+  }
+
+  pub fn sequences<'a>(
+    &'a self,
+    graph: &'a Pangraph,
+    aligned: bool,
+    record_naming: RecordNaming,
+  ) -> impl Iterator<Item = (String, Result<String, Report>)> + 'a {
+    self.alignments().iter().map(move |(node_id, edits)| {
+      let id = match record_naming {
+        RecordNaming::Node => {
+          let node = &graph.nodes[node_id];
+          let block_id = node.block_id();
+          let path_name = &graph.paths[&node.path_id()].name().as_ref().unwrap();
+          let (start, end) = node.position();
+          let strand = node.strand();
+          format!("{node_id} {path_name}-{block_id} [{start}-{end}|{strand}]")
+        }
+        RecordNaming::Path => {
+          let path_id = graph.nodes[node_id].path_id();
+          graph.paths[&path_id].name.as_ref().unwrap().clone()
+        }
+      };
+
+      let seq = if aligned {
+        edits.apply_aligned(self.consensus())
+      } else {
+        edits.apply(self.consensus())
+      };
+
+      (id, seq)
+    })
+  }
+}
+
+#[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum RecordNaming {
+  Node,
+  Path,
 }

@@ -37,7 +37,7 @@ impl PangraphPath {
     name: Option<String>,
   ) -> Self {
     let nodes = nodes.into();
-    let id = path_id.unwrap_or_else(|| id((&nodes, &tot_len, &circular)));
+    let id = path_id.unwrap_or_else(|| id((&nodes, &tot_len, &circular, &name)));
     Self {
       id,
       nodes,

@@ -1,5 +1,7 @@
 use crate::{make_error, make_internal_report};
 use eyre::Report;
+use std::collections::HashSet;
+use std::hash::Hash;
 
 pub fn concat_to_vec<T: Clone>(x: &[T], y: &[T]) -> Vec<T> {
   [x, y].into_iter().flatten().cloned().collect()
@@ -38,6 +40,11 @@ pub fn insert_at_inplace<T: Clone>(vec: &mut Vec<T>, index: usize, slice: &[T]) 
   let mut v = vec.split_off(index);
   vec.extend_from_slice(slice);
   vec.append(&mut v);
+}
+
+pub fn has_duplicates<T: Eq + Hash, I: IntoIterator<Item = T>>(iter: I) -> bool {
+  let mut seen = HashSet::new();
+  iter.into_iter().any(|item| !seen.insert(item))
 }
 
 #[cfg(test)]

@@ -48,6 +48,28 @@ def make_commands(exe, data_dir, out_dir, fast=False):
 
         f"{exe} build {data_dir}/flu-h3.fa           -o {out_dir}/flu-h3_default.json",
         f"{exe} build {data_dir}/flu-h3.fa           -o {out_dir}/flu-h3_c-b5-s20-l100.json       -c -b 5 -s 20 -l 100",
+
+        f"{exe} export --help",
+
+        f"{exe} export gfa --help",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph.gfa",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_ml-100.gfa          --minimum-length=100",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_ml-100_nd.gfa       --minimum-length=100                         --no-duplicated",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_md-2.gfa                                    --minimum-depth=2",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_md-2_nd.gfa                                 --minimum-depth=2    --no-duplicated",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_ml-100_md-2.gfa     --minimum-length=100    --minimum-depth=2",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_ml-100_md-2_nd.gfa  --minimum-length=100    --minimum-depth=2    --no-duplicated",
+
+        f"{exe} export block-consensus --help",
+        f"{exe} export block-consensus {data_dir}/test_graph.json -o {out_dir}/export-block-consensus/block-consensus.fa",
+
+        f"{exe} export block-sequences --help",
+        f"{exe} export block-sequences {data_dir}/test_graph.json -o {out_dir}/export-block-sequences/block-sequences-aligned",
+        f"{exe} export block-sequences {data_dir}/test_graph.json -o {out_dir}/export-block-sequences/block-sequences-unaligned      --unaligned",
+
+        f"{exe} export core-genome --help",
+        f"{exe} export core-genome {data_dir}/test_graph.json --guide-strain='pCAV1344-40' -o {out_dir}/export-core-genome/core-genome-aligned.fa",
+        f"{exe} export core-genome {data_dir}/test_graph.json --guide-strain='pCAV1344-40' -o {out_dir}/export-core-genome/core-genome-unaligned.fa   --unaligned",
     ]
     all_cmds = fast_cmds + [
         f"{exe} build {data_dir}/ecoli.fa.gz         -o {out_dir}/ecoli_default.json",

@@ -4,6 +4,7 @@ pub mod csv;
 pub mod fasta;
 pub mod file;
 pub mod fs;
+pub mod gfa;
 pub mod json;
 pub mod json_schema;
 pub mod seq;
