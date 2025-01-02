@@ -1,3 +1,4 @@
+use crate::io::json::{json_write_str, JsonPretty};
 use crate::io::seq::reverse_complement;
 use crate::pangraph::edits::Edit;
 use crate::pangraph::pangraph::Pangraph;
@@ -10,6 +11,7 @@ use getset::{CopyGetters, Getters};
 use maplit::btreemap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::collections::{BTreeMap, BTreeSet};
 use std::hash::Hash;
 
@@ -154,7 +156,20 @@ impl PangraphBlock {
           let path_name = &graph.paths[&node.path_id()].name().as_ref().unwrap();
           let (start, end) = node.position();
           let strand = node.strand();
-          format!("{node_id} {path_name}-{block_id} [{start}-{end}|{strand}]")
+
+          let meta = json_write_str(
+            &json! ({
+              "path_name": path_name,
+              "block_id": block_id,
+              "start": start,
+              "end": end,
+              "strand": strand,
+            }),
+            JsonPretty(false),
+          )
+          .unwrap();
+
+          format!("{node_id} {meta}")
         }
         RecordNaming::Path => {
           let path_id = graph.nodes[node_id].path_id();
