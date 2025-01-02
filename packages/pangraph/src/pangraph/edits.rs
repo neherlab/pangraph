@@ -233,11 +233,6 @@ impl Edit {
       }
     }
 
-    for ins in self.inss.iter().sorted().rev() {
-      let seq = ins.seq.chars().collect_vec();
-      insert_at_inplace(&mut qry, ins.pos, &seq);
-    }
-
     let qry = String::from_iter(&qry);
     Ok(qry)
   }
