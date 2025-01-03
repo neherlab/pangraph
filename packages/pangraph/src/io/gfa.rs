@@ -108,7 +108,7 @@ pub fn gfa_write<W: Write>(mut writer: W, g: &Pangraph, params: &GfaWriteParams)
     .links
     .edge_ct
     .iter()
-    .map(|(edge, &read_count)| (edge.smaller_bid_first(), read_count)) // sort by smaller bid first
+    .map(|(edge, &read_count)| (edge.conventional_orientation(), read_count)) // sort by smaller bid first
     .sorted_by_key(|(edge, _)| edge.to_tuple())
   // sort by (bid1, bid2, strand1, strand2)
   {
