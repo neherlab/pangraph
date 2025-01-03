@@ -7,8 +7,8 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::RecordNaming;
 use clap::Parser;
 use eyre::{Context, Report};
-use itertools::{izip, Itertools};
-use std::collections::{BTreeMap, BTreeSet};
+use itertools::Itertools;
+use std::collections::BTreeMap;
 
 #[derive(Parser, Debug, Default, Clone)]
 pub struct ExportCoreAlignmentParams {
@@ -51,29 +51,22 @@ pub fn export_core_genome(args: PangraphExportCoreAlignmentArgs) -> Result<(), R
 /// If aligned is True, it returns aligned sequences, with gaps for deletions and no insertions.
 /// If aligned is False, it returns the full unaligned sequences.
 fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Result<Vec<(String, String)>, Report> {
-  let core_block_ids = graph.core_block_ids();
+  let core_block_ids: Vec<_> = graph.core_block_ids().collect();
   let guide_path_id = graph.path_id_by_name(&params.guide_strain)?;
   let guide_path = &graph.paths[&guide_path_id];
 
-  let guide_block_info: BTreeMap<_, _> = guide_path
+  // Extract sequences for all core blocks
+  let mut records = vec![];
+  for (bid, strand) in guide_path
     .nodes
     .iter()
     .map(|node_id| {
       let node = &graph.nodes[node_id];
       (node.block_id(), node.strand())
     })
-    .collect();
-
-  let guide_block_ids: BTreeSet<_> = guide_block_info.keys().collect();
-  let guide_block_values: Vec<_> = guide_block_info.values().collect();
-
-  // Extract sequences for all core blocks
-  let mut records = vec![];
-  for (bid, &strand) in izip!(core_block_ids, guide_block_values) {
-    if !guide_block_ids.contains(&bid) {
-      continue; // Only consider core blocks
-    }
-
+    .filter(|(bid, _)| core_block_ids.contains(bid))
+  // Filter out non-core blocks
+  {
     let block = &graph.blocks[&bid];
     let mut block_records: Vec<_> = block
       .sequences(graph, !params.unaligned, RecordNaming::Path)
