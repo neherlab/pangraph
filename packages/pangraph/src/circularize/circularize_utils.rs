@@ -58,6 +58,20 @@ impl Edge {
   pub fn oriented_equal(&self, other: &Edge) -> bool {
     self.n1 == other.n1 && self.n2 == other.n2
   }
+
+  pub fn smaller_bid_first(&self) -> Edge {
+    if self.n1.bid < self.n2.bid {
+      *self
+    } else {
+      self.invert()
+    }
+  }
+
+  pub fn to_tuple(&self) -> (BlockId, BlockId, isize, isize) {
+    let s1 = if self.n1.strand == Strand::Forward { 0 } else { 1 };
+    let s2 = if self.n2.strand == Strand::Forward { 0 } else { 1 };
+    (self.n1.bid, self.n2.bid, s1, s2)
+  }
 }
 
 impl PartialEq for Edge {

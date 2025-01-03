@@ -108,17 +108,9 @@ pub fn gfa_write<W: Write>(mut writer: W, g: &Pangraph, params: &GfaWriteParams)
     .links
     .edge_ct
     .iter()
-    .map(|(edge, &read_count)| {
-      (
-        if edge.n1.bid > edge.n2.bid {
-          edge.invert()
-        } else {
-          *edge
-        },
-        read_count,
-      )
-    })
-    .sorted_by_key(|(edge, _)| (edge.n1.bid, edge.n2.bid))
+    .map(|(edge, &read_count)| (edge.smaller_bid_first(), read_count)) // sort by smaller bid first
+    .sorted_by_key(|(edge, _)| edge.to_tuple())
+  // sort by (bid1, bid2, strand1, strand2)
   {
     let bid1 = edge.n1.bid;
     let strand1 = edge.n1.strand;
@@ -460,8 +452,8 @@ mod tests {
     S	4	CTTCAGCAAG	RC:i:10	LN:i:10
     # edges
     L	1	+	2	-	*	RC:i:2
-    L	1	-	3	-	*	RC:i:1
     L	1	-	3	+	*	RC:i:1
+    L	1	-	3	-	*	RC:i:1
     L	2	-	3	+	*	RC:i:1
     L	2	-	4	-	*	RC:i:1
     L	3	+	4	+	*	RC:i:1
