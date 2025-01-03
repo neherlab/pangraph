@@ -38,6 +38,20 @@ fn find_empty_nodes(graph: &Pangraph, block_ids: &[BlockId]) -> Vec<NodeId> {
       // then it is not empty
       if !edits.inss.is_empty() || !edits.subs.is_empty() || edits.dels.is_empty() {
         // check that the node is not empty
+        // first exclude edge-case: circular path with a single node. In this case start == end but the node is not empty
+        let path_id = graph.nodes[&node_id].path_id();
+        let path = &graph.paths[&path_id];
+        let is_circular = path.circular();
+        let single_node = path.nodes.len() == 1;
+        if is_circular && single_node {
+          debug_assert!(
+            path.tot_len > 0,
+            "Circular path {path_id} with a single node should not have a length of 0"
+          );
+          continue;
+        }
+
+        // if this is not the case, then it is sufficient to check that the node start != end
         debug_assert!(
           !graph.nodes[&node_id].start_is_end(),
           "Node {node_id} with edits {edits:?} and consensus length {cons_len} is empty and should have been removed",
