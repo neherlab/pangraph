@@ -30,7 +30,8 @@ impl Pangraph {
     let block_id = BlockId(fasta.index);
     let block = PangraphBlock::from_consensus(fasta.seq, block_id, node_id);
     let path_id = PathId(fasta.index);
-    let node = PangraphNode::new(Some(node_id), block.id(), path_id, strand, (0, 0));
+    let node_position = if circular { (0, 0) } else { (0, tot_len) }; // path wraps around if circular
+    let node = PangraphNode::new(Some(node_id), block.id(), path_id, strand, node_position);
     let path = PangraphPath::new(Some(path_id), [node.id()], tot_len, circular, Some(fasta.seq_name));
     Self {
       blocks: btreemap! {block.id() => block},

@@ -59,7 +59,11 @@ pub fn new_strandedness(old_strandedness: Strand, orientation: Strand, is_anchor
   }
 }
 
-pub fn new_position(
+// given the old position of a node, the coordinates of the node in the new block,
+// the length of the path and the strandedness of the node, return the new node position.
+// Accounts for circular paths.
+// Nb: a node that spans the whole path [0, L] will have position [0, 0]
+pub fn new_position_circular(
   old_position: (usize, usize),
   node_coords: (usize, usize),
   path_L: usize,
@@ -74,6 +78,24 @@ pub fn new_position(
       (old_e + path_L - new_e_in_node) % path_L,
       (old_e + path_L - new_s_in_node) % path_L,
     )
+  }
+}
+
+// given the old position of a node, the coordinates of the node in the new block,
+// and the strandedness of the node, return the new node position.
+// Does not account for circular paths.
+// Nb: a node that spans the whole path [0, L] will have position [0, L]
+pub fn new_position_non_circular(
+  old_position: (usize, usize),
+  node_coords: (usize, usize),
+  old_strandedness: Strand,
+) -> (usize, usize) {
+  let (old_s, old_e) = old_position;
+  let (new_s_in_node, new_e_in_node) = node_coords;
+  if old_strandedness.is_forward() {
+    (old_s + new_s_in_node, old_s + new_e_in_node)
+  } else {
+    (old_e - new_e_in_node, old_e - new_s_in_node)
   }
 }
 
@@ -134,7 +156,12 @@ pub fn block_slice(
 
     let path_L = G.paths[&old_node.path_id()].tot_len;
     let node_coords = interval_node_coords(i, edits, block_L);
-    let new_pos = new_position(old_node.position(), node_coords, path_L, old_strandedness);
+    let circular = G.paths[&old_node.path_id()].circular();
+    let new_pos = if circular {
+      new_position_circular(old_node.position(), node_coords, path_L, old_strandedness)
+    } else {
+      new_position_non_circular(old_node.position(), node_coords, old_strandedness)
+    };
 
     let new_node = PangraphNode::new(None, i.new_block_id, old_node.path_id(), new_strand, new_pos);
     node_updates.insert(*old_node_id, new_node.clone());
@@ -315,27 +342,60 @@ mod tests {
   }
 
   #[test]
-  fn test_new_position() {
+  fn test_new_position_circular() {
     let path_L = 100;
 
     let strandedness = Forward;
     let node_coords = (10, 20);
     let old_position = (10, 40);
-    let new_pos = new_position(old_position, node_coords, path_L, strandedness);
+    let new_pos = new_position_circular(old_position, node_coords, path_L, strandedness);
     assert_eq!(new_pos, (20, 30));
 
     let old_position = (95, 20);
-    let new_pos = new_position(old_position, node_coords, path_L, strandedness);
+    let new_pos = new_position_circular(old_position, node_coords, path_L, strandedness);
     assert_eq!(new_pos, (5, 15));
 
     let strandedness = Reverse;
     let old_position = (10, 50);
-    let new_pos = new_position(old_position, node_coords, path_L, strandedness);
+    let new_pos = new_position_circular(old_position, node_coords, path_L, strandedness);
     assert_eq!(new_pos, (30, 40));
 
     let old_position = (40, 5);
-    let new_pos = new_position(old_position, node_coords, path_L, strandedness);
+    let new_pos = new_position_circular(old_position, node_coords, path_L, strandedness);
     assert_eq!(new_pos, (85, 95));
+
+    let strandedness = Forward;
+    let old_position = (0, 100);
+    let node_coords = (0, 100);
+    let new_pos = new_position_circular(old_position, node_coords, path_L, strandedness);
+    assert_eq!(new_pos, (0, 0));
+  }
+
+  #[test]
+  fn test_new_position_non_circular() {
+    let strandedness = Forward;
+    let node_coords = (10, 20);
+    let old_position = (10, 40);
+    let new_pos = new_position_non_circular(old_position, node_coords, strandedness);
+    assert_eq!(new_pos, (20, 30));
+
+    let strandedness = Reverse;
+    let node_coords = (10, 20);
+    let old_position = (10, 50);
+    let new_pos = new_position_non_circular(old_position, node_coords, strandedness);
+    assert_eq!(new_pos, (30, 40));
+
+    let strandedness = Forward;
+    let node_coords = (0, 10);
+    let old_position = (0, 20);
+    let new_pos = new_position_non_circular(old_position, node_coords, strandedness);
+    assert_eq!(new_pos, (0, 10));
+
+    let strandedness = Forward;
+    let node_coords = (0, 100);
+    let old_position = (0, 100);
+    let new_pos = new_position_non_circular(old_position, node_coords, strandedness);
+    assert_eq!(new_pos, (0, 100));
   }
 
   #[test]
