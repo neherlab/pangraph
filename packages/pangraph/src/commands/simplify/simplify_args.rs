@@ -2,7 +2,7 @@ use clap::{Parser, ValueHint};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
-/// Computes all pairwise marginalizations of a multiple sequence alignment graph
+/// Generates a simplified graph that only contains a subset of the input genomes.
 #[derive(Parser, Debug)]
 pub struct PangraphSimplifyArgs {
   /// Path to Pangraph JSON.
