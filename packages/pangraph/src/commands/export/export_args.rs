@@ -85,7 +85,7 @@ pub struct PangraphExportBlockSequencesArgs {
   #[clap(display_order = 1, value_hint = ValueHint::FilePath)]
   pub input_json: Option<PathBuf>,
 
-  /// Path to directory to write output FASTA files to
+  /// Path to directory to write output FASTA files to. Files are named `block_{block_id}.fa` in the folder.
   ///
   /// See: https://en.wikipedia.org/wiki/FASTA_format
   #[clap(long, short = 'o', value_hint = ValueHint::AnyPath)]
