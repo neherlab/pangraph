@@ -7,16 +7,13 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::strand::Strand::Forward;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
-use crate::utils::random::get_random_number_generator;
 use crate::{make_internal_error, make_internal_report};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use log::info;
 
 pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
-  let PangraphBuildArgs { input_fastas, seed, .. } = &args;
-
-  let rng = get_random_number_generator(seed);
+  let input_fastas = &args.input_fastas;
 
   let fastas = read_many_fasta(input_fastas)?;
 

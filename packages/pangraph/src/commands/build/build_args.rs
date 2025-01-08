@@ -31,7 +31,7 @@ pub enum AlignmentBackend {
   Mmseqs,
 }
 
-/// Align genomes into a multiple sequence alignment graph
+/// Align genomes into a pangenome graph
 #[derive(Parser, Debug)]
 pub struct PangraphBuildArgs {
   /// Path(s) to zero, one or multiple FASTA files with input sequences. Multiple records within one file are treated as separate genomes.
@@ -85,8 +85,4 @@ pub struct PangraphBuildArgs {
   /// Verify that the original sequences can be reconstructed from the resulting pangraph
   #[clap(long, short = 'f')]
   pub verify: bool,
-
-  /// Random seed for block id generation
-  #[clap(long)]
-  pub seed: Option<u64>,
 }
