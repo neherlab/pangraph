@@ -17,10 +17,10 @@ pub enum PangraphExportArgs {
   /// Export block consensus sequences to a fasta file
   BlockConsensus(PangraphExportBlockConsensusArgs),
 
-  /// Export aligned or unaligned sequences for each block. Note that alignments exclude insertions
+  /// Export aligned or unaligned sequences for each block in separate fasta files. Note that alignments exclude insertions.
   BlockSequences(PangraphExportBlockSequencesArgs),
 
-  /// Export the core-genome alignment
+  /// Export the core-genome alignment. Note that alignment excludes insertions.
   CoreGenome(PangraphExportCoreAlignmentArgs),
 }
 
