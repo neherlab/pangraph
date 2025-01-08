@@ -63,10 +63,6 @@ pub struct PangraphBuildArgs {
   #[clap(long, short = 'c')]
   pub circular: bool,
 
-  /// Transforms all sequences to upper case
-  #[clap(long, short = 'u')]
-  pub upper_case: bool,
-
   /// Maximum number of alignment rounds to consider per pairwise graph merger
   #[clap(long, short = 'x', default_value_t = 100)]
   #[clap(value_hint = ValueHint::Other)]
