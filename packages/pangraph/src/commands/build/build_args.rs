@@ -78,7 +78,7 @@ pub struct PangraphBuildArgs {
   #[clap(value_hint = ValueHint::Other)]
   pub alignment_kernel: AlignmentBackend,
 
-  /// Verify that the original sequences can be reconstructed from the resulting pangraph
+  /// Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise.
   #[clap(long, short = 'f')]
   pub verify: bool,
 }

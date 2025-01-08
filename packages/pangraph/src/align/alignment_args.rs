@@ -10,13 +10,13 @@ pub struct AlignmentArgs {
   #[clap(value_hint = ValueHint::Other)]
   pub indel_len_threshold: usize,
 
-  /// Energy cost for introducing junction due to alignment merger
+  /// Energy cost for splitting a block during alignment merger. Controls graph fragmentation, see documentation.
   #[default = 100.0]
   #[clap(long, short = 'a', default_value_t = AlignmentArgs::default().alpha)]
   #[clap(value_hint = ValueHint::Other)]
   pub alpha: f64,
 
-  /// Energy cost for interblock diversity due to alignment merger
+  /// Energy cost for diversity in the alignment. A high value prevents merging of distantly-related sequences in the same block, see documentation.
   #[default = 10.0]
   #[clap(long, short = 'b', default_value_t = AlignmentArgs::default().beta)]
   #[clap(value_hint = ValueHint::Other)]
