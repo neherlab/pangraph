@@ -4,7 +4,8 @@ use crate::pangraph::edits::{Ins, Sub};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::NodeId;
-use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
+// use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
+use crate::reconsensus::remove_nodes::find_empty_nodes;
 use crate::utils::collections::insert_at_inplace;
 use eyre::Report;
 use itertools::Itertools;
@@ -24,8 +25,12 @@ use std::collections::BTreeMap;
 ///     - for any in/del present in > M/2 sites, appends it to the consensus
 ///   - if the consensus has updated indels, then re-aligns all the sequences to the new consensus
 pub fn reconsensus_graph(graph: &mut Pangraph, ids_updated_blocks: Vec<BlockId>) -> Result<(), Report> {
-  // remove selected nodes from graph
-  remove_emtpy_nodes(graph, &ids_updated_blocks);
+  // // remove selected nodes from graph
+  // remove_emtpy_nodes(graph, &ids_updated_blocks);
+  debug_assert!(
+    find_empty_nodes(graph, &ids_updated_blocks).is_empty(),
+    "Empty nodes found in the graph"
+  );
 
   for block_id in ids_updated_blocks {
     let block = graph.blocks.get_mut(&block_id).unwrap();

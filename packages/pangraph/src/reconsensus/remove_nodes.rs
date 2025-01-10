@@ -16,7 +16,7 @@ pub fn remove_emtpy_nodes(graph: &mut Pangraph, block_ids: &[BlockId]) {
 
 /// Finds nodes with empty sequences (full deletion) in the graph.
 /// It only checks specific blocks (the ones that were updated by a merger/split).
-fn find_empty_nodes(graph: &Pangraph, block_ids: &[BlockId]) -> Vec<NodeId> {
+pub fn find_empty_nodes(graph: &Pangraph, block_ids: &[BlockId]) -> Vec<NodeId> {
   let mut node_ids_to_delete = Vec::new();
   for &block_id in block_ids {
     let block = &graph.blocks[&block_id];
