@@ -237,6 +237,20 @@ impl Edit {
     Ok(qry)
   }
 
+  pub fn is_empty_alignment(&self, consensus: impl AsRef<str>) -> bool {
+    let cons_len = consensus.as_ref().len();
+    let insertions_len = self.inss.iter().map(|i| i.seq.len()).sum::<usize>();
+    if insertions_len > 0 {
+      return false;
+    }
+    let deletions_len = self.dels.iter().map(|d| d.len).sum::<usize>();
+    if deletions_len < cons_len {
+      return false;
+    }
+    let seq_len = self.apply(consensus).unwrap().len();
+    return seq_len == 0;
+  }
+
   #[cfg(any(test, debug_assertions))]
   pub fn sanity_check(&self, len: usize) -> Result<(), Report> {
     let block_interval = Interval::new(0, len);
@@ -398,5 +412,26 @@ mod tests {
 
     let actual = edits.apply(r).unwrap();
     assert_eq!(q, actual);
+  }
+
+  #[rstest]
+  fn test_empty_alignment() {
+    let consensus = "ACGT";
+    let edits = Edit::empty();
+    assert!(!edits.is_empty_alignment(consensus));
+
+    let edits = Edit {
+      subs: vec![],
+      dels: vec![Del::new(0, 4)],
+      inss: vec![Ins::new(1, "A")],
+    };
+    assert!(!edits.is_empty_alignment(consensus));
+
+    let edits = Edit {
+      subs: vec![],
+      dels: vec![Del::new(0, 4)],
+      inss: vec![],
+    };
+    assert!(edits.is_empty_alignment(consensus));
   }
 }
