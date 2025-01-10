@@ -237,16 +237,22 @@ impl Edit {
     Ok(qry)
   }
 
+  /// Check if the alignment is empty, i.e. after applying the edits to the
+  /// consensus sequence, the resulting sequence is empty.
   pub fn is_empty_alignment(&self, consensus: impl AsRef<str>) -> bool {
     let cons_len = consensus.as_ref().len();
+    // if there are insertions, the alignment is not empty
     let insertions_len = self.inss.iter().map(|i| i.seq.len()).sum::<usize>();
     if insertions_len > 0 {
       return false;
     }
+    // if the total length of deletions is less than the length of the consensus
+    // sequence, the alignment is not empty
     let deletions_len = self.dels.iter().map(|d| d.len).sum::<usize>();
     if deletions_len < cons_len {
       return false;
     }
+    // otherwise, apply the edits and check if the resulting sequence is empty
     let seq_len = self.apply(consensus).unwrap().len();
     return seq_len == 0;
   }
