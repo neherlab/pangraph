@@ -223,8 +223,11 @@ fn split_block(
   let b = &graph.blocks[&bid];
   for interval in intervals {
     let (b_slice, n_dict) = block_slice(b, &interval, graph);
-    for (old_nid, new_node) in n_dict {
-      u.n_new.entry(old_nid).or_default().push(new_node);
+    for (old_nid, new_node_opt) in n_dict {
+      // push to u.n_new entry if new_node is not empty
+      if let Some(new_node) = new_node_opt {
+        u.n_new.get_mut(&old_nid).unwrap().push(new_node);
+      }
     }
     if interval.aligned {
       h.push(ToMerge {
