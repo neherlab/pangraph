@@ -8,7 +8,7 @@ use eyre::{Context, Report};
 
 #[derive(Parser, Debug, Default, Clone)]
 pub struct ExportBlockSequencesParams {
-  /// If set, then the full block sequences are exported but not aligned.
+  /// If set, then the full non-aligned block sequences are exported.
   #[clap(long)]
   pub unaligned: bool,
 }

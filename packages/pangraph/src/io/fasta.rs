@@ -141,8 +141,8 @@ impl<'a> FastaReader<'a> {
     let fragment = self
       .line
       .chars()
-      .filter(|c| is_char_allowed(*c))
-      .map(|c| c.to_ascii_uppercase());
+      .map(|c| c.to_ascii_uppercase())
+      .filter(|c| is_char_allowed(*c));
 
     record.seq.extend(fragment);
 
@@ -157,8 +157,8 @@ impl<'a> FastaReader<'a> {
       let fragment = self
         .line
         .chars()
-        .filter(|c| is_char_allowed(*c))
-        .map(|c| c.to_ascii_uppercase());
+        .map(|c| c.to_ascii_uppercase())
+        .filter(|c| is_char_allowed(*c));
 
       record.seq.extend(fragment);
     }

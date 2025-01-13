@@ -31,7 +31,7 @@ pub enum AlignmentBackend {
   Mmseqs,
 }
 
-/// Align genomes into a multiple sequence alignment graph
+/// Align genomes into a pangenome graph
 #[derive(Parser, Debug)]
 pub struct PangraphBuildArgs {
   /// Path(s) to zero, one or multiple FASTA files with input sequences. Multiple records within one file are treated as separate genomes.
@@ -63,10 +63,6 @@ pub struct PangraphBuildArgs {
   #[clap(long, short = 'c')]
   pub circular: bool,
 
-  /// Transforms all sequences to upper case
-  #[clap(long, short = 'u')]
-  pub upper_case: bool,
-
   /// Maximum number of alignment rounds to consider per pairwise graph merger
   #[clap(long, short = 'x', default_value_t = 100)]
   #[clap(value_hint = ValueHint::Other)]
@@ -82,11 +78,7 @@ pub struct PangraphBuildArgs {
   #[clap(value_hint = ValueHint::Other)]
   pub alignment_kernel: AlignmentBackend,
 
-  /// Verify that the original sequences can be reconstructed from the resulting pangraph
+  /// Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise.
   #[clap(long, short = 'f')]
   pub verify: bool,
-
-  /// Random seed for block id generation
-  #[clap(long)]
-  pub seed: Option<u64>,
 }
