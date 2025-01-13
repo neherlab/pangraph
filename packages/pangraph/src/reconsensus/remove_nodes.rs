@@ -33,7 +33,7 @@ pub fn find_empty_nodes(graph: &Pangraph, block_ids: &[BlockId]) -> Vec<NodeId> 
       #[cfg(any(test, debug_assertions))]
       edits.sanity_check(consensus_len).unwrap();
 
-      if edits.is_empty_alignment(&consensus) {
+      if edits.is_empty_alignment(consensus) {
         debug_assert!(graph.nodes[&node_id].start_is_end());
         node_ids_to_delete.push(node_id);
       }

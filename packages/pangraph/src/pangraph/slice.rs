@@ -190,7 +190,7 @@ pub fn block_slice(
     } else {
       // if the node is not empty, add the alignment to the new block
       let ovw = new_alignment.insert(new_node.id(), new_edits);
-      debug_assert!(ovw.is_none(), "Node id was already present! {:?}", ovw);
+      debug_assert!(ovw.is_none(), "Node id was already present! {ovw:?}");
       node_updates.insert(*old_node_id, Some(new_node));
     }
   }

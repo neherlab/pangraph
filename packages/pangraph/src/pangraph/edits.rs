@@ -254,7 +254,7 @@ impl Edit {
     }
     // otherwise, apply the edits and check if the resulting sequence is empty
     let seq_len = self.apply(consensus).unwrap().len();
-    return seq_len == 0;
+    seq_len == 0
   }
 
   #[cfg(any(test, debug_assertions))]
