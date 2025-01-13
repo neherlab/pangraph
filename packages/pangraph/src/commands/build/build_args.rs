@@ -51,7 +51,7 @@ pub struct PangraphBuildArgs {
   ///
   /// If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
   ///
-  /// Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
+  /// Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
   #[clap(long, short = 'o', default_value = "-")]
   #[clap(value_hint = ValueHint::AnyPath)]
   pub output_json: PathBuf,
