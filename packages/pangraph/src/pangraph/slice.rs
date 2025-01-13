@@ -125,15 +125,27 @@ pub fn interval_node_coords(i: &PangraphInterval, edits: &Edit, block_L: usize) 
   (s, e)
 }
 
+/// given a block, an interval and the graph, it extract the slice of the block
+/// defined by the interval.
+///
+/// It returns the new block, along with a dictionary of updates for the nodes,
+/// that maps old node ids to new nodes.
+/// In case a slice contains an empty node, the corresponding entry in the dictionary
+/// will be None.
 pub fn block_slice(
   b: &PangraphBlock,
   i: &PangraphInterval,
   G: &Pangraph,
-) -> (PangraphBlock, BTreeMap<NodeId, PangraphNode>) {
+) -> (PangraphBlock, BTreeMap<NodeId, Option<PangraphNode>>) {
   #[allow(clippy::string_slice)]
+  // consensus of the new block
   let new_consensus = b.consensus()[i.interval.to_range()].to_owned();
-  let block_L = b.consensus_len();
 
+  // length of the new block
+  let block_L = b.consensus_len();
+  debug_assert!(block_L > 0, "Block {} has length 0", b.id());
+
+  // containers for new alignment and node updates
   let mut node_updates = BTreeMap::new();
   let mut new_alignment = BTreeMap::new();
 
@@ -164,15 +176,23 @@ pub fn block_slice(
     };
 
     let new_node = PangraphNode::new(None, i.new_block_id, old_node.path_id(), new_strand, new_pos);
-    node_updates.insert(*old_node_id, new_node.clone());
 
+    // extract edits for the slice
     let new_edits = slice_edits(i, edits, block_L);
 
     #[cfg(any(debug_assertions, test))]
     new_edits.sanity_check(new_consensus.len()).unwrap();
 
-    let ovw = new_alignment.insert(new_node.id(), new_edits);
-    debug_assert!(ovw.is_none()); // new node id is not already in new_alignment
+    if new_edits.is_empty_alignment(&new_consensus) {
+      // if the node is empty, add `None` to the node updates
+      // and do not add the alignment to the new block
+      node_updates.insert(*old_node_id, None);
+    } else {
+      // if the node is not empty, add the alignment to the new block
+      let ovw = new_alignment.insert(new_node.id(), new_edits);
+      debug_assert!(ovw.is_none(), "Node id was already present! {:?}", ovw);
+      node_updates.insert(*old_node_id, Some(new_node));
+    }
   }
 
   let new_block = PangraphBlock::new(i.new_block_id, new_consensus, new_alignment);
@@ -448,20 +468,23 @@ mod tests {
     assert_eq!(new_b.consensus(), "TATATTTATC");
 
     let nn1 = PangraphNode::new(None, new_bid, PathId(1), Forward, (111, 120));
-    assert_eq!(&new_nodes[&NodeId(1)], &nn1);
+    let nn1_slice = new_nodes[&NodeId(1)].as_ref().unwrap();
+    assert_eq!(nn1, *nn1_slice);
 
     let nn2 = PangraphNode::new(None, new_bid, PathId(2), Reverse, (1008, 1017));
-    assert_eq!(&new_nodes[&NodeId(2)], &nn2);
+    let nn2_slice = new_nodes[&NodeId(2)].as_ref().unwrap();
+    assert_eq!(nn2, *nn2_slice);
 
     let nn3 = PangraphNode::new(None, new_bid, PathId(3), Reverse, (96, 4));
-    assert_eq!(&new_nodes[&NodeId(3)], &nn3);
+    let nn3_slice = new_nodes[&NodeId(3)].as_ref().unwrap();
+    assert_eq!(nn3, *nn3_slice);
 
     assert_eq!(
       new_nodes,
       btreemap! {
-        NodeId(1) => nn1.clone(),
-        NodeId(2) => nn2.clone(),
-        NodeId(3) => nn3.clone(),
+        NodeId(1) => Some(nn1.clone()),
+        NodeId(2) => Some(nn2.clone()),
+        NodeId(3) => Some(nn3.clone()),
       }
     );
 
@@ -571,20 +594,23 @@ mod tests {
     assert_eq!(new_b.consensus(), "TATATTTATC");
 
     let nn1 = PangraphNode::new(None, new_bid, PathId(1), Reverse, (111, 120));
-    assert_eq!(&new_nodes[&NodeId(1)], &nn1);
+    let nn1_slice = new_nodes[&NodeId(1)].as_ref().unwrap();
+    assert_eq!(nn1, *nn1_slice);
 
     let nn2 = PangraphNode::new(None, new_bid, PathId(2), Forward, (1008, 1017));
-    assert_eq!(&new_nodes[&NodeId(2)], &nn2);
+    let nn2_slice = new_nodes[&NodeId(2)].as_ref().unwrap();
+    assert_eq!(nn2, *nn2_slice);
 
     let nn3 = PangraphNode::new(None, new_bid, PathId(3), Forward, (96, 4));
-    assert_eq!(&new_nodes[&NodeId(3)], &nn3);
+    let nn3_slice = new_nodes[&NodeId(3)].as_ref().unwrap();
+    assert_eq!(nn3, *nn3_slice);
 
     assert_eq!(
       new_nodes,
       btreemap! {
-        NodeId(1) => nn1.clone(),
-        NodeId(2) => nn2.clone(),
-        NodeId(3) => nn3.clone(),
+        NodeId(1) => Some(nn1.clone()),
+        NodeId(2) => Some(nn2.clone()),
+        NodeId(3) => Some(nn3.clone()),
       }
     );
 
