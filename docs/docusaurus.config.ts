@@ -64,6 +64,12 @@ const config: Config = {
       additionalLanguages: ['bash', 'powershell'],
     },
   } satisfies Preset.ThemeConfig,
+
+  markdown: {
+    mermaid: true,
+  },
+
+  themes: ['@docusaurus/theme-mermaid'],
 } satisfies Config;
 
 export default config;
