@@ -1,12 +1,12 @@
+use crate::circularize::circularize_utils::{Edge, SimpleNode};
 use crate::io::file::create_file_or_stdout;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::strand::Strand;
 use clap::Parser;
-use derive_more::Constructor;
 use eyre::{Context, Report};
 use itertools::Itertools;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Write;
 use std::path::Path;
 
@@ -104,7 +104,14 @@ pub fn gfa_write<W: Write>(mut writer: W, g: &Pangraph, params: &GfaWriteParams)
     writeln!(writer, "# edges")?;
   }
 
-  for (edge, read_count) in &gfa.links.edge_ct {
+  for (edge, read_count) in gfa
+    .links
+    .edge_ct
+    .iter()
+    .map(|(edge, &read_count)| (edge.conventional_orientation(), read_count)) // sort by smaller bid first
+    .sorted_by_key(|(edge, _)| edge.to_tuple())
+  // sort by (bid1, bid2, strand1, strand2)
+  {
     let bid1 = edge.n1.bid;
     let strand1 = edge.n1.strand;
     let bid2 = edge.n2.bid;
@@ -144,21 +151,9 @@ pub struct GfaSegment {
   duplicated: bool,
 }
 
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Constructor)]
-pub struct SimpleNode {
-  bid: BlockId,
-  strand: Strand,
-}
-
-#[derive(Debug, Clone, Hash, Eq, PartialEq, Ord, PartialOrd, Constructor)]
-pub struct Edge {
-  n1: SimpleNode,
-  n2: SimpleNode,
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct GfaLinks {
-  edge_ct: BTreeMap<Edge, usize>,
+  edge_ct: HashMap<Edge, usize>,
 }
 
 impl GfaLinks {
@@ -300,95 +295,144 @@ mod tests {
 
   #[test]
   fn test_gfa_general_case() {
+    // graph (circular):
+    // path A: 1+ -> 2- -> 3+
+    //         n1    n2    n3
+    // path B: 2+ -> 1- -> 3+ -> 4+
+    //         n4    n5    n6    n7
     let g = Pangraph::from_str(indoc! {
     // language=json
     r#"
-    {
-      "paths": {
-        "0": {
-          "id": 0,
-          "nodes": [
-            14515840915932838377
-          ],
-          "tot_len": 1737,
-          "circular": false,
-          "name": "Path A"
+      {
+        "paths": {
+          "0": {
+            "id": 0,
+            "nodes": [1, 2, 3],
+            "tot_len": 50,
+            "circular": true,
+            "name": "Path A"
+          },
+          "1": {
+            "id": 1,
+            "nodes": [4, 5, 6, 7],
+            "tot_len": 60,
+            "circular": true,
+            "name": "Path B"
+          }
         },
-        "1": {
-          "id": 1,
-          "nodes": [
-            15291847754458130853
-          ],
-          "tot_len": 1737,
-          "circular": false,
-          "name": "Path B"
-        },
-        "2": {
-          "id": 2,
-          "nodes": [
-            15109482180931348145
-          ],
-          "tot_len": 1737,
-          "circular": false,
-          "name": "Path C"
-        }
-      },
-      "blocks": {
-        "12778560093473594666": {
-          "id": 12778560093473594666,
-          "consensus": "ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT",
-          "alignments": {
-            "14515840915932838377": {
-              "subs": [],
-              "dels": [],
-              "inss": []
-            },
-            "15291847754458130853": {
-              "subs": [],
-              "dels": [],
-              "inss": []
-            },
-            "15109482180931348145": {
-              "subs": [],
-              "dels": [],
-              "inss": []
+        "blocks": {
+          "1": {
+            "id": 1,
+            "consensus": "ACCTATCGTGATCGTTCGAT",
+            "alignments": {
+              "1": {
+                "subs": [],
+                "dels": [],
+                "inss": []
+              },
+              "4": {
+                "subs": [],
+                "dels": [],
+                "inss": []
+              }
+            }
+          },
+          "2": {
+            "id": 2,
+            "consensus": "CTGCAAGTCTGATCTAGTTA",
+            "alignments": {
+              "2": {
+                "subs": [],
+                "dels": [],
+                "inss": []
+              },
+              "6": {
+                "subs": [],
+                "dels": [],
+                "inss": []
+              }
+            }
+          },
+          "3": {
+            "id": 3,
+            "consensus": "AGGCTACGAT",
+            "alignments": {
+              "3": {
+                "subs": [],
+                "dels": [],
+                "inss": []
+              },
+              "5": {
+                "subs": [],
+                "dels": [],
+                "inss": []
+              }
+            }
+          },
+          "4": {
+            "id": 4,
+            "consensus": "CTTCAGCAAG",
+            "alignments": {
+              "7": {
+                "subs": [],
+                "dels": [],
+                "inss": []
+              }
             }
           }
-        }
-      },
-      "nodes": {
-        "14515840915932838377": {
-          "id": 14515840915932838377,
-          "block_id": 12778560093473594666,
-          "path_id": 0,
-          "strand": "+",
-          "position": [
-            0,
-            0
-          ]
         },
-        "15291847754458130853": {
-          "id": 15291847754458130853,
-          "block_id": 12778560093473594666,
-          "path_id": 1,
-          "strand": "+",
-          "position": [
-            0,
-            0
-          ]
-        },
-        "15109482180931348145": {
-          "id": 15109482180931348145,
-          "block_id": 12778560093473594666,
-          "path_id": 2,
-          "strand": "+",
-          "position": [
-            0,
-            0
-          ]
+        "nodes": {
+          "1": {
+            "id": 1,
+            "block_id": 1,
+            "path_id": 0,
+            "strand": "+",
+            "position": [0, 0]
+          },
+          "2": {
+            "id": 2,
+            "block_id": 2,
+            "path_id": 0,
+            "strand": "-",
+            "position": [0, 0]
+          },
+          "3": {
+            "id": 3,
+            "block_id": 3,
+            "path_id": 0,
+            "strand": "+",
+            "position": [0, 0]
+          },
+          "4": {
+            "id": 4,
+            "block_id": 2,
+            "path_id": 1,
+            "strand": "+",
+            "position": [0, 0]
+          },
+          "5": {
+            "id": 5,
+            "block_id": 1,
+            "path_id": 1,
+            "strand": "-",
+            "position": [0, 0]
+          },
+          "6": {
+            "id": 6,
+            "block_id": 3,
+            "path_id": 1,
+            "strand": "+",
+            "position": [0, 0]
+          },
+          "7": {
+            "id": 7,
+            "block_id": 4,
+            "path_id": 1,
+            "strand": "+",
+            "position": [0, 0]
+          }
         }
       }
-    }
     "#})
     .unwrap();
 
@@ -401,13 +445,21 @@ mod tests {
 
     let expected = indoc! {r#"
     H	VN:Z:1.0
-    S	12778560093473594666	ACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGTACGT
-    L	A	-	B	+	1M
-    L	A	-	B	+	1M
-    L	A	-	B	+	1M
-    P	Path A	12778560093473594666	*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*
-    P	Path B	12778560093473594666	*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*
-    P	Path C	12778560093473594666	*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*,*
+    # blocks
+    S	1	ACCTATCGTGATCGTTCGAT	RC:i:40	LN:i:20
+    S	2	CTGCAAGTCTGATCTAGTTA	RC:i:40	LN:i:20
+    S	3	AGGCTACGAT	RC:i:20	LN:i:10
+    S	4	CTTCAGCAAG	RC:i:10	LN:i:10
+    # edges
+    L	1	+	2	-	*	RC:i:2
+    L	1	-	3	+	*	RC:i:1
+    L	1	-	3	-	*	RC:i:1
+    L	2	-	3	+	*	RC:i:1
+    L	2	-	4	-	*	RC:i:1
+    L	3	+	4	+	*	RC:i:1
+    # paths
+    P	Path A	1+,2-,3+	*	TP:Z:circular
+    P	Path B	2+,1-,3+,4+	*	TP:Z:circular
     "#};
 
     assert_eq!(expected, actual);

@@ -58,6 +58,25 @@ impl Edge {
   pub fn oriented_equal(&self, other: &Edge) -> bool {
     self.n1 == other.n1 && self.n2 == other.n2
   }
+
+  // orient such that the first node has a lower block id
+  // if block ids are equal, orient such that the first node has a forward strand
+  // if possible
+  pub fn conventional_orientation(&self) -> Edge {
+    if (self.n1.bid < self.n2.bid) || (self.n1.bid == self.n2.bid && self.n1.strand == Strand::Forward) {
+      *self
+    } else {
+      self.invert()
+    }
+  }
+
+  // returns a tuple (bid1, bid2, 0/1, 0/1) where 0/1 indicates the strand
+  // used to decide ordering between different edges
+  pub fn to_tuple(&self) -> (BlockId, BlockId, isize, isize) {
+    let s1 = if self.n1.strand == Strand::Forward { 0 } else { 1 };
+    let s2 = if self.n2.strand == Strand::Forward { 0 } else { 1 };
+    (self.n1.bid, self.n2.bid, s1, s2)
+  }
 }
 
 impl PartialEq for Edge {
