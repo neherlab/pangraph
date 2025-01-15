@@ -86,17 +86,17 @@ impl ToMerge {
 }
 
 fn assign_new_block_ids(mergers: &mut [Alignment]) {
-  for a in mergers.iter_mut() {
+  mergers.par_iter_mut().for_each(|a| {
     debug_assert!(a.new_block_id.is_none());
     a.new_block_id = Some(BlockId(
       // FIXME: looks like this is trying to calculate its own hash id? It should probably not be done in random places like this.
       id((&a.qry.name, &a.qry.interval, &a.reff.name, &a.reff.interval)),
     ));
-  }
+  });
 }
 
 fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
-  for m in mergers.iter_mut() {
+  mergers.par_iter_mut().for_each(|m| {
     let ref_block = &graph.blocks[&m.reff.name];
     let qry_block = &graph.blocks[&m.qry.name];
     if ref_block.depth() >= qry_block.depth() {
@@ -104,7 +104,7 @@ fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
     } else {
       m.anchor_block = Some(AnchorBlock::Qry);
     }
-  }
+  });
 }
 
 fn target_blocks(mergers: &[Alignment]) -> BTreeMap<BlockId, Vec<Alignment>> {

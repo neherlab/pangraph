@@ -17,7 +17,7 @@ pub fn align_with_minimap2_lib(
   params: &AlignmentArgs,
 ) -> Result<Vec<Alignment>, Report> {
   let (names, seqs): (Vec<String>, Vec<&str>) = blocks
-    .iter()
+    .par_iter()
     .map(|(id, block)| (id.to_string(), block.consensus()))
     .unzip();
 
@@ -70,7 +70,7 @@ fn align_with_minimap2_lib_impl(
     .collect::<Result<Vec<_>, Report>>()?;
 
   let alns = results
-    .into_iter()
+    .into_par_iter()
     .map(Alignment::from_minimap_paf_obj)
     .collect::<Result<Vec<Vec<_>>, Report>>()?
     .into_iter()
@@ -85,7 +85,7 @@ impl Alignment {
   pub fn from_minimap_paf_obj(res: Minimap2Result) -> Result<Vec<Self>, Report> {
     let Minimap2Result { pafs, .. } = res;
     pafs
-      .into_iter()
+      .into_par_iter()
       .map(|paf| {
         if let Some(cg) = &paf.cg {
           Ok(Alignment {

@@ -104,7 +104,7 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
   // - whenever an alignment contains an in/del longer than the threshold length
   //   (parameter - default 100 bp) we want to split the alignment in two)
   let matches = matches
-    .iter()
+    .par_iter()
     .filter(|m| m.qry.name != m.reff.name)
     .map(|m| split_matches(m, &args.aln_args))
     .collect::<Result<Vec<Vec<Alignment>>, Report>>()?
@@ -189,9 +189,11 @@ pub fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment
   // TODO: energy is calculated for each alignment.
   // Consider calculating it earlier and making it a property to simplify filtering and sorting.
   let alns = alns
-    .iter()
+    .par_iter()
     .map(|aln| (aln, alignment_energy2(aln, args)))
     .filter(|(_, energy)| energy < &0.0)
+    .collect::<Vec<_>>()
+    .into_iter()
     .sorted_by_key(|(_, energy)| OrderedFloat(*energy))
     .map(|(aln, _)| aln)
     .collect_vec();
