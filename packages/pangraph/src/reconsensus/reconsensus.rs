@@ -11,6 +11,7 @@ use crate::representation::seq_char::AsciiChar;
 use eyre::Report;
 use itertools::Itertools;
 use maplit::btreemap;
+use rayon::prelude::*;
 use std::collections::BTreeMap;
 
 /// Applies the reconsensus operation to each updated block in the graph:
@@ -208,9 +209,11 @@ fn update_block_consensus(block: &mut PangraphBlock, consensus: &Seq) -> Result<
     }
   }
 
+  let consensus = consensus.into();
+
   // Re-align sequences
   let alignments = seqs
-    .into_iter()
+    .into_par_iter()
     .map(|(nid, seq)| Ok((nid, map_variations(consensus, &seq)?)))
     .collect::<Result<_, Report>>()?;
 
