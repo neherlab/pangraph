@@ -9,6 +9,7 @@ use itertools::Itertools;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Write;
 use std::path::Path;
+use crate::representation::seq::Seq;
 
 #[derive(Parser, Debug, Default, Clone)]
 pub struct GfaWriteParams {
@@ -86,7 +87,7 @@ pub fn gfa_write<W: Write>(mut writer: W, g: &Pangraph, params: &GfaWriteParams)
 
   for segment in gfa.segments.values() {
     let segment_seq = if params.include_sequences() {
-      &segment.sequence
+      segment.sequence.as_str()
     } else {
       "*"
     };
@@ -145,7 +146,7 @@ pub struct Gfa {
 #[derive(Debug, Clone)]
 pub struct GfaSegment {
   name: BlockId,
-  sequence: String,
+  sequence: Seq,
   depth: usize,
   length: usize,
   duplicated: bool,

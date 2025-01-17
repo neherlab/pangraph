@@ -46,7 +46,7 @@ impl MergePromise {
         let edits = if seq.is_empty() {
           Edit::deleted(self.anchor_block.consensus().len())
         } else {
-          map_variations(self.anchor_block.consensus(), seq)?
+          map_variations(self.anchor_block.consensus(), &seq)?
         };
 
         #[cfg(any(test, debug_assertions))]
@@ -297,6 +297,7 @@ mod tests {
   use maplit::{btreemap, btreeset};
   use noodles::sam::record::Cigar;
   use pretty_assertions::assert_eq;
+  use crate::representation::seq::Seq;
 
   #[test]
   fn test_extract_hits() {
@@ -638,6 +639,7 @@ mod tests {
 
     assert_eq!(u.b_new.len(), 1);
     let b = &u.b_new[0];
+
     assert_eq!(b.consensus(), &G.blocks[&bid].consensus()[50..80]);
     assert_eq!(b.alignment_keys(), node_keys_1);
 
@@ -662,7 +664,7 @@ mod tests {
   #[test]
   fn test_reweave() -> Result<(), Report> {
     fn i(pos: usize, len: usize, seq: impl AsRef<str>) -> Ins {
-      Ins::new(pos, seq.as_ref().repeat(len))
+      Ins::new(pos, Seq::from_str(&seq.as_ref().repeat(len)))
     }
 
     fn d(pos: usize, len: usize) -> Del {

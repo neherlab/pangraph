@@ -6,7 +6,7 @@ use crate::make_internal_report;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::pangraph_path::PangraphPath;
-use crate::utils::string_rotate::StringRotateRight;
+use crate::representation::seq::Seq;
 use eyre::Report;
 use itertools::Itertools;
 use log::info;
@@ -35,7 +35,7 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
     let mut writer = FastaWriter::from_path(output_fasta)?;
     results.try_for_each(|fasta| {
       let fasta = fasta?;
-      writer.write(fasta.seq_name, fasta.seq)
+      writer.write(fasta.seq_name, &fasta.seq)
     })?;
   }
 
@@ -63,15 +63,15 @@ pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord,
     })
 }
 
-fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<String, Report> {
+fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<Seq, Report> {
   if let Some(first_node_id) = path.nodes.first() {
     let first_node_pos = graph.nodes[first_node_id].position().0;
 
-    let mut genome: String = path
+    let mut genome: Seq = path
       .nodes
       .iter()
       .map(|node_id| reconstruct_block_sequence(graph, *node_id))
-      .collect::<Result<String, Report>>()?;
+      .collect::<Result<Seq, Report>>()?;
 
     let genome_len = path.tot_len();
     assert_eq!(genome.len(), genome_len);
@@ -80,11 +80,11 @@ fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<St
 
     Ok(genome)
   } else {
-    Ok(String::new())
+    Ok(Seq::new())
   }
 }
 
-fn reconstruct_block_sequence(graph: &Pangraph, node_id: NodeId) -> Result<String, Report> {
+fn reconstruct_block_sequence(graph: &Pangraph, node_id: NodeId) -> Result<Seq, Report> {
   let node = graph
     .nodes
     .get(&node_id)
@@ -103,7 +103,7 @@ fn reconstruct_block_sequence(graph: &Pangraph, node_id: NodeId) -> Result<Strin
 
   // Reverse-complement if on opposite strand
   if node.strand().is_reverse() {
-    s = reverse_complement(s)?;
+    s = reverse_complement(&s)?;
   }
   Ok(s)
 }

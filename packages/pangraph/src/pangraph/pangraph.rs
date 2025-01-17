@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::str::FromStr;
+use crate::representation::seq::Seq;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Hash, PartialEq, Eq, JsonSchema)]
 pub struct Pangraph {
@@ -52,7 +53,7 @@ impl Pangraph {
     Ok(tree_str)
   }
 
-  pub fn consensuses(&self) -> impl Iterator<Item = &str> {
+  pub fn consensuses(&self) -> impl Iterator<Item = &Seq> {
     self.blocks.values().map(|block| block.consensus())
   }
 
