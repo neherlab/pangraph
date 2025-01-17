@@ -70,6 +70,7 @@ mod tests {
   use crate::io::fasta::FastaRecord;
   use crate::o;
   use crate::pangraph::strand::Strand::Forward;
+  use crate::representation::seq::Seq;
   use ndarray::array;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
@@ -78,7 +79,7 @@ mod tests {
     Pangraph::singleton(
       FastaRecord {
         seq_name: o!(""),
-        seq: seq.as_ref().to_owned(),
+        seq: Seq::from_str(seq.as_ref()),
         index: 0,
       },
       Forward,

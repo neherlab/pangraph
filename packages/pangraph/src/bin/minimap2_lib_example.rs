@@ -11,6 +11,7 @@ use pangraph::io::json::{json_write_file, JsonPretty};
 use pangraph::utils::global_init::global_init;
 use rayon::prelude::*;
 use std::path::PathBuf;
+use pangraph::representation::seq::Seq;
 
 #[ctor]
 fn init() {
@@ -20,7 +21,7 @@ fn init() {
 fn main() -> Result<(), Report> {
   let cli = Minimap2CliArgs::parse();
 
-  let (names, seqs): (Vec<String>, Vec<String>) = read_many_fasta(&cli.input_fastas)?
+  let (names, seqs): (Vec<String>, Vec<Seq>) = read_many_fasta(&cli.input_fastas)?
     .into_iter()
     .map(|f| (f.seq_name, f.seq))
     .unzip();

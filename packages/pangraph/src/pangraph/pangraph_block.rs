@@ -4,6 +4,8 @@ use crate::pangraph::edits::Edit;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::pangraph_path::PathId;
+use crate::representation::seq::Seq;
+use crate::representation::seq_char::AsciiChar;
 use crate::utils::collections::has_duplicates;
 use derive_more::{Display, From};
 use eyre::{Report, WrapErr};
@@ -34,16 +36,16 @@ impl BlockId {
 pub struct PangraphBlock {
   #[get_copy = "pub"]
   id: BlockId,
-  consensus: String,
+  consensus: Seq,
   alignments: BTreeMap<NodeId, Edit>,
 }
 
 impl PangraphBlock {
-  pub fn from_consensus(consensus: impl Into<String>, block_id: BlockId, nid: NodeId) -> Self {
+  pub fn from_consensus(consensus: impl Into<Seq>, block_id: BlockId, nid: NodeId) -> Self {
     PangraphBlock::new(block_id, consensus, btreemap! {nid => Edit::empty()})
   }
 
-  pub fn new(block_id: BlockId, consensus: impl Into<String>, alignments: BTreeMap<NodeId, Edit>) -> Self {
+  pub fn new(block_id: BlockId, consensus: impl Into<Seq>, alignments: BTreeMap<NodeId, Edit>) -> Self {
     let consensus = consensus.into();
     let id = block_id;
     Self {
@@ -71,25 +73,20 @@ impl PangraphBlock {
     self.alignments.len()
   }
 
-  pub fn consensus(&self) -> &str {
-    self.consensus.as_str()
+  pub fn consensus(&self) -> &Seq {
+    &self.consensus
   }
 
-  pub fn consensus_mut(&mut self) -> &mut str {
-    self.consensus.as_mut_str()
+  pub fn consensus_mut(&mut self) -> &mut Seq {
+    &mut self.consensus
   }
 
-  pub fn set_consensus(&mut self, consensus: impl Into<String>) {
-    self.consensus = consensus.into();
+  pub fn set_consensus(&mut self, consensus: Seq) {
+    self.consensus = consensus;
   }
 
-  #[allow(unsafe_code)]
-  pub fn set_consensus_char(&mut self, pos: usize, c: char) {
-    debug_assert!(self.consensus.is_ascii());
-    // FIXME: we REALLY should not use strings for sequences anymore
-    // SAFETY: safe as long as we have ASCII strings
-    let target = unsafe { &mut self.consensus.as_bytes_mut()[pos] };
-    *target = c as u8;
+  pub fn set_consensus_char(&mut self, pos: usize, c: AsciiChar) {
+    self.consensus[pos] = c;
   }
 
   pub fn consensus_len(&self) -> usize {
@@ -147,7 +144,7 @@ impl PangraphBlock {
     graph: &'a Pangraph,
     aligned: bool,
     record_naming: RecordNaming,
-  ) -> impl Iterator<Item = (String, Result<String, Report>)> + 'a {
+  ) -> impl Iterator<Item = (String, Result<Seq, Report>)> + 'a {
     self.alignments().iter().map(move |(node_id, edits)| {
       let id = match record_naming {
         RecordNaming::Node => {
