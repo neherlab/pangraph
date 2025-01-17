@@ -6,6 +6,7 @@ use crate::pangraph::pangraph_block::PangraphBlock;
 use crate::pangraph::pangraph_interval::PangraphInterval;
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::strand::Strand;
+use crate::representation::seq::Seq;
 use std::collections::BTreeMap;
 
 pub fn slice_substitutions(i: &PangraphInterval, S: &[Sub]) -> Vec<Sub> {
@@ -139,7 +140,7 @@ pub fn block_slice(
 ) -> (PangraphBlock, BTreeMap<NodeId, Option<PangraphNode>>) {
   #[allow(clippy::string_slice)]
   // consensus of the new block
-  let new_consensus = b.consensus()[i.interval.to_range()].to_owned();
+  let new_consensus: Seq = b.consensus()[i.interval.to_range()].into();
 
   // length of the new block
   let block_L = b.consensus_len();
@@ -217,31 +218,31 @@ mod tests {
     let seq = o!("ACTGGATATCCGATATTCGAG");
     let ed = Edit {
       subs: vec![
-        Sub { pos: 2, alt: 'C' },
-        Sub { pos: 5, alt: 'C' },
-        Sub { pos: 6, alt: 'G' },
-        Sub { pos: 7, alt: 'C' },
-        Sub { pos: 13, alt: 'G' },
-        Sub { pos: 14, alt: 'T' },
-        Sub { pos: 18, alt: 'C' },
-        Sub { pos: 20, alt: 'A' },
+        Sub::new(2, 'C'),
+        Sub::new(5, 'C'),
+        Sub::new(6, 'G'),
+        Sub::new(7, 'C'),
+        Sub::new(13, 'G'),
+        Sub::new(14, 'T'),
+        Sub::new(18, 'C'),
+        Sub::new(20, 'A'),
       ],
       dels: vec![
-        Del { pos: 0, len: 2 },
-        Del { pos: 4, len: 3 },
-        Del { pos: 9, len: 2 },
-        Del { pos: 13, len: 4 },
-        Del { pos: 18, len: 3 },
+        Del::new(0, 2),
+        Del::new(4, 3),
+        Del::new(9, 2),
+        Del::new(13, 4),
+        Del::new(18, 3),
       ],
       inss: vec![
-        Ins { pos: 2, seq: o!("CC") },
-        Ins { pos: 5, seq: o!("A") },
-        Ins { pos: 6, seq: o!("TTT") },
-        Ins { pos: 10, seq: o!("C") },
-        Ins { pos: 13, seq: o!("T") },
-        Ins { pos: 14, seq: o!("GG") },
-        Ins { pos: 17, seq: o!("A") },
-        Ins { pos: 21, seq: o!("A") },
+        Ins::new(2, "CC"),
+        Ins::new(5, "A"),
+        Ins::new(6, "TTT"),
+        Ins::new(10, "C"),
+        Ins::new(13, "T"),
+        Ins::new(14, "GG"),
+        Ins::new(17, "A"),
+        Ins::new(21, "A"),
       ],
     };
     (seq, ed)
@@ -258,14 +259,7 @@ mod tests {
       orientation: None,
     };
     let new_ed = slice_substitutions(&i, &ed.subs);
-    assert_eq!(
-      new_ed,
-      vec![
-        Sub { pos: 0, alt: 'G' },
-        Sub { pos: 1, alt: 'C' },
-        Sub { pos: 7, alt: 'G' },
-      ]
-    );
+    assert_eq!(new_ed, vec![Sub::new(0, 'G'), Sub::new(1, 'C'), Sub::new(7, 'G'),]);
     let i = PangraphInterval {
       interval: Interval { start: 15, end: 21 },
       aligned: true,
@@ -274,7 +268,7 @@ mod tests {
       orientation: None,
     };
     let new_ed = slice_substitutions(&i, &ed.subs);
-    assert_eq!(new_ed, vec![Sub { pos: 3, alt: 'C' }, Sub { pos: 5, alt: 'A' },]);
+    assert_eq!(new_ed, vec![Sub::new(3, 'C'), Sub::new(5, 'A')]);
   }
 
   #[test]
@@ -314,14 +308,7 @@ mod tests {
       orientation: None,
     };
     let new_ed = slice_insertions(&i, &ed.inss, seq.len());
-    assert_eq!(
-      new_ed,
-      vec![
-        Ins { pos: 0, seq: o!("TTT") },
-        Ins { pos: 4, seq: o!("C") },
-        Ins { pos: 7, seq: o!("T") },
-      ]
-    );
+    assert_eq!(new_ed, vec![Ins::new(0, "TTT"), Ins::new(4, "C"), Ins::new(7, "T"),]);
     let i = PangraphInterval {
       interval: Interval { start: 15, end: 21 },
       aligned: true,
@@ -330,10 +317,7 @@ mod tests {
       orientation: None,
     };
     let new_ed = slice_insertions(&i, &ed.inss, seq.len());
-    assert_eq!(
-      new_ed,
-      vec![Ins { pos: 2, seq: o!("A") }, Ins { pos: 6, seq: o!("A") },]
-    );
+    assert_eq!(new_ed, vec![Ins::new(2, "A"), Ins::new(6, "A")]);
   }
 
   #[test]
@@ -428,23 +412,9 @@ mod tests {
       orientation: None,
     };
     let ed = Edit {
-      subs: vec![
-        Sub { pos: 2, alt: 'G' },
-        Sub { pos: 13, alt: 'T' },
-        Sub { pos: 24, alt: 'T' },
-      ],
+      subs: vec![Sub::new(2, 'G'), Sub::new(13, 'T'), Sub::new(24, 'T')],
       dels: vec![Del { pos: 18, len: 3 }],
-      inss: vec![
-        Ins { pos: 7, seq: o!("A") },
-        Ins {
-          pos: 10,
-          seq: o!("AAAA"),
-        },
-        Ins {
-          pos: 20,
-          seq: o!("TTTTTTTT"),
-        },
-      ],
+      inss: vec![Ins::new(7, "A"), Ins::new(10, "AAAA"), Ins::new(20, "TTTTTTTT")],
     };
     let block_L = 100;
     let new_pos = interval_node_coords(&i, &ed, block_L);
@@ -489,16 +459,16 @@ mod tests {
     );
 
     let n1ed = Edit {
-      subs: vec![Sub { pos: 3, alt: 'T' }],
-      dels: vec![Del { pos: 8, len: 2 }],
-      inss: vec![Ins { pos: 0, seq: o!("A") }],
+      subs: vec![Sub::new(3, 'T')],
+      dels: vec![Del::new(8, 2)],
+      inss: vec![Ins::new(0, "A")],
     };
     assert_eq!(new_b.alignment(nn1.id()), &n1ed);
 
     let n2ed = Edit {
-      subs: vec![Sub { pos: 9, alt: 'G' }],
-      dels: vec![Del { pos: 3, len: 2 }],
-      inss: vec![Ins { pos: 7, seq: o!("T") }],
+      subs: vec![Sub::new(9, 'G')],
+      dels: vec![Del::new(3, 2)],
+      inss: vec![Ins::new(7, "T")],
     };
     assert_eq!(new_b.alignment(nn2.id()), &n2ed);
 
@@ -515,29 +485,21 @@ mod tests {
     let bid = BlockId(1);
 
     let ed1 = Edit {
-      subs: vec![
-        Sub { pos: 2, alt: 'G' },
-        Sub { pos: 13, alt: 'T' },
-        Sub { pos: 24, alt: 'T' },
-      ],
+      subs: vec![Sub::new(2, 'G'), Sub::new(13, 'T'), Sub::new(24, 'T')],
       dels: vec![Del { pos: 18, len: 3 }],
-      inss: vec![Ins { pos: 7, seq: o!("A") }, Ins { pos: 10, seq: o!("A") }],
+      inss: vec![Ins::new(7, "A"), Ins::new(10, "A")],
     };
 
     let ed2 = Edit {
-      subs: vec![
-        Sub { pos: 4, alt: 'T' },
-        Sub { pos: 19, alt: 'G' },
-        Sub { pos: 20, alt: 'G' },
-      ],
+      subs: vec![Sub::new(4, 'T'), Sub::new(19, 'G'), Sub::new(20, 'G')],
       dels: vec![Del { pos: 6, len: 2 }, Del { pos: 13, len: 2 }],
-      inss: vec![Ins { pos: 17, seq: o!("T") }, Ins { pos: 25, seq: o!("A") }],
+      inss: vec![Ins::new(17, "T"), Ins::new(25, "A")],
     };
 
     let ed3 = Edit {
       subs: vec![],
       dels: vec![Del { pos: 2, len: 4 }, Del { pos: 9, len: 3 }, Del { pos: 24, len: 2 }],
-      inss: vec![Ins { pos: 20, seq: o!("T") }],
+      inss: vec![Ins::new(20, "T")],
     };
 
     let n1 = PangraphNode::new(Some(NodeId(1)), bid, PathId(1), Forward, (100, 125));
@@ -550,7 +512,7 @@ mod tests {
 
     let b1 = PangraphBlock::new(
       bid,
-      seq,
+      Seq::from_str(&seq),
       btreemap! {
         NodeId(1) => ed1,
         NodeId(2) => ed2,
@@ -615,16 +577,16 @@ mod tests {
     );
 
     let n1ed = Edit {
-      subs: vec![Sub { pos: 3, alt: 'T' }],
+      subs: vec![Sub::new(3, 'T')],
       dels: vec![Del { pos: 8, len: 2 }],
-      inss: vec![Ins { pos: 0, seq: o!("A") }],
+      inss: vec![Ins::new(0, "A")],
     };
     assert_eq!(new_b.alignment(nn1.id()), &n1ed);
 
     let n2ed = Edit {
-      subs: vec![Sub { pos: 9, alt: 'G' }],
+      subs: vec![Sub::new(9, 'G')],
       dels: vec![Del { pos: 3, len: 2 }],
-      inss: vec![Ins { pos: 7, seq: o!("T") }],
+      inss: vec![Ins::new(7, "T")],
     };
     assert_eq!(new_b.alignment(nn2.id()), &n2ed);
 

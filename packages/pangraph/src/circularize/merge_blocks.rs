@@ -6,6 +6,7 @@ use eyre::Report;
 use maplit::btreemap;
 use std::collections::BTreeMap;
 
+use crate::representation::seq::Seq;
 #[cfg(any(debug_assertions, test))]
 use log::warn;
 
@@ -128,7 +129,7 @@ fn concatenate_alignments(
 ) -> PangraphBlock {
   debug_assert!(bl1.depth() == bl2.depth(), "blocks must have the same depth");
 
-  let seq = [bl1.consensus(), bl2.consensus()].concat();
+  let seq = Seq::concat(&[bl1.consensus(), bl2.consensus()]);
 
   let mut aln = btreemap! {};
   for (&nid1, e1) in bl1.alignments() {
@@ -166,7 +167,7 @@ fn check_sequence_reconstruction(
     let seq2 = e2.apply(block_2.consensus())?;
 
     // concatenate
-    let seq = [seq1, seq2].concat();
+    let seq = Seq::concat(&[&seq1, &seq2]);
 
     // reconstruct new sequence
     let new_id = new_nodes_id[&nid1];

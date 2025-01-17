@@ -6,6 +6,7 @@ use pangraph::align::alignment_args::AlignmentArgs;
 use pangraph::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use pangraph::io::fasta::read_many_fasta;
 use pangraph::pangraph::pangraph_block::{BlockId, PangraphBlock};
+use pangraph::representation::seq_char::AsciiChar;
 use pangraph::utils::global_init::global_init;
 use std::path::PathBuf;
 
@@ -33,7 +34,10 @@ fn main() -> Result<(), Report> {
     .into_iter()
     .map(|r| r.seq)
     .enumerate()
-    .map(|(i, seq)| PangraphBlock::new(BlockId(i), seq.replace(['\n', ' '], ""), btreemap! {}))
+    .map(|(i, mut seq)| {
+      seq.retain(|c| ![AsciiChar(b'\n'), AsciiChar(b' ')].contains(c));
+      PangraphBlock::new(BlockId(i), seq, btreemap! {})
+    })
     .map(|block| (block.id(), block))
     .collect();
 

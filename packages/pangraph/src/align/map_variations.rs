@@ -1,10 +1,11 @@
 use crate::align::nextclade::align_with_nextclade::{align_with_nextclade, AlignWithNextcladeOutput, NextalignParams};
 use crate::align::nextclade::alphabet::nuc::{from_nuc, from_nuc_seq};
 use crate::pangraph::edits::{Del, Edit, Ins, Sub};
+use crate::representation::seq::Seq;
 use eyre::Report;
 use itertools::Itertools;
 
-pub fn map_variations(ref_seq: impl AsRef<str>, qry_seq: impl AsRef<str>) -> Result<Edit, Report> {
+pub fn map_variations(ref_seq: &Seq, qry_seq: &Seq) -> Result<Edit, Report> {
   let params = NextalignParams {
     min_length: 1,
     ..NextalignParams::default()
@@ -15,7 +16,7 @@ pub fn map_variations(ref_seq: impl AsRef<str>, qry_seq: impl AsRef<str>) -> Res
     deletions,
     insertions,
     ..
-  } = align_with_nextclade(ref_seq, qry_seq, &params)?;
+  } = align_with_nextclade(ref_seq.as_str(), qry_seq.as_str(), &params)?;
 
   let subs = substitutions
     .iter()
@@ -30,7 +31,7 @@ pub fn map_variations(ref_seq: impl AsRef<str>, qry_seq: impl AsRef<str>) -> Res
   // pangraph convention: location of insertion is the position *after* the insertion -> increment pos by 1
   let inss = insertions
     .iter()
-    .map(|s| Ins::new((s.pos + 1) as usize, from_nuc_seq(&s.ins)))
+    .map(|s| Ins::new((s.pos + 1) as usize, Seq::from_str(&from_nuc_seq(&s.ins))))
     .collect_vec();
 
   Ok(Edit { subs, dels, inss })
@@ -54,7 +55,7 @@ mod tests {
     let r = "ACTTTGCGTCTGATAGCTTAGCGGATATTTACTGTA";
     let q = "ACTAGATTGAGTCTGATAGCTTAGCGGATATTGTA";
 
-    let actual = map_variations(r, q).unwrap();
+    let actual = map_variations(&Seq::from(r), &Seq::from(q)).unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(6, 'A')],
@@ -63,7 +64,7 @@ mod tests {
     };
 
     // test that our example is correct
-    assert_eq!(q, expected.apply(r).unwrap());
+    assert_eq!(q, &expected.apply(r).unwrap());
 
     // test that the aligner reconstructs the variations correctly
     assert_eq!(expected, actual);
@@ -83,7 +84,7 @@ mod tests {
     let r = "ACACTGATTTCGTCCCTTAGGTACTCTACACTGTAGCCTA";
     let q = "CTGATTTAGTCCCTTAGGGGTTACTCTACACTGTAG";
 
-    let actual = map_variations(r, q).unwrap();
+    let actual = map_variations(&Seq::from(r), &Seq::from(q)).unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(10, 'A')],
@@ -112,7 +113,7 @@ mod tests {
     let r = "ACACTGATTTCGTCCCTTAGGTACTCTACACTGTAGCCTA";
     let q = "CCTGACACTGATTTAGTCCTAGGGGTTACTCTACACCGTAGCCTAGCCGCCG";
 
-    let actual = map_variations(r, q).unwrap();
+    let actual = map_variations(&Seq::from(r), &Seq::from(q)).unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(10, 'A'), Sub::new(31, 'C')],
@@ -140,7 +141,7 @@ mod tests {
     let r = "CGCCCTACTACAAGAGGGAACTTTTTTTTTAAGTATAGCCACAATAGCTGG";
     let q = "CGCCCTACTACAAGAGGGAACGGGGGGGGGGGGGAAGTATAGCCACAATAGCTGG";
 
-    let actual = map_variations(r, q).unwrap();
+    let actual = map_variations(&Seq::from(r), &Seq::from(q)).unwrap();
 
     let expected = Edit {
       subs: vec![],
