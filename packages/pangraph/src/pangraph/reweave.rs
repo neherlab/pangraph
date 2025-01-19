@@ -261,12 +261,18 @@ pub fn reweave(
   let mut u = vec![];
   let mut h = vec![];
 
-  for (bid, m) in tb {
-    let (graph_update, to_merge) =
-      split_block(bid, &m, &graph, thr_len).wrap_err_with(|| format!("When splitting block {bid}"))?;
-    u.push(graph_update);
-    h.extend(to_merge);
-  }
+  tb.into_par_iter()
+    .map(|(bid, m)| {
+      split_block(bid, &m, &graph, thr_len)
+        .wrap_err_with(|| format!("When splitting block {bid}"))
+        .map(|(graph_update, to_merge)| (graph_update, to_merge))
+    })
+    .collect::<Result<Vec<_>, Report>>()?
+    .into_iter()
+    .for_each(|(graph_update, to_merge)| {
+      u.push(graph_update);
+      h.extend(to_merge);
+    });
 
   let merge_promises = group_promises(&h).wrap_err("When grouping promises")?;
   for graph_update in u {
@@ -292,12 +298,12 @@ mod tests {
   use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
   use crate::pangraph::pangraph_path::{PangraphPath, PathId};
   use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use crate::representation::seq::Seq;
   use crate::utils::interval::Interval;
   use crate::utils::random::get_random_number_generator;
   use maplit::{btreemap, btreeset};
   use noodles::sam::record::Cigar;
   use pretty_assertions::assert_eq;
-  use crate::representation::seq::Seq;
 
   #[test]
   fn test_extract_hits() {
