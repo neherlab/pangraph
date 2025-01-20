@@ -12,12 +12,12 @@ Simply put, a **pangenome graph** (or _pangraph_ for short) is a compressed repr
 
 ## Requirements
 
-The tutorial requires you to have the `pangraph` command available in your path. Instructions on how to install pangraph can be found in [Installation](@ref).
+The tutorial requires you to have the `pangraph` command available in your path. Instructions on how to install pangraph can be found in [Installation](../category/installation).
 
-For this tutorial we will use a small dataset containing full chromosomes of 10 _Escherichia Coli_ strains (source: GenBank). For convenience this dataset is available in the pangraph repository (`example_dataset/ecoli.fa.gz`), and can be downloaded with the command:
+For this tutorial we will use a small dataset containing full chromosomes of 10 _Escherichia Coli_ strains (source: GenBank). For convenience this dataset is available in the pangraph repository (`data/ecoli.fa.gz`), and can be downloaded with the command:
 
 ```bash
-wget https://github.com/neherlab/pangraph/raw/master/example_datasets/ecoli.fa.gz
+wget https://github.com/neherlab/pangraph/raw/master/data/ecoli.fa.gz
 ```
 
 This is a single fasta file containing 10 fully assembled bacterial chromosomes, but no plasmids.
@@ -26,54 +26,61 @@ Note that it is not necessary for all of the data to be packed in a single fasta
 ## Building the pangraph
 
 As a first step, we will build a pangraph object from the DNA of the 10 chromosomes.
-This can be done using the command `build` (see [Build](@ref)):
+This can be done using the command `build` (see [`build` command](../usage/reference.md#pangraph-build)):
 
 ```bash
-pangraph build --circular ecoli.fa.gz > ecoli_pangraph.json
+pangraph build -j 4 --circular ecoli.fa.gz > ecoli_pangraph.json
 ```
-The option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
+- the option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
+- the option `-j 4` specifies the number of threads to use.
 
-On a consumer laptop the command should complete in around 10 minutes on 4 cores.
+On a consumer laptop the command should complete in around 5 minutes on 4 cores.
 
-!!! note "multi-threaded execution"
-    All pangraph commands are immediately parallelizable by setting the environment variable `JULIA_NUM_THREADS` _before_ running the build command.
-    For example, to use 4 cores during the build command:
-    ```bash
-    export JULIA_NUM_THREADS=4
-    ```
-
-The result is a `ecoli_pangraph.json` file that contains two main entries: `paths` and `blocks`. As represented in the image above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks.
-The `pangraph.json` contains all information in the input genomes, which can be reconstructed from the graph without loss.
+The result is a `ecoli_pangraph.json` file that contains two main entries: `paths` and `blocks`. As represented in the image above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks. This files contains a compressed and lossless representation of the input genomes.
 
 Below is a simplified view of the structure of the `ecoli_pangraph.json` file.
 ```json
 {
-    "paths": [
-        {
-            "name": "NZ_CP010242",
-            "blocks": [ { "id": "NFTNKNMFIC", ... }, { "id": "YTLSRRNNGL", ... }, ... ],
+    "paths": {
+        "0": {
+            "name": "NC_009800",
+            "nodes": [
+                7866732351691760875,
+                11281215587641304345,
+                ...
+            ]
             ...
         },
-        {
-            "name": "NC_009800",
-            "blocks": [  { "id": "AYYUXVXZXB", ... },  { "id": "YTLSRRNNGL", ... }, ... ],
+        "1": {
+            "name": "NZ_CP010150",
+            "nodes": [
+                10429785587629589393,
+                10765941013351965021,
+                ...
+            ]
             ...
-        }
+        },
         ...
-    ],
-    "blocks": [
-        { "id": "KZJIDOXBAV", "sequence": "AAGGTGGGTAATCATTTTGATAAGTGAT...", ... },
-        { "id": "UOFDTEUSWC", "sequence": "GTTTTAATGCCAGCAAAAATGGTGAATT...", ... },
+    },
+    "blocks": {
+        "7866732351691760875": {
+            "consensus": "ATTTCCGGTGATTAAGTCTGAGGAT...",
+            ...
+        },
+        "10429785587629589393": {
+            "consensus": "AAAGGTTGCTTGCCGAACGATTCGT...",
+            ...
+        },
         ...
-    ]
+    }
 }
 ```
 
-Each entry in `path` has two main properties: the `name`, corresponding to the sequence identifier in the input fasta file, and the `blocks` list. The latter is a representation of the genome as a list of blocks, each one identified by its unique `id`.
+- Each entry in **`path`** has two main properties: the `name`, corresponding to the sequence identifier in the input fasta file, and the `nodes` list. The latter is a representation of the genome as a list of blocks, each one identified by its unique numerical `id`.
 
-Each entry in the `blocks` lists corresponds to a different block. Each block is assigned an unique random id composed of 10 capital letters and the consensus `sequence` of the block.
+- Each entry in the **`blocks`** dictionary corresponds to a different block, indexed by its own random numerical `id`. Each block element also contains the `consensus` sequence for the block.
 
-More details on the structure of this `json` file will be covered in the next tutorial section.
+More details on the structure of this `json` file will be covered in the [next tutorial section](tutorial_2.md).
 
 
 ### Sequence diversity and alignment sensitivity
