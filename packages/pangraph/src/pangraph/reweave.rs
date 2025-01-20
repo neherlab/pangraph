@@ -262,11 +262,7 @@ pub fn reweave(
   let mut h = vec![];
 
   tb.into_par_iter()
-    .map(|(bid, m)| {
-      split_block(bid, &m, &graph, thr_len)
-        .wrap_err_with(|| format!("When splitting block {bid}"))
-        .map(|(graph_update, to_merge)| (graph_update, to_merge))
-    })
+    .map(|(bid, m)| split_block(bid, &m, &graph, thr_len).wrap_err_with(|| format!("When splitting block {bid}")))
     .collect::<Result<Vec<_>, Report>>()?
     .into_iter()
     .for_each(|(graph_update, to_merge)| {
