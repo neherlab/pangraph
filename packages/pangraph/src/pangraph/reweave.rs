@@ -46,7 +46,7 @@ impl MergePromise {
         let edits = if seq.is_empty() {
           Edit::deleted(self.anchor_block.consensus().len())
         } else {
-          map_variations(self.anchor_block.consensus(), seq)?
+          map_variations(self.anchor_block.consensus(), &seq)?
         };
 
         #[cfg(any(test, debug_assertions))]
@@ -223,8 +223,11 @@ fn split_block(
   let b = &graph.blocks[&bid];
   for interval in intervals {
     let (b_slice, n_dict) = block_slice(b, &interval, graph);
-    for (old_nid, new_node) in n_dict {
-      u.n_new.entry(old_nid).or_default().push(new_node);
+    for (old_nid, new_node_opt) in n_dict {
+      // push to u.n_new entry if new_node is not empty
+      if let Some(new_node) = new_node_opt {
+        u.n_new.get_mut(&old_nid).unwrap().push(new_node);
+      }
     }
     if interval.aligned {
       h.push(ToMerge {
@@ -294,6 +297,7 @@ mod tests {
   use maplit::{btreemap, btreeset};
   use noodles::sam::record::Cigar;
   use pretty_assertions::assert_eq;
+  use crate::representation::seq::Seq;
 
   #[test]
   fn test_extract_hits() {
@@ -528,9 +532,9 @@ mod tests {
         },
       );
 
-      let p1 = PangraphPath::new(Some(PathId(100)), [nid1], 2000, false, None);
-      let p2 = PangraphPath::new(Some(PathId(200)), [nid2], 2000, false, None);
-      let p3 = PangraphPath::new(Some(PathId(300)), [nid3], 200, false, None);
+      let p1 = PangraphPath::new(Some(PathId(100)), [nid1], 2000, true, None);
+      let p2 = PangraphPath::new(Some(PathId(200)), [nid2], 2000, true, None);
+      let p3 = PangraphPath::new(Some(PathId(300)), [nid3], 200, true, None);
 
       let G = Pangraph {
         paths: btreemap! {
@@ -635,6 +639,7 @@ mod tests {
 
     assert_eq!(u.b_new.len(), 1);
     let b = &u.b_new[0];
+
     assert_eq!(b.consensus(), &G.blocks[&bid].consensus()[50..80]);
     assert_eq!(b.alignment_keys(), node_keys_1);
 
@@ -659,7 +664,7 @@ mod tests {
   #[test]
   fn test_reweave() -> Result<(), Report> {
     fn i(pos: usize, len: usize, seq: impl AsRef<str>) -> Ins {
-      Ins::new(pos, seq.as_ref().repeat(len))
+      Ins::new(pos, Seq::from_str(&seq.as_ref().repeat(len)))
     }
 
     fn d(pos: usize, len: usize) -> Del {
@@ -683,9 +688,9 @@ mod tests {
       };
 
       let paths = btreemap! {
-        PathId(100) => PangraphPath::new(Some(PathId(100)), [NodeId(1), NodeId(2)], 1000, false, None),
-        PathId(200) => PangraphPath::new(Some(PathId(200)), [NodeId(3), NodeId(4), NodeId(5)], 1000, false, None),
-        PathId(300) => PangraphPath::new(Some(PathId(300)), [NodeId(6), NodeId(7), NodeId(8)], 1000, false, None),
+        PathId(100) => PangraphPath::new(Some(PathId(100)), [NodeId(1), NodeId(2)], 1000, true, None),
+        PathId(200) => PangraphPath::new(Some(PathId(200)), [NodeId(3), NodeId(4), NodeId(5)], 1000, true, None),
+        PathId(300) => PangraphPath::new(Some(PathId(300)), [NodeId(6), NodeId(7), NodeId(8)], 1000, true, None),
       };
 
       #[rustfmt::skip]

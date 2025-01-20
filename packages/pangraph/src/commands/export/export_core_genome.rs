@@ -5,10 +5,11 @@ use crate::io::seq::reverse_complement;
 use crate::make_internal_report;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::RecordNaming;
+use crate::representation::seq::Seq;
 use clap::Parser;
 use eyre::{Context, Report};
-use itertools::{izip, Itertools};
-use std::collections::{BTreeMap, BTreeSet};
+use itertools::Itertools;
+use std::collections::BTreeMap;
 
 #[derive(Parser, Debug, Default, Clone)]
 pub struct ExportCoreAlignmentParams {
@@ -50,30 +51,23 @@ pub fn export_core_genome(args: PangraphExportCoreAlignmentArgs) -> Result<(), R
 /// Given a block, returns a list of FastaRecord objects containing a sequence per node.
 /// If aligned is True, it returns aligned sequences, with gaps for deletions and no insertions.
 /// If aligned is False, it returns the full unaligned sequences.
-fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Result<Vec<(String, String)>, Report> {
-  let core_block_ids = graph.core_block_ids();
+fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Result<Vec<(String, Seq)>, Report> {
+  let core_block_ids: Vec<_> = graph.core_block_ids().collect();
   let guide_path_id = graph.path_id_by_name(&params.guide_strain)?;
   let guide_path = &graph.paths[&guide_path_id];
 
-  let guide_block_info: BTreeMap<_, _> = guide_path
+  // Extract sequences for all core blocks
+  let mut records = vec![];
+  for (bid, strand) in guide_path
     .nodes
     .iter()
     .map(|node_id| {
       let node = &graph.nodes[node_id];
       (node.block_id(), node.strand())
     })
-    .collect();
-
-  let guide_block_ids: BTreeSet<_> = guide_block_info.keys().collect();
-  let guide_block_values: Vec<_> = guide_block_info.values().collect();
-
-  // Extract sequences for all core blocks
-  let mut records = vec![];
-  for (bid, &strand) in izip!(core_block_ids, guide_block_values) {
-    if !guide_block_ids.contains(&bid) {
-      continue; // Only consider core blocks
-    }
-
+    .filter(|(bid, _)| core_block_ids.contains(bid))
+  // Filter out non-core blocks
+  {
     let block = &graph.blocks[&bid];
     let mut block_records: Vec<_> = block
       .sequences(graph, !params.unaligned, RecordNaming::Path)
@@ -84,7 +78,7 @@ fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Resul
     if strand.is_reverse() {
       block_records = block_records
         .into_iter()
-        .map(|(id, seq)| Ok((id, reverse_complement(seq)?)))
+        .map(|(id, seq)| Ok((id, reverse_complement(&seq)?)))
         .collect::<Result<_, Report>>()?; // TODO(perf): avoid allocations
     }
 
@@ -98,7 +92,7 @@ fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Resul
       .enumerate()
       .map(|(i, path)| {
         let id = path.map_or_else(|| i.to_string(), |p| p.to_owned());
-        (id, String::new())
+        (id, Seq::new())
       })
       .collect()
   } else {
@@ -111,22 +105,19 @@ fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Resul
 
 /// Given a list of lists of FastaRecord objects, concatenates all records
 /// with the same name in the same sequence, and returns a single list of FastaRecord objects.
-fn concatenate_records(records_list: &[Vec<(String, String)>]) -> Result<Vec<(String, String)>, Report> {
+fn concatenate_records(records_list: &[Vec<(String, Seq)>]) -> Result<Vec<(String, Seq)>, Report> {
   if records_list.is_empty() {
     return Ok(vec![]);
   }
 
-  let mut records: BTreeMap<String, String> = records_list[0]
-    .iter()
-    .map(|(id, _)| (id.clone(), String::new()))
-    .collect();
+  let mut records: BTreeMap<String, Seq> = records_list[0].iter().map(|(id, _)| (id.clone(), Seq::new())).collect();
 
   for entry in records_list {
     for (id, seq) in entry {
       records
         .get_mut(id)
         .ok_or_else(|| make_internal_report!("Sequence name '{id}' not found in the initial set"))?
-        .push_str(seq); // TODO(perf): avoid allocations
+        .extend_seq(seq);
     }
   }
 
@@ -150,6 +141,35 @@ mod tests {
 
   #[test]
   fn test_core_block_aln_general_case() {
+    // path A: n1+, n2-
+    // path B: n4+, n5+, n3-
+
+    // block 1:
+    // cons: ACCTATCGTGATCGTTCGAT
+    // A n1: ACCTATCGT---CGTTCGAT
+    // B n3: ACTTATCGTGATCGTTCGAT
+    // reverse-complement:
+    // cons: ATCGAACGATCACGATAGGT
+    // A n1: ATCGAACG---ACGATAGGT
+    // B n3: ATCGAACGATCACGATAAGT
+
+    // block 2:
+    // cons: CTGCAA   GTCTGATCTAGTTA
+    // A n2: CTGCAATTTGTCTGATGTAGTTA
+    // B n4: CT--AA   GTCTGATCTAGTTA
+    // reverse-complement
+    // cons: TAACTAGATCAGAC   TTGCAG
+    // A n2: TAACTACATCAGACAAATTGCAG
+    // B n4: TAACTAGATCAGAC   TT--AG
+
+    // core (guide A):
+    // A: ACCTATCGT---CGTTCGATTAACTACATCAGACAAATTGCAG
+    // B: ACTTATCGTGATCGTTCGATTAACTAGATCAGAC   TT--AG
+
+    // core (guide B):
+    // A: CTGCAATTTGTCTGATGTAGTTAATCGAACG---ACGATAGGT
+    // B: CT--AA   GTCTGATCTAGTTAATCGAACGATCACGATAAGT
+
     let graph = Pangraph::from_str(indoc! {
     // language=json
     r#"
@@ -158,14 +178,14 @@ mod tests {
           "0": {
             "id": 0,
             "nodes": [1, 2],
-            "tot_len": 100,
+            "tot_len": 40,
             "circular": false,
             "name": "Path A"
           },
           "1": {
             "id": 1,
-            "nodes": [3, 4],
-            "tot_len": 100,
+            "nodes": [4, 5, 3],
+            "tot_len": 48,
             "circular": false,
             "name": "Path B"
           }
@@ -173,15 +193,15 @@ mod tests {
         "blocks": {
           "1": {
             "id": 1,
-            "consensus": "ACGTACGT",
+            "consensus": "ACCTATCGTGATCGTTCGAT",
             "alignments": {
               "1": {
                 "subs": [],
-                "dels": [],
+                "dels": [{"pos": 9, "len": 3}],
                 "inss": []
               },
-              "2": {
-                "subs": [{"pos": 3, "alt": "T"}],
+              "3": {
+                "subs": [{"pos": 2, "alt": "T"}],
                 "dels": [],
                 "inss": []
               }
@@ -189,17 +209,28 @@ mod tests {
           },
           "2": {
             "id": 2,
-            "consensus": "TTGCA",
+            "consensus": "CTGCAAGTCTGATCTAGTTA",
             "alignments": {
-              "3": {
-                "subs": [],
-                "dels": [{"pos": 2, "len": 1}],
-                "inss": []
+              "2": {
+                "subs": [{"pos": 13, "alt": "G"}],
+                "dels": [],
+                "inss": [{"pos": 6, "seq": "TTT"}]
               },
               "4": {
                 "subs": [],
+                "dels": [{"pos": 2, "len": 2}],
+                "inss": []
+              }
+            }
+          },
+          "3": {
+            "id": 3,
+            "consensus": "AGGCTACGAT",
+            "alignments": {
+              "5": {
+                "subs": [],
                 "dels": [],
-                "inss": [{"pos": 0, "seq": "AAA"}]
+                "inss": []
               }
             }
           }
@@ -210,28 +241,35 @@ mod tests {
             "block_id": 1,
             "path_id": 0,
             "strand": "+",
-            "position": [0, 8]
+            "position": [0, 17]
           },
           "2": {
             "id": 2,
-            "block_id": 1,
+            "block_id": 2,
             "path_id": 0,
             "strand": "-",
-            "position": [0, 8]
+            "position": [17, 40]
           },
           "3": {
             "id": 3,
-            "block_id": 2,
+            "block_id": 1,
             "path_id": 1,
-            "strand": "+",
-            "position": [0, 5]
+            "strand": "-",
+            "position": [28, 48]
           },
           "4": {
             "id": 4,
             "block_id": 2,
             "path_id": 1,
             "strand": "+",
-            "position": [0, 5]
+            "position": [0, 18]
+          },
+          "5": {
+            "id": 5,
+            "block_id": 3,
+            "path_id": 1,
+            "strand": "+",
+            "position": [18, 28]
           }
         }
       }
@@ -240,10 +278,55 @@ mod tests {
 
     let params = ExportCoreAlignmentParams {
       guide_strain: o!("Path A"),
+      unaligned: false,
+    };
+
+    let expected = vec![
+      (o!("Path A"), Seq::from_str("ACCTATCGT---CGTTCGATTAACTACATCAGACTTGCAG")),
+      (o!("Path B"), Seq::from_str("ACTTATCGTGATCGTTCGATTAACTAGATCAGACTT--AG")),
+    ];
+    let actual = core_block_aln(&graph, &params).unwrap();
+
+    assert_eq!(expected, actual);
+
+    let params = ExportCoreAlignmentParams {
+      guide_strain: o!("Path A"),
       unaligned: true,
     };
 
-    let expected = vec![(o!("Path A"), o!("ACGTTGTCA--")), (o!("Path B"), o!("TT--CGAATTTGCA"))];
+    let expected = vec![
+      (o!("Path A"), Seq::from_str("ACCTATCGTCGTTCGATTAACTACATCAGACAAATTGCAG")),
+      (o!("Path B"), Seq::from_str("ACTTATCGTGATCGTTCGATTAACTAGATCAGACTTAG")),
+    ];
+
+    let actual = core_block_aln(&graph, &params).unwrap();
+
+    assert_eq!(expected, actual);
+
+    let params = ExportCoreAlignmentParams {
+      guide_strain: o!("Path B"),
+      unaligned: false,
+    };
+
+    let expected = vec![
+      (o!("Path A"), Seq::from_str("CTGCAAGTCTGATGTAGTTAATCGAACG---ACGATAGGT")),
+      (o!("Path B"), Seq::from_str("CT--AAGTCTGATCTAGTTAATCGAACGATCACGATAAGT")),
+    ];
+
+    let actual = core_block_aln(&graph, &params).unwrap();
+
+    assert_eq!(expected, actual);
+
+    let params = ExportCoreAlignmentParams {
+      guide_strain: o!("Path B"),
+      unaligned: true,
+    };
+
+    let expected = vec![
+      (o!("Path A"), Seq::from_str("CTGCAATTTGTCTGATGTAGTTAATCGAACGACGATAGGT")),
+      (o!("Path B"), Seq::from_str("CTAAGTCTGATCTAGTTAATCGAACGATCACGATAAGT")),
+    ];
+
     let actual = core_block_aln(&graph, &params).unwrap();
 
     assert_eq!(expected, actual);
@@ -252,18 +335,21 @@ mod tests {
   #[test]
   fn test_concatenate_records_general_case() {
     let input = vec![
-      vec![(o!("name1"), o!("ATG")), (o!("name2"), o!("CCC"))],
-      vec![(o!("name1"), o!("TGA")), (o!("name2"), o!("GGG"))],
+      vec![(o!("name1"), Seq::from_str("ATG")), (o!("name2"), Seq::from_str("CCC"))],
+      vec![(o!("name1"), Seq::from_str("TGA")), (o!("name2"), Seq::from_str("GGG"))],
     ];
-    let expected = vec![(o!("name1"), o!("ATGTGA")), (o!("name2"), o!("CCCGGG"))];
+    let expected = vec![
+      (o!("name1"), Seq::from_str("ATGTGA")),
+      (o!("name2"), Seq::from_str("CCCGGG")),
+    ];
     let actual = concatenate_records(&input).unwrap();
     assert_eq!(expected, actual);
   }
 
   #[test]
   fn test_concatenate_records_single_entry() {
-    let input = vec![vec![(o!("name1"), o!("ATG"))]];
-    let expected = vec![(o!("name1"), o!("ATG"))];
+    let input = vec![vec![(o!("name1"), Seq::from_str("ATG"))]];
+    let expected = vec![(o!("name1"), Seq::from_str("ATG"))];
     let actual = concatenate_records(&input).unwrap();
     assert_eq!(expected, actual);
   }
@@ -271,10 +357,10 @@ mod tests {
   #[test]
   fn test_concatenate_records_multiple_entries_same_name() {
     let input = vec![
-      vec![(o!("name1"), o!("ATG")), (o!("name1"), o!("TGA"))],
-      vec![(o!("name1"), o!("CCC"))],
+      vec![(o!("name1"), Seq::from_str("ATG")), (o!("name1"), Seq::from_str("TGA"))],
+      vec![(o!("name1"), Seq::from_str("CCC"))],
     ];
-    let expected = vec![(o!("name1"), o!("ATGTGACCC"))];
+    let expected = vec![(o!("name1"), Seq::from_str("ATGTGACCC"))];
     let actual = concatenate_records(&input).unwrap();
     assert_eq!(expected, actual);
   }
@@ -282,8 +368,8 @@ mod tests {
   #[test]
   fn test_concatenate_records_missing_name_in_initial_set() {
     let input = vec![
-      vec![(o!("name1"), o!("ATG")), (o!("name2"), o!("CCC"))],
-      vec![(o!("name3"), o!("TGA"))],
+      vec![(o!("name1"), Seq::from_str("ATG")), (o!("name2"), Seq::from_str("CCC"))],
+      vec![(o!("name3"), Seq::from_str("TGA"))],
     ];
     let actual = report_to_string(&concatenate_records(&input).unwrap_err());
     let expected =

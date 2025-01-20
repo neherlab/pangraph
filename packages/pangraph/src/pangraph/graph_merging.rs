@@ -15,7 +15,7 @@ use crate::utils::interval::{have_no_overlap, Interval};
 use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
-use log::{debug, trace};
+use log::{debug, trace, warn};
 use maplit::btreemap;
 use ordered_float::OrderedFloat;
 use rayon::prelude::*;
@@ -48,8 +48,15 @@ pub fn merge_graphs(
     graph = graph_new;
 
     // stop when no more mergers are possible
+    // or when the maximum number of iterations is reached
     if !has_changed {
       debug!("Graph merge {left_keys} <---> {right_keys} complete.");
+      break;
+    } else if i >= args.max_self_map {
+      warn!(
+        "Reached maximum number of self-merge iterations at graph merging {left_keys} <---> {right_keys}, consider increasing the current limit -x {}",
+        args.max_self_map
+      );
       break;
     }
     i += 1;

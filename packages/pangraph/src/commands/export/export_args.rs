@@ -17,10 +17,10 @@ pub enum PangraphExportArgs {
   /// Export block consensus sequences to a fasta file
   BlockConsensus(PangraphExportBlockConsensusArgs),
 
-  /// Export aligned or unaligned sequences for each block. Note that alignments exclude insertions
+  /// Export aligned or unaligned sequences for each block in separate fasta files. Note that alignments exclude insertions.
   BlockSequences(PangraphExportBlockSequencesArgs),
 
-  /// Export the core-genome alignment
+  /// Export the core-genome alignment. Note that alignment excludes insertions.
   CoreGenome(PangraphExportCoreAlignmentArgs),
 }
 
@@ -42,7 +42,7 @@ pub struct PangraphExportGfaArgs {
   ///
   /// If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
   ///
-  /// Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
+  /// Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
   #[clap(long, short = 'o', default_value = "-", value_hint = ValueHint::AnyPath)]
   pub output: PathBuf,
 
@@ -68,7 +68,7 @@ pub struct PangraphExportBlockConsensusArgs {
   ///
   /// If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
   ///
-  /// Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
+  /// Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
   #[clap(long, short = 'o', default_value = "-", value_hint = ValueHint::AnyPath)]
   pub output: PathBuf,
 }
@@ -85,7 +85,7 @@ pub struct PangraphExportBlockSequencesArgs {
   #[clap(display_order = 1, value_hint = ValueHint::FilePath)]
   pub input_json: Option<PathBuf>,
 
-  /// Path to directory to write output FASTA files to
+  /// Path to directory to write output FASTA files to. Files are named `block_{block_id}.fa` in the folder.
   ///
   /// See: https://en.wikipedia.org/wiki/FASTA_format
   #[clap(long, short = 'o', value_hint = ValueHint::AnyPath)]
@@ -113,7 +113,7 @@ pub struct PangraphExportCoreAlignmentArgs {
   ///
   /// If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
   ///
-  /// Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
+  /// Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
   #[clap(long, short = 'o', default_value = "-", value_hint = ValueHint::AnyPath)]
   pub output: PathBuf,
 

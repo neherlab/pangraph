@@ -1,5 +1,6 @@
 use crate::io::seq::{complement, reverse_complement};
-use crate::utils::collections::insert_at_inplace;
+use crate::representation::seq::Seq;
+use crate::representation::seq_char::AsciiChar;
 use crate::utils::interval::Interval;
 use eyre::Report;
 use itertools::Itertools;
@@ -14,18 +15,18 @@ use eyre::eyre;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash, JsonSchema)]
 pub struct Sub {
   pub pos: usize,
-  pub alt: char,
+  pub alt: AsciiChar,
 }
 
 impl Sub {
-  pub fn new(pos: usize, alt: char) -> Self {
-    Self { pos, alt }
+  pub fn new(pos: usize, alt: impl Into<AsciiChar>) -> Self {
+    Self { pos, alt: alt.into() }
   }
 
   pub fn reverse_complement(&self, len: usize) -> Result<Self, Report> {
     Ok(Self {
       pos: len - self.pos - 1,
-      alt: complement(self.alt)?,
+      alt: complement(&self.alt)?,
     })
   }
 
@@ -84,15 +85,12 @@ impl Del {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Ord, PartialOrd, Hash, JsonSchema)]
 pub struct Ins {
   pub pos: usize,
-  pub seq: String,
+  pub seq: Seq,
 }
 
 impl Ins {
-  pub fn new(pos: usize, seq: impl AsRef<str>) -> Self {
-    Self {
-      pos,
-      seq: seq.as_ref().to_owned(),
-    }
+  pub fn new(pos: usize, seq: impl Into<Seq>) -> Self {
+    Self { pos, seq: seq.into() }
   }
 
   pub fn reverse_complement(&self, len: usize) -> Result<Self, Report> {
@@ -179,7 +177,7 @@ impl Edit {
     // concatenate self + next
     for ins in &next.inss {
       if let Some(prev) = inss.iter_mut().find(|i| i.pos == ins.pos) {
-        prev.seq.push_str(&ins.seq);
+        prev.seq.extend_seq(&ins.seq);
       } else {
         inss.push(ins.clone());
       }
@@ -191,9 +189,8 @@ impl Edit {
   }
 
   /// Apply the edits to the reference to obtain the query sequence
-  pub fn apply(&self, reff: impl AsRef<str>) -> Result<String, Report> {
-    // TODO: decide whether it's best to use chars, bytes of something else entirely
-    let mut qry: Vec<char> = reff.as_ref().chars().collect_vec();
+  pub fn apply(&self, reff: impl Into<Seq>) -> Result<Seq, Report> {
+    let mut qry = reff.into();
 
     for sub in &self.subs {
       qry[sub.pos] = sub.alt;
@@ -202,26 +199,22 @@ impl Edit {
     for del in &self.dels {
       // Replace deleted nucs with character `-`, to avoid frame shift
       for pos in del.range() {
-        qry[pos] = '-';
+        qry[pos] = AsciiChar(b'-');
       }
     }
 
     for ins in self.inss.iter().sorted().rev() {
-      // TODO: avoid copy
-      let seq = ins.seq.chars().collect_vec();
-      insert_at_inplace(&mut qry, ins.pos, &seq);
+      qry.insert_seq(ins.pos, &ins.seq);
     }
 
     // Strip gaps introduced when applying deletions
-    qry.retain(|c| c != &'-');
+    qry.retain(|c| c != &AsciiChar(b'-'));
 
-    let qry = String::from_iter(&qry);
     Ok(qry)
   }
 
-  pub fn apply_aligned(&self, reff: impl AsRef<str>) -> Result<String, Report> {
-    // TODO: decide whether it's best to use chars, bytes of something else entirely
-    let mut qry: Vec<char> = reff.as_ref().chars().collect_vec();
+  pub fn apply_aligned(&self, reff: impl Into<Seq>) -> Result<Seq, Report> {
+    let mut qry = reff.into();
 
     for sub in &self.subs {
       qry[sub.pos] = sub.alt;
@@ -229,12 +222,31 @@ impl Edit {
 
     for del in &self.dels {
       for pos in del.range() {
-        qry[pos] = '-';
+        qry[pos] = AsciiChar(b'-');
       }
     }
 
-    let qry = String::from_iter(&qry);
     Ok(qry)
+  }
+
+  /// Check if the alignment is empty, i.e. after applying the edits to the
+  /// consensus sequence, the resulting sequence is empty.
+  pub fn is_empty_alignment(&self, consensus: &Seq) -> bool {
+    let cons_len = consensus.len();
+    // if there are insertions, the alignment is not empty
+    let insertions_len = self.inss.iter().map(|i| i.seq.len()).sum::<usize>();
+    if insertions_len > 0 {
+      return false;
+    }
+    // if the total length of deletions is less than the length of the consensus
+    // sequence, the alignment is not empty
+    let deletions_len = self.dels.iter().map(|d| d.len).sum::<usize>();
+    if deletions_len < cons_len {
+      return false;
+    }
+    // otherwise, apply the edits and check if the resulting sequence is empty
+    let seq_len = self.apply(consensus).unwrap().len();
+    seq_len == 0
   }
 
   #[cfg(any(test, debug_assertions))]
@@ -249,7 +261,7 @@ impl Edit {
           len
         ));
       }
-      if sub.alt == '-' {
+      if sub.alt == AsciiChar(b'-') {
         return Err(eyre!("Substitution with deletion character '-' is not allowed"));
       }
     }
@@ -345,7 +357,7 @@ mod tests {
     let edits = Edit { subs, dels, inss };
 
     let actual = edits.apply(r).unwrap();
-    assert_eq!(q, actual);
+    assert_eq!(q, &actual);
   }
 
   #[rstest]
@@ -362,7 +374,7 @@ mod tests {
     };
 
     let actual = edits.apply(r).unwrap();
-    assert_eq!(q, actual);
+    assert_eq!(q, &actual);
   }
 
   #[rstest]
@@ -379,7 +391,7 @@ mod tests {
     };
 
     let actual = edits.apply(r).unwrap();
-    assert_eq!(q, actual);
+    assert_eq!(q, &actual);
   }
 
   #[rstest]
@@ -397,6 +409,27 @@ mod tests {
     };
 
     let actual = edits.apply(r).unwrap();
-    assert_eq!(q, actual);
+    assert_eq!(q, &actual);
+  }
+
+  #[rstest]
+  fn test_empty_alignment() {
+    let consensus = "ACGT";
+    let edits = Edit::empty();
+    assert!(!edits.is_empty_alignment(&Seq::from(consensus)));
+
+    let edits = Edit {
+      subs: vec![],
+      dels: vec![Del::new(0, 4)],
+      inss: vec![Ins::new(1, "A")],
+    };
+    assert!(!edits.is_empty_alignment(&Seq::from(consensus)));
+
+    let edits = Edit {
+      subs: vec![],
+      dels: vec![Del::new(0, 4)],
+      inss: vec![],
+    };
+    assert!(edits.is_empty_alignment(&Seq::from(consensus)));
   }
 }

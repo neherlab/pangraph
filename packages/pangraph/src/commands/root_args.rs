@@ -36,14 +36,14 @@ fn styles() -> styling::Styles {
 #[clap(styles = styles())]
 /// Bioinformatic toolkit to align large sets of closely related genomes into a graph data structure.
 ///
-/// Finds homology amongst large collections of closely related genomes. The core of the algorithm partitions each genome into pancontigs that represent a sequence interval related by vertical descent. Each genome is then an ordered walk along pancontigs; the collection of all genomes form a graph that captures all observed structural diversity. The tool useful to parsimoniously infer horizontal gene transfer events within a community; perform comparative studies of genome gain, loss, and rearrangement dynamics; or simply to compress many related genomes.
+/// Finds homology amongst large collections of closely related genomes. The core of the algorithm partitions each genome into pancontigs (also called blocks) that represent a sequence interval related by vertical descent. Each genome is then an ordered walk along pancontigs. The collection of all genomes form a graph that captures all observed structural diversity. The tool is useful to study structural variations in the genome, perform comparative studies of genome gain, loss, and rearrangement dynamics; or simply to compress many related genomes.
 ///
 ///
-/// Publication: "PanGraph: scalable bacterial pan-genome graph construction. Nicholas Noll, Marco Molari, Richard Neher. bioRxiv 2022.02.24.481757; doi: https://doi.org/10.1101/2022.02.24.481757"
+/// Publication: "PanGraph: scalable bacterial pan-genome graph construction." Nicholas Noll, Marco Molari, Richard Neher. Microbial Genomics 9.6 (2023): 001034.; doi: https://doi.org/10.1099/mgen.0.001034
 ///
 /// Documentation: https://pangraph.readthedocs.io/en/stable/
 ///
-/// Source code:https://github.com/neherlab/pangraph
+/// Source code: https://github.com/neherlab/pangraph
 ///
 /// Questions, ideas, bug reports: https://github.com/neherlab/pangraph/issues
 pub struct PangraphArgs {
@@ -71,10 +71,10 @@ pub enum PangraphCommands {
     args: PangraphExportArgs,
   },
 
-  /// Compute all pairwise marginalizations of a multiple sequence alignment graph
+  /// Generates a simplified graph that only contains a subset of the input genomes.
   Simplify(PangraphSimplifyArgs),
 
-  /// Reconstruct input fasta sequences from graph
+  /// Reconstruct all input fasta sequences from graph
   Reconstruct(PangraphReconstructArgs),
 
   /// Generate JSON schema for Pangraph file format

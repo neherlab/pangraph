@@ -28,56 +28,7 @@ pub fn remove_exactly_one<T>(mut elems: Vec<T>) -> Result<T, Report> {
   }
 }
 
-/// Insert slice into vec at an index
-/// Taken from: https://internals.rust-lang.org/t/add-vec-insert-slice-at-to-insert-the-content-of-a-slice-at-an-arbitrary-index/11008
-pub fn insert_at_inplace<T: Clone>(vec: &mut Vec<T>, index: usize, slice: &[T]) {
-  let len = vec.len();
-  assert!(
-    index <= len,
-    "Attempted to insert outside of array boundaries: array size is {len}, index is {index}"
-  );
-  vec.reserve(slice.len());
-  let mut v = vec.split_off(index);
-  vec.extend_from_slice(slice);
-  vec.append(&mut v);
-}
-
 pub fn has_duplicates<T: Eq + Hash, I: IntoIterator<Item = T>>(iter: I) -> bool {
   let mut seen = HashSet::new();
   iter.into_iter().any(|item| !seen.insert(item))
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-
-  use pretty_assertions::assert_eq;
-  use rstest::rstest;
-
-  #[rstest]
-  fn test_insert_at_inplace_general_case() {
-    let mut vec = vec![1; 6];
-    let slice = [0; 2];
-    let index = 2;
-    insert_at_inplace(&mut vec, index, &slice);
-    assert_eq!(vec![1, 1, 0, 0, 1, 1, 1, 1], vec);
-  }
-
-  #[rstest]
-  fn test_insert_at_inplace_append() {
-    let mut vec = vec![1; 6];
-    let slice = [0; 2];
-    let index = 6;
-    insert_at_inplace(&mut vec, index, &slice);
-    assert_eq!(vec![1, 1, 1, 1, 1, 1, 0, 0], vec);
-  }
-
-  #[rstest]
-  fn test_insert_at_inplace_prepend() {
-    let mut vec = vec![1; 6];
-    let slice = [0; 2];
-    let index = 0;
-    insert_at_inplace(&mut vec, index, &slice);
-    assert_eq!(vec![0, 0, 1, 1, 1, 1, 1, 1], vec);
-  }
 }

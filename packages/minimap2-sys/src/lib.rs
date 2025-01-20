@@ -3,7 +3,6 @@
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-
 unsafe impl Send for mm_mapopt_t {}
 unsafe impl Sync for mm_mapopt_t {}
 

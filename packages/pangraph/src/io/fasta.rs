@@ -2,6 +2,7 @@ use crate::io::compression::Decompressor;
 use crate::io::concat::Concat;
 use crate::io::file::{create_file_or_stdout, open_file_or_stdin, open_stdin};
 use crate::make_error;
+use crate::representation::seq::Seq;
 use eyre::Report;
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -20,7 +21,7 @@ pub fn is_char_allowed(c: char) -> bool {
 #[serde(rename_all = "camelCase")]
 pub struct FastaRecord {
   pub seq_name: String,
-  pub seq: String,
+  pub seq: Seq,
   pub index: usize,
 }
 
@@ -141,8 +142,8 @@ impl<'a> FastaReader<'a> {
     let fragment = self
       .line
       .chars()
-      .filter(|c| is_char_allowed(*c))
-      .map(|c| c.to_ascii_uppercase());
+      .map(|c| c.to_ascii_uppercase())
+      .filter(|c| is_char_allowed(*c));
 
     record.seq.extend(fragment);
 
@@ -157,8 +158,8 @@ impl<'a> FastaReader<'a> {
       let fragment = self
         .line
         .chars()
-        .filter(|c| is_char_allowed(*c))
-        .map(|c| c.to_ascii_uppercase());
+        .map(|c| c.to_ascii_uppercase())
+        .filter(|c| is_char_allowed(*c));
 
       record.seq.extend(fragment);
     }
@@ -184,7 +185,7 @@ pub fn read_many_fasta<P: AsRef<Path>>(filepaths: &[P]) -> Result<Vec<FastaRecor
 
   loop {
     let mut record = FastaRecord::default();
-    reader.read(&mut record).unwrap();
+    reader.read(&mut record)?;
     if record.is_empty() {
       break;
     }
@@ -207,7 +208,7 @@ pub fn read_many_fasta_str(contents: impl AsRef<str>) -> Result<Vec<FastaRecord>
 
   loop {
     let mut record = FastaRecord::default();
-    reader.read(&mut record).unwrap();
+    reader.read(&mut record)?;
     if record.is_empty() {
       break;
     }
@@ -231,8 +232,8 @@ impl FastaWriter {
     Ok(Self::new(create_file_or_stdout(filepath)?))
   }
 
-  pub fn write(&mut self, seq_name: impl AsRef<str>, seq: impl AsRef<str>) -> Result<(), Report> {
-    write!(self.writer, ">{}\n{}\n", seq_name.as_ref(), seq.as_ref())?;
+  pub fn write(&mut self, seq_name: impl AsRef<str>, seq: &Seq) -> Result<(), Report> {
+    write!(self.writer, ">{}\n{}\n", seq_name.as_ref(), seq)?;
     Ok(())
   }
 
@@ -242,11 +243,7 @@ impl FastaWriter {
   }
 }
 
-pub fn write_one_fasta(
-  filepath: impl AsRef<Path>,
-  seq_name: impl AsRef<str>,
-  seq: impl AsRef<str>,
-) -> Result<(), Report> {
+pub fn write_one_fasta(filepath: impl AsRef<Path>, seq_name: impl AsRef<str>, seq: &Seq) -> Result<(), Report> {
   let mut writer = FastaWriter::from_path(&filepath)?;
   writer.write(seq_name, seq)
 }
@@ -409,7 +406,7 @@ mod tests {
       record,
       FastaRecord {
         seq_name: o!("a"),
-        seq: o!("ACGCTCGATC"),
+        seq: Seq::from("ACGCTCGATC"),
         index: 0,
       }
     );
@@ -420,7 +417,7 @@ mod tests {
       record,
       FastaRecord {
         seq_name: o!("b"),
-        seq: o!("CCGCGC"),
+        seq: Seq::from("CCGCGC"),
         index: 1,
       }
     );
@@ -438,7 +435,7 @@ mod tests {
       record,
       FastaRecord {
         seq_name: o!("a"),
-        seq: o!("ACGCTCGATC"),
+        seq: Seq::from("ACGCTCGATC"),
         index: 0,
       }
     );
@@ -449,7 +446,7 @@ mod tests {
       record,
       FastaRecord {
         seq_name: o!("b"),
-        seq: o!("CCGCGC"),
+        seq: Seq::from("CCGCGC"),
         index: 1,
       }
     );
@@ -460,7 +457,7 @@ mod tests {
       record,
       FastaRecord {
         seq_name: o!("c"),
-        seq: o!(""),
+        seq: Seq::from(""),
         index: 2,
       }
     );
@@ -478,7 +475,7 @@ mod tests {
       record,
       FastaRecord {
         seq_name: o!("a"),
-        seq: o!("ACGCTCGATC"),
+        seq: Seq::from("ACGCTCGATC"),
         index: 0,
       }
     );
@@ -489,7 +486,7 @@ mod tests {
       record,
       FastaRecord {
         seq_name: o!("b"),
-        seq: o!(""),
+        seq: Seq::from(""),
         index: 1,
       }
     );
@@ -500,7 +497,7 @@ mod tests {
       record,
       FastaRecord {
         seq_name: o!("c"),
-        seq: o!("CCGCGC"),
+        seq: Seq::from("CCGCGC"),
         index: 2,
       }
     );

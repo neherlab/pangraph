@@ -4,11 +4,14 @@ use crate::pangraph::edits::{Ins, Sub};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::NodeId;
-use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
-use crate::utils::collections::insert_at_inplace;
+// use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
+use crate::reconsensus::remove_nodes::find_empty_nodes;
+use crate::representation::seq::Seq;
+use crate::representation::seq_char::AsciiChar;
 use eyre::Report;
 use itertools::Itertools;
 use maplit::btreemap;
+use rayon::prelude::*;
 use std::collections::BTreeMap;
 
 /// Applies the reconsensus operation to each updated block in the graph:
@@ -24,8 +27,12 @@ use std::collections::BTreeMap;
 ///     - for any in/del present in > M/2 sites, appends it to the consensus
 ///   - if the consensus has updated indels, then re-aligns all the sequences to the new consensus
 pub fn reconsensus_graph(graph: &mut Pangraph, ids_updated_blocks: Vec<BlockId>) -> Result<(), Report> {
-  // remove selected nodes from graph
-  remove_emtpy_nodes(graph, &ids_updated_blocks);
+  // // remove selected nodes from graph
+  // remove_emtpy_nodes(graph, &ids_updated_blocks);
+  debug_assert!(
+    find_empty_nodes(graph, &ids_updated_blocks).is_empty(),
+    "Empty nodes found in the graph"
+  );
 
   for block_id in ids_updated_blocks {
     let block = graph.blocks.get_mut(&block_id).unwrap();
@@ -81,7 +88,7 @@ fn reconsensus_mutations(block: &mut PangraphBlock) -> Result<(), Report> {
 
   // apply change
   for (pos, alt) in changes {
-    let original = block.consensus().chars().nth(pos).unwrap();
+    let original = block.consensus()[pos];
 
     // update consensus
     block.set_consensus_char(pos, alt);
@@ -160,29 +167,31 @@ fn majority_insertions(block: &PangraphBlock) -> Vec<Ins> {
 }
 
 /// Updates the consensus sequence with the deletions and insertions.
-fn apply_indels(cons: &str, dels: &[usize], inss: &[Ins]) -> String {
-  let mut cons: Vec<char> = cons.chars().collect();
+fn apply_indels(cons: impl Into<Seq>, dels: &[usize], inss: &[Ins]) -> Seq {
+  let mut cons = cons.into();
 
   for &pos in dels {
-    cons[pos] = '\0'; // Using '\0' to temporarily denote deleted positions
+    cons[pos] = AsciiChar(b'\0'); // Using '\0' to temporarily denote deleted positions
   }
 
   // Reverse to maintain correct insertion indexes after each insert
   for Ins { pos, seq } in inss.iter().rev() {
-    insert_at_inplace(&mut cons, *pos, &seq.chars().collect_vec());
+    cons.insert_seq(*pos, seq);
   }
 
-  cons.into_iter().filter(|&c| c != '\0').collect()
+  cons.retain(|&c| c != AsciiChar(b'\0'));
+
+  cons
 }
 
 /// Updates the consensus sequence of the block and re-aligns the sequences to the new consensus.
-fn update_block_consensus(block: &mut PangraphBlock, consensus: impl Into<String> + AsRef<str>) -> Result<(), Report> {
+fn update_block_consensus(block: &mut PangraphBlock, consensus: &Seq) -> Result<(), Report> {
   // Reconstruct block sequences
   let seqs = block
     .alignments()
     .iter()
     .map(|(&nid, edit)| Ok((nid, edit.apply(block.consensus())?)))
-    .collect::<Result<BTreeMap<NodeId, String>, Report>>()?;
+    .collect::<Result<BTreeMap<NodeId, Seq>, Report>>()?;
 
   // debug assets: all sequences are non-empty
   #[cfg(any(debug_assertions, test))]
@@ -200,10 +209,12 @@ fn update_block_consensus(block: &mut PangraphBlock, consensus: impl Into<String
     }
   }
 
+  let consensus = consensus.into();
+
   // Re-align sequences
   let alignments = seqs
-    .into_iter()
-    .map(|(nid, seq)| Ok((nid, map_variations(&consensus, &seq)?)))
+    .into_par_iter()
+    .map(|(nid, seq)| Ok((nid, map_variations(consensus, &seq)?)))
     .collect::<Result<_, Report>>()?;
 
   *block = PangraphBlock::new(block.id(), consensus, alignments);
@@ -217,8 +228,8 @@ mod tests {
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
   use crate::pangraph::pangraph_block::PangraphBlock;
   use crate::pangraph::pangraph_node::NodeId;
-  use crate::pretty_assert_eq;
   use maplit::btreemap;
+  use pretty_assertions::assert_eq;
 
   fn block_1() -> PangraphBlock {
     let consensus = "AGGACTTCGATCTATTCGGAGAA";
@@ -309,19 +320,19 @@ mod tests {
     let mut block = block_1();
     let expected_block = block_1_mut_reconsensus();
     reconsensus_mutations(&mut block).unwrap();
-    pretty_assert_eq!(block, expected_block);
+    assert_eq!(block, expected_block);
   }
 
   #[test]
   fn test_majority_deletions() {
     let dels = majority_deletions(&block_2());
-    pretty_assert_eq!(dels, vec![5, 6, 20]);
+    assert_eq!(dels, vec![5, 6, 20]);
   }
 
   #[test]
   fn test_majority_insertions() {
     let ins = majority_insertions(&block_2());
-    pretty_assert_eq!(ins, vec![Ins::new(0, "G"), Ins::new(13, "AA"), Ins::new(23, "TT")]);
+    assert_eq!(ins, vec![Ins::new(0, "G"), Ins::new(13, "AA"), Ins::new(23, "TT")]);
   }
 
   #[test]
@@ -330,7 +341,7 @@ mod tests {
     let dels = vec![5, 6, 20];
     let ins = vec![Ins::new(0, "G"), Ins::new(13, "AA"), Ins::new(23, "TT")];
     let cons = apply_indels(consensus, &dels, &ins);
-    pretty_assert_eq!(cons, "GAGGACCGATCTAAATTCGGAAATT");
+    assert_eq!(cons, "GAGGACCGATCTAAATTCGGAAATT");
   }
 
   #[test]
@@ -338,7 +349,7 @@ mod tests {
     let mut block = block_3();
     let expected_block = block_3_reconsensus();
     reconsensus(&mut block).unwrap();
-    pretty_assert_eq!(block.consensus(), expected_block.consensus());
-    pretty_assert_eq!(block.alignments(), expected_block.alignments());
+    assert_eq!(block.consensus(), expected_block.consensus());
+    assert_eq!(block.alignments(), expected_block.alignments());
   }
 }

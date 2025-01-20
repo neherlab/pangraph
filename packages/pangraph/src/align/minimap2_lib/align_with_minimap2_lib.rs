@@ -18,7 +18,7 @@ pub fn align_with_minimap2_lib(
 ) -> Result<Vec<Alignment>, Report> {
   let (names, seqs): (Vec<String>, Vec<&str>) = blocks
     .iter()
-    .map(|(id, block)| (id.to_string(), block.consensus()))
+    .map(|(id, block)| (id.to_string(), block.consensus().as_str()))
     .unzip();
 
   let alns: Vec<Alignment> = align_with_minimap2_lib_impl(&seqs, &names, params)?;
@@ -171,7 +171,7 @@ mod tests {
 
     let fasta = read_many_fasta_str(fasta)?;
 
-    let (seqs, names): (Vec<String>, Vec<String>) = fasta.into_iter().map(|f| (f.seq, f.seq_name)).unzip();
+    let (seqs, names): (Vec<String>, Vec<String>) = fasta.into_iter().map(|f| (f.seq.to_string(), f.seq_name)).unzip();
 
     let params = AlignmentArgs {
       kmer_length: Some(10),

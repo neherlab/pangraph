@@ -6,6 +6,7 @@ use crate::pangraph::pangraph_block::PangraphBlock;
 use crate::pangraph::pangraph_interval::PangraphInterval;
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::strand::Strand;
+use crate::representation::seq::Seq;
 use std::collections::BTreeMap;
 
 pub fn slice_substitutions(i: &PangraphInterval, S: &[Sub]) -> Vec<Sub> {
@@ -59,7 +60,11 @@ pub fn new_strandedness(old_strandedness: Strand, orientation: Strand, is_anchor
   }
 }
 
-pub fn new_position(
+// given the old position of a node, the coordinates of the node in the new block,
+// the length of the path and the strandedness of the node, return the new node position.
+// Accounts for circular paths.
+// Nb: a node that spans the whole path [0, L] will have position [0, 0]
+pub fn new_position_circular(
   old_position: (usize, usize),
   node_coords: (usize, usize),
   path_L: usize,
@@ -74,6 +79,24 @@ pub fn new_position(
       (old_e + path_L - new_e_in_node) % path_L,
       (old_e + path_L - new_s_in_node) % path_L,
     )
+  }
+}
+
+// given the old position of a node, the coordinates of the node in the new block,
+// and the strandedness of the node, return the new node position.
+// Does not account for circular paths.
+// Nb: a node that spans the whole path [0, L] will have position [0, L]
+pub fn new_position_non_circular(
+  old_position: (usize, usize),
+  node_coords: (usize, usize),
+  old_strandedness: Strand,
+) -> (usize, usize) {
+  let (old_s, old_e) = old_position;
+  let (new_s_in_node, new_e_in_node) = node_coords;
+  if old_strandedness.is_forward() {
+    (old_s + new_s_in_node, old_s + new_e_in_node)
+  } else {
+    (old_e - new_e_in_node, old_e - new_s_in_node)
   }
 }
 
@@ -103,15 +126,27 @@ pub fn interval_node_coords(i: &PangraphInterval, edits: &Edit, block_L: usize) 
   (s, e)
 }
 
+/// given a block, an interval and the graph, it extract the slice of the block
+/// defined by the interval.
+///
+/// It returns the new block, along with a dictionary of updates for the nodes,
+/// that maps old node ids to new nodes.
+/// In case a slice contains an empty node, the corresponding entry in the dictionary
+/// will be None.
 pub fn block_slice(
   b: &PangraphBlock,
   i: &PangraphInterval,
   G: &Pangraph,
-) -> (PangraphBlock, BTreeMap<NodeId, PangraphNode>) {
+) -> (PangraphBlock, BTreeMap<NodeId, Option<PangraphNode>>) {
   #[allow(clippy::string_slice)]
-  let new_consensus = b.consensus()[i.interval.to_range()].to_owned();
-  let block_L = b.consensus_len();
+  // consensus of the new block
+  let new_consensus: Seq = b.consensus()[i.interval.to_range()].into();
 
+  // length of the new block
+  let block_L = b.consensus_len();
+  debug_assert!(block_L > 0, "Block {} has length 0", b.id());
+
+  // containers for new alignment and node updates
   let mut node_updates = BTreeMap::new();
   let mut new_alignment = BTreeMap::new();
 
@@ -134,18 +169,31 @@ pub fn block_slice(
 
     let path_L = G.paths[&old_node.path_id()].tot_len;
     let node_coords = interval_node_coords(i, edits, block_L);
-    let new_pos = new_position(old_node.position(), node_coords, path_L, old_strandedness);
+    let circular = G.paths[&old_node.path_id()].circular();
+    let new_pos = if circular {
+      new_position_circular(old_node.position(), node_coords, path_L, old_strandedness)
+    } else {
+      new_position_non_circular(old_node.position(), node_coords, old_strandedness)
+    };
 
     let new_node = PangraphNode::new(None, i.new_block_id, old_node.path_id(), new_strand, new_pos);
-    node_updates.insert(*old_node_id, new_node.clone());
 
+    // extract edits for the slice
     let new_edits = slice_edits(i, edits, block_L);
 
     #[cfg(any(debug_assertions, test))]
     new_edits.sanity_check(new_consensus.len()).unwrap();
 
-    let ovw = new_alignment.insert(new_node.id(), new_edits);
-    debug_assert!(ovw.is_none()); // new node id is not already in new_alignment
+    if new_edits.is_empty_alignment(&new_consensus) {
+      // if the node is empty, add `None` to the node updates
+      // and do not add the alignment to the new block
+      node_updates.insert(*old_node_id, None);
+    } else {
+      // if the node is not empty, add the alignment to the new block
+      let ovw = new_alignment.insert(new_node.id(), new_edits);
+      debug_assert!(ovw.is_none(), "Node id was already present! {ovw:?}");
+      node_updates.insert(*old_node_id, Some(new_node));
+    }
   }
 
   let new_block = PangraphBlock::new(i.new_block_id, new_consensus, new_alignment);
@@ -170,31 +218,31 @@ mod tests {
     let seq = o!("ACTGGATATCCGATATTCGAG");
     let ed = Edit {
       subs: vec![
-        Sub { pos: 2, alt: 'C' },
-        Sub { pos: 5, alt: 'C' },
-        Sub { pos: 6, alt: 'G' },
-        Sub { pos: 7, alt: 'C' },
-        Sub { pos: 13, alt: 'G' },
-        Sub { pos: 14, alt: 'T' },
-        Sub { pos: 18, alt: 'C' },
-        Sub { pos: 20, alt: 'A' },
+        Sub::new(2, 'C'),
+        Sub::new(5, 'C'),
+        Sub::new(6, 'G'),
+        Sub::new(7, 'C'),
+        Sub::new(13, 'G'),
+        Sub::new(14, 'T'),
+        Sub::new(18, 'C'),
+        Sub::new(20, 'A'),
       ],
       dels: vec![
-        Del { pos: 0, len: 2 },
-        Del { pos: 4, len: 3 },
-        Del { pos: 9, len: 2 },
-        Del { pos: 13, len: 4 },
-        Del { pos: 18, len: 3 },
+        Del::new(0, 2),
+        Del::new(4, 3),
+        Del::new(9, 2),
+        Del::new(13, 4),
+        Del::new(18, 3),
       ],
       inss: vec![
-        Ins { pos: 2, seq: o!("CC") },
-        Ins { pos: 5, seq: o!("A") },
-        Ins { pos: 6, seq: o!("TTT") },
-        Ins { pos: 10, seq: o!("C") },
-        Ins { pos: 13, seq: o!("T") },
-        Ins { pos: 14, seq: o!("GG") },
-        Ins { pos: 17, seq: o!("A") },
-        Ins { pos: 21, seq: o!("A") },
+        Ins::new(2, "CC"),
+        Ins::new(5, "A"),
+        Ins::new(6, "TTT"),
+        Ins::new(10, "C"),
+        Ins::new(13, "T"),
+        Ins::new(14, "GG"),
+        Ins::new(17, "A"),
+        Ins::new(21, "A"),
       ],
     };
     (seq, ed)
@@ -211,14 +259,7 @@ mod tests {
       orientation: None,
     };
     let new_ed = slice_substitutions(&i, &ed.subs);
-    assert_eq!(
-      new_ed,
-      vec![
-        Sub { pos: 0, alt: 'G' },
-        Sub { pos: 1, alt: 'C' },
-        Sub { pos: 7, alt: 'G' },
-      ]
-    );
+    assert_eq!(new_ed, vec![Sub::new(0, 'G'), Sub::new(1, 'C'), Sub::new(7, 'G'),]);
     let i = PangraphInterval {
       interval: Interval { start: 15, end: 21 },
       aligned: true,
@@ -227,7 +268,7 @@ mod tests {
       orientation: None,
     };
     let new_ed = slice_substitutions(&i, &ed.subs);
-    assert_eq!(new_ed, vec![Sub { pos: 3, alt: 'C' }, Sub { pos: 5, alt: 'A' },]);
+    assert_eq!(new_ed, vec![Sub::new(3, 'C'), Sub::new(5, 'A')]);
   }
 
   #[test]
@@ -267,14 +308,7 @@ mod tests {
       orientation: None,
     };
     let new_ed = slice_insertions(&i, &ed.inss, seq.len());
-    assert_eq!(
-      new_ed,
-      vec![
-        Ins { pos: 0, seq: o!("TTT") },
-        Ins { pos: 4, seq: o!("C") },
-        Ins { pos: 7, seq: o!("T") },
-      ]
-    );
+    assert_eq!(new_ed, vec![Ins::new(0, "TTT"), Ins::new(4, "C"), Ins::new(7, "T"),]);
     let i = PangraphInterval {
       interval: Interval { start: 15, end: 21 },
       aligned: true,
@@ -283,10 +317,7 @@ mod tests {
       orientation: None,
     };
     let new_ed = slice_insertions(&i, &ed.inss, seq.len());
-    assert_eq!(
-      new_ed,
-      vec![Ins { pos: 2, seq: o!("A") }, Ins { pos: 6, seq: o!("A") },]
-    );
+    assert_eq!(new_ed, vec![Ins::new(2, "A"), Ins::new(6, "A")]);
   }
 
   #[test]
@@ -315,27 +346,60 @@ mod tests {
   }
 
   #[test]
-  fn test_new_position() {
+  fn test_new_position_circular() {
     let path_L = 100;
 
     let strandedness = Forward;
     let node_coords = (10, 20);
     let old_position = (10, 40);
-    let new_pos = new_position(old_position, node_coords, path_L, strandedness);
+    let new_pos = new_position_circular(old_position, node_coords, path_L, strandedness);
     assert_eq!(new_pos, (20, 30));
 
     let old_position = (95, 20);
-    let new_pos = new_position(old_position, node_coords, path_L, strandedness);
+    let new_pos = new_position_circular(old_position, node_coords, path_L, strandedness);
     assert_eq!(new_pos, (5, 15));
 
     let strandedness = Reverse;
     let old_position = (10, 50);
-    let new_pos = new_position(old_position, node_coords, path_L, strandedness);
+    let new_pos = new_position_circular(old_position, node_coords, path_L, strandedness);
     assert_eq!(new_pos, (30, 40));
 
     let old_position = (40, 5);
-    let new_pos = new_position(old_position, node_coords, path_L, strandedness);
+    let new_pos = new_position_circular(old_position, node_coords, path_L, strandedness);
     assert_eq!(new_pos, (85, 95));
+
+    let strandedness = Forward;
+    let old_position = (0, 100);
+    let node_coords = (0, 100);
+    let new_pos = new_position_circular(old_position, node_coords, path_L, strandedness);
+    assert_eq!(new_pos, (0, 0));
+  }
+
+  #[test]
+  fn test_new_position_non_circular() {
+    let strandedness = Forward;
+    let node_coords = (10, 20);
+    let old_position = (10, 40);
+    let new_pos = new_position_non_circular(old_position, node_coords, strandedness);
+    assert_eq!(new_pos, (20, 30));
+
+    let strandedness = Reverse;
+    let node_coords = (10, 20);
+    let old_position = (10, 50);
+    let new_pos = new_position_non_circular(old_position, node_coords, strandedness);
+    assert_eq!(new_pos, (30, 40));
+
+    let strandedness = Forward;
+    let node_coords = (0, 10);
+    let old_position = (0, 20);
+    let new_pos = new_position_non_circular(old_position, node_coords, strandedness);
+    assert_eq!(new_pos, (0, 10));
+
+    let strandedness = Forward;
+    let node_coords = (0, 100);
+    let old_position = (0, 100);
+    let new_pos = new_position_non_circular(old_position, node_coords, strandedness);
+    assert_eq!(new_pos, (0, 100));
   }
 
   #[test]
@@ -348,23 +412,9 @@ mod tests {
       orientation: None,
     };
     let ed = Edit {
-      subs: vec![
-        Sub { pos: 2, alt: 'G' },
-        Sub { pos: 13, alt: 'T' },
-        Sub { pos: 24, alt: 'T' },
-      ],
+      subs: vec![Sub::new(2, 'G'), Sub::new(13, 'T'), Sub::new(24, 'T')],
       dels: vec![Del { pos: 18, len: 3 }],
-      inss: vec![
-        Ins { pos: 7, seq: o!("A") },
-        Ins {
-          pos: 10,
-          seq: o!("AAAA"),
-        },
-        Ins {
-          pos: 20,
-          seq: o!("TTTTTTTT"),
-        },
-      ],
+      inss: vec![Ins::new(7, "A"), Ins::new(10, "AAAA"), Ins::new(20, "TTTTTTTT")],
     };
     let block_L = 100;
     let new_pos = interval_node_coords(&i, &ed, block_L);
@@ -388,34 +438,37 @@ mod tests {
     assert_eq!(new_b.consensus(), "TATATTTATC");
 
     let nn1 = PangraphNode::new(None, new_bid, PathId(1), Forward, (111, 120));
-    assert_eq!(&new_nodes[&NodeId(1)], &nn1);
+    let nn1_slice = new_nodes[&NodeId(1)].as_ref().unwrap();
+    assert_eq!(nn1, *nn1_slice);
 
     let nn2 = PangraphNode::new(None, new_bid, PathId(2), Reverse, (1008, 1017));
-    assert_eq!(&new_nodes[&NodeId(2)], &nn2);
+    let nn2_slice = new_nodes[&NodeId(2)].as_ref().unwrap();
+    assert_eq!(nn2, *nn2_slice);
 
     let nn3 = PangraphNode::new(None, new_bid, PathId(3), Reverse, (96, 4));
-    assert_eq!(&new_nodes[&NodeId(3)], &nn3);
+    let nn3_slice = new_nodes[&NodeId(3)].as_ref().unwrap();
+    assert_eq!(nn3, *nn3_slice);
 
     assert_eq!(
       new_nodes,
       btreemap! {
-        NodeId(1) => nn1.clone(),
-        NodeId(2) => nn2.clone(),
-        NodeId(3) => nn3.clone(),
+        NodeId(1) => Some(nn1.clone()),
+        NodeId(2) => Some(nn2.clone()),
+        NodeId(3) => Some(nn3.clone()),
       }
     );
 
     let n1ed = Edit {
-      subs: vec![Sub { pos: 3, alt: 'T' }],
-      dels: vec![Del { pos: 8, len: 2 }],
-      inss: vec![Ins { pos: 0, seq: o!("A") }],
+      subs: vec![Sub::new(3, 'T')],
+      dels: vec![Del::new(8, 2)],
+      inss: vec![Ins::new(0, "A")],
     };
     assert_eq!(new_b.alignment(nn1.id()), &n1ed);
 
     let n2ed = Edit {
-      subs: vec![Sub { pos: 9, alt: 'G' }],
-      dels: vec![Del { pos: 3, len: 2 }],
-      inss: vec![Ins { pos: 7, seq: o!("T") }],
+      subs: vec![Sub::new(9, 'G')],
+      dels: vec![Del::new(3, 2)],
+      inss: vec![Ins::new(7, "T")],
     };
     assert_eq!(new_b.alignment(nn2.id()), &n2ed);
 
@@ -432,29 +485,21 @@ mod tests {
     let bid = BlockId(1);
 
     let ed1 = Edit {
-      subs: vec![
-        Sub { pos: 2, alt: 'G' },
-        Sub { pos: 13, alt: 'T' },
-        Sub { pos: 24, alt: 'T' },
-      ],
+      subs: vec![Sub::new(2, 'G'), Sub::new(13, 'T'), Sub::new(24, 'T')],
       dels: vec![Del { pos: 18, len: 3 }],
-      inss: vec![Ins { pos: 7, seq: o!("A") }, Ins { pos: 10, seq: o!("A") }],
+      inss: vec![Ins::new(7, "A"), Ins::new(10, "A")],
     };
 
     let ed2 = Edit {
-      subs: vec![
-        Sub { pos: 4, alt: 'T' },
-        Sub { pos: 19, alt: 'G' },
-        Sub { pos: 20, alt: 'G' },
-      ],
+      subs: vec![Sub::new(4, 'T'), Sub::new(19, 'G'), Sub::new(20, 'G')],
       dels: vec![Del { pos: 6, len: 2 }, Del { pos: 13, len: 2 }],
-      inss: vec![Ins { pos: 17, seq: o!("T") }, Ins { pos: 25, seq: o!("A") }],
+      inss: vec![Ins::new(17, "T"), Ins::new(25, "A")],
     };
 
     let ed3 = Edit {
       subs: vec![],
       dels: vec![Del { pos: 2, len: 4 }, Del { pos: 9, len: 3 }, Del { pos: 24, len: 2 }],
-      inss: vec![Ins { pos: 20, seq: o!("T") }],
+      inss: vec![Ins::new(20, "T")],
     };
 
     let n1 = PangraphNode::new(Some(NodeId(1)), bid, PathId(1), Forward, (100, 125));
@@ -467,7 +512,7 @@ mod tests {
 
     let b1 = PangraphBlock::new(
       bid,
-      seq,
+      Seq::from_str(&seq),
       btreemap! {
         NodeId(1) => ed1,
         NodeId(2) => ed2,
@@ -511,34 +556,37 @@ mod tests {
     assert_eq!(new_b.consensus(), "TATATTTATC");
 
     let nn1 = PangraphNode::new(None, new_bid, PathId(1), Reverse, (111, 120));
-    assert_eq!(&new_nodes[&NodeId(1)], &nn1);
+    let nn1_slice = new_nodes[&NodeId(1)].as_ref().unwrap();
+    assert_eq!(nn1, *nn1_slice);
 
     let nn2 = PangraphNode::new(None, new_bid, PathId(2), Forward, (1008, 1017));
-    assert_eq!(&new_nodes[&NodeId(2)], &nn2);
+    let nn2_slice = new_nodes[&NodeId(2)].as_ref().unwrap();
+    assert_eq!(nn2, *nn2_slice);
 
     let nn3 = PangraphNode::new(None, new_bid, PathId(3), Forward, (96, 4));
-    assert_eq!(&new_nodes[&NodeId(3)], &nn3);
+    let nn3_slice = new_nodes[&NodeId(3)].as_ref().unwrap();
+    assert_eq!(nn3, *nn3_slice);
 
     assert_eq!(
       new_nodes,
       btreemap! {
-        NodeId(1) => nn1.clone(),
-        NodeId(2) => nn2.clone(),
-        NodeId(3) => nn3.clone(),
+        NodeId(1) => Some(nn1.clone()),
+        NodeId(2) => Some(nn2.clone()),
+        NodeId(3) => Some(nn3.clone()),
       }
     );
 
     let n1ed = Edit {
-      subs: vec![Sub { pos: 3, alt: 'T' }],
+      subs: vec![Sub::new(3, 'T')],
       dels: vec![Del { pos: 8, len: 2 }],
-      inss: vec![Ins { pos: 0, seq: o!("A") }],
+      inss: vec![Ins::new(0, "A")],
     };
     assert_eq!(new_b.alignment(nn1.id()), &n1ed);
 
     let n2ed = Edit {
-      subs: vec![Sub { pos: 9, alt: 'G' }],
+      subs: vec![Sub::new(9, 'G')],
       dels: vec![Del { pos: 3, len: 2 }],
-      inss: vec![Ins { pos: 7, seq: o!("T") }],
+      inss: vec![Ins::new(7, "T")],
     };
     assert_eq!(new_b.alignment(nn2.id()), &n2ed);
 
