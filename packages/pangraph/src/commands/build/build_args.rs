@@ -56,6 +56,9 @@ pub struct PangraphBuildArgs {
   pub max_self_map: usize,
 
   /// Backend to use for pairwise genome alignment
+  ///
+  /// Nb: `mmseqs` is more sensitive to highly-diverged sequences, but slower and requires more memory.
+  /// and it is not shipped with the binary, so you need to install it separately.
   #[clap(long, short = 'k',  default_value_t = AlignmentBackend::default())]
   #[clap(value_hint = ValueHint::Other)]
   pub alignment_kernel: AlignmentBackend,

@@ -110,9 +110,11 @@ Align genomes into a multiple sequence alignment graph
   Default value: `100`
 * `-k`, `--alignment-kernel <ALIGNMENT_KERNEL>` — Backend to use for pairwise genome alignment
 
-  Default value: `minimap2-lib`
+   Nb: `mmseqs` is more sensitive to highly-diverged sequences, but slower and requires more memory. and it is not shipped with the binary, so you need to install it separately.
 
-  Possible values: `minimap2-lib`, `minimap2-cli`, `mmseqs`
+  Default value: `minimap2`
+
+  Possible values: `minimap2`, `mmseqs`
 
 * `-f`, `--verify` — Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise
 
