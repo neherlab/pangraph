@@ -50,7 +50,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
     .collect_vec();
 
   // Build guide tree
-  let tree = build_tree_using_neighbor_joining(graphs, args)?;
+  let tree = build_tree_using_neighbor_joining(graphs)?;
 
   // Main loop: traverse the tree starting from leaf nodes and build the graphs bottom-up all the way to the root node.
   // The graph of the root node is the graph we are looking for.

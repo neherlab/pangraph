@@ -88,16 +88,16 @@ Align genomes into a multiple sequence alignment graph
 
    If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
 
-   Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
+   Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
 
   Default value: `-`
 * `-l`, `--len <INDEL_LEN_THRESHOLD>` — Minimum block size for alignment graph (in nucleotides)
 
   Default value: `100`
-* `-a`, `--alpha <ALPHA>` — Energy cost for introducing junction due to alignment merger
+* `-a`, `--alpha <ALPHA>` — Energy cost for splitting a block during alignment merger. Controls graph fragmentation, see documentation
 
   Default value: `100`
-* `-b`, `--beta <BETA>` — Energy cost for interblock diversity due to alignment merger
+* `-b`, `--beta <BETA>` — Energy cost for diversity in the alignment. A high value prevents merging of distantly-related sequences in the same block, see documentation
 
   Default value: `10`
 * `-s`, `--sensitivity <SENSITIVITY>` — Used to set pairwise alignment sensitivity for minimap aligner. Corresponds to option -x asm5/asm10/asm20 in minimap2
@@ -105,24 +105,16 @@ Align genomes into a multiple sequence alignment graph
   Default value: `10`
 * `-K`, `--kmer-length <KMER_LENGTH>` — Sets kmer length for mmseqs2 aligner
 * `-c`, `--circular` — Toggle if input genomes are circular
-* `-u`, `--upper-case` — Transforms all sequences to upper case
 * `-x`, `--max-self-map <MAX_SELF_MAP>` — Maximum number of alignment rounds to consider per pairwise graph merger
 
   Default value: `100`
-* `-d`, `--distance-backend <DISTANCE_BACKEND>` — Backend to use for genome similarity estimation. Similarity impacts the guide tree
-
-  Default value: `native`
-
-  Possible values: `native`, `mash`
-
 * `-k`, `--alignment-kernel <ALIGNMENT_KERNEL>` — Backend to use for pairwise genome alignment
 
   Default value: `minimap2-lib`
 
   Possible values: `minimap2-lib`, `minimap2-cli`, `mmseqs`
 
-* `-f`, `--verify` — Verify that the original sequences can be reconstructed from the resulting pangraph
-* `--seed <SEED>` — Random seed for block id generation
+* `-f`, `--verify` — Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise
 
 
 

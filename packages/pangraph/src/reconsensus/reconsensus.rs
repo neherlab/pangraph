@@ -209,8 +209,6 @@ fn update_block_consensus(block: &mut PangraphBlock, consensus: &Seq) -> Result<
     }
   }
 
-  let consensus = consensus.into();
-
   // Re-align sequences
   let alignments = seqs
     .into_par_iter()
