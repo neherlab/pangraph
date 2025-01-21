@@ -1,4 +1,4 @@
-use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
 use crate::commands::reconstruct::reconstruct_run::{compare_sequences, reconstruct};
 use crate::io::fasta::{read_many_fasta, FastaRecord};
 use crate::io::json::{json_write_file, JsonPretty};
@@ -12,6 +12,24 @@ use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use log::info;
 
+pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Report> {
+  // alignment kernel checks
+  match args.alignment_kernel {
+    AlignmentBackend::Mmseqs => {
+      // check that mmseqs is available in PATH
+      std::process::Command::new("mmseqs")
+        .arg("--help")
+        .output()
+        .map_err(|_| {
+          eyre::eyre!("mmseqs command not found in PATH. Please install mmseqs and make sure it is available in PATH.")
+        })?;
+    }
+    _ => {}
+  }
+
+  Ok(())
+}
+
 pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   let input_fastas = &args.input_fastas;
 
@@ -19,6 +37,8 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
 
   // TODO: adjust fasta letter case if `upper_case` is set
   // TODO: check for duplicate fasta names
+
+  build_cmd_preliminary_checks(args).wrap_err("When performing preliminary checks before building the pangraph.")?;
 
   let pangraph = if args.verify {
     let pangraph = build(fastas.clone(), args)?;
