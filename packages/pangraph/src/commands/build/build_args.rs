@@ -14,8 +14,7 @@ use strum_macros::Display;
 #[strum(serialize_all = "kebab-case")]
 pub enum AlignmentBackend {
   #[default]
-  Minimap2Lib,
-  Minimap2Cli,
+  Minimap2,
   Mmseqs,
 }
 
