@@ -34,6 +34,9 @@ pub fn build_tree_using_neighbor_joining(graphs: Vec<Pangraph>) -> Result<Lock<C
 }
 
 // Calculate pairwise distances between future guide tree nodes
+// Note: in previous version this function also took pangraph build command
+// arguments as input, and was responsible for switching between different
+// distance backents (mash vs native)
 fn calculate_distances(graphs: &[Pangraph]) -> Array2<f64> {
   let distances = mash_distance(graphs, &MinimizersParams::default());
   assert_eq!(distances.len_of(Axis(0)), distances.len_of(Axis(1)));
