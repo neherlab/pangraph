@@ -71,10 +71,15 @@ impl Alignment {
 }
 
 fn order_range(start: usize, end: usize) -> (usize, usize, Strand) {
+  // conversion from 1-based (extremes included) to 0-based (right-end excluded)
+  // e.g. mmseqs2 output for an exact match of two sequences of length 10:
+  // query = (1, 10), target = (1, 10)
+  // and if reverse-complemented
+  // query = (10, 1), target = (1, 10)
   if start < end {
-    (start, end, Strand::Forward)
+    (start - 1, end, Strand::Forward)
   } else {
-    (end, start, Strand::Reverse)
+    (end - 1, start, Strand::Reverse)
   }
 }
 
@@ -90,8 +95,8 @@ mod tests {
     // forward alignment
     let paf_content = "1	507	1	497	-	2	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = vec![Alignment {
-      qry: Hit::new(BlockId(1), 507, (1, 497)),
-      reff: Hit::new(BlockId(2), 500, (24, 500)),
+      qry: Hit::new(BlockId(1), 507, (0, 497)),
+      reff: Hit::new(BlockId(2), 500, (23, 500)),
       matches: 440,
       length: 508,
       quality: 622,
@@ -110,8 +115,8 @@ mod tests {
     // reverse alignment
     let paf_content = "3	507	507	11	-	4	500	500	24	440	508	622	67M10D18M20I235M10I22M1I5M1D119M	0.866	693";
     let aln = vec![Alignment {
-      qry: Hit::new(BlockId(3), 507, (11, 507)),
-      reff: Hit::new(BlockId(4), 500, (24, 500)),
+      qry: Hit::new(BlockId(3), 507, (10, 507)),
+      reff: Hit::new(BlockId(4), 500, (23, 500)),
       matches: 440,
       length: 508,
       quality: 622,
