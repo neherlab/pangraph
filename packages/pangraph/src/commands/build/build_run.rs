@@ -14,17 +14,17 @@ use log::info;
 
 pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Report> {
   // alignment kernel checks
-  match args.alignment_kernel {
-    AlignmentBackend::Mmseqs => {
-      // check that mmseqs is available in PATH
-      std::process::Command::new("mmseqs")
-        .arg("--help")
-        .output()
-        .map_err(|_| {
-          eyre::eyre!("mmseqs command not found in PATH. Please install mmseqs and make sure it is available in PATH.")
-        })?;
-    }
-    _ => {}
+  if args.alignment_kernel == AlignmentBackend::Mmseqs {
+    // check that mmseqs is available in PATH
+    std::process::Command::new("mmseqs")
+      .arg("--help")
+      .output()
+      .map_err(|err| {
+        eyre::eyre!(
+          "Executing `mmseqs --help` results in the following error:\n{}\nPlease make sure that `mmseqs` is installed and available in PATH.",
+          err
+        )
+      })?;
   }
 
   Ok(())
