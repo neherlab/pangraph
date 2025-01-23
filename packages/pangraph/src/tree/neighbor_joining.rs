@@ -1,6 +1,5 @@
 #![allow(non_snake_case)]
 
-use crate::commands::build::build_args::{DistanceBackend, PangraphBuildArgs};
 use crate::distance::mash::mash_distance::mash_distance;
 use crate::distance::mash::minimizer::MinimizersParams;
 use crate::pangraph::pangraph::Pangraph;
@@ -14,11 +13,8 @@ use ndarray::{s, Array1, Array2, Axis};
 use ndarray_stats::QuantileExt;
 
 /// Generate guide tree using neighbor joining method.
-pub fn build_tree_using_neighbor_joining(
-  graphs: Vec<Pangraph>,
-  args: &PangraphBuildArgs,
-) -> Result<Lock<Clade<Option<Pangraph>>>, Report> {
-  let mut distances = calculate_distances(&graphs, args);
+pub fn build_tree_using_neighbor_joining(graphs: Vec<Pangraph>) -> Result<Lock<Clade<Option<Pangraph>>>, Report> {
+  let mut distances = calculate_distances(&graphs);
 
   let mut nodes = graphs
     .into_iter()
@@ -38,16 +34,11 @@ pub fn build_tree_using_neighbor_joining(
 }
 
 // Calculate pairwise distances between future guide tree nodes
-fn calculate_distances(graphs: &[Pangraph], args: &PangraphBuildArgs) -> Array2<f64> {
-  let distances = match args.distance_backend {
-    // TODO: this function only needs sequences, and not graphs
-    DistanceBackend::Native => mash_distance(graphs, &MinimizersParams::default()),
-    DistanceBackend::Mash => {
-      // FIXME: what's the difference between Native and Mash?
-      unimplemented!("DistanceBackend::Mash");
-    }
-  };
-
+// Note: in previous version this function also took pangraph build command
+// arguments as input, and was responsible for switching between different
+// distance backents (mash vs native)
+fn calculate_distances(graphs: &[Pangraph]) -> Array2<f64> {
+  let distances = mash_distance(graphs, &MinimizersParams::default());
   assert_eq!(distances.len_of(Axis(0)), distances.len_of(Axis(1)));
   distances
 }

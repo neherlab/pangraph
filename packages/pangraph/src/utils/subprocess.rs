@@ -64,6 +64,6 @@ where
 pub fn create_arg_optional(name: impl AsRef<str>, value: &Option<impl ToString>) -> Vec<String> {
   value
     .as_ref()
-    .map(|kmer_len| vec![name.as_ref().to_owned(), kmer_len.to_string()])
+    .map(|value| vec![name.as_ref().to_owned(), value.to_string()])
     .unwrap_or_default()
 }

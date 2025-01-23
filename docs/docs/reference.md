@@ -48,14 +48,14 @@ If you have Pangraph CLI installed, you can type `pangraph --help` to read the l
 
 Bioinformatic toolkit to align large sets of closely related genomes into a graph data structure.
 
-Finds homology amongst large collections of closely related genomes. The core of the algorithm partitions each genome into pancontigs that represent a sequence interval related by vertical descent. Each genome is then an ordered walk along pancontigs; the collection of all genomes form a graph that captures all observed structural diversity. The tool useful to parsimoniously infer horizontal gene transfer events within a community; perform comparative studies of genome gain, loss, and rearrangement dynamics; or simply to compress many related genomes.
+Finds homology amongst large collections of closely related genomes. The core of the algorithm partitions each genome into pancontigs (also called blocks) that represent a sequence interval related by vertical descent. Each genome is then an ordered walk along pancontigs. The collection of all genomes form a graph that captures all observed structural diversity. The tool is useful to study structural variations in the genome, perform comparative studies of genome gain, loss, and rearrangement dynamics; or simply to compress many related genomes.
 
 
-Publication: "PanGraph: scalable bacterial pan-genome graph construction. Nicholas Noll, Marco Molari, Richard Neher. bioRxiv 2022.02.24.481757; doi: https://doi.org/10.1101/2022.02.24.481757"
+Publication: "PanGraph: scalable bacterial pan-genome graph construction." Nicholas Noll, Marco Molari, Richard Neher. Microbial Genomics 9.6 (2023): 001034.; doi: https://doi.org/10.1099/mgen.0.001034
 
 Documentation: https://pangraph.readthedocs.io/en/stable/
 
-Source code:https://github.com/neherlab/pangraph
+Source code: https://github.com/neherlab/pangraph
 
 Questions, ideas, bug reports: https://github.com/neherlab/pangraph/issues
 
@@ -65,8 +65,8 @@ Questions, ideas, bug reports: https://github.com/neherlab/pangraph/issues
 
 * `build` — Align genomes into a multiple sequence alignment graph
 * `export` — Export a pangraph to a chosen file format(s)
-* `simplify` — Compute all pairwise marginalizations of a multiple sequence alignment graph
-* `reconstruct` — Reconstruct input fasta sequences from graph
+* `simplify` — Generates a simplified graph that only contains a subset of the input genomes
+* `reconstruct` — Reconstruct all input fasta sequences from graph
 * `schema` — Generate JSON schema for Pangraph file format
 * `completions` — Generate shell completions
 * `help-markdown` — Print command-line reference documentation in Markdown format
@@ -108,16 +108,16 @@ Align genomes into a multiple sequence alignment graph
 
    If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
 
-   Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
+   Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
 
   Default value: `-`
 * `-l`, `--len <INDEL_LEN_THRESHOLD>` — Minimum block size for alignment graph (in nucleotides)
 
   Default value: `100`
-* `-a`, `--alpha <ALPHA>` — Energy cost for introducing junction due to alignment merger
+* `-a`, `--alpha <ALPHA>` — Energy cost for splitting a block during alignment merger. Controls graph fragmentation, see documentation
 
   Default value: `100`
-* `-b`, `--beta <BETA>` — Energy cost for interblock diversity due to alignment merger
+* `-b`, `--beta <BETA>` — Energy cost for diversity in the alignment. A high value prevents merging of distantly-related sequences in the same block, see documentation
 
   Default value: `10`
 * `-s`, `--sensitivity <SENSITIVITY>` — Used to set pairwise alignment sensitivity for minimap aligner. Corresponds to option -x asm5/asm10/asm20 in minimap2
@@ -125,24 +125,18 @@ Align genomes into a multiple sequence alignment graph
   Default value: `10`
 * `-K`, `--kmer-length <KMER_LENGTH>` — Sets kmer length for mmseqs2 aligner
 * `-c`, `--circular` — Toggle if input genomes are circular
-* `-u`, `--upper-case` — Transforms all sequences to upper case
 * `-x`, `--max-self-map <MAX_SELF_MAP>` — Maximum number of alignment rounds to consider per pairwise graph merger
 
   Default value: `100`
-* `-d`, `--distance-backend <DISTANCE_BACKEND>` — Backend to use for genome similarity estimation. Similarity impacts the guide tree
-
-  Default value: `native`
-
-  Possible values: `native`, `mash`
-
 * `-k`, `--alignment-kernel <ALIGNMENT_KERNEL>` — Backend to use for pairwise genome alignment
 
-  Default value: `minimap2-lib`
+   Nb: `mmseqs` is more sensitive to highly-diverged sequences, but slower and requires more memory. It is not provided with Pangraph, so you need to install it separately (see: https://github.com/soedinglab/MMseqs2)
 
-  Possible values: `minimap2-lib`, `minimap2-cli`, `mmseqs`
+  Default value: `minimap2`
 
-* `-f`, `--verify` — Verify that the original sequences can be reconstructed from the resulting pangraph
-* `--seed <SEED>` — Random seed for block id generation
+  Possible values: `minimap2`, `mmseqs`
+
+* `-f`, `--verify` — Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise
 
 
 
@@ -156,8 +150,8 @@ Export a pangraph to a chosen file format(s)
 
 * `gfa` — Export to GFA v1 format
 * `block-consensus` — Export block consensus sequences to a fasta file
-* `block-sequences` — Export aligned or unaligned sequences for each block. Note that alignments exclude insertions
-* `core-genome` — Export the core-genome alignment
+* `block-sequences` — Export aligned or unaligned sequences for each block in separate fasta files. Note that alignments exclude insertions
+* `core-genome` — Export the core-genome alignment. Note that alignment excludes insertions
 
 
 
@@ -185,7 +179,7 @@ See GFA v1 format specifications: https://github.com/GFA-spec/GFA-spec/blob/mast
 
    If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
 
-   Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
+   Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
 
   Default value: `-`
 * `--minimum-length <MINIMUM_LENGTH>` — Blocks below this length cutoff will not be exported
@@ -219,7 +213,7 @@ Export block consensus sequences to a fasta file
 
    If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
 
-   Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
+   Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
 
   Default value: `-`
 
@@ -227,7 +221,7 @@ Export block consensus sequences to a fasta file
 
 ## `pangraph export block-sequences`
 
-Export aligned or unaligned sequences for each block. Note that alignments exclude insertions
+Export aligned or unaligned sequences for each block in separate fasta files. Note that alignments exclude insertions
 
 **Usage:** `pangraph export block-sequences [OPTIONS] --output <OUTPUT> [INPUT_JSON]`
 
@@ -241,16 +235,16 @@ Export aligned or unaligned sequences for each block. Note that alignments exclu
 
 ###### **Options:**
 
-* `-o`, `--output <OUTPUT>` — Path to directory to write output FASTA files to
+* `-o`, `--output <OUTPUT>` — Path to directory to write output FASTA files to. Files are named `block_{block_id}.fa` in the folder.
 
    See: https://en.wikipedia.org/wiki/FASTA_format
-* `--unaligned` — If set, then the full block sequences are exported but not aligned
+* `--unaligned` — If set, then the full non-aligned block sequences are exported
 
 
 
 ## `pangraph export core-genome`
 
-Export the core-genome alignment
+Export the core-genome alignment. Note that alignment excludes insertions
 
 **Usage:** `pangraph export core-genome [OPTIONS] --guide-strain <GUIDE_STRAIN> [INPUT_JSON]`
 
@@ -270,7 +264,7 @@ Export the core-genome alignment
 
    If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
 
-   Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided.
+   Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
 
   Default value: `-`
 * `--guide-strain <GUIDE_STRAIN>` — Specify the strain to use as a reference for the alignment. Core blocks are ordered and oriented (forward or reverse) according to the reference strain
@@ -282,7 +276,7 @@ Export the core-genome alignment
 
 ## `pangraph simplify`
 
-Compute all pairwise marginalizations of a multiple sequence alignment graph
+Generates a simplified graph that only contains a subset of the input genomes
 
 **Usage:** `pangraph simplify [OPTIONS] [INPUT]`
 
@@ -305,7 +299,7 @@ Compute all pairwise marginalizations of a multiple sequence alignment graph
 
 ## `pangraph reconstruct`
 
-Reconstruct input fasta sequences from graph
+Reconstruct all input fasta sequences from graph
 
 **Usage:** `pangraph reconstruct [OPTIONS] [INPUT_GRAPH]`
 
@@ -323,7 +317,7 @@ Reconstruct input fasta sequences from graph
 
    If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
 
-   Use "-" to write the uncompressed to standard output (stdout). This is the default, if the argument is not provided. See: https://en.wikipedia.org/wiki/FASTA_format
+   Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided. See: https://en.wikipedia.org/wiki/FASTA_format
 
   Default value: `-`
 * `-f`, `--verify <VERIFY>` — Path to the FASTA file with sequences to check the reconstructed sequences against. If this argument is provided, then the sequences are not being printed to standard output (stdout) as usual. Instead, if any differences are detected, a diff will be printed between the expected (original) sequence and reconstructed sequence.

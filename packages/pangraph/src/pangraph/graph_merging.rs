@@ -1,7 +1,6 @@
 use crate::align::alignment::Alignment;
 use crate::align::alignment_args::AlignmentArgs;
 use crate::align::energy::alignment_energy2;
-use crate::align::minimap2::align_with_minimap2::align_with_minimap2;
 use crate::align::minimap2_lib::align_with_minimap2_lib::align_with_minimap2_lib;
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use crate::circularize::circularize::remove_transitive_edges;
@@ -174,10 +173,10 @@ pub fn find_matches(
   args: &PangraphBuildArgs,
 ) -> Result<Vec<Alignment>, Report> {
   match args.alignment_kernel {
-    AlignmentBackend::Minimap2Lib => align_with_minimap2_lib(blocks, &args.aln_args),
-    AlignmentBackend::Minimap2Cli => align_with_minimap2(blocks, &args.aln_args),
+    AlignmentBackend::Minimap2 => align_with_minimap2_lib(blocks, &args.aln_args),
     AlignmentBackend::Mmseqs => align_with_mmseqs(blocks, &args.aln_args),
   }
+  .wrap_err_with(|| format!("When trying to align sequences using {}", &args.alignment_kernel))
 }
 
 pub fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {

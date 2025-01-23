@@ -84,6 +84,10 @@ ENV LIBZ_SYS_STATIC="1"
 
 
 
+COPY --link "dev/docker/files/install-mmseqs" "/"
+RUN /install-mmseqs
+
+
 ARG USER=user
 ARG GROUP=user
 ARG UID
