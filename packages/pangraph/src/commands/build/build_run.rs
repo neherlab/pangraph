@@ -1,4 +1,4 @@
-use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
 use crate::commands::reconstruct::reconstruct_run::{compare_sequences, reconstruct};
 use crate::io::fasta::{read_many_fasta, FastaRecord};
 use crate::io::json::{json_write_file, JsonPretty};
@@ -8,9 +8,29 @@ use crate::pangraph::strand::Strand::Forward;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
 use crate::{make_internal_error, make_internal_report};
+use color_eyre::owo_colors::{AnsiColors, OwoColorize};
+use color_eyre::{Help, SectionExt};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use log::info;
+
+pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Report> {
+  // alignment kernel checks
+  if args.alignment_kernel == AlignmentBackend::Mmseqs {
+    // check that mmseqs is available in PATH
+    std::process::Command::new("mmseqs")
+      .arg("--help")
+      .output()
+      .wrap_err("When executing `mmseqs --help`")
+      .section(
+        "Please make sure that `mmseqs` is installed, available in PATH and is functional outside of pangraph. For more details, refer to mmseqs documentation at https://github.com/soedinglab/MMseqs2"
+          .color(AnsiColors::Cyan)
+          .header("Suggestion:"),
+      )?;
+  }
+
+  Ok(())
+}
 
 pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   let input_fastas = &args.input_fastas;
@@ -19,6 +39,8 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
 
   // TODO: adjust fasta letter case if `upper_case` is set
   // TODO: check for duplicate fasta names
+
+  build_cmd_preliminary_checks(args).wrap_err("When performing preliminary checks before building the pangraph.")?;
 
   let pangraph = if args.verify {
     let pangraph = build(fastas.clone(), args)?;

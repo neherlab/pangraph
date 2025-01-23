@@ -6,10 +6,13 @@ use crate::io::file::open_file_or_stdin;
 use crate::io::fs::path_to_str;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::utils::subprocess::create_arg_optional;
-use cmd_lib::run_cmd;
+use crate::{make_error, vec_of_owned};
+use color_eyre::{Section, SectionExt};
 use eyre::{Report, WrapErr};
+use itertools::Itertools;
 use std::collections::BTreeMap;
 use std::io::Read;
+use std::process::Command;
 use tempfile::Builder as TempDirBuilder;
 
 pub fn align_with_mmseqs(
@@ -32,20 +35,33 @@ pub fn align_with_mmseqs(
   }
 
   let output_column_names = PafTsvRecord::fields_names().join(",");
-  let k = create_arg_optional("-k", &params.kmer_length);
 
-  run_cmd!(
-    mmseqs easy-search
-    $input_path $input_path $output_path $tmp_path
-    --threads 1
-    --max-seq-len 10000
-    -a
-    --search-type 3
-    --format-output $output_column_names
-    $[k]
-    >/dev/null
-  )
-  .wrap_err("When trying to align sequences using mmseqs")?;
+  let mut args = vec_of_owned![
+    "easy-search",
+    &input_path,
+    &input_path,
+    &output_path,
+    &tmp_path,
+    "--thread",
+    "1",
+    "--max-seq-len",
+    "10000",
+    "-a",
+    "--search-type",
+    "3",
+    "--format-output",
+    &output_column_names,
+  ];
+
+  args.extend(create_arg_optional("-k", &params.kmer_length));
+
+  let cmd = Command::new("mmseqs").args(&args).output()?;
+
+  if !cmd.status.success() {
+    return make_error!("{}", String::from_utf8(cmd.stderr)?.trim())
+      .wrap_err_with(|| format!("mmseqs failed with exit code {}", cmd.status.code().unwrap()))
+      .with_section(|| format!("mmseqs {}", args.join(" ")).header("Full command line was:"));
+  }
 
   let mut paf_str = String::new();
   open_file_or_stdin(&Some(output_path))?.read_to_string(&mut paf_str)?;

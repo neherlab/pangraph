@@ -14,8 +14,7 @@ use strum_macros::Display;
 #[strum(serialize_all = "kebab-case")]
 pub enum AlignmentBackend {
   #[default]
-  Minimap2Lib,
-  Minimap2Cli,
+  Minimap2,
   Mmseqs,
 }
 
@@ -57,6 +56,9 @@ pub struct PangraphBuildArgs {
   pub max_self_map: usize,
 
   /// Backend to use for pairwise genome alignment
+  ///
+  /// Nb: `mmseqs` is more sensitive to highly-diverged sequences, but slower and requires more memory.
+  /// It is not provided with Pangraph, so you need to install it separately (see: https://github.com/soedinglab/MMseqs2)
   #[clap(long, short = 'k',  default_value_t = AlignmentBackend::default())]
   #[clap(value_hint = ValueHint::Other)]
   pub alignment_kernel: AlignmentBackend,
