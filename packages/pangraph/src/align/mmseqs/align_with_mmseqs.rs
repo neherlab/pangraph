@@ -42,7 +42,7 @@ pub fn align_with_mmseqs(
     &input_path,
     &output_path,
     &tmp_path,
-    "--thread",
+    "--threads",
     "1",
     "--max-seq-len",
     "10000",
