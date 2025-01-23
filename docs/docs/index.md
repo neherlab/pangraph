@@ -23,17 +23,19 @@ The resultant graph represents contiguous intervals of homologous DNA as vertice
 Edges of the graph are unordered and only exist if at least one genome was found to connect both vertices in either the forward or reverse strand.
 The documentation, and source code, uses the following terminology:
 
+
 1. **Block/PanContig:**
     A contiguous interval of sequence that compresses a linear multiple sequence alignment and represents a single vertex within a pangraph.
     It is summarized by a consensus sequence, along with the polymorphisms needed for each genome to reconstruct the true sequence.
 2. **Node:**
     An oriented traversal of a genome through a _block_, i.e. whether a given genome/duplication traverses a block along the forward or reverse direction.
     One genome can have multiple nodes that point to the same _block_.
-3. **Path:**
+1. **Path:**
     A sequence of _nodes_ that represent an ordered walk on the graph that reconstructs an input genome.
     Can be circular or linear.
-4. **Edge:**
-    A juxtaposition/breakpoint between two _blocks_ found in at least one genome.
-5. **Graph/PanGraph:**
+2. **Graph/PanGraph:**
     A collection of _blocks_, associated to all recognized intervals of homology, and _paths_, genomes stored as an ordered walk of _nodes_.
 
+![img](./assets/t1_main_scheme.png)
+
+For a more detailed description see [what is a pangraph](http://localhost:4000/tutorial/tutorial_1#what-is-a-pangraph).

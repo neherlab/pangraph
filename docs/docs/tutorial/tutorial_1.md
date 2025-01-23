@@ -6,9 +6,20 @@ sidebar_position: 1
 
 This short tutorial will walk you through the process of generating a pangraph from a set of bacterial genomes. We will also cover how to export the generated pangraph file into other formats.
 
+## What is a pangraph?
+
 Simply put, a **pangenome graph** (or _pangraph_ for short) is a compressed representation of a set of genomes, in which alignable regions are saved as _blocks_ (or _pancontigs_) and genomes are represented as _paths_, i.e. list of blocks.
 
-![img](./../assets/pangraph_scheme.png)
+![img](./../assets/t1_main_scheme.png)
+
+In more detail, **blocks** encode multiple sequence alignments of homologous parts of the sequence. Each block has a _consensus sequence_, but also stores variations (SNPs, insertions, deletions) for each particular occurrence of the block in the genome. We refer to each occurrence as a **node**.
+
+![img](./../assets/t1_blocks.png)
+
+Once genome have been partitioned into separate blocks, each genome can be represented as a **path** through the blocks. More in details, a path is encoded as a list of oriented block occurrences, i.e. **nodes**.
+
+![img](./../assets/t1_paths.png)
+
 
 ## Requirements
 
@@ -26,19 +37,19 @@ Note that it is not necessary for all of the data to be packed in a single fasta
 ## Building the pangraph
 
 As a first step, we will build a pangraph object from the DNA of the 10 chromosomes.
-This can be done using the command `build` (see [`build` command](../usage/reference.md#pangraph-build)):
+This can be done using the command `build` (see [`build` command](../reference#pangraph-build)):
 
 ```bash
-pangraph build -j 4 --circular ecoli.fa.gz > ecoli_pangraph.json
+pangraph build -j 4 --circular ecoli.fa.gz > graph.json
 ```
 - the option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
 - the option `-j 4` specifies the number of threads to use.
 
 On a consumer laptop the command should complete in around 5 minutes on 4 cores.
 
-The result is a `ecoli_pangraph.json` file that contains two main entries: `paths` and `blocks`. As represented in the image above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks. This files contains a compressed and lossless representation of the input genomes.
+The result is a `graph.json` file that contains three main entries: `paths`, `blocks` and `nodes`. As represented in the section above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks. This files contains a compressed and lossless representation of the input genomes.
 
-Below is a simplified view of the structure of the `ecoli_pangraph.json` file.
+Below is a simplified view of the structure of the `graph.json` file.
 ```json
 {
     "paths": {
