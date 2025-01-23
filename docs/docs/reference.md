@@ -1,7 +1,7 @@
 ---
 sidebar_position: 9999
 ---
-# Reference
+# CLI commands
 
 
 This document contains the automatically generated reference documentation for command-line arguments of the latest version of Pangraph CLI.
@@ -11,18 +11,38 @@ If you have Pangraph CLI installed, you can type `pangraph --help` to read the l
 
 **Command Overview:**
 
-* [`pangraph`↴](#pangraph)
-* [`pangraph build`↴](#pangraph-build)
-* [`pangraph export`↴](#pangraph-export)
-* [`pangraph export gfa`↴](#pangraph-export-gfa)
-* [`pangraph export block-consensus`↴](#pangraph-export-block-consensus)
-* [`pangraph export block-sequences`↴](#pangraph-export-block-sequences)
-* [`pangraph export core-genome`↴](#pangraph-export-core-genome)
-* [`pangraph simplify`↴](#pangraph-simplify)
-* [`pangraph reconstruct`↴](#pangraph-reconstruct)
-* [`pangraph schema`↴](#pangraph-schema)
-* [`pangraph completions`↴](#pangraph-completions)
-* [`pangraph help-markdown`↴](#pangraph-help-markdown)
+- [CLI commands](#cli-commands)
+  - [`pangraph`](#pangraph)
+          - [**Subcommands:**](#subcommands)
+          - [**Options:**](#options)
+  - [`pangraph build`](#pangraph-build)
+          - [**Arguments:**](#arguments)
+          - [**Options:**](#options-1)
+  - [`pangraph export`](#pangraph-export)
+          - [**Subcommands:**](#subcommands-1)
+  - [`pangraph export gfa`](#pangraph-export-gfa)
+          - [**Arguments:**](#arguments-1)
+          - [**Options:**](#options-2)
+  - [`pangraph export block-consensus`](#pangraph-export-block-consensus)
+          - [**Arguments:**](#arguments-2)
+          - [**Options:**](#options-3)
+  - [`pangraph export block-sequences`](#pangraph-export-block-sequences)
+          - [**Arguments:**](#arguments-3)
+          - [**Options:**](#options-4)
+  - [`pangraph export core-genome`](#pangraph-export-core-genome)
+          - [**Arguments:**](#arguments-4)
+          - [**Options:**](#options-5)
+  - [`pangraph simplify`](#pangraph-simplify)
+          - [**Arguments:**](#arguments-5)
+          - [**Options:**](#options-6)
+  - [`pangraph reconstruct`](#pangraph-reconstruct)
+          - [**Arguments:**](#arguments-6)
+          - [**Options:**](#options-7)
+  - [`pangraph schema`](#pangraph-schema)
+          - [**Options:**](#options-8)
+  - [`pangraph completions`](#pangraph-completions)
+          - [**Arguments:**](#arguments-7)
+  - [`pangraph help-markdown`](#pangraph-help-markdown)
 
 ## `pangraph`
 
