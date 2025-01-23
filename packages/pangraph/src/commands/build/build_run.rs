@@ -8,6 +8,8 @@ use crate::pangraph::strand::Strand::Forward;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
 use crate::{make_internal_error, make_internal_report};
+use color_eyre::owo_colors::{AnsiColors, OwoColorize};
+use color_eyre::{Help, SectionExt};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use log::info;
@@ -19,12 +21,12 @@ pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Repo
     std::process::Command::new("mmseqs")
       .arg("--help")
       .output()
-      .map_err(|err| {
-        eyre::eyre!(
-          "Executing `mmseqs --help` results in the following error:\n{}\nPlease make sure that `mmseqs` is installed and available in PATH.",
-          err
-        )
-      })?;
+      .wrap_err("When executing `mmseqs --help`")
+      .section(
+        "Please make sure that `mmseqs` is installed, available in PATH and is functional outside of pangraph. For more details, refer to mmseqs documentation at https://github.com/soedinglab/MMseqs2"
+          .color(AnsiColors::Cyan)
+          .header("Suggestion:"),
+      )?;
   }
 
   Ok(())
