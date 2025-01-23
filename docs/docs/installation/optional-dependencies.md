@@ -22,13 +22,3 @@ To install _mmseqs2_ using conda, run the following command:
 ```bash
 conda install -c conda-forge -c bioconda mmseqs2
 ```
-
-## minimap2
-
-The default alignment kernel uses bindings to the [_minimap2_](https://github.com/lh3/minimap2) library. However the user can also choose to use the _minimap2_ executable directly, by providing the `-k minimap2-cli` option when running the [`pangraph build`](../usage/reference#pangraph-build) command.
-
-The _minimap2_ executable can be installed using conda:
-
-```bash
-conda install -c bioconda minimap2
-```
