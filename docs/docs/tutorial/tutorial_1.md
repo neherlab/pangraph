@@ -16,10 +16,11 @@ In more detail, **blocks** encode multiple sequence alignments of homologous par
 
 ![img](./../assets/t1_blocks.png)
 
-Once genome have been partitioned into separate blocks, each genome can be represented as a **path** through the blocks. More in details, a path is encoded as a list of oriented block occurrences, i.e. **nodes**.
+Once genome have been partitioned into separate blocks, each genome can be represented as a walk through the blocks, named a **path**.
 
 ![img](./../assets/t1_paths.png)
 
+More specifically, a path is encoded as a list of oriented block occurrences, i.e. **nodes**. This preserves information on the strandedness of each segment, and on the mutations in each genome, and makes our representation **lossless**: we can reconstruct the original genomes exactly from the pangraph.
 
 ## Requirements
 
@@ -45,51 +46,74 @@ pangraph build -j 4 --circular ecoli.fa.gz > graph.json
 - the option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
 - the option `-j 4` specifies the number of threads to use.
 
-On a consumer laptop the command should complete in around 5 minutes on 4 cores.
+On a consumer laptop the command should complete in less than 5 minutes on 4 cores.
 
-The result is a `graph.json` file that contains three main entries: `paths`, `blocks` and `nodes`. As represented in the section above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks. This files contains a compressed and lossless representation of the input genomes.
+The result is a `graph.json` file that contains three main entries: `paths`, `blocks` and `nodes`:
 
-Below is a simplified view of the structure of the `graph.json` file.
 ```json
-{
-    "paths": {
-        "0": {
-            "name": "NC_009800",
-            "nodes": [
-                7866732351691760875,
-                11281215587641304345,
-                ...
-            ]
-            ...
-        },
-        "1": {
-            "name": "NZ_CP010150",
-            "nodes": [
-                10429785587629589393,
-                10765941013351965021,
-                ...
-            ]
-            ...
-        },
-        ...
-    },
-    "blocks": {
-        "7866732351691760875": {
-            "consensus": "ATTTCCGGTGATTAAGTCTGAGGAT...",
-            ...
-        },
-        "10429785587629589393": {
-            "consensus": "AAAGGTTGCTTGCCGAACGATTCGT...",
-            ...
-        },
-        ...
-    }
+graph.json = {
+    "paths": { ... },
+    "blocks": { ... },
+    "nodes": { ... }
 }
 ```
 
-- Each entry in **`path`** has two main properties: the `name`, corresponding to the sequence identifier in the input fasta file, and the `nodes` list. The latter is a representation of the genome as a list of blocks, each one identified by its unique numerical `id`.
+As explained in the section above, blocks contain information on the nucleotide sequence, while paths are compressed representation for genomes as lists of blocks. This files contains a compressed and lossless representation of the input genomes.
 
-- Each entry in the **`blocks`** dictionary corresponds to a different block, indexed by its own random numerical `id`. Each block element also contains the `consensus` sequence for the block.
+These three dictionaries contain the following information:
+
+- The `paths` is a dictionay that connects path numbers to path objects. Each **`path`** object has two main properties: the `name`, corresponding to the sequence identifier in the input fasta file, and the `nodes` list, containing a series of node ids, each node corresponding to a particular occurrence of a block in the genome.
+
+```json
+paths = {
+    "0": {
+        "name": "NC_009800",
+        "nodes": [7866732351691760875, 11281215587641304345, ...],
+        ...
+    },
+    "1": {
+        "name": "NZ_CP010150",
+        "nodes": [10429785587629589393, 10765941013351965021, ...],
+    },
+    ...
+}
+```
+
+- Each entry in the **`blocks`** dictionary corresponds to a different block, indexed by its own random numerical `id`. Each block element corresponds to an alignment, and its main property is the alignment `consensus` sequence.
+
+```json
+blocks = {
+    "9245376340613946": {
+        "consensus": "ATTTCCGGTGATTAAGTC...",
+        ...
+        }
+    "11281215587641304345": {
+        "consensus": "CTTCTAGGCTAGCTAGT...",
+        ...
+    },
+    ...
+}
+```
+
+- Finally, the **`nodes`** dictionary provides a connection between nodes and path. Each node, identified by its id used as key in the dictionary, is associated to its `block_id`, `path_id`, and `strand`. The latter indicates whether on the genome the block appears in the forward (`+`) or reverse (`-`) strand.
+
+```json
+nodes = {
+    "539582348881474": {
+      "block_id": 16869306503019140931,
+      "path_id": 5,
+      "strand": "+",
+      ...
+    },
+    "1955246786506684": {
+      "block_id": 16260464326956387790,
+      "path_id": 7,
+      "strand": "+",
+      ...
+    },
+    ...
+}
+```
 
 More details on the structure of this `json` file will be covered in the [next tutorial section](tutorial_2.md).
 
@@ -110,24 +134,38 @@ Therefore, **as a rule of thumb**:
 - if the average pairwise diversity of homologous sequences in your sample is below 5%, running pangraph with option `-k minimap2 -s 20 -b 5` will results in most merges performed correctly.
 - above this threshold, it is advised to use mmseqs2 as an alignment kernel, and optionally decreasing further the values of the energy hyperparameters `-k mmseqs -a 0 -b 0`.
 
-Note that, depending on the kmer size (`-K` argument) mmseqs2 can require several Gb of available memory to run.
+Note that, depending on the kmer size (`-K` argument in pangraph) mmseqs2 can require several Gb of available memory to run.
 
-## Exporting the pangraph
+## Exporting the pangraph to gfa format
 
 The pangraph object can also be exported in other more common formats using the command `export` (see [Export](@ref)).
 
+As a first example, we consider exporting the pangraph in [Graphical Fragment Assembly](https://github.com/GFA-spec/GFA-spec) format. This can be done with the following command:
+
 ```bash
-pangraph export \
-    --no-duplications \
-    --output-directory ecoli_export \
-    ecoli_pangraph.json
+pangraph export gfa \
+    --no-duplicated \
+    -o graph.gfa \
+    graph.json
 ```
 
-This will create a folder named `ecoli_export` that contains two files.
+This will create a `graph.gfa` file, which can be visualized using [Bandage](https://rrwick.github.io/Bandage/).
 
-- `pangraph.fa`: a fasta file containing the consensus sequence for each block.
-- `pangraph.gfa`: a [Graphical Fragment Assembly](https://github.com/GFA-spec/GFA-spec) file that contains a representation of the pangenome graph structure.
+The option `--no-duplications` causes the export function to avoid including duplicated blocks in the graph representation (they are instead exported as isolated blocks). In our experience this results in a less "tangled" visual representation. Below is how the Bandage visualization of this example pangraph looks like. Blocks are colored by frequency, with common blocks (appearing in many different chromosomes) in red and rare blocks (appearing in only a few chromosomes) in black.
 
-The latter can be visualized using [Bandage](https://rrwick.github.io/Bandage/). The option `--no-duplications` causes the export function to avoid including duplicated blocks in the graph representation (they are instead exported as isolated blocks). In our experience this results in a less "tangled" visual representation. Below is how the Bandage visualization of this example pangraph looks like. Blocks are colored by frequency, with common blocks (appearing in many different chromosomes) in red and rare blocks (appearing in only a few chromosomes) in black.
+![img](./../assets/t1_gfa_full.png)
 
-![img](./../assets/bandage_ecoli_full.png)
+The visual representation still appears very tangled, due to the fact that many accessory blocks appear in different locations in different genomes. To simplify the representation, we can export only the core genome. This can be done by adding the option `--minimum-depth 10`, which will include only blocks that appear in at least 10 different genomes. We can also include the consensus sequences of the blocks in the output file with the option `--include-sequences`. This allows us to run BLAST searches on the graph, for example to locate the origin of replication (_oriC_).
+
+```bash
+pangraph export gfa \
+    --no-duplicated \
+    --minimum-depth 10 \
+    --include-sequences \
+    -o graph_core.gfa \
+    graph.json
+```
+
+The resulting graph is much simpler. The remaining crossings are due to changes in core-genome synteny. Each change in order of core blocks results in a crossing in the graph, as will be discussed in [a later tutorial section](tutorial_4.md).
+
+![img](./../assets/t1_gfa_core.png)

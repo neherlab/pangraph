@@ -26,9 +26,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:document-units="mm"
      showgrid="false"
-     inkscape:zoom="4.6037585"
-     inkscape:cx="167.36325"
-     inkscape:cy="411.83742"
+     inkscape:zoom="1.6276744"
+     inkscape:cx="510.23717"
+     inkscape:cy="407.32962"
      inkscape:window-width="2494"
      inkscape:window-height="1371"
      inkscape:window-x="0"
@@ -65,10 +65,13 @@
        x="7.7861719"
        y="72.694962"
        width="92.706398"
-       height="41.339336"
+       height="30.519403"
        id="page4"
        margin="0 0 0"
-       bleed="0" />
+       bleed="0"
+       inkscape:export-filename="../t1_blocks.png"
+       inkscape:export-xdpi="600"
+       inkscape:export-ydpi="600" />
     <inkscape:page
        x="7.7861719"
        y="123.80051"
@@ -230,7 +233,8 @@
      inkscape:groupmode="layer"
      id="layer2"
      inkscape:label="bck"
-     style="display:inline">
+     style="display:inline"
+     sodipodi:insensitive="true">
     <path
        style="fill:none;fill-opacity:1;stroke:#ececec;stroke-width:0.3;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
        d="M 83.726494,130.19418 19.601403,150.66215"
@@ -2242,5 +2246,30 @@
          id="path22-5"
          sodipodi:nodetypes="cc" />
     </g>
+    <text
+       xml:space="preserve"
+       style="font-size:2.68317px;line-height:1.25;font-family:sans-serif;display:inline;stroke-width:0.251546"
+       x="129.776"
+       y="54.994495"
+       id="text76521-0-9"><tspan
+         sodipodi:role="line"
+         style="stroke-width:0.251546"
+         x="129.776"
+         y="54.994495"
+         id="tspan76523-4-7"><tspan
+   style="font-weight:bold;stroke-width:0.251546"
+   id="tspan391442-8-8">Path</tspan><tspan
+   style="font-weight:bold"
+   id="tspan7-5"> A</tspan> : [ <tspan
+   style="fill:#c7d498;fill-opacity:1;stroke-width:0.251546"
+   id="tspan243305-0-3">b1</tspan>, <tspan
+   style="fill:#a4d9e7;fill-opacity:1;stroke-width:0.251546"
+   id="tspan258959-8-3">b2</tspan>, <tspan
+   style="fill:#e2d18f;fill-opacity:1;stroke-width:0.251546"
+   id="tspan276009-62-8">b4</tspan>, <tspan
+   style="fill:#aaccff;fill-opacity:1;stroke-width:0.251546"
+   id="tspan295053-4-3">b6</tspan>, <tspan
+   style="fill:#eeaaff;fill-opacity:1;stroke-width:0.251546"
+   id="tspan304281-7-7">b7</tspan> ]</tspan></text>
   </g>
 </svg>
