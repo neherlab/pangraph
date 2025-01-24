@@ -143,8 +143,8 @@ As a first example, we consider exporting the pangraph in [Graphical Fragment As
 ```bash
 pangraph export gfa \
     --no-duplicated \
-    -o graph.gfa \
-    graph.json
+    graph.json \
+    > graph.gfa
 ```
 
 This will create a `graph.gfa` file, which can be visualized using [Bandage](https://rrwick.github.io/Bandage/).
@@ -160,8 +160,8 @@ pangraph export gfa \
     --no-duplicated \
     --minimum-depth 10 \
     --include-sequences \
-    -o graph_core.gfa \
-    graph.json
+    graph.json \
+    > graph_core.gfa
 ```
 
 The resulting graph is much simpler. The remaining crossings are due to changes in core-genome synteny. Each change in order of core blocks results in a crossing in the graph, as will be discussed in [a later tutorial section](tutorial_4.md).

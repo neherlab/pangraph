@@ -181,7 +181,7 @@ for block_id, block in blocks.items():
         {
             "block_id": block_id,
             "length": len(block["consensus"]),  # length of consensus sequence
-            "n. nodes": len(block["alignments"]),  # number of nodes in the block
+            "count": len(block["alignments"]),  # number of nodes in the block
             "n. strains": len(isolates),  # number of unique strains the block is found in
         }
     )
@@ -190,12 +190,24 @@ block_info = pd.DataFrame(block_info).set_index("block_id")
 
 This returns the following dataframe:
 
-|             block_id | length | n. nodes | n. strains |
-| -------------------: | -----: | -------: | ---------: |
-| 13361252018432335832 |  59662 |       10 |         10 |
-|  8589825793449583194 |  52993 |        1 |          1 |
-|  7098980105995837282 |  50602 |        1 |          1 |
-|                  ... |    ... |      ... |        ... |
+|             block_id | length | count | n. strains |
+| -------------------: | -----: | ----: | ---------: |
+| 13361252018432335832 |  59662 |    10 |         10 |
+|  8589825793449583194 |  52993 |     1 |          1 |
+|  7098980105995837282 |  50602 |     1 |          1 |
+|                  ... |    ... |   ... |        ... |
+
+Alternatively, the `block_info` dataframe can be obtaine more simply using the [pypangraph](https://github.com/mmolari/pypangraph) package, a python package to open and manipulate pangraph output files:
+
+```python
+import pypangraph as pp
+
+# load the graph
+graph = pp.Pangraph.load_json("graph.json")
+
+# calculate block statistics
+block_info = graph.to_blockstats_df()
+```
 
 ### Pangenome size 
 
@@ -206,7 +218,7 @@ pangenome_size = block_info["length"].sum()
 # pangenome_size = 7.8 Mbp
 
 is_core = block_info["n. strains"] == 10
-is_core &= block_info["n. nodes"] == block_info["n. strains"] # not duplicated
+is_core &= block_info["count"] == block_info["n. strains"] # not duplicated
 core_genome_size = block_info[is_core]["length"].sum()
 # core_genome_size = 3.78 Mbp
 ```
@@ -215,14 +227,13 @@ core_genome_size = block_info[is_core]["length"].sum()
 
 From this dataframe we can for example check what is the block with highest copy number:
 ```python
-block_info.sort_values("n. nodes", ascending=False).head(1)
+block_info.sort_values("count", ascending=False).head(1)
 ```
-This is a heavily-duplicated block present 92 times in 9 different strains, with a length of 768 bps:
+|             block_id | length | count | n. strains |
+| -------------------: | -----: | ----: | ---------: |
+| 16702657954516389937 |    768 |    92 |          9 |
 
-|             block_id | length | n. nodes | n. strains |
-| -------------------: | -----: | -------: | ---------: |
-| 16702657954516389937 |    768 |       92 |          9 |
-
+This is a heavily-duplicated block present 92 times in 9 different strains, with a length of 768 bps.
 We can recover its sequence from the blocks dictionary:
 
 ```python
