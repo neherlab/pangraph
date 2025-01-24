@@ -7,6 +7,7 @@ use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::pangraph_path::{PangraphPath, PathId};
 use crate::pangraph::strand::Strand;
+use crate::representation::seq::Seq;
 use crate::utils::map_merge::{map_merge, ConflictResolution};
 use eyre::{Report, WrapErr};
 use maplit::btreemap;
@@ -15,7 +16,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::str::FromStr;
-use crate::representation::seq::Seq;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Hash, PartialEq, Eq, JsonSchema)]
 pub struct Pangraph {
@@ -212,8 +212,14 @@ impl Pangraph {
         .map(|nid| self.nodes[&nid].path_id())
         .collect();
 
+      // n. of nodes in the block
+      let n_nodes = block.alignment_keys().len();
+
+      // check that the block is present in all paths
       let is_in_all_paths = block_path_ids == path_ids;
-      let is_not_duplicated = block_path_ids.len() == path_ids.len();
+      // check that the block is not duplicated in any path,
+      // i.e. the number of nodes is equal to the number of path it is present in
+      let is_not_duplicated = n_nodes == block_path_ids.len();
       (is_in_all_paths && is_not_duplicated).then_some(*block_id)
     })
   }
