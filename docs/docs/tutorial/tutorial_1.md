@@ -95,20 +95,18 @@ blocks = {
 }
 ```
 
-- Finally, the **`nodes`** dictionary provides a connection between nodes and path. Each node, identified by its id used as key in the dictionary, is associated to its `block_id`, `path_id`, and `strand`. The latter indicates whether on the genome the block appears in the forward (`+`) or reverse (`-`) strand.
+- Finally, the **`nodes`** dictionary provides a connection between nodes and path. Each node is identified by its `id`, used as key in the dictionary, and is associated to its `block_id` and `path_id`.
 
 ```json
 nodes = {
     "539582348881474": {
       "block_id": 16869306503019140931,
       "path_id": 5,
-      "strand": "+",
       ...
     },
     "1955246786506684": {
       "block_id": 16260464326956387790,
       "path_id": 7,
-      "strand": "+",
       ...
     },
     ...
