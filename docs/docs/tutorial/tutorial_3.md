@@ -95,4 +95,8 @@ This alignment can be used for example to build a phylogenetic tree for the data
 fasttree -nt -gtr core_genome_aln.fa > tree.nwk
 ```
 
+Here is the tree, visualized with [auspice](https://auspice.us/):
+
+![img](../assets/t3_coretree.png)
+
 [^1]: Note that this must be done with caution, as the core-genome alignment might contain recombined regions, which are not compatible with the assumptions of many phylogenetic methods. In cases when a clonal frame can still be recovered, using a recombination-aware method such as [Gubbins](https://github.com/nickjcroucher/gubbins) is recommended.
