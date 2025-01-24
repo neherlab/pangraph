@@ -5,9 +5,9 @@ sidebar_position: 2
 # The structure of Pangraph output file
 
 In this second part of the tutorial we will explore in more detail the content of the `json` output file produced by the `build` command.
-As an example, we will use snippets from the `ecoli_pangraph.json` file that was produced in the previous section of the tutorial.
+As an example, we will use snippets from the `graph.json` file that was produced in the previous section of the tutorial.
 
-## The structure of `pangraph.json`
+## The structure of `graph.json`
 
 As discussed in the previous tutorial section, the two main entries of pangraph output file are `paths` and `blocks`.
 
@@ -16,34 +16,67 @@ As discussed in the previous tutorial section, the two main entries of pangraph 
 
 We will explore each of these two categories separately.
 
+
+## Paths
+
+A path object has the following structure:
+
+```json
+{
+    "id": 1,
+    "nodes": [10429785587629589393, 10765941013351965021, 7771937209474314297, ...],
+    "tot_len": 4827779,
+    "circular": true,
+    "name": "NZ_CP010150"
+},
+```
+
+The two main properties of a path are `name` and `blocks`. The `name` of the path indicates which of the input sequences the path represents. `blocks` contains the ordered list of nodes that make up the path. Each node is identified by the unique block `id`, and by the entries of the node-id (`name`, `number`, `strand`).
+
+Here is a complete list containing a description of every entry in the path object:
+
+- `name` : the name of the particular nucleotide sequence to whom the path refers. This name is extracted from the sequence id in the input fasta file.
+- `circular` : indicates whether the considered sequence is circular (e.g. plasmid) or not. This is controlled by the `--circular` option of the `build` command.
+- `blocks` : the ordered list of blocks that make up the path.
+    - `id` : the unique random id of the block, assigned when building the graph.
+    - `name`, `number` `strand` : entries of the node-id, used to identify which particular instance of the block is part of the path. As a reminder, `name` is the id of the input sequence, `number` indicates which occurrence of the same block is considered (useful for duplicated blocks) and `strand` indicates whether the sequence is found on the forward or reverse strand.
+- `position` : an ordered list of positions, corresponding to the beginning positions of each node in the path. If N is the number of nodes this list has N+1 entries. The last entry is the position of the right edge of the last block in the path.
+- `offset` : indicates the distance between the beginning of the input sequence, and the beginning of the path (i.e. the beginning of the first node of the path, block `IUZTZPLBVS` in the example above).
+
+## Nodes
+
+```json
+{
+    "id": 539582348881474,
+    "block_id": 16869306503019140931,
+    "path_id": 5,
+    "strand": "+",
+    "position": [4239867, 4240062]
+},
+```
+
 ## Blocks
 
 Here is an example of an entry of the `blocks` list, from the `ecoli_pangraph.json` file.
 
 ```json
 {
-    "id": "TMEPNAOFAP",
-    "sequence": "CGGGAAGGTTCTGATGCGTCCGTGTTAAACTAAGAGAATCTATCT...",
-    "gaps": { ... },
-    "mutate": [ ... ],
-    "insert": [ ... ],
-    "delete": [ ... ],
-    "positions": [
-        [
-            { "name": "NZ_CP019944", "number": 1, "strand": true },
-            [ 356656, 359732 ]
-        ],
-        [
-            { "name": "NC_013361", "number": 1, "strand": false},
-            [ 4496907, 4500032 ]
-        ],
-        [
-            { "name": "NZ_CP015912", "number": 1, "strand": false},
-            [ 2485802, 2488871 ]
-        ],
+    "id": 9783460543474296593,
+    "consensus": "AACGGCAATATCTGCCACAAA...",
+    "alignments": {
+        "5252840658835653895": {
+            "subs": [ ... ],
+            "dels": [ ... ],
+            "inss": [ ... ]
+        },
+        "7608024242617339186": {
+            "subs": [ ... ],
+            "dels": [ ... ],
+            "inss": [ ... ]
+        },
         ...
-    ]
-},
+    }
+}
 ```
 
 The two main properties of a block are its unique `id` (10-letters alphabetic sequence randomly assigned when generating the pangraph), and the consensus `sequence`.
@@ -154,39 +187,8 @@ Deletions are instead in the form `[del-beg, del-length]` where the first number
 
 Below is a schematic summary of how gaps, mutations, insertions and deletions can be combined to go from the block consensus sequence to the alignment sequence of a particular node.
 
-![img](./../assets/alignment_scheme.png)
+![img](./../assets/t2_alignment_reconstruction.png)
 
-
-## Paths
-
-A path object has the following structure:
-
-```json
-{
-    "name": "NZ_CP010242",
-    "offset": -3044650,
-    "circular": true,
-    "position": [ 1695501, 1696243, 1702666, ... ],
-    "blocks": [
-        { "id": "IUZTZPLBVS", "name": "NZ_CP010242", "number": 1, "strand": true },
-        { "id": "DVEJPZTOYJ", "name": "NZ_CP010242", "number": 1, "strand": true },
-        { "id": "FUECJYRQOZ", "name": "NZ_CP010242", "number": 1, "strand": true },
-        ...
-    ]
-},
-```
-
-The two main properties of a path are `name` and `blocks`. The `name` of the path indicates which of the input sequences the path represents. `blocks` contains the ordered list of nodes that make up the path. Each node is identified by the unique block `id`, and by the entries of the node-id (`name`, `number`, `strand`).
-
-Here is a complete list containing a description of every entry in the path object:
-
-- `name` : the name of the particular nucleotide sequence to whom the path refers. This name is extracted from the sequence id in the input fasta file.
-- `circular` : indicates whether the considered sequence is circular (e.g. plasmid) or not. This is controlled by the `--circular` option of the `build` command.
-- `blocks` : the ordered list of blocks that make up the path.
-    - `id` : the unique random id of the block, assigned when building the graph.
-    - `name`, `number` `strand` : entries of the node-id, used to identify which particular instance of the block is part of the path. As a reminder, `name` is the id of the input sequence, `number` indicates which occurrence of the same block is considered (useful for duplicated blocks) and `strand` indicates whether the sequence is found on the forward or reverse strand.
-- `position` : an ordered list of positions, corresponding to the beginning positions of each node in the path. If N is the number of nodes this list has N+1 entries. The last entry is the position of the right edge of the last block in the path.
-- `offset` : indicates the distance between the beginning of the input sequence, and the beginning of the path (i.e. the beginning of the first node of the path, block `IUZTZPLBVS` in the example above).
 
 
 ## A look at the length and frequency of blocks
