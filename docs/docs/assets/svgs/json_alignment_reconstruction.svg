@@ -26,15 +26,15 @@
      inkscape:pagecheckerboard="0"
      inkscape:document-units="mm"
      showgrid="false"
-     inkscape:zoom="2.8284271"
-     inkscape:cx="390.6765"
-     inkscape:cy="195.86858"
+     inkscape:zoom="4"
+     inkscape:cx="236.75"
+     inkscape:cy="149.5"
      inkscape:window-width="2560"
      inkscape:window-height="1403"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer1"
+     inkscape:current-layer="g22"
      inkscape:showpageshadow="2"
      inkscape:deskcolor="#d1d1d1" />
   <defs
@@ -355,26 +355,26 @@
       <text
          xml:space="preserve"
          style="font-size:2.82223px;line-height:1.25;font-family:monospace;-inkscape-font-specification:monospace;stroke-width:0.264583"
-         x="47.100353"
+         x="45.46608"
          y="18.34095"
          id="text4412"><tspan
            sodipodi:role="line"
            id="tspan4410"
            style="stroke-width:0.264583"
-           x="47.100353"
-           y="18.34095">ATGTCTTCAATC...</tspan></text>
+           x="45.46608"
+           y="18.34095">AATGTCTTCAATC...</tspan></text>
       <text
          xml:space="preserve"
          style="font-size:1.3738px;line-height:1.25;font-family:monospace;-inkscape-font-specification:monospace;fill:#999999;stroke-width:0.128792"
-         x="46.188385"
+         x="44.59927"
          y="16.133015"
          id="text11944"
          transform="scale(1.0284121,0.97237285)"><tspan
            sodipodi:role="line"
            id="tspan11942"
            style="fill:#999999;stroke-width:0.128792"
-           x="46.188385"
-           y="16.133015">1 2 3 4 5 6 7 8 9</tspan></text>
+           x="44.59927"
+           y="16.133015">0 1 2 3 4 5 6 7 8 9</tspan></text>
       <g
          id="g29965"
          transform="translate(-0.1997728)">
@@ -487,14 +487,14 @@
       <text
          xml:space="preserve"
          style="font-size:2.82223px;line-height:1.25;font-family:monospace;-inkscape-font-specification:monospace;stroke-width:0.264583"
-         x="55.502285"
+         x="53.868011"
          y="17.901834"
          id="text4412-1-3"><tspan
            sodipodi:role="line"
            id="tspan4410-2-0"
            style="stroke-width:0.264583"
-           x="55.502285"
-           y="17.901834">AT<tspan
+           x="53.868011"
+           y="17.901834">AAT<tspan
    style="fill:#5555ff"
    id="tspan97897">A</tspan>TCTTCA<tspan
    style="fill:#d38d5f"
@@ -502,15 +502,15 @@
       <text
          xml:space="preserve"
          style="font-size:1.3738px;line-height:1.25;font-family:monospace;-inkscape-font-specification:monospace;fill:#999999;stroke-width:0.128792"
-         x="54.357201"
+         x="52.745346"
          y="15.611325"
          id="text11944-9-4"
          transform="scale(1.0284121,0.97237285)"><tspan
            sodipodi:role="line"
            id="tspan11942-3-4"
            style="fill:#999999;stroke-width:0.128792"
-           x="54.357201"
-           y="15.611325">1 2 <tspan
+           x="52.745346"
+           y="15.611325">0 1 2 <tspan
    style="fill:#5555ff"
    id="tspan101079">3</tspan> 4 5 6 7</tspan></text>
       <text
@@ -569,26 +569,26 @@
     <text
        xml:space="preserve"
        style="font-size:2.82223px;line-height:1.25;font-family:monospace;-inkscape-font-specification:monospace;stroke-width:0.264583"
-       x="50.896988"
+       x="49.262714"
        y="47.134838"
        id="text4412-1-3-5"><tspan
          sodipodi:role="line"
          id="tspan4410-2-0-7"
          style="stroke-width:0.264583"
-         x="50.896988"
-         y="47.134838">ATA TC--CAGTC...</tspan></text>
+         x="49.262714"
+         y="47.134838">AATA TC--CAGTC...</tspan></text>
     <text
        xml:space="preserve"
        style="font-size:1.3738px;line-height:1.25;font-family:monospace;-inkscape-font-specification:monospace;fill:#999999;stroke-width:0.128792"
-       x="49.876331"
+       x="48.264477"
        y="45.674885"
        id="text11944-9-4-8"
        transform="scale(1.0284121,0.97237285)"><tspan
          sodipodi:role="line"
          id="tspan11942-3-4-5"
          style="fill:#999999;stroke-width:0.128792"
-         x="49.876331"
-         y="45.674885">1 2 3   <tspan
+         x="48.264477"
+         y="45.674885">0 1 2 3   <tspan
    style="fill:#d4aa00;fill-opacity:1"
    id="tspan16">4</tspan> 5 6 7</tspan></text>
     <text
@@ -669,7 +669,7 @@
          id="tspan4410-2-0-7-62"
          style="stroke-width:0.264583"
          x="47.526997"
-         y="67.883301">AT<tspan
+         y="67.883301">AAT<tspan
    style="fill:#5555ff;fill-opacity:1"
    id="tspan19">A</tspan><tspan
    style="fill:#d4aa00;fill-opacity:1"
@@ -686,7 +686,7 @@
          id="tspan4410-2-0-7-1"
          style="stroke-width:0.264583"
          x="94.909279"
-         y="68.009033">AT<tspan
+         y="68.009033">AAT<tspan
    style="fill:#5555ff;fill-opacity:1"
    id="tspan22">A</tspan>TC<tspan
    style="fill:#00aad4;fill-opacity:1"
@@ -699,28 +699,28 @@
       <text
          xml:space="preserve"
          style="font-size:2.82223px;line-height:1.25;font-family:monospace;-inkscape-font-specification:monospace;stroke-width:0.264583"
-         x="54.330135"
+         x="52.695862"
          y="32.396118"
          id="text4412-1-3-5-8"><tspan
            sodipodi:role="line"
            id="tspan4410-2-0-7-9"
            style="stroke-width:0.264583"
-           x="54.330135"
-           y="32.396118">ATATC<tspan
+           x="52.695862"
+           y="32.396118">AATATC<tspan
    style="fill:#00aad4"
    id="tspan178083">--</tspan>CAGTC...</tspan></text>
       <text
          xml:space="preserve"
          style="font-size:1.3738px;line-height:1.25;font-family:monospace;-inkscape-font-specification:monospace;fill:#999999;stroke-width:0.128792"
-         x="53.217442"
+         x="51.582848"
          y="30.51741"
          id="text11944-9-4-8-7"
          transform="scale(1.0284121,0.97237285)"><tspan
            sodipodi:role="line"
            id="tspan11942-3-4-5-7"
            style="fill:#999999;stroke-width:0.128792"
-           x="53.217442"
-           y="30.51741">1 2 3 4 5 <tspan
+           x="51.582848"
+           y="30.51741">0 1 2 3 4 5 <tspan
    style="fill:#00aad4"
    id="tspan203261">6 7</tspan></tspan></text>
       <text
@@ -840,7 +840,7 @@
            y="31.29974"
            id="tspan7">  <tspan
    style="fill:#00aad4;fill-opacity:1"
-   id="tspan10">{&quot;pos&quot;: 5, &quot;len&quot;: 2}</tspan>,</tspan><tspan
+   id="tspan10">{&quot;pos&quot;: 6, &quot;len&quot;: 2}</tspan>,</tspan><tspan
            sodipodi:role="line"
            style="stroke-width:0.137436"
            x="82.359489"
@@ -908,14 +908,14 @@
            y="20.609871"
            id="tspan1">  <tspan
    style="fill:#5555ff;fill-opacity:1"
-   id="tspan4">{&quot;pos&quot;: 2, &quot;alt&quot;: &quot;A&quot;}</tspan>,</tspan><tspan
+   id="tspan4">{&quot;pos&quot;: 3, &quot;alt&quot;: &quot;A&quot;}</tspan>,</tspan><tspan
            sodipodi:role="line"
            style="stroke-width:0.137436"
            x="82.359489"
            y="22.442358"
            id="tspan2">  <tspan
    style="fill:#d38d5f;fill-opacity:1"
-   id="tspan5">{&quot;pos&quot;: 9, &quot;alt&quot;: &quot;G&quot;}</tspan>,</tspan><tspan
+   id="tspan5">{&quot;pos&quot;: 10,&quot;alt&quot;: &quot;G&quot;}</tspan>,</tspan><tspan
            sodipodi:role="line"
            style="stroke-width:0.137436"
            x="82.359489"

@@ -9,6 +9,12 @@ In this final part of the tutorial we show how to use the `marginalize` command.
 
 ## Preliminary steps
 
+:::warning
+
+TODO: add projection scheme from the paper
+
+:::
+
 We will run this tutorial on a different dataset, containing 10 complete chromosomes of _Klebsiella Pneumoniae_ (source: GenBank). These sequences are available in the pangraph repository (`example_dataset/klebs.fa.gz`) and can be downloaded by running:
 
 ```bash

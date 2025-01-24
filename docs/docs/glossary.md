@@ -19,7 +19,7 @@ A collection of _blocks_, associated to all recognized intervals of homology, an
 #### Block / Pancontig
 
 A contiguous interval of sequence that compresses a linear multiple sequence alignment and represents a single vertex within a pangraph.
-It is summarized by a consensus sequence, along with the polymorphisms needed for each genome to reconstruct the true sequence.
+It is summarized by a consensus sequence, along with the mutations needed for each genome to reconstruct the true sequence.
 
 ![img](./assets/t1_blocks.png)
 

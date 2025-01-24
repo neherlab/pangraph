@@ -4,17 +4,19 @@ sidebar_position: 2
 
 # The structure of Pangraph output file
 
-In this second part of the tutorial we will explore in more detail the content of the `json` output file produced by the `build` command.
+In this second part of the tutorial we will explore in more detail the content of the `json` output file produced by the [`build` command](../reference#pangraph-build).
 As an example, we will use snippets from the `graph.json` file that was produced in the previous section of the tutorial.
+
 
 ## The structure of `graph.json`
 
-As discussed in the previous tutorial section, the two main entries of pangraph output file are `paths` and `blocks`.
+As discussed in the [previous tutorial section](./tutorial_1.md#what-is-a-pangraph), the three main entries of pangraph output file are `paths`, `blocks` and `nodes`.
 
-- each entry in the `paths` list encodes one of the nucleotide sequences that were given as input to the `build` command, represented as a list of blocks.
-- each entry in the `blocks` list represents an alignable set of homologous sequences. A block contains the consensus of all of these sequences, together with information to reconstruct the full alignment.
+- each entry in the `paths` list encodes one of the nucleotide sequences that were given as input to the `build` command, represented as a list of nodes (i.e. particular instances of a block)
+- each entry in the `blocks` list represents an alignable set of homologous sequences. A block contains the consensus of all of these sequences, together with information to reconstruct the full alignment. Each entry in the alignment is represented by a `node`.
+- the `nodes` list represents the connection between blocks and paths. Each node entry contains information on which block and path the node is assigned to.
 
-We will explore each of these two categories separately.
+We will explore each of these categories separately.
 
 
 ## Paths
@@ -24,40 +26,51 @@ A path object has the following structure:
 ```json
 {
     "id": 1,
+    "name": "NZ_CP010150",
     "nodes": [10429785587629589393, 10765941013351965021, 7771937209474314297, ...],
-    "tot_len": 4827779,
     "circular": true,
-    "name": "NZ_CP010150"
+    "tot_len": 4827779
 },
 ```
 
-The two main properties of a path are `name` and `blocks`. The `name` of the path indicates which of the input sequences the path represents. `blocks` contains the ordered list of nodes that make up the path. Each node is identified by the unique block `id`, and by the entries of the node-id (`name`, `number`, `strand`).
+The two main properties of a path are `name` and `nodes`. The `name` of the path corresponds to the sequence identifier in the input fasta file.
+`nodes` contains the ordered list of node ids that make up the path.
 
 Here is a complete list containing a description of every entry in the path object:
 
-- `name` : the name of the particular nucleotide sequence to whom the path refers. This name is extracted from the sequence id in the input fasta file.
-- `circular` : indicates whether the considered sequence is circular (e.g. plasmid) or not. This is controlled by the `--circular` option of the `build` command.
-- `blocks` : the ordered list of blocks that make up the path.
-    - `id` : the unique random id of the block, assigned when building the graph.
-    - `name`, `number` `strand` : entries of the node-id, used to identify which particular instance of the block is part of the path. As a reminder, `name` is the id of the input sequence, `number` indicates which occurrence of the same block is considered (useful for duplicated blocks) and `strand` indicates whether the sequence is found on the forward or reverse strand.
-- `position` : an ordered list of positions, corresponding to the beginning positions of each node in the path. If N is the number of nodes this list has N+1 entries. The last entry is the position of the right edge of the last block in the path.
-- `offset` : indicates the distance between the beginning of the input sequence, and the beginning of the path (i.e. the beginning of the first node of the path, block `IUZTZPLBVS` in the example above).
+- `id`: numerical id of the path. Each path is assigned a unique progressive id when building the graph.
+- `name` : the path sequence identifier, as specified in the input fasta file.
+- `nodes` : the ordered list of node ids that make up the path.
+- `circular` : indicates whether the considered sequence is circular (e.g. plasmid) or not. This is controlled by the `--circular` flag of the `build` command.
+- `tot_len` : the total length of the path, in nucleotides.
+
 
 ## Nodes
 
+Nodes constitue the connection between block and paths. A node indicartes a particular occurrence of a block in a path sequence. A node object has the following structure:
+
 ```json
 {
-    "id": 539582348881474,
-    "block_id": 16869306503019140931,
-    "path_id": 5,
+    "id": 10429785587629589393,
+    "block_id": 9245376340613946,
+    "path_id": 1,
     "strand": "+",
-    "position": [4239867, 4240062]
+    "position": [356656, 359732]
 },
 ```
 
+The properties of a node are:
+- `id` : a unique random numerical id assigned to the node.
+- `block_id` : the id of the block that the node belongs to.
+- `path_id` : the id of the path that the node is part of.
+- `strand` : indicates whether on the original input sequence the consensus sequence of the block appears in the forward (`+`) or reverse (`-`) strand.
+- `position` : start and end position of the node on the input sequence. Positions are always in 0-based numbering with right extreme excluded. They are also based on the forward strand (with beginning < end). The only exception is when a block wraps around the end of a circular sequence. In this case the node start position (close to the end of the genome) is higher than the node end position (close to the beginning of the genome).
+
+
 ## Blocks
 
-Here is an example of an entry of the `blocks` list, from the `ecoli_pangraph.json` file.
+Blocks encode alignments of homologous sequences across the input genomes.
+Each block object has the following structure:
 
 ```json
 {
@@ -79,116 +92,54 @@ Here is an example of an entry of the `blocks` list, from the `ecoli_pangraph.js
 }
 ```
 
-The two main properties of a block are its unique `id` (10-letters alphabetic sequence randomly assigned when generating the pangraph), and the consensus `sequence`.
+Each block contains the following properties:
+- `id` : a unique random numerical id assigned to the block.
+- `consensus` : the consensus sequence of the block.
+- `alignments` : a dictionary that contains information to reconstruct the sequence alignment. Keys are node ids, while values are a list of variations (substitutions, deletions, insertions) that need to be applied to the consensus to obtain the node sequence.
 
-In addition to this, a block object also stores information on the full alignment of all the different occurrences of the block, and their position on the original input sequences. As explained in the [Introduction](@ref), we refer to a particular occurrence of a block in a sequence as a __Node__. Intuitively, they can be thought of as a single entry in the sequence alignment of a block.
 
-Each node of a block can be uniquely identified by its "node-id", which is an object composed of three entries:
-```json
-{ "name": "NZ_CP019944", "number": 1, "strand": true }
-```
-- a `name`, indicating on which of the input sequences the node is found.
-- a `number`, indicating whether this is the first, second, third... occurrence of the block on a given input sequence. This is important to distinguish different nodes of a duplicated blocks, when they occurr in the same input sequence.
-- a `strand` boolean value, indicating wheter the node is found on the forward (`true`) or reverse (`false`) strand.
+### How alignments are encoded
 
-The "node-id" is used for example in the `position` field of a block. This field contains information on the location of nodes on the input sequences. It consists of a list of pairs. The first entry of the pair is the node-id, indicating of which occurrence of the block the position refers to. The second entry is a pair of numbers indicating the position of the beginning and end of the node on the input sequence.
-
-In the example above, the first entry of `positions` indicates that block `"TMEPNAOFAP"` is found on the forward strand of the chromosome labeled `NZ_CP019944`, at position `356656` to `359732`. Positions are always in 1-based numbering and based on the forward strand (with beginning < end). The only exception is when a block wraps around the end of a circular sequence. In this case the node start position (close to the end of the genome) is higher than the node end position (close to the beginning of the genome).
-
-The fields `gaps`, `mutate`, `insert` and `delete` contain information to reconstruct the block alignment. They were left out from this example for simplicity, and are discussed in the next subsection.
-
-## How alignments are encoded
-
-A block object contains the information on the alignment of all the homologous sequences belonging to the block. This information is stored in compressed format in the `gaps`, `mutate`, `insert` and `delete` fields. In practice the alignment of each node sequence can be obtained from the consensus by adding the gaps, single-nucleotide mutations, and insertions / deletions contained in these fields.
-
-Here we briefly describe each entry, and then schematically show how these can be combined to obtain the alignment sequence of a node.
-
-!!! note "reconstructing the alignments"
-    Rather than providing explicit instructions on how to build the alignments, the aim of this part of the tutorial is to show how the information is organized in the pangraph output format. For a quick way to obtain block alignments, have a look at the next tutorial section [Polishing the pangraph and exploring alignments](@ref).
-
-### Gaps
-
-The `gaps` entry contains a json object that indicates where gaps should be added to the consensus sequence as a first step towards reconstructing the alignment. The first item represents the position of the gap, and the second its length.
+Each object in the alignment dictionary contains three entries: `subs`, `dels`, and `inss`, encoding respectively substitutions, deletions, and insertions. Here is an example of an entry in the `alignments` dictionary:
 
 ```json
-"gaps" : {"0": 27, "53": 1 }
+"5252840658835653895" : {
+    "subs": [
+        {
+            "pos": 15,
+            "alt": "A"
+        },
+        {
+            "pos": 35,
+            "alt": "G"
+        }
+    ],
+    "dels": [
+        {
+            "pos": 10,
+            "len": 4
+        }
+    ],
+    "inss": [
+        {
+            "pos": 3,
+            "seq": "CTT"
+        }
+    ]
+}
 ```
 
-In this example the consensus sequence contains two gaps: one is inserted at the beginning of the consensus sequence, with length 27, and one after sequence position 53, with length 1.
-In some of the sequences running through this block, these gaps are filled with insertions, see below.
+- `subs` contains a list of substitutions. Each substituion contains a `pos` field indicating the position of the substitution in the consensus sequence, and an `alt` field indicating the alternative nucleotide.
+- `dels` contains a list of deletions. Each deletion contains a `pos` field indicating the starting position of the deletion in the consensus sequence (0-based), and a `len` field indicating the length of the deletion.
+- `inss` contains a list of insertions. Each insertion contains a `pos` field, indicating the nucleotide _before_ which the insertion should be placed, and a `seq` field, containing the sequence to be inserted.
 
-### Single-nucleotide mutations
-
-The `mutate` entry encodes single-nucleotide mutations. It contains a list of pairs. Each pair is relative to a particular node (i.e. one line in the alignment) and the first item of the pair is the node-id described above. The second entry is a list of mutations (potentially empty). Each mutation is specified by its position on the original sequence, and the nucleotide that should be substituted to the consensus.
-
-```json
-"mutate" : [
-    [
-        { "name": "NC_009800", "number": 1, "strand": false },     // node-id
-        [ [415,"C"], [1526,"T"], [2827,"G"], ... ]                 // list of mutations
-    ],
-    [
-        { "name": "NZ_CP011342", "number": 1, "strand": false },   // node-id
-        [ [2221, "G"], [415, "C"], [2494, "T"], [1825, "A"], ... ] // list of mutations
-    ],
-    [
-        { "name": "NZ_CP019944", "number": 1, "strand": true },    // node-id
-        [ [2827, "G"], [442, "T"], [2713, "G"], ... ]              // list of mutations
-    ],
-    ...
-],
-```
-
-### Insertions and deletions
-
-Entries of `insert` and `delete` are organized similarly to mutations. They appear in lists of pairs, whose first item is the node-id, and the second is the list of insertions/deletions that one needs to include. This list can potentially be empty.
-
-```json
-"insert" : [
-    [
-        { "name": "NC_009800", "number": 1, "strand": false },
-        []
-    ],
-    [
-        { "name": "NZ_CP011342", "number": 1, "strand": false },
-        []
-    ],
-    [
-        { "name": "NZ_CP019944", "number": 1, "strand": true },
-        [ [ [0,0], "TT"], [ [0,15], "TTCCC"] ]
-    ],
-    ...
-],
-```
-
-Insertions are always placed inside of gaps. They appear in the form `[ [gap-beg, gap-offset], "seq"]`. `gap-beg` indicates the beginning position of the gap, and `gap-offset` indicates how far from the beginning of this gap the insertion starts. Finally `seq` is the nucleotide sequence to be inserted.
-
-```json
-"delete" : [
-    [
-        { "name": "NC_009800", "number": 1, "strand": false },
-        [ [ 3071, 56 ] ]
-    ],
-    [
-        { "name": "NZ_CP011342", "number": 1, "strand": false },
-        []
-    ],
-    [
-        { "name": "NZ_CP019944", "number": 1, "strand": true },
-        [ [ 3071, 56 ] ]
-    ],
-    ...
-],
-```
-
-Deletions are instead in the form `[del-beg, del-length]` where the first number indicates the position at which the deletion starts (relative to the consensus sequence) and the second is the deletion length.
-
-### From block consensus to node alignment
-
-Below is a schematic summary of how gaps, mutations, insertions and deletions can be combined to go from the block consensus sequence to the alignment sequence of a particular node.
+Below is a schematic representation of how these variations are applied to the consensus sequence of a block to obtain the sequence of a node.
 
 ![img](./../assets/t2_alignment_reconstruction.png)
 
+As discussed in the [next section](./tutorial_3.md), the different sequences of a block can be reconstructed in two ways:
+- as **node sequences**. In this case sequences are not aligned, but each entry corresponds to the exact sequence of a node, with all variations applied.
+- as a **multiple sequence alignment**. In this case sequences are aligned, but insertions are omitted. 
 
 
 ## A look at the length and frequency of blocks
@@ -201,7 +152,7 @@ As a simple example, we take the `ecoli_pangraph.json` file and extract from eac
 
 The blocks present in this pangraph have widely varying size, with some blocks being only some hundreds of nucleotides long, and others spanning tens of kbps.[^1]
 
-[^1]: The almost complete absence of blocks shorter than 100 bps is due to the default value of the `--len` option in the `build` command, which is set to 100. See [Build](@ref).
+[^1]: The almost complete absence of blocks shorter than 100 bps is due to the default value of the `--len` option in the `build` command, which is set to 100. See [`build` command](../reference#pangraph-build) for more information.
 
 The block frequency distribution shows a typical bimodal pattern, with an abundance of "core" blocks (blocks that are present in all the 10 considered chromosomes, cumulative length of more than 3.5 Mbps) and rare blocks present in only one strain (cumulative length of more than 2.5 Mbps).
 This graph can be reproduced by this python snippet:

@@ -22,3 +22,9 @@ To install _mmseqs2_ using conda, run the following command:
 ```bash
 conda install -c conda-forge -c bioconda mmseqs2
 ```
+
+:::note
+
+Pangraph was tested with _mmseqs2_ version 17.b804f.
+
+:::
