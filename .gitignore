@@ -19,6 +19,7 @@
 /target/
 /tests/out/
 /tmp*/
+/venv/
 Thumbs.db
 __pycache__/
 ehthumbs.db

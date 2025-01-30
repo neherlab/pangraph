@@ -7,7 +7,7 @@ See README.md in the parent directory for instructions.
 import sys
 import json
 from dacite import from_dict
-from Pangraph import Pangraph
+from Pangraph_model import Pangraph
 
 
 def read_pangraph(filepath: str = None) -> Pangraph:
