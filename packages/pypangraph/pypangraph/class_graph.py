@@ -1,8 +1,10 @@
 # Wrapper class to load a Pangraph object from a .json file.
 
-import numpy as np
 import json
 import jsonschema
+import itertools
+import gzip
+import pandas as pd
 from Bio import SeqRecord, Seq, AlignIO
 
 from collections import defaultdict
@@ -31,23 +33,36 @@ class Pangraph:
         self.blocks = BlockCollection(pan_json["blocks"])
         self.nodes = Nodes(pan_json["nodes"])
 
+    def __repr__(self):
+        return f"pangraph object with {len(self.strains())} paths, {len(self.blocks)} blocks and {len(self.nodes)} nodes"
+
+    def __str__(self):
+        return f"pangraph object with {len(self.strains())} paths, {len(self.blocks)} blocks and {len(self.nodes)} nodes"
+
     @staticmethod
-    def load_json(filename):
+    def from_json(filename):
         """Creates a Pangraph object by loading it from the .json file.
 
         Args:
-            load_json (str): .json file to be loaded.
+            from_json (str): .json file to be loaded, optionally gzipped.
 
         Returns:
             Pangraph: the Pangraph object containing the results of the pipeline.
         """
 
-        isjson = str(filename).endswith(".json")
-        if not isjson:
-            raise Exception(f"the input file {filename} should be in .json format")
+        is_json = str(filename).endswith(".json")
+        is_gzjson = str(filename).endswith(".json.gz")
+        if not (is_json or is_gzjson):
+            raise Exception(
+                f"the input file {filename} should be in .json or .json.gz format"
+            )
 
-        with open(filename, "r") as f:
-            pan_json = json.load(f)
+        if is_gzjson:
+            with gzip.open(filename, "rt") as f:
+                pan_json = json.load(f)
+        else:
+            with open(filename, "r") as f:
+                pan_json = json.load(f)
 
         try:
             graph = {"pangraph": pan_json}
@@ -84,6 +99,53 @@ class Pangraph:
         df["len"] = [len(self.blocks[bid]) for bid in df.index]
         return df
 
+    def to_path_dictionary(self):
+        """Returns a dictionary whose keys are strain names, and values are
+        list of block ids and strandedness."""
+        path_dict = {}
+        for name, path in self.paths.items():
+            blocks = []
+            for node_id in path.nodes:
+                block_id, strand = self.nodes.node_to_block(node_id)
+                blocks.append((block_id, strand))
+            path_dict[name] = blocks
+        return path_dict
+
+    def pairwise_accessory_genome_comparison(self):
+        """Returns a dataframe whose index are pairs of strains, and values are
+        - amount of shared pangenome in basepairs
+        - amount of private pangenome in basepairs
+        """
+        block_PA = self.to_blockcount_df() > 0
+        bl_order = block_PA.index
+        block_Ls = self.to_blockstats_df().loc[bl_order, "len"]
+        genomes = block_PA.columns
+
+        res_df = []
+        for i, j in itertools.combinations_with_replacement(genomes, 2):
+            pa_i = block_PA[i]
+            pa_j = block_PA[j]
+            shared = ((pa_i & pa_j) * block_Ls).sum()
+            diff = ((pa_i ^ pa_j) * block_Ls).sum()
+            res = {
+                "path_i": i,
+                "path_j": j,
+                "shared": shared,
+                "diff": diff,
+            }
+            res_df.append(res)
+            if i != j:
+                res = {
+                    "path_i": j,
+                    "path_j": i,
+                    "shared": shared,
+                    "diff": diff,
+                }
+                res_df.append(res)
+        res_df = pd.DataFrame(res_df)
+        res_df.set_index(["path_i", "path_j"], inplace=True)
+        return res_df
+
     def core_genome_alignment(self, guide_strain=None):
         """Returns the core genome aligment, in a biopython alignment object.
         The order of the blocks is determined by the guide strain, if provided.
@@ -97,9 +159,9 @@ class Pangraph:
         # get order of core blocks in guide strain
         if guide_strain is None:
             guide_strain = self.strains()[0]
-        assert (
-            guide_strain in strains
-        ), f"Guide strain {guide_strain} not found in the dataset"
+        assert guide_strain in strains, (
+            f"Guide strain {guide_strain} not found in the dataset"
+        )
         guide_path = self.paths[guide_strain]
 
         # core block ids and strandedness
@@ -115,9 +177,9 @@ class Pangraph:
         for bid, guide_strand in core_blocks:
             # get block alignment
             aln_dict = self.blocks[bid].to_alignment()
-            assert len(aln_dict) == len(
-                strains
-            ), f"error: unexpected number of strains {bid}"
+            assert len(aln_dict) == len(strains), (
+                f"error: unexpected number of strains {bid}"
+            )
 
             # append alignment to the final alignment for each strain
             aln_strains = []
@@ -131,9 +193,9 @@ class Pangraph:
                 aln_strains.append(strain)
 
             # sanity check: core-blocks are present once per strain
-            assert (
-                set(strains) == set(aln_strains)
-            ), f"error: strain missing in block {bid}: {set(strains)} != {set(aln_strains)}"
+            assert set(strains) == set(aln_strains), (
+                f"error: strain missing in block {bid}: {set(strains)} != {set(aln_strains)}"
+            )
 
         # convert to biopython alignment
         records = []

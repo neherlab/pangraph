@@ -11,16 +11,25 @@ class Block:
         class for details.
     """
 
-    def __init__(self, block):
-        self.id = block["id"]
-        self.alignment = pga.Alignment(block)
+    def __init__(self, block_id: int, alignment: pga.Alignment):
+        self.id = block_id
+        self.alignment = alignment
+
+    @staticmethod
+    def from_dict(block: dict) -> "Block":
+        block_id = block["id"]
+        alignment = pga.Alignment.from_dict(block)
+        return Block(block_id, alignment)
 
     def __len__(self):
         """Length of the sequence in base-pairs."""
         return len(self.alignment.consensus)
 
     def __str__(self):
-        return f"block {self.id}, consensus len {len(self.sequence)/1000} kbp, {self.depth()} occurrences."
+        return f"block {self.id}, consensus len = {len(self.alignment.consensus)} bp, n. nodes = {self.depth()}"
+
+    def __repr__(self):
+        return self.__str__()
 
     def depth(self):
         """How many occurrences of the block are present"""
@@ -39,6 +48,14 @@ class Block:
         The aligned sequence does not include insertions."""
         return self.alignment.generate_alignment()
 
+    def to_biopython_alignment(self):
+        """Returns the block alignment as a Biopython alignment object"""
+        return self.alignment.to_biopython_alignment()
+
+    def to_biopython_records(self):
+        """Returns the block sequence as a list of Biopython SeqRecord objects"""
+        return self.alignment.to_biopython_records()
+
 
 class BlockCollection(IndexedCollection):
     """Collection of all blocks. Inherits from IndexedCollection to allow for
@@ -47,5 +64,5 @@ class BlockCollection(IndexedCollection):
 
     def __init__(self, pan_blocks):
         ids = [block["id"] for block in pan_blocks.values()]
-        items = [Block(block) for block in pan_blocks.values()]
+        items = [Block.from_dict(block) for block in pan_blocks.values()]
         IndexedCollection.__init__(self, ids, items)

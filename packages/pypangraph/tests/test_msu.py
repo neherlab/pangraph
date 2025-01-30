@@ -122,7 +122,7 @@ def test_find_mergers(generate_core_paths):
 
 @pytest.fixture
 def load_graph():
-    return pp.Pangraph.load_json("tests/data/plasmid_graph.json")
+    return pp.Pangraph.from_json("tests/data/plasmids.json")
 
 
 def test_msu(load_graph):

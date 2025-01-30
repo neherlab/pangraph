@@ -1,6 +1,3 @@
-import numpy as np
-
-
 class IndexedCollection:
     """This class is used to implement smart indexing of a list of blocks or paths.
     The class has three elements:

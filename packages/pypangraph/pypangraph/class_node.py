@@ -38,6 +38,16 @@ class Nodes:
                 for node_id, node in nodes_dict.items()
             }
         ).T
+        self.df.index.name = "node_id"
+
+    def __repr__(self):
+        return self.df.__repr__()
+
+    def __getitem__(self, key):
+        return self.df.loc[str(key)]
+
+    def __len__(self):
+        return len(self.df)
 
     def block_path_counts(self) -> pd.DataFrame:
         """Returns a dataframe with columsns=paths, index=blocks, values=counts"""
