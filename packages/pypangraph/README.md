@@ -1,6 +1,6 @@
-# PyPangraph: python utilities to interact with PanGraph's pangenome graphs
+# PyPangraph
 
-This repository contains a collection of utilities to interact with pangrenome graphs produced by [PanGraph](https://github.com/neherlab/pangraph).
+This repository contains a collection of utilities to load, explore and analyze pangrenome graphs produced by [PanGraph](https://github.com/neherlab/pangraph).
 
 The package can be installed via pip:
 
