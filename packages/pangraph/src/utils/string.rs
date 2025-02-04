@@ -26,5 +26,6 @@ pub fn str_slice_safe(s: &str, start: usize, end: usize) -> &str {
   let safe_start = s.chars().take(start).map(|c| c.len_utf8()).sum();
   let safe_end = s.chars().take(safe_end).map(|c| c.len_utf8()).sum();
 
+  #[allow(clippy::string_slice)]
   &s[safe_start..safe_end]
 }
