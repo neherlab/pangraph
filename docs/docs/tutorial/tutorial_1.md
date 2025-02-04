@@ -158,7 +158,7 @@ The visual representation still appears very tangled, due to the fact that many 
 ```bash
 pangraph export gfa \
     --no-duplicated \
-    --minimum-depth 10 \
+    --minimum-depth=10 \
     --include-sequences \
     graph.json \
     > graph_core.gfa

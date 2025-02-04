@@ -46,16 +46,30 @@ For this example we will consider the pair of strains `NZ_CP013711` and `NC_0175
 
 [^1]: here we consider a marginalization on two strains, but one can marginalize the pangraph on any number of strains.
 
-
 ```bash
 pangraph simplify \
     klebs_pangraph.json \
-    --strains NZ_CP013711,NC_017540 \
+    --strains='NZ_CP013711,NC_017540' \
     > klebs_marginal_pangraph.json
 ```
 
 The file `klebs_marginal_pangraph.json` will contain the new marginalized pangraph. The strains on which one projects are specified with the flag `--strains`. They must be passed as a comma separated list of sequence ids, without spaces.
 
+:::note options and positional arguments
+
+Make sure you handle options and positional arguments correctly: if an option requires a value and you don't provide it, the positional argument following the option could be incorrectly treated as the options' value, due to ambiguity in parsing:
+
+```sh
+pangraph --option <forgot_the_value_here> positional_arg
+```
+
+Also, consider using `--option=value` syntax as well as end-of-options delimiter (`--`) to disambiguate:
+
+```sh
+pangraph --option=value -- positional_arg
+```
+
+:::
 
 ## A look at the marginalized pangraph
 
