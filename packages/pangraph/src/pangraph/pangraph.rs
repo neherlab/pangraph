@@ -114,13 +114,8 @@ impl Pangraph {
     let empty_blocks: Vec<BlockId> = self
       .blocks
       .iter()
-      .filter_map(|(bid, block)| {
-        if block.alignments().is_empty() {
-          Some(*bid)
-        } else {
-          None
-        }
-      })
+      .filter(|(bid, block)| block.alignments().is_empty())
+      .map(|(bid, _)| *bid)
       .collect();
 
     for bid in empty_blocks {
