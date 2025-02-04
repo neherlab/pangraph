@@ -10,7 +10,7 @@ In this next part of the tutorial we show how to use the `simplify` command. Thi
 
 ## Preliminary steps
 
-We will run this tutorial on a different dataset, containing 10 complete chromosomes of _Klebsiella Pneumoniae_ (source: GenBank). These sequences are available in the pangraph repository (`example_dataset/klebs.fa.gz`) and can be downloaded by running:
+We will run this tutorial on a different dataset, containing 9 complete chromosomes of _Klebsiella Pneumoniae_ (source: GenBank). These sequences are available in the pangraph repository (`example_dataset/klebs.fa.gz`) and can be downloaded by running:
 
 ```bash
 wget https://github.com/neherlab/pangraph/raw/master/example_datasets/klebs.fa.gz
@@ -64,17 +64,16 @@ As done for the main pangraph, we can export the marginalized pangraph in `gfa` 
 ```bash
 pangraph export gfa \
     --no-duplications \
+    --minimum-length 150 \
     klebs_marginal_pangraph.json \
     > klebs_marginal_pangraph.gfa
 ```
 
 ![img](../assets/t4_klebs_marginal_pangraph.png)
 
-As expected the marginalized pangraph contains fewer blocks than the original one (388 vs 1244), and blocks are on average longer (mean length: 14 kbp vs 6 kbp). Blocks that appear in red are shared by both strains, while black blocks are present in only one of the two strains. The pangraph is composed of two stretches of syntenic blocks, which are in contact in a central point. This structure can be understood by comparing the two chromosomes with a dotplot. Using [D-Genies](http://dgenies.toulouse.inra.fr/) on the two sequences[^2] we obtain the following:
+As expected the marginalized pangraph contains fewer blocks than the original one (388 vs 1244), and blocks are on average longer (mean length: 14 kbp vs 6 kbp). Blocks that appear in red are shared by both strains, while black blocks are present in only one of the two strains. The pangraph is composed of two stretches of syntenic blocks, which are in contact in a central point. This structure can be understood by comparing the two chromosomes with a dotplot (see [dotplots with pypangraph](../pypangraph/tutorial5.md))
 
-[^2]: to simplify the visualization, the chromosome of strain `NZ_CP013711` was reverse-complemented and shifted of ~ 0.1 Mbp, so that most of the matches lay on the diagonal.
-
-![img](../assets/t4_dgenies_dotplot.png)
+![img](../assets/t4_klebs_dotplot.png)
 
 The contact point between the two loops in the pangraph is caused by the fact that the two genomes are composed of two mostly syntenic subsequences (the two loops) but these loops are concatenated with two different strandedness in the two strains. If we were to draw the two paths (relative to the two chromosomes) with different colors on top of the pangraph we would observe something similar to this:
 
