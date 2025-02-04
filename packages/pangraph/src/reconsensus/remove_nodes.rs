@@ -95,9 +95,9 @@ mod tests {
     };
 
     let paths = btreemap! {
-        PathId(0) => PangraphPath::new(Some(PathId(1)), vec![NodeId(1), NodeId(4)], 20, false, None),
-        PathId(1) => PangraphPath::new(Some(PathId(2)), vec![NodeId(2)],            10, false, None),
-        PathId(2) => PangraphPath::new(Some(PathId(3)), vec![NodeId(3), NodeId(5)], 10, false, None),
+        PathId(0) => PangraphPath::new(Some(PathId(1)), vec![NodeId(1), NodeId(4)], 20, false, None, None),
+        PathId(1) => PangraphPath::new(Some(PathId(2)), vec![NodeId(2)],            10, false, None, None),
+        PathId(2) => PangraphPath::new(Some(PathId(3)), vec![NodeId(3), NodeId(5)], 10, false, None, None),
     };
 
     let blocks = btreemap! {

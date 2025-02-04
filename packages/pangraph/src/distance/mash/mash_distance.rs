@@ -79,6 +79,7 @@ mod tests {
     Pangraph::singleton(
       FastaRecord {
         seq_name: o!(""),
+        desc: None,
         seq: Seq::from_str(seq.as_ref()),
         index: 0,
       },

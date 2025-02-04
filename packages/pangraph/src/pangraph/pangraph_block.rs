@@ -1,3 +1,4 @@
+use crate::io::fasta::FastaRecord;
 use crate::io::json::{json_write_str, JsonPretty};
 use crate::io::seq::reverse_complement;
 use crate::pangraph::edits::Edit;
@@ -144,9 +145,9 @@ impl PangraphBlock {
     graph: &'a Pangraph,
     aligned: bool,
     record_naming: RecordNaming,
-  ) -> impl Iterator<Item = (String, Result<Seq, Report>)> + 'a {
+  ) -> impl Iterator<Item = Result<FastaRecord, Report>> + 'a {
     self.alignments().iter().map(move |(node_id, edits)| {
-      let id = match record_naming {
+      let (id, desc) = match record_naming {
         RecordNaming::Node => {
           let node = &graph.nodes[node_id];
           let block_id = node.block_id();
@@ -166,11 +167,15 @@ impl PangraphBlock {
           )
           .unwrap();
 
-          format!("{node_id} {meta}")
+          let id = format!("{node_id} {meta}");
+          (id, None)
         }
         RecordNaming::Path => {
           let path_id = graph.nodes[node_id].path_id();
-          graph.paths[&path_id].name.as_ref().unwrap().clone()
+          let path = &graph.paths[&path_id];
+          let id = path.name.as_ref().map_or_else(|| path_id.to_string(), |p| p.to_owned());
+          let desc = path.desc.clone();
+          (id, desc)
         }
       };
 
@@ -178,9 +183,14 @@ impl PangraphBlock {
         edits.apply_aligned(self.consensus())
       } else {
         edits.apply(self.consensus())
-      };
+      }?;
 
-      (id, seq)
+      Ok(FastaRecord {
+        seq_name: id,
+        desc,
+        seq,
+        index: 0,
+      })
     })
   }
 }

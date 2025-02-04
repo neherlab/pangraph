@@ -35,7 +35,7 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
     let mut writer = FastaWriter::from_path(output_fasta)?;
     results.try_for_each(|fasta| {
       let fasta = fasta?;
-      writer.write(fasta.seq_name, &fasta.seq)
+      writer.write(fasta.seq_name, &fasta.desc, &fasta.seq)
     })?;
   }
 
@@ -59,7 +59,13 @@ pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord,
         .name()
         .clone()
         .unwrap_or_else(|| format!("Unknown sequence #{path_id}"));
-      Ok(FastaRecord { seq_name, seq, index })
+      let desc = path.desc().clone();
+      Ok(FastaRecord {
+        seq_name,
+        desc,
+        seq,
+        index,
+      })
     })
 }
 

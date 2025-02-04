@@ -26,6 +26,9 @@ pub struct PangraphPath {
 
   #[getset(get = "pub")]
   pub name: Option<String>,
+
+  #[getset(get = "pub")]
+  pub desc: Option<String>,
 }
 
 impl PangraphPath {
@@ -35,15 +38,17 @@ impl PangraphPath {
     tot_len: usize,
     circular: bool,
     name: Option<String>,
+    desc: Option<String>,
   ) -> Self {
     let nodes = nodes.into();
-    let id = path_id.unwrap_or_else(|| id((&nodes, &tot_len, &circular, &name)));
+    let id = path_id.unwrap_or_else(|| id((&nodes, &tot_len, &circular, &desc, &name)));
     Self {
       id,
       nodes,
       tot_len,
       circular,
       name,
+      desc,
     }
   }
 }

@@ -140,9 +140,9 @@ mod tests {
       BlockId(3) => block_c(),
     };
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), vec![NodeId(1), NodeId(4), NodeId(7)], 81, true, Some(o!("pathA"))),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), vec![NodeId(2), NodeId(5), NodeId(8)], 77, true, Some(o!("pathB"))),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), vec![NodeId(3), NodeId(6)],            70, true, Some(o!("pathC"))),
+      PathId(1) => PangraphPath::new(Some(PathId(1)), vec![NodeId(1), NodeId(4), NodeId(7)], 81, true, Some(o!("pathA")), None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), vec![NodeId(2), NodeId(5), NodeId(8)], 77, true, Some(o!("pathB")), None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), vec![NodeId(3), NodeId(6)],            70, true, Some(o!("pathC")), None),
     };
     Pangraph { paths, blocks, nodes }
   }
@@ -159,8 +159,8 @@ mod tests {
         BlockId(3) => block_c(),
     };
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), vec![NID11, NodeId(7)], 81, true, Some(o!("pathA"))),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), vec![NID12, NodeId(8)], 77, true, Some(o!("pathB"))),
+      PathId(1) => PangraphPath::new(Some(PathId(1)), vec![NID11, NodeId(7)], 81, true, Some(o!("pathA")), None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), vec![NID12, NodeId(8)], 77, true, Some(o!("pathB")), None),
     };
 
     Pangraph { paths, blocks, nodes }
@@ -173,8 +173,8 @@ mod tests {
     graph.remove_path(PathId(1));
 
     let expected_paths = btreemap! {
-      PathId(2) => PangraphPath::new(Some(PathId(2)), vec![NodeId(2), NodeId(5), NodeId(8)], 77, true, Some(o!("pathB"))),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), vec![NodeId(3), NodeId(6)], 70, true, Some(o!("pathC"))),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), vec![NodeId(2), NodeId(5), NodeId(8)], 77, true, Some(o!("pathB")), None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), vec![NodeId(3), NodeId(6)], 70, true, Some(o!("pathC")), None),
     };
 
     let expected_nodes = btreemap! {

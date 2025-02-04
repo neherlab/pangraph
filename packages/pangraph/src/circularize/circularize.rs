@@ -101,11 +101,11 @@ mod tests {
 
     #[rustfmt::skip]
     let paths = btreemap!{
-      PathId(0) => PangraphPath::new(Some(PathId(0)), [10, 20, 30, 40].into_iter().map(NodeId).collect_vec(),     0, true, None),
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [11, 21, 22, 31, 41].into_iter().map(NodeId).collect_vec(), 0, true, None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [12, 23, 32, 42].into_iter().map(NodeId).collect_vec(),     0, true, None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [13, 33, 24, 34, 43].into_iter().map(NodeId).collect_vec(), 0, true, None),
-      PathId(4) => PangraphPath::new(Some(PathId(4)), [44, 35, 25, 14].into_iter().map(NodeId).collect_vec(),     0, true, None),
+      PathId(0) => PangraphPath::new(Some(PathId(0)), [10, 20, 30, 40].into_iter().map(NodeId).collect_vec(),     0, true, None, None),
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [11, 21, 22, 31, 41].into_iter().map(NodeId).collect_vec(), 0, true, None, None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [12, 23, 32, 42].into_iter().map(NodeId).collect_vec(),     0, true, None, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [13, 33, 24, 34, 43].into_iter().map(NodeId).collect_vec(), 0, true, None, None),
+      PathId(4) => PangraphPath::new(Some(PathId(4)), [44, 35, 25, 14].into_iter().map(NodeId).collect_vec(),     0, true, None, None),
     };
 
     #[rustfmt::skip]
@@ -208,9 +208,9 @@ mod tests {
     //      (0|35)
     // p3) (b1-|n3)  l=35
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), vec![NodeId(1)], 32, true, None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), vec![NodeId(2)], 31, true, None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), vec![NodeId(3)], 35, true, None)
+      PathId(1) => PangraphPath::new(Some(PathId(1)), vec![NodeId(1)], 32, true, None, None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), vec![NodeId(2)], 31, true, None, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), vec![NodeId(3)], 35, true, None, None)
     };
     let blocks = btreemap! {
       BlockId(1) => block_1()
