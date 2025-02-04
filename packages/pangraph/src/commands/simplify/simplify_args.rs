@@ -1,4 +1,4 @@
-use clap::{Parser, ValueHint};
+use clap::{ArgAction, Parser, ValueHint};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
@@ -21,6 +21,7 @@ pub struct PangraphSimplifyArgs {
   pub output: PathBuf,
 
   /// Isolates to project onto: collapse the graph to only blocks contained by paths of the given isolates. List of strain names, comma-delimited without spaces.
-  #[clap(long, short = 's', num_args=1.., use_value_delimiter = true)]
+  #[clap(long, short = 's', required = true, num_args = 1, action = ArgAction::Set, value_delimiter=',')]
+  // See: https://github.com/clap-rs/clap/issues/4942#issuecomment-1565139247
   pub strains: Vec<String>,
 }
