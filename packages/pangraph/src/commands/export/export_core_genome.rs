@@ -1,5 +1,5 @@
 use crate::commands::export::export_args::PangraphExportCoreAlignmentArgs;
-use crate::io::fasta::FastaWriter;
+use crate::io::fasta::{FastaRecord, FastaWriter};
 use crate::io::file::create_file_or_stdout;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_report;
@@ -8,7 +8,6 @@ use crate::pangraph::pangraph_block::RecordNaming;
 use crate::representation::seq::Seq;
 use clap::Parser;
 use eyre::{Context, Report};
-use itertools::Itertools;
 use std::collections::BTreeMap;
 
 #[derive(Parser, Debug, Default, Clone)]
@@ -39,10 +38,10 @@ pub fn export_core_genome(args: PangraphExportCoreAlignmentArgs) -> Result<(), R
   core_block_aln(&pangraph, params)?
     .into_iter()
     .enumerate()
-    .try_for_each(|(index, (id, seq))| {
+    .try_for_each(|(index, record)| {
       output_fasta
-        .write(&id, &None, &seq)
-        .wrap_err_with(|| format!("When writing sequence #{index} '{id}'"))
+        .write(&record.seq_name, &record.desc, &record.seq)
+        .wrap_err_with(|| format!("When writing sequence #{index} '{}'", record.seq_name))
     })?;
 
   Ok(())
@@ -51,7 +50,7 @@ pub fn export_core_genome(args: PangraphExportCoreAlignmentArgs) -> Result<(), R
 /// Given a block, returns a list of FastaRecord objects containing a sequence per node.
 /// If aligned is True, it returns aligned sequences, with gaps for deletions and no insertions.
 /// If aligned is False, it returns the full unaligned sequences.
-fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Result<Vec<(String, Seq)>, Report> {
+fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Result<Vec<FastaRecord>, Report> {
   let core_block_ids: Vec<_> = graph.core_block_ids().collect();
   let guide_path_id = graph.path_id_by_name(&params.guide_strain)?;
   let guide_path = &graph.paths[&guide_path_id];
@@ -69,17 +68,16 @@ fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Resul
   // Filter out non-core blocks
   {
     let block = &graph.blocks[&bid];
-    let mut block_records: Vec<_> = block
+    let mut block_records: Vec<FastaRecord> = block
       .sequences(graph, !params.unaligned, RecordNaming::Path)
-      .map(|(id, seq)| Ok((id, seq?)))
-      .collect::<Result<_, Report>>()?; // TODO(perf): avoid allocations
+      .collect::<Result<Vec<_>, Report>>()?;
 
     // Reverse-complement if reverse-complemented on guide strain
     if strand.is_reverse() {
-      block_records = block_records
-        .into_iter()
-        .map(|(id, seq)| Ok((id, reverse_complement(&seq)?)))
-        .collect::<Result<_, Report>>()?; // TODO(perf): avoid allocations
+      block_records.iter_mut().try_for_each(|record| -> Result<(), Report> {
+        record.seq = reverse_complement(&record.seq)?;
+        Ok(())
+      })?;
     }
 
     records.push(block_records); // TODO(perf): avoid allocations
@@ -88,11 +86,16 @@ fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Resul
   let records = if records.is_empty() {
     // If no record: return empty records
     graph
-      .path_names()
+      .paths()
       .enumerate()
       .map(|(i, path)| {
-        let id = path.map_or_else(|| i.to_string(), |p| p.to_owned());
-        (id, Seq::new())
+        let seq_name = path.name.as_ref().map_or_else(|| i.to_string(), |p| p.to_owned());
+        FastaRecord {
+          seq_name,
+          desc: path.desc.clone(),
+          seq: Seq::new(),
+          index: i,
+        }
       })
       .collect()
   } else {
@@ -105,29 +108,36 @@ fn core_block_aln(graph: &Pangraph, params: &ExportCoreAlignmentParams) -> Resul
 
 /// Given a list of lists of FastaRecord objects, concatenates all records
 /// with the same name in the same sequence, and returns a single list of FastaRecord objects.
-fn concatenate_records(records_list: &[Vec<(String, Seq)>]) -> Result<Vec<(String, Seq)>, Report> {
+fn concatenate_records(records_list: &[Vec<FastaRecord>]) -> Result<Vec<FastaRecord>, Report> {
   if records_list.is_empty() {
     return Ok(vec![]);
   }
 
-  let mut records: BTreeMap<String, Seq> = records_list[0].iter().map(|(id, _)| (id.clone(), Seq::new())).collect();
+  let mut records: BTreeMap<String, FastaRecord> = records_list[0]
+    .iter()
+    .map(|record| {
+      (
+        record.seq_name.clone(),
+        FastaRecord {
+          index: record.index,
+          seq_name: record.seq_name.clone(),
+          desc: record.desc.clone(),
+          seq: Seq::new(),
+        },
+      )
+    })
+    .collect();
 
-  for entry in records_list {
-    for (id, seq) in entry {
-      records
-        .get_mut(id)
-        .ok_or_else(|| make_internal_report!("Sequence name '{id}' not found in the initial set"))?
-        .extend_seq(seq);
+  for entries in records_list {
+    for entry in entries {
+      let record = records
+        .get_mut(&entry.seq_name)
+        .ok_or_else(|| make_internal_report!("Sequence name '{}' not found in the initial set", &entry.seq_name))?;
+      record.seq.extend_seq(&entry.seq);
     }
   }
 
-  let records = records
-    .into_iter()
-    .enumerate()
-    .map(|(idx, (name, seq))| (name, seq))
-    .collect_vec();
-
-  Ok(records)
+  Ok(records.into_values().collect())
 }
 
 #[cfg(test)]
@@ -138,6 +148,15 @@ mod tests {
   use indoc::indoc;
   use pretty_assertions::assert_eq;
   use std::str::FromStr;
+
+  fn fasta(id: impl AsRef<str>, seq: impl AsRef<str>) -> FastaRecord {
+    FastaRecord {
+      seq_name: id.as_ref().to_owned(),
+      desc: None,
+      seq: Seq::from_str(seq.as_ref()),
+      index: 0,
+    }
+  }
 
   #[test]
   fn test_core_block_aln_general_case() {
@@ -282,8 +301,8 @@ mod tests {
     };
 
     let expected = vec![
-      (o!("Path A"), Seq::from_str("ACCTATCGT---CGTTCGATTAACTACATCAGACTTGCAG")),
-      (o!("Path B"), Seq::from_str("ACTTATCGTGATCGTTCGATTAACTAGATCAGACTT--AG")),
+      fasta("Path A", "ACCTATCGT---CGTTCGATTAACTACATCAGACTTGCAG"),
+      fasta("Path B", "ACTTATCGTGATCGTTCGATTAACTAGATCAGACTT--AG"),
     ];
     let actual = core_block_aln(&graph, &params).unwrap();
 
@@ -295,8 +314,8 @@ mod tests {
     };
 
     let expected = vec![
-      (o!("Path A"), Seq::from_str("ACCTATCGTCGTTCGATTAACTACATCAGACAAATTGCAG")),
-      (o!("Path B"), Seq::from_str("ACTTATCGTGATCGTTCGATTAACTAGATCAGACTTAG")),
+      fasta("Path A", "ACCTATCGTCGTTCGATTAACTACATCAGACAAATTGCAG"),
+      fasta("Path B", "ACTTATCGTGATCGTTCGATTAACTAGATCAGACTTAG"),
     ];
 
     let actual = core_block_aln(&graph, &params).unwrap();
@@ -309,8 +328,8 @@ mod tests {
     };
 
     let expected = vec![
-      (o!("Path A"), Seq::from_str("CTGCAAGTCTGATGTAGTTAATCGAACG---ACGATAGGT")),
-      (o!("Path B"), Seq::from_str("CT--AAGTCTGATCTAGTTAATCGAACGATCACGATAAGT")),
+      fasta("Path A", "CTGCAAGTCTGATGTAGTTAATCGAACG---ACGATAGGT"),
+      fasta("Path B", "CT--AAGTCTGATCTAGTTAATCGAACGATCACGATAAGT"),
     ];
 
     let actual = core_block_aln(&graph, &params).unwrap();
@@ -323,8 +342,8 @@ mod tests {
     };
 
     let expected = vec![
-      (o!("Path A"), Seq::from_str("CTGCAATTTGTCTGATGTAGTTAATCGAACGACGATAGGT")),
-      (o!("Path B"), Seq::from_str("CTAAGTCTGATCTAGTTAATCGAACGATCACGATAAGT")),
+      fasta("Path A", "CTGCAATTTGTCTGATGTAGTTAATCGAACGACGATAGGT"),
+      fasta("Path B", "CTAAGTCTGATCTAGTTAATCGAACGATCACGATAAGT"),
     ];
 
     let actual = core_block_aln(&graph, &params).unwrap();
@@ -335,21 +354,18 @@ mod tests {
   #[test]
   fn test_concatenate_records_general_case() {
     let input = vec![
-      vec![(o!("name1"), Seq::from_str("ATG")), (o!("name2"), Seq::from_str("CCC"))],
-      vec![(o!("name1"), Seq::from_str("TGA")), (o!("name2"), Seq::from_str("GGG"))],
+      vec![fasta("name1", "ATG"), fasta("name2", "CCC")],
+      vec![fasta("name1", "TGA"), fasta("name2", "GGG")],
     ];
-    let expected = vec![
-      (o!("name1"), Seq::from_str("ATGTGA")),
-      (o!("name2"), Seq::from_str("CCCGGG")),
-    ];
+    let expected = vec![fasta("name1", "ATGTGA"), fasta("name2", "CCCGGG")];
     let actual = concatenate_records(&input).unwrap();
     assert_eq!(expected, actual);
   }
 
   #[test]
   fn test_concatenate_records_single_entry() {
-    let input = vec![vec![(o!("name1"), Seq::from_str("ATG"))]];
-    let expected = vec![(o!("name1"), Seq::from_str("ATG"))];
+    let input = vec![vec![fasta("name1", "ATG")]];
+    let expected = vec![fasta("name1", "ATG")];
     let actual = concatenate_records(&input).unwrap();
     assert_eq!(expected, actual);
   }
@@ -357,10 +373,10 @@ mod tests {
   #[test]
   fn test_concatenate_records_multiple_entries_same_name() {
     let input = vec![
-      vec![(o!("name1"), Seq::from_str("ATG")), (o!("name1"), Seq::from_str("TGA"))],
-      vec![(o!("name1"), Seq::from_str("CCC"))],
+      vec![fasta("name1", "ATG"), fasta("name1", "TGA")],
+      vec![fasta("name1", "CCC")],
     ];
-    let expected = vec![(o!("name1"), Seq::from_str("ATGTGACCC"))];
+    let expected = vec![fasta("name1", "ATGTGACCC")];
     let actual = concatenate_records(&input).unwrap();
     assert_eq!(expected, actual);
   }
@@ -368,8 +384,8 @@ mod tests {
   #[test]
   fn test_concatenate_records_missing_name_in_initial_set() {
     let input = vec![
-      vec![(o!("name1"), Seq::from_str("ATG")), (o!("name2"), Seq::from_str("CCC"))],
-      vec![(o!("name3"), Seq::from_str("TGA"))],
+      vec![fasta("name1", "ATG"), fasta("name2", "CCC")],
+      vec![fasta("name3", "TGA")],
     ];
     let actual = report_to_string(&concatenate_records(&input).unwrap_err());
     let expected =

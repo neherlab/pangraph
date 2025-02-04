@@ -205,6 +205,10 @@ impl Pangraph {
     self.nodes.keys().copied()
   }
 
+  pub fn paths(&self) -> impl Iterator<Item = &PangraphPath> {
+    self.paths.values()
+  }
+
   pub fn path_names(&self) -> impl Iterator<Item = Option<&str>> {
     self.paths.values().map(|path| path.name.as_deref())
   }

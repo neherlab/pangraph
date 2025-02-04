@@ -30,13 +30,13 @@ pub fn export_block_sequences(args: PangraphExportBlockSequencesArgs) -> Result<
     block
       .sequences(&pangraph, !params.unaligned, RecordNaming::Node)
       .enumerate()
-      .try_for_each(|(index, (id, seq))| {
-        {
-          let seq = seq?;
-          output_fasta.write(&id, &None, &seq)
-        }
-        .wrap_err_with(|| format!("When writing sequence #{index} '{id}'"))
-        .wrap_err_with(|| format!("When writing sequences of block {}", block.id()))
+      .try_for_each(|(index, record)| {
+        let record = record?;
+        let id = &record.seq_name;
+        output_fasta
+          .write(id, &record.desc, &record.seq)
+          .wrap_err_with(|| format!("When writing sequence #{index} '{id}'"))
       })
+      .wrap_err_with(|| format!("When writing sequences of block {}", block.id()))
   })
 }
