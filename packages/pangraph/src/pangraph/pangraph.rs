@@ -33,7 +33,14 @@ impl Pangraph {
     let path_id = PathId(fasta.index);
     let node_position = if circular { (0, 0) } else { (0, tot_len) }; // path wraps around if circular
     let node = PangraphNode::new(Some(node_id), block.id(), path_id, strand, node_position);
-    let path = PangraphPath::new(Some(path_id), [node.id()], tot_len, circular, Some(fasta.seq_name));
+    let path = PangraphPath::new(
+      Some(path_id),
+      [node.id()],
+      tot_len,
+      circular,
+      Some(fasta.seq_name),
+      None,
+    );
     Self {
       blocks: btreemap! {block.id() => block},
       paths: btreemap! {path.id() => path},
@@ -293,9 +300,9 @@ mod tests {
     };
 
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1), NodeId(3), NodeId(6)], 0, false, None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(4), NodeId(7)           ], 0, false, None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2), NodeId(5), NodeId(8)], 0, false, None),
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1), NodeId(3), NodeId(6)], 0, false, None, None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(4), NodeId(7)           ], 0, false, None, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2), NodeId(5), NodeId(8)], 0, false, None, None),
     };
 
     let mut G = Pangraph {
@@ -339,9 +346,9 @@ mod tests {
     assert_eq!(G.blocks, expected_blocks);
 
     let expected_paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1),  NodeId(9),  NodeId(10),  NodeId(6)], 0, false, None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(11), NodeId(12), NodeId(7)             ], 0, false, None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2),  NodeId(14), NodeId(13),  NodeId(8)], 0, false, None),
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1),  NodeId(9),  NodeId(10),  NodeId(6)], 0, false, None, None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(11), NodeId(12), NodeId(7)             ], 0, false, None, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2),  NodeId(14), NodeId(13),  NodeId(8)], 0, false, None, None),
     };
     assert_eq!(G.paths, expected_paths);
 

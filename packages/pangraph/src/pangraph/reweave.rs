@@ -532,9 +532,9 @@ mod tests {
         },
       );
 
-      let p1 = PangraphPath::new(Some(PathId(100)), [nid1], 2000, true, None);
-      let p2 = PangraphPath::new(Some(PathId(200)), [nid2], 2000, true, None);
-      let p3 = PangraphPath::new(Some(PathId(300)), [nid3], 200, true, None);
+      let p1 = PangraphPath::new(Some(PathId(100)), [nid1], 2000, true, None, None);
+      let p2 = PangraphPath::new(Some(PathId(200)), [nid2], 2000, true, None, None);
+      let p3 = PangraphPath::new(Some(PathId(300)), [nid3], 200, true, None, None);
 
       let G = Pangraph {
         paths: btreemap! {
@@ -688,9 +688,9 @@ mod tests {
       };
 
       let paths = btreemap! {
-        PathId(100) => PangraphPath::new(Some(PathId(100)), [NodeId(1), NodeId(2)], 1000, true, None),
-        PathId(200) => PangraphPath::new(Some(PathId(200)), [NodeId(3), NodeId(4), NodeId(5)], 1000, true, None),
-        PathId(300) => PangraphPath::new(Some(PathId(300)), [NodeId(6), NodeId(7), NodeId(8)], 1000, true, None),
+        PathId(100) => PangraphPath::new(Some(PathId(100)), [NodeId(1), NodeId(2)], 1000, true, None, None),
+        PathId(200) => PangraphPath::new(Some(PathId(200)), [NodeId(3), NodeId(4), NodeId(5)], 1000, true, None, None),
+        PathId(300) => PangraphPath::new(Some(PathId(300)), [NodeId(6), NodeId(7), NodeId(8)], 1000, true, None, None),
       };
 
       #[rustfmt::skip]

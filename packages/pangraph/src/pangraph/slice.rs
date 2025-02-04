@@ -506,9 +506,9 @@ mod tests {
     let n2 = PangraphNode::new(Some(NodeId(2)), bid, PathId(2), Reverse, (1000, 1025));
     let n3 = PangraphNode::new(Some(NodeId(3)), bid, PathId(3), Reverse, (90, 9));
 
-    let p1 = PangraphPath::new(Some(PathId(1)), /*"p1"*/ [NodeId(1), NodeId(4)], 2000, true, None);
-    let p2 = PangraphPath::new(Some(PathId(2)), /*"p2"*/ [NodeId(2), NodeId(5)], 2000, true, None);
-    let p3 = PangraphPath::new(Some(PathId(3)), /*"p3"*/ [NodeId(3), NodeId(6)], 100, true, None);
+    let p1 = PangraphPath::new(Some(PathId(1)), /*"p1"*/ [NodeId(1), NodeId(4)], 2000, true, None, None);
+    let p2 = PangraphPath::new(Some(PathId(2)), /*"p2"*/ [NodeId(2), NodeId(5)], 2000, true, None, None);
+    let p3 = PangraphPath::new(Some(PathId(3)), /*"p3"*/ [NodeId(3), NodeId(6)], 100, true, None, None);
 
     let b1 = PangraphBlock::new(
       bid,

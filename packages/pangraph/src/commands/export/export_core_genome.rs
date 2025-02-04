@@ -41,7 +41,7 @@ pub fn export_core_genome(args: PangraphExportCoreAlignmentArgs) -> Result<(), R
     .enumerate()
     .try_for_each(|(index, (id, seq))| {
       output_fasta
-        .write(&id, &seq)
+        .write(&id, &None, &seq)
         .wrap_err_with(|| format!("When writing sequence #{index} '{id}'"))
     })?;
 

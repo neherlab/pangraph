@@ -33,7 +33,7 @@ pub fn export_block_sequences(args: PangraphExportBlockSequencesArgs) -> Result<
       .try_for_each(|(index, (id, seq))| {
         {
           let seq = seq?;
-          output_fasta.write(&id, &seq)
+          output_fasta.write(&id, &None, &seq)
         }
         .wrap_err_with(|| format!("When writing sequence #{index} '{id}'"))
         .wrap_err_with(|| format!("When writing sequences of block {}", block.id()))
