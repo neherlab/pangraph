@@ -39,7 +39,7 @@ impl Pangraph {
       tot_len,
       circular,
       Some(fasta.seq_name),
-      None,
+      fasta.desc,
     );
     Self {
       blocks: btreemap! {block.id() => block},
