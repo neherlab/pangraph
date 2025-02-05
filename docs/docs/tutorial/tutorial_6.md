@@ -26,16 +26,18 @@ We can now run pangraph on these extracted regions (n=34). This should take only
 
 ```bash
 pangraph build kpc-contigs-u10k-d5k.fa > pangraph_kpc_u10k_d5k.json
-pangraph export --edge-minimum-length 0 pangraph_kpc_u10k_d5k.json -p pangraph_kpc_u10k_d5k -o ./
+pangraph export gfa --minimum-length 0 -o pangraph_kpc_u10k_d5k.gfa pangraph_kpc_u10k_d5k.json 
+pangraph export block-consensus -o pangraph_kpc_u10k_d5k.fa pangraph_kpc_u10k_d5k.json 
+
 ```
 
-Pangraph gives us three forms of output:
+These commands give us three forms of pangraph output:
 
 * `pangraph_kpc_u10k_d5k.json` - json file storing the whole graph
 * `pangraph_kpc_u10k_d5k.gfa` - graph in [GFA](http://gfa-spec.github.io/GFA-spec/GFA1.html) format
 * `pangraph_kpc_u10k_d5k.fa` - multifasta containing the consensus sequences of the pangenome blocks
 
-We know by construction that the KPC gene should be in all the contigs, so should be in the same alignment block in all sequences. If we download the KPC gene, we can then use `blast` to find this block from the fasta file with the consensus sequences of the blocks.
+We know by construction that the KPC gene should be in all the contigs, so should be in the same alignment block in all sequences. If we download the KPC gene, we can then use `blast` to find this block from the fasta file with the consensus sequences of the blocks. (You will need to install [blast](https://blast.ncbi.nlm.nih.gov/doc/blast-help/downloadblastdata.html) if you don't yet have it.)
 
 ```bash
 wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/data/kpc/kpc2.fa
@@ -52,8 +54,8 @@ Similar to the previous tutorial, we then convert the gfa into a csv that stores
 
 ```bash
 # Download custom script
-wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/prepare-pangraph-gfa.py
-python prepare-pangraph-gfa.py pangraph_kpc_u10k_d5k.gfa
+wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/prepare-pangraph-gfa-rust.py
+python prepare-pangraph-gfa-rust.py pangraph_kpc_u10k_d5k.gfa
 ```
 
 This makes three output files:
