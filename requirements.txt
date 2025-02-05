@@ -1,0 +1,6 @@
+build
+dacite
+datamodel-code-generator
+jsonschema
+pydantic
+setuptools[core]

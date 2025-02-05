@@ -10,14 +10,22 @@ Pangraph is currently under heavy development. Bugs and crashes are to be expect
 
 :::
 
-## Definition
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+The content and structure of bacterial genomes evolves very rapidly:
+Part of the genome can be cut out, duplicated, or inverted.
+In addition, genomic material can be gained from the outside for example through phage infection or DNA uptake and integration.
+As a result, comparing bacterial genomes is more complicated than analyzing differences in the alignment of homologous sequences.
+Instead, one would like to understand how diversity in terms of content and structure has arisen through insertions, deletions, transpositions over the course of evolution.
+To address such questions, we have developed a scalable multiple genome alignment tool, **PanGraph**, that identifies regions of mutual homology between large sets of closely related genomes and represents them in a graph.
 
-## Background
+![img](./assets/t1_main_scheme.png)
 
-Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum.
+This is expected to be useful to parsimoniously infer horizontal gene transfer events within a community; perform comparative studies of genome gain, loss, and rearrangement dynamics; or simply to compress many related genomes.
 
-## Analysis
+The resultant graph represents contiguous intervals of homologous DNA as vertices and every genome as an ordered walk across such vertices.
+Edges of the graph are unordered and only exist if at least one genome was found to connect both vertices in either the forward or reverse strand.
+For a more detailed description of the graph structure, see [what is a pangraph](/tutorial/tutorial_1#what-is-a-pangraph).
 
-Pellentesque sed dolor. Aliquam congue fermentum nisl. Mauris accumsan nulla vel diam. Sed in lacus ut enim adipiscing aliquet. Nulla venenatis. In pede mi, aliquet sit amet, euismod in, auctor ut, ligula.
+This documentation is structures as a [set of tutorials](/category/tutorial) that explain the essential steps to build and manipulate a graph, along with a [reference documentation](/reference) of the available commands. In addition, we provide a python library [pyPanGraph](/category/pypangraph) for analysis of the graph data structure in Python.
+
+

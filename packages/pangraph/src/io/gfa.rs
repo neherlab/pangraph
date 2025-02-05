@@ -3,13 +3,13 @@ use crate::io::file::create_file_or_stdout;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::BlockId;
 use crate::pangraph::strand::Strand;
+use crate::representation::seq::Seq;
 use clap::Parser;
 use eyre::{Context, Report};
 use itertools::Itertools;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::Write;
 use std::path::Path;
-use crate::representation::seq::Seq;
 
 #[derive(Parser, Debug, Default, Clone)]
 pub struct GfaWriteParams {
@@ -94,7 +94,7 @@ pub fn gfa_write<W: Write>(mut writer: W, g: &Pangraph, params: &GfaWriteParams)
     let name = segment.name;
     let read_count = segment.depth * segment.length;
     let length = segment.length;
-    let duplicated_tag = if segment.duplicated { "\tDP:Z:duplicated" } else { "" };
+    let duplicated_tag = if segment.duplicated { "\tTP:Z:duplicated" } else { "" };
     writeln!(
       writer,
       "S\t{name}\t{segment_seq}\tRC:i:{read_count}\tLN:i:{length}{duplicated_tag}",

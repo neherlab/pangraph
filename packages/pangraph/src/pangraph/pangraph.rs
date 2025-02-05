@@ -116,6 +116,18 @@ impl Pangraph {
         }
       }
     }
+
+    // remove empty blocks
+    let empty_blocks: Vec<BlockId> = self
+      .blocks
+      .iter()
+      .filter(|(bid, block)| block.alignments().is_empty())
+      .map(|(bid, _)| *bid)
+      .collect();
+
+    for bid in empty_blocks {
+      self.blocks.remove(&bid);
+    }
   }
 
   #[cfg(any(test, debug_assertions))]
