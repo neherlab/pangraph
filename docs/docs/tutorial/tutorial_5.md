@@ -76,7 +76,7 @@ Rscript plot-blocks-UVA01-rust.R UVA01_plasmids_pangraph.gfa.blocks.csv pangraph
 
 This produces a version[^1] where we can see the different 'walks' taken through the graph by each plasmid. For ease of understanding, on the left-hand side we have added simplified labels of the blocks (a-f) since some of the blocks are very small and hard to make out otherwise.
 
-![img](../assets/plasmid_example_pangraph_linear.png)
+![img](../assets/plasmid_example_pangraph_linear_rust.png)
 
 Note that the plasmids are circular: in the linear representation, in two cases block 'a' appears on the left rather than on the right, but the structure is identical.
 
