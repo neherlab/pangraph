@@ -29,7 +29,8 @@ A path object has the following structure:
     "name": "NZ_CP010150",
     "nodes": [10429785587629589393, 10765941013351965021, 7771937209474314297, ...],
     "circular": true,
-    "tot_len": 4827779
+    "tot_len": 4827779,
+    "desc": null
 },
 ```
 
@@ -43,6 +44,7 @@ Here is a complete list containing a description of every entry in the path obje
 - `nodes` : the ordered list of node ids that make up the path.
 - `circular` : indicates whether the considered sequence is circular (e.g. plasmid) or not. This is controlled by the `--circular` flag of the [`build` command](../reference#pangraph-build).
 - `tot_len` : the total length of the path, in nucleotides.
+- `desc` : (optional) path description string, corresponding to the description field in the input fasta file. For example `>NZ_CP010150 Escherichia coli strain 1303 chromosome, complete genome` would be split in `name="NZ_CP010150"` and `desc="Escherichia coli strain 1303 chromosome, complete genome"`.
 
 
 ## Nodes
