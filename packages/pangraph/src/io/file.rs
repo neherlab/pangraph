@@ -13,13 +13,21 @@ pub const DEFAULT_FILE_BUF_SIZE: usize = 256 * 1024;
 
 const TTY_WARNING: &str = "Reading from standard input which is a TTY (e.g. an interactive terminal). This is likely not what you meant. Instead:
 
- - if you want to read fasta from the output of another program, try:
+ - if you want to read the input data from the output of another program, try:
 
     cat /path/to/file | pangraph <your other flags>
 
  - if you want to read from file(s), don't forget to provide a path:
 
     pangraph /path/to/file
+
+ - make sure you handle options and positional arguments correctly: if an option requires a value and you don't provide it, the positional argument following the option could be incorrectly treated as the options' value, due to ambiguity in parsing:
+
+    pangraph --option <forgot_the_value_here> positional_arg
+
+   Also, consider using `--option=value` syntax as well as end-of-options delimiter (`--`) to disambiguate:
+
+    pangraph --option=value -- positional_arg
 ";
 
 /// Open stdin

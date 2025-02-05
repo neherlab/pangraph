@@ -65,6 +65,12 @@
             "string",
             "null"
           ]
+        },
+        "desc": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [

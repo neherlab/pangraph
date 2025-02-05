@@ -10,7 +10,7 @@ pub fn export_block_consensus(args: PangraphExportBlockConsensusArgs) -> Result<
   let mut output_fasta = FastaWriter::new(create_file_or_stdout(output)?);
   pangraph.blocks.iter().try_for_each(|(_, block)| {
     output_fasta
-      .write(block.id().to_string(), block.consensus())
+      .write(block.id().to_string(), &None, block.consensus())
       .wrap_err_with(|| format!("When writing consensus sequence of block {}", block.id()))
   })
 }
