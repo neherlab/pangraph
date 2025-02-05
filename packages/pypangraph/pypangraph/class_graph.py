@@ -201,6 +201,8 @@ class Pangraph:
         records = []
         for strain, seq in alignment.items():
             desc = self.paths[strain].desc
+            if desc is None:
+                desc = ""
             record = SeqRecord.SeqRecord(
                 Seq.Seq(seq), id=strain, name="", description=desc
             )

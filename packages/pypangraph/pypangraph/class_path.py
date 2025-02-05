@@ -16,7 +16,7 @@ class Path:
         self.circular = pan_path["circular"]
         self.nodes = pan_path["nodes"]
         self.nuc_len = pan_path["tot_len"]
-        self.desc = pan_path.get("desc", "")
+        self.desc = pan_path.get("desc", None)
 
     def __len__(self):
         """Returns the number of nodes in the path"""
