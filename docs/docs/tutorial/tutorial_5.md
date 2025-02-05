@@ -22,10 +22,10 @@ Building the pangraph and exporting it for visualization is done with these comm
 
 ```bash
 pangraph build --circular UVA01_plasmids.fa.gz > UVA01_plasmids_pangraph.json
-pangraph export --edge-minimum-length 0 UVA01_plasmids_pangraph.json -p UVA01_plasmids_pangraph -o ./
+pangraph export gfa -o UVA01_plasmids_pangraph.gfa --minimum-length 0 UVA01_plasmids_pangraph.json
 ```
 
-We use `--edge-minimum-length 0` because we want to see all blocks.
+We use `--minimum-length 0` because we want to see all blocks.
 
 ## Default visualization
 
@@ -47,7 +47,7 @@ wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts
 First, we run a script to generate random colours for the blocks.
 
 ```bash
-python prepare-pangraph-gfa.py UVA01_plasmids.pangraph.gfa --all
+python prepare-pangraph-gfa.py UVA01_plasmids_pangraph.gfa --all
 ```
 
 This produces three files:
