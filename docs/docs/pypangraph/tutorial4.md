@@ -92,10 +92,10 @@ For these cases, pypangraph provides a method to quickly survey all changes in c
 
 ![minimal synteny units](../assets/pp_t4_minimal_synteny_units.png)
 
-For this part of the tutorial we will analyze the `ecoli_graph.json.gz` graph, containing 10 _E. coli_ chromosomes. The minimal sinteny units for this graph can be extracted with the function:
+For this part of the tutorial we will analyze the `graph.json` file created [in the first tutorial](../tutorial/tutorial_1.md#building-the-pangraph), containing 10 _E. coli_ chromosomes. The minimal sinteny units for this graph can be extracted with the function:
 
 ```python
-graph = pp.Pangraph.from_json("ecoli_graph.json.gz")
+graph = pp.Pangraph.from_json("graph.json")
 
 # find MSUs
 threshold_len = 100  # minimal length of core blocks to consider
@@ -142,7 +142,7 @@ Similarly to what done for plasmids, we can visualize these units on Bandage. We
 pangraph export gfa \
     --no-duplicated \
     --minimum-depth 10 \
-    ecoli_graph.json.gz > ecoli.gfa
+    graph.json > ecoli.gfa
 ```
 
 And then we can export the dictionary of core-block colors with:
