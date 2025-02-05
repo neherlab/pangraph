@@ -167,8 +167,10 @@ impl PangraphBlock {
           )
           .unwrap();
 
-          let id = format!("{node_id} {meta}");
-          (id, None)
+          let id = node_id.to_string();
+          let descr = Some(meta);
+
+          (id, descr)
         }
         RecordNaming::Path => {
           let path_id = graph.nodes[node_id].path_id();

@@ -32,6 +32,7 @@ schema = {
                 "tot_len": {"type": "integer", "format": "uint", "minimum": 0},
                 "circular": {"type": "boolean"},
                 "name": {"type": ["string", "null"]},
+                "desc": {"type": ["string", "null"]},
             },
             "required": ["id", "nodes", "tot_len", "circular"],
         },

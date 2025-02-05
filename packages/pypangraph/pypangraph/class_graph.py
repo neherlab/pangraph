@@ -200,7 +200,12 @@ class Pangraph:
         # convert to biopython alignment
         records = []
         for strain, seq in alignment.items():
-            record = SeqRecord.SeqRecord(Seq.Seq(seq), id=strain, description="")
+            desc = self.paths[strain].desc
+            if desc is None:
+                desc = ""
+            record = SeqRecord.SeqRecord(
+                Seq.Seq(seq), id=strain, name="", description=desc
+            )
             records.append(record)
         alignment = AlignIO.MultipleSeqAlignment(records)
 
