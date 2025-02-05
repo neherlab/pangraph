@@ -41,7 +41,7 @@ We can use some custom scripts to look at representations of the plasmids alongs
 
 ```bash
 wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/prepare-pangraph-gfa.py
-wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/plot-blocks-UVA01.R
+wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/plot-blocks-UVA01-rust.R
 ```
 
 First, we run a script to generate random colours for the blocks.
@@ -58,13 +58,20 @@ This produces three files:
 Then we call Bandage programmaticaly with the `custom` colours option on the coloured gfa:
 
 ```bash
-Bandage image UVA01_plasmids_pangraph.gfa.coloured.gfa pangraph.png --height 2000 --width 2500 --colour custom --depth --lengths --fontsize 30 --nodewidth 8
+Bandage image UVA01_plasmids_pangraph.gfa.coloured.gfa pangraph.png \
+    --height 2000 \
+    --width 2500 \
+    --colour custom \
+    --depth \ 
+    --lengths \
+    --fontsize 30 \
+    --nodewidth 8
 ```
 
 We can now look at a linear representation of the plasmids alongside this graph. The details are in the script, but we basically represent the plasmids linearly and choose a random block to 'anchor' them all to the same place.  
 
 ```bash
-Rscript plot-blocks-UVA01.R UVA01_plasmids_pangraph.gfa.blocks.csv pangraph.png pangraph_linear_vs_graph.pdf
+Rscript plot-blocks-UVA01-rust.R UVA01_plasmids_pangraph.gfa.blocks.csv pangraph.png pangraph_linear_vs_graph.pdf
 ```
 
 This produces a version[^1] where we can see the different 'walks' taken through the graph by each plasmid. For ease of understanding, on the left-hand side we have added simplified labels of the blocks (a-f) since some of the blocks are very small and hard to make out otherwise.
