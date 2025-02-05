@@ -3,7 +3,8 @@ from .indexed_collection import IndexedCollection
 
 class Path:
     """Pangraph path object. It has attributes:
-    - name (str): strain name
+    - name (str): strain name (fasta id pangraph in input file)
+    - descr (str): strain description (fasta description in pangraph input file)
     - circular (bool): whether the path object is circular
     - nodes (list): list of node ids in the path
     - nuc_len (int): total length of the path in base-pairs
@@ -15,6 +16,7 @@ class Path:
         self.circular = pan_path["circular"]
         self.nodes = pan_path["nodes"]
         self.nuc_len = pan_path["tot_len"]
+        self.desc = pan_path.get("desc", "")
 
     def __len__(self):
         """Returns the number of nodes in the path"""
