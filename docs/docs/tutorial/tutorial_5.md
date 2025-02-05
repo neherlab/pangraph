@@ -40,14 +40,14 @@ Here, the node colour represents the depth of the blocks. However, it is difficu
 We can use some custom scripts to look at representations of the plasmids alongside their pangraph. These scripts are not part of pangraph but are an example of how to process the output into visualizations. You can download them by running:
 
 ```bash
-wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/prepare-pangraph-gfa.py
+wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/prepare-pangraph-gfa-rust.py
 wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/plot-blocks-UVA01-rust.R
 ```
 
 First, we run a script to generate random colours for the blocks.
 
 ```bash
-python prepare-pangraph-gfa.py UVA01_plasmids_pangraph.gfa --all
+python prepare-pangraph-gfa-rust.py UVA01_plasmids_pangraph.gfa --all
 ```
 
 This produces three files:
@@ -58,11 +58,10 @@ This produces three files:
 Then we call Bandage programmaticaly with the `custom` colours option on the coloured gfa:
 
 ```bash
-Bandage image UVA01_plasmids_pangraph.gfa.coloured.gfa pangraph.png \
+Bandage image UVA01_plasmids_pangraph.gfa.coloured.gfa pangraph.png --toutline 2 \
     --height 2000 \
     --width 2500 \
     --colour custom \
-    --depth \ 
     --lengths \
     --fontsize 30 \
     --nodewidth 8
@@ -76,7 +75,7 @@ Rscript plot-blocks-UVA01-rust.R UVA01_plasmids_pangraph.gfa.blocks.csv pangraph
 
 This produces a version[^1] where we can see the different 'walks' taken through the graph by each plasmid. For ease of understanding, on the left-hand side we have added simplified labels of the blocks (a-f) since some of the blocks are very small and hard to make out otherwise.
 
-![img](../assets/plasmid_example_pangraph_linear_rust.png)
+![img](../assets/UVA01_plasmid_example_rust.png)
 
 Note that the plasmids are circular: in the linear representation, in two cases block 'a' appears on the left rather than on the right, but the structure is identical.
 
