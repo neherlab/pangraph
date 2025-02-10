@@ -18,7 +18,7 @@ print(graph)
 
 ## The components of a graph
 
-As explained in the [introduction](index.md#what-is-a-pangenome-graph), a pangenome graph is composed of three main components: nodes, blocks and paths.
+As explained in the [tutorial](../tutorial/tutorial_1.md#what-is-a-pangraph), a pangenome graph is composed of three main components: nodes, blocks and paths.
 
 - **Blocks** encode multiple sequence alignments that group together homologous parts of the input genomes.
 - **Paths** are representation of the input genomes as a sequences of blocks. More precisely, as sequence of **nodes**.
