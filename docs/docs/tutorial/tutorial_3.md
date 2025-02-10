@@ -35,7 +35,7 @@ This file can be used for example to search for homology with a particular query
 
 ## Exporting block alignments
 
-In addition to the block consensus sequences, alignments for each block can be exported using the [`export block-sequences` subcommand](./reference#pangraph-export-block-sequences):
+In addition to the block consensus sequences, alignments for each block can be exported using the [`export block-sequences` subcommand](../reference#pangraph-export-block-sequences):
 
 ```bash
 pangraph export block-sequences \

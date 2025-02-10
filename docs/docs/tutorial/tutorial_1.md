@@ -136,7 +136,7 @@ Note that, depending on the kmer size (`-K` argument in pangraph) mmseqs2 can re
 
 ## Exporting the pangraph to gfa format
 
-The pangraph object can also be exported in other more common formats using the command `export` (see [Export](@ref)).
+The pangraph object can also be exported in other more common formats using the command `export` (see [Export](../reference.md#pangraph-export)).
 
 As a first example, we consider exporting the pangraph in [Graphical Fragment Assembly](https://github.com/GFA-spec/GFA-spec) format. This can be done with the following command:
 

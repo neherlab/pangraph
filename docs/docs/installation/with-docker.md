@@ -24,7 +24,7 @@ or pull a particular version
 docker pull neherlab/pangraph:1.0
 ```
 
-Run pangraph commands described in [Usage](/category/usage) as follows:
+Run pangraph commands described in [Usage](../reference.md) as follows:
 
 ```shell
 docker run -it --rm neherlab/pangraph --help
