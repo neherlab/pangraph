@@ -1,4 +1,30 @@
-# PanGraph Changelog
+## Unreleased
+
+This release introduces several significant updates, including a complete rewrite of the algorithm in Rust to boost both speed and reliability in graph construction. PanGraph can now be compiled as a standalone binary, greatly simplifying installation. The release also contains several **breaking changes**.
+
+### Major changes
+
+- **Graph Construction Algorithm Enhancements**
+  - Block merging has been refined and simplified: when merging two blocks, sequences are re-aligned to the block consensus, resulting in more robust alignments.
+  - The alignment process is now easily parallelizable, extending beyond the previous limitation of parallel guide tree traversal.
+  - Insertions are now placed on the consensus sequence without aligning them to each other, simplifying bookkeeping of alignment variation when merging blocks.
+
+- **Graph JSON Output Format Updates**
+  - A new `nodes` dictionary links paths and blocks.
+  - Entries in the `paths` dictionary have been simplified to include only lists of nodes.
+  - Block `alignments` now use a simpler encoding; insertions are placed on the consensus without alignment, eliminating the need for a separate `gaps` entry.
+
+- **Command Line Interface Modifications**
+  - Improved parallelization control with the new `--jobs` flag.
+  - The `export` command has been restructured into several subcommands:
+    - `export gfa` – Export the graph in GFA format.
+    - `export block-consensus` – Export block consensus sequences in a single FASTA file.
+    - `export block-sequences` – Export each block’s alignment in separate FASTA files.
+    - `export core-genome` – Export the core-genome alignment.
+  - The `marginalize` command has been renamed to `simplify`.
+  - A new `reconstruct` command has been added to rebuild the input sequences from the graph.
+  - The `polish` and `generate` commands have been removed.
+
 
 ## v0.6.0
 
