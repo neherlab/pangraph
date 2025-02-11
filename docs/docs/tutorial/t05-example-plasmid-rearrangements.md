@@ -12,10 +12,10 @@ Although pangraph was developed with whole genomes in mind, it can be applied to
 
 This tutorial uses a dataset of five closely-related plasmids. They were analysed previously by Sheppard et al. (2016) in a [paper](https://doi.org/10.1128/AAC.00464-16) studying an outbreak of carbapenem-resistant bacteria in a hospital in Virginia, USA. These plasmids are all similar to an [index plasmid](https://www.ncbi.nlm.nih.gov/nuccore/CP017937.1) from the hospital, but have some structural changes. We will show how pangraph output can be used to visualize this structural diversity.
 
-You can download these sequences by running:
+You can download these sequences [from this link](https://github.com/liampshaw/pangraph-tutorials/raw/main/data/sheppard/UVA01_plasmids.fa.gz) or by running:
 
 ```bash
-wget https://github.com/liampshaw/pangraph-tutorials/raw/main/data/sheppard/UVA01_plasmids.fa.gz
+curl https://github.com/liampshaw/pangraph-tutorials/raw/main/data/sheppard/UVA01_plasmids.fa.gz -o UVA01_plasmids.fa.gz
 ```
 
 Building the pangraph and exporting it for visualization is done with these commands (should be very quick as we are using plasmids, which are much smaller than whole genomes):
@@ -40,9 +40,13 @@ Here, the node colour represents the depth of the blocks. However, it is difficu
 We can use some custom scripts to look at representations of the plasmids alongside their pangraph. These scripts are not part of pangraph but are an example of how to process the output into visualizations. You can download them by running:
 
 ```bash
-wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/prepare-pangraph-gfa-rust.py
-wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/plot-blocks-UVA01-rust.R
+curl https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/prepare-pangraph-gfa-rust.py -o prepare-pangraph-gfa-rust.py
+curl https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/plot-blocks-UVA01-rust.R -o plot-blocks-UVA01-rust.R
 ```
+
+Alternatively, you can download the scripts from the following links:
+- [prepare-pangraph-gfa-rust.py](https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/prepare-pangraph-gfa-rust.py)
+- [plot-blocks-UVA01-rust.R](https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/plot-blocks-UVA01-rust.R)
 
 First, we run a script to generate random colours for the blocks.
 

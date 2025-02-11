@@ -14,10 +14,10 @@ Theoretically you could run pangraph on the full genomes of the isolates. Howeve
 
 [^1]: David et al. actually long-read sequenced n=44 isolates. For simplicity, we have only kept contigs that were sufficiently long, hence 34.
 
-You can download this dataset by running the following:
+You can download this dataset [from this link](https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/data/kpc/kpc-contigs-u10k-d5k.fa) or by running the following:
 
 ```bash
-wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/data/kpc/kpc-contigs-u10k-d5k.fa
+curl https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/data/kpc/kpc-contigs-u10k-d5k.fa -o kpc-contigs-u10k-d5k.fa
 ```
 
 ## Running pangraph
@@ -37,10 +37,10 @@ These commands give us three forms of pangraph output:
 * `pangraph_kpc_u10k_d5k.gfa` - graph in [GFA](http://gfa-spec.github.io/GFA-spec/GFA1.html) format
 * `pangraph_kpc_u10k_d5k.fa` - multifasta containing the consensus sequences of the pangenome blocks
 
-We know by construction that the KPC gene should be in all the contigs, so should be in the same alignment block in all sequences. If we download the KPC gene, we can then use `blast` to find this block from the fasta file with the consensus sequences of the blocks. (You will need to install [blast](https://blast.ncbi.nlm.nih.gov/doc/blast-help/downloadblastdata.html) if you don't yet have it.)
+We know by construction that the KPC gene should be in all the contigs, so should be in the same alignment block in all sequences. If we download the KPC gene (with the coommand below or using [this link](https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/data/kpc/kpc2.fa)), we can then use `blast` to find this block from the fasta file with the consensus sequences of the blocks. (You will need to install [blast](https://blast.ncbi.nlm.nih.gov/doc/blast-help/downloadblastdata.html) if you don't yet have it.)
 
 ```bash
-wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/data/kpc/kpc2.fa
+curl https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/data/kpc/kpc2.fa -o kpc2.fa
 makeblastdb -in pangraph_kpc_u10k_d5k.fa -dbtype 'nucl'
 geneBlock=$(blastn -query kpc2.fa -db pangraph_kpc_u10k_d5k.fa -outfmt 6 | cut -f 2)
 echo $geneBlock
@@ -54,9 +54,12 @@ Similar to the previous tutorial, we then convert the gfa into a csv that stores
 
 ```bash
 # Download custom script
-wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/prepare-pangraph-gfa-rust.py
+curl https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/prepare-pangraph-gfa-rust.py -o prepare-pangraph-gfa-rust.py
 python prepare-pangraph-gfa-rust.py pangraph_kpc_u10k_d5k.gfa
 ```
+
+Alternatively, you can download the script from the following link:
+- [prepare-pangraph-gfa-rust.py](https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/prepare-pangraph-gfa-rust.py)
 
 This makes three output files:
 
@@ -85,15 +88,18 @@ From this visualization, we can see that most of these KPC-positive have a very 
 
 ## Linear visualization
 
-The graph visualization with Bandage is helpful, but it can also be useful to view the unique paths through the graph as a linear visualization. In this section we will use an R script to do this, as in the previous tutorial.  
+The graph visualization with Bandage is helpful, but it can also be useful to view the unique paths through the graph as a linear visualization. In this section we will use an R script to do this, as in the previous tutorial.
 
 ```bash
-wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/plot-blocks.R
+curl https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/plot-blocks.R -o plot-blocks.R
 Rscript plot-blocks.R \
 	pangraph_kpc_u10k_d5k.gfa.blocks.csv \
 	$geneBlock pangraph_kpc_u10k_d5k.gfa.png \
 	pangraph_kpc_plot.pdf
 ```
+
+Alternatively, you can download the script from the following link:
+- [plot-blocks.R](https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/scripts/plot-blocks.R)
 
 ![img](../assets/linear_and_graph_kpc.png)
 

@@ -26,10 +26,10 @@ More specifically, a path is encoded as a list of oriented block occurrences, i.
 
 The tutorial requires you to have the `pangraph` command available in your path. Instructions on how to install pangraph can be found in [Installation](../category/installation).
 
-For this tutorial we will use a small dataset containing full chromosomes of 10 _Escherichia Coli_ strains (source: GenBank). For convenience this dataset is available in the pangraph repository (`data/ecoli.fa.gz`), and can be downloaded with the command:
+For this tutorial we will use a small dataset containing full chromosomes of 10 _Escherichia Coli_ strains (source: GenBank). For convenience this dataset is available in the pangraph repository (`data/ecoli.fa.gz`), and can be downloaded [from this link](https://github.com/neherlab/pangraph/raw/master/data/ecoli.fa.gz) or by running:
 
 ```bash
-wget https://github.com/neherlab/pangraph/raw/master/data/ecoli.fa.gz
+curl https://github.com/neherlab/pangraph/raw/master/data/ecoli.fa.gz -o ecoli.fa.gz
 ```
 
 This is a single fasta file containing 10 fully assembled bacterial chromosomes, but no plasmids.
