@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 6
 ---
 
 # Paths and core genome synteny
@@ -68,7 +68,7 @@ plt.show()
 From this plot we observe a strong conservation in the order of core blocks. This is even more explicit if we look at the graph in [Bandage](https://rrwick.github.io/Bandage/). We can use the export function of pangraph to export the graph in GFA format. By adding the `--no-duplicated` flag and the `--minimum-depth 15` option we can make sure that only core blocks are exported.
 
 ```bash
-pangraph export gfa --no-duplicated --minimum-depth 15 plasmids.json > plasmids_core.gfa
+pangraph export gfa --no-duplicated --minimum-depth 15 plasmids.json -o plasmids_core.gfa
 ```
 
 Moreover we can save the block colors that we used in the previous plot in a csv file, that can be loaded by Bandage to color the blocks.
@@ -92,7 +92,7 @@ For these cases, pypangraph provides a method to quickly survey all changes in c
 
 ![minimal synteny units](../assets/pp_t4_minimal_synteny_units.png)
 
-For this part of the tutorial we will analyze the `graph.json` file created [in the first tutorial](../tutorial/tutorial_1.md#building-the-pangraph), containing 10 _E. coli_ chromosomes. The minimal sinteny units for this graph can be extracted with the function:
+For this part of the tutorial we will analyze the `graph.json` file created [in the first tutorial](../tutorial/t01-building-pangraph.md#building-the-pangraph), containing 10 _E. coli_ chromosomes. The minimal sinteny units for this graph can be extracted with the function:
 
 ```python
 graph = pp.Pangraph.from_json("graph.json")
@@ -142,7 +142,8 @@ Similarly to what done for plasmids, we can visualize these units on Bandage. We
 pangraph export gfa \
     --no-duplicated \
     --minimum-depth 10 \
-    graph.json > ecoli.gfa
+    -o ecoli.gfa \
+    graph.json 
 ```
 
 And then we can export the dictionary of core-block colors with:

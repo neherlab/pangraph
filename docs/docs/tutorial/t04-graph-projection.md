@@ -13,13 +13,13 @@ In this next part of the tutorial we show how to use the `simplify` command. Thi
 We will run this tutorial on a different dataset, containing 9 complete chromosomes of _Klebsiella Pneumoniae_ (source: GenBank). These sequences are available in the pangraph repository (`example_dataset/klebs.fa.gz`) and can be downloaded by running:
 
 ```bash
-wget https://github.com/neherlab/pangraph/raw/master/example_datasets/klebs.fa.gz
+curl https://github.com/neherlab/pangraph/raw/master/example_datasets/klebs.fa.gz
 ```
 
 As for the previous dataset, we can create the pangraph with the command:
 
 ```bash
-pangraph build --circular -j 4 klebs.fa.gz > klebs_pangraph.json
+pangraph build --circular -j 4 klebs.fa.gz -o klebs_pangraph.json
 ```
 
 On 4 cores the command should complete in around 4 mins using 4 threads. After creating the pangraph, we can export it in `gfa` format for visualization.
@@ -28,7 +28,7 @@ On 4 cores the command should complete in around 4 mins using 4 threads. After c
 pangraph export gfa \
     --no-duplicated \
     klebs_pangraph.json \
-    > klebs_pangraph.gfa
+    -o klebs_pangraph.gfa
 ```
 
 The output file can be visualized using [Bandage](https://rrwick.github.io/Bandage/).
@@ -50,7 +50,7 @@ For this example we will consider the pair of strains `NZ_CP013711` and `NC_0175
 pangraph simplify \
     klebs_pangraph.json \
     --strains='NZ_CP013711,NC_017540' \
-    > klebs_marginal_pangraph.json
+    -o klebs_marginal_pangraph.json
 ```
 
 The file `klebs_marginal_pangraph.json` will contain the new marginalized pangraph. The strains on which one projects are specified with the flag `--strains`. They must be passed as a comma separated list of sequence ids, without spaces.
@@ -80,12 +80,12 @@ pangraph export gfa \
     --no-duplications \
     --minimum-length 150 \
     klebs_marginal_pangraph.json \
-    > klebs_marginal_pangraph.gfa
+    -o klebs_marginal_pangraph.gfa
 ```
 
 ![img](../assets/t4_klebs_marginal_pangraph.png)
 
-As expected the marginalized pangraph contains fewer blocks than the original one (388 vs 1244), and blocks are on average longer (mean length: 14 kbp vs 6 kbp). Blocks that appear in red are shared by both strains, while black blocks are present in only one of the two strains. The pangraph is composed of two stretches of syntenic blocks, which are in contact in a central point. This structure can be understood by comparing the two chromosomes with a dotplot (see [dotplots with pypangraph](../pypangraph/tutorial5.md))
+As expected the marginalized pangraph contains fewer blocks than the original one (388 vs 1244), and blocks are on average longer (mean length: 14 kbp vs 6 kbp). Blocks that appear in red are shared by both strains, while black blocks are present in only one of the two strains. The pangraph is composed of two stretches of syntenic blocks, which are in contact in a central point. This structure can be understood by comparing the two chromosomes with a dotplot (see [dotplots with pypangraph](../pypangraph/t05-dotplot.md))
 
 ![img](../assets/t4_klebs_dotplot.png)
 

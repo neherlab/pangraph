@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 5
 ---
 
 # Exploring block alignments
@@ -44,7 +44,7 @@ AlignIO.write(aln, "aln.fa", "fasta")
 
 :::info block alignment vs block sequences
 
-    As explained in [Pangraph tutorial](../tutorial/tutorial_3.md), insertions are not exported in alignments since they are not aligned to the consensus sequence of the block by pangraph.
+    As explained in [Pangraph tutorial](../tutorial/t03-exporting-sequences.md), insertions are not exported in alignments since they are not aligned to the consensus sequence of the block by pangraph.
 
     If these insertions are important for your analysis, you can instead export **unaligned but complete** block sequences as biopython SeqRecord objects with:
     
@@ -72,7 +72,7 @@ AlignIO.write(aln, "aln.fa", "fasta")
 Other than the alignment for single blocks, we can also extract the alignment of the full core genome, i.e. the concatenated alignment of all single-copy core blocks. Pangraph has a [dedicated export subcommand](../reference.md#pangraph-export-core-genome) for this:
 
 ```bash
-pangraph export core-genome --guide-strain RCS34_p1 plasmids.json > core_aln.fa
+pangraph export core-genome --guide-strain RCS34_p1 plasmids.json -o core_aln.fa
 ```
 
 Alternatively pypangraph provides the following method:

@@ -26,10 +26,10 @@ More specifically, a path is encoded as a list of oriented block occurrences, i.
 
 The tutorial requires you to have the `pangraph` command available in your path. Instructions on how to install pangraph can be found in [Installation](../category/installation).
 
-For this tutorial we will use a small dataset containing full chromosomes of 10 _Escherichia Coli_ strains (source: GenBank). For convenience this dataset is available in the pangraph repository (`data/ecoli.fa.gz`), and can be downloaded with the command:
+For this tutorial we will use a small dataset containing full chromosomes of 10 _Escherichia Coli_ strains (source: GenBank). For convenience this dataset is available in the pangraph repository (`data/ecoli.fa.gz`), and can be downloaded [from this link](https://github.com/neherlab/pangraph/raw/master/data/ecoli.fa.gz) or by running:
 
 ```bash
-wget https://github.com/neherlab/pangraph/raw/master/data/ecoli.fa.gz
+curl https://github.com/neherlab/pangraph/raw/master/data/ecoli.fa.gz -o ecoli.fa.gz
 ```
 
 This is a single fasta file containing 10 fully assembled bacterial chromosomes, but no plasmids.
@@ -41,7 +41,7 @@ As a first step, we will build a pangraph object from the DNA of the 10 chromoso
 This can be done using the command `build` (see [`build` command](../reference#pangraph-build)):
 
 ```bash
-pangraph build -j 4 --circular ecoli.fa.gz > graph.json
+pangraph build -j 4 --circular ecoli.fa.gz -o graph.json
 ```
 - the option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
 - the option `-j 4` specifies the number of threads to use.
@@ -113,7 +113,7 @@ nodes = {
 }
 ```
 
-More details on the structure of this `json` file will be covered in the [next tutorial section](tutorial_2.md).
+More details on the structure of this `json` file will be covered in the [next tutorial section](t02-pangraph-output-file.md).
 
 
 ### Sequence diversity and alignment sensitivity
@@ -144,7 +144,7 @@ As a first example, we consider exporting the pangraph in [Graphical Fragment As
 pangraph export gfa \
     --no-duplicated \
     graph.json \
-    > graph.gfa
+    -o graph.gfa
 ```
 
 This will create a `graph.gfa` file, which can be visualized using [Bandage](https://rrwick.github.io/Bandage/).
@@ -161,9 +161,9 @@ pangraph export gfa \
     --minimum-depth=10 \
     --include-sequences \
     graph.json \
-    > graph_core.gfa
+    -o graph_core.gfa
 ```
 
-The resulting graph is much simpler. The remaining crossings are due to changes in core-genome synteny. Each change in order of core blocks results in a crossing in the graph, as will be discussed in [a later tutorial section](../pypangraph/tutorial4.md).
+The resulting graph is much simpler. The remaining crossings are due to changes in core-genome synteny. Each change in order of core blocks results in a crossing in the graph, as will be discussed in [a later tutorial section](../pypangraph/t04-core-synteny.md).
 
 ![img](./../assets/t1_gfa_core.png)

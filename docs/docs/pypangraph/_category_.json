@@ -3,6 +3,6 @@
   "position": 4,
   "link": {
     "type": "generated-index",
-    "description": "PyPanGraph is a Python package to facilitate analysis of pangraph JSON files. "
+    "description": "PyPanGraph is a Python package to facilitate analysis of pangraph JSON files."
   }
 }

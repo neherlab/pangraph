@@ -16,7 +16,7 @@ Block consensus sequences can be exported using the [`export block-consensus` su
 ```bash
 pangraph export block-consensus \
     graph.json \
-    > block_cons.fa
+    -o block_cons.fa
 ```
 
 This generates the `block_cons.fa` FASTA file. This file contains one entry per block, with the block ID as the header and the consensus sequence as the sequence:
@@ -60,7 +60,7 @@ ATTCATGTCCTTGACTGCTTTGTTAATGTCGCACTGGA...
 
 The FASTA id of each entry is the node id, while the description contains a json string with additional information: the path name, block id, start and end positions of the node, and strandedness.
 
-Note that while these alignments contain deletions, they _do not include insertions_. This is due to the fact that alignments are relative to the block consensus, against which insertions cannot be placed (see [the previous tutorial section](./tutorial_2#how-alignments-are-encoded)). However pangraph also provides the option to export complete, _but unaligned_, sequences for each block:
+Note that while these alignments contain deletions, they _do not include insertions_. This is due to the fact that alignments are relative to the block consensus, against which insertions cannot be placed (see [the previous tutorial section](./t02-pangraph-output-file.md#how-alignments-are-encoded)). However pangraph also provides the option to export complete, _but unaligned_, sequences for each block:
 
 ```bash
 pangraph export block-sequences \
@@ -80,7 +80,7 @@ Pangraph also provides a quick command to extract the core-genome alignment of t
 pangraph export core-genome \
     graph.json \
     --guide-strain NC_010468 \
-    > core_genome_aln.fa
+   -o core_genome_aln.fa
 ```
 
 :::note
