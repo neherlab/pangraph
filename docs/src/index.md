@@ -1,6 +1,9 @@
 # PanGraph
 A **fast**, **self-contained** Julia library and command line tool suite to align multiple genomes into a pangenome graph.
 
+!!! warning
+    This is the **legacy documentation** for pangraph v0. The documentation for the current version can be found at <https://docs.pangraph.org/>.
+
 ## Introduction
 
 Microbes don't evolve strictly by vertical descent and modification; in addition, there is persistent lateral exchange of genetic material within their local spatial neighborhood.
