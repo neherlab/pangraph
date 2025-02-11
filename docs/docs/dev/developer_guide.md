@@ -4,7 +4,7 @@ sidebar_position: 1
 
 # Contributing to Pangraph
 
-This guide describe how to setup developer environment, how to build Pangraph, contribute to the codebase and maintain
+This guide describes how to setup developer environment, how to build Pangraph, contribute to the codebase and maintain
 the project.
 
 
