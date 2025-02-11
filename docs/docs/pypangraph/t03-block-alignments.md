@@ -44,7 +44,7 @@ AlignIO.write(aln, "aln.fa", "fasta")
 
 :::info block alignment vs block sequences
 
-    As explained in [Pangraph tutorial](../tutorial/tutorial_3.md), insertions are not exported in alignments since they are not aligned to the consensus sequence of the block by pangraph.
+    As explained in [Pangraph tutorial](../tutorial/t03-exporting-sequences.md), insertions are not exported in alignments since they are not aligned to the consensus sequence of the block by pangraph.
 
     If these insertions are important for your analysis, you can instead export **unaligned but complete** block sequences as biopython SeqRecord objects with:
     

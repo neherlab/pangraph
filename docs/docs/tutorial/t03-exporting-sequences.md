@@ -60,7 +60,7 @@ ATTCATGTCCTTGACTGCTTTGTTAATGTCGCACTGGA...
 
 The FASTA id of each entry is the node id, while the description contains a json string with additional information: the path name, block id, start and end positions of the node, and strandedness.
 
-Note that while these alignments contain deletions, they _do not include insertions_. This is due to the fact that alignments are relative to the block consensus, against which insertions cannot be placed (see [the previous tutorial section](./tutorial_2#how-alignments-are-encoded)). However pangraph also provides the option to export complete, _but unaligned_, sequences for each block:
+Note that while these alignments contain deletions, they _do not include insertions_. This is due to the fact that alignments are relative to the block consensus, against which insertions cannot be placed (see [the previous tutorial section](./t02-pangraph-output-file.md#how-alignments-are-encoded)). However pangraph also provides the option to export complete, _but unaligned_, sequences for each block:
 
 ```bash
 pangraph export block-sequences \

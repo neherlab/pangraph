@@ -141,7 +141,7 @@ Below is a schematic representation of how these variations are applied to the c
 
 ![img](./../assets/t2_alignment_reconstruction.png)
 
-As discussed in the [next section](./tutorial_3.md), using information in the `alignments` dictionary the different sequences of a block can be reconstructed in two ways:
+As discussed in the [next section](./t03-exporting-sequences.md), using information in the `alignments` dictionary the different sequences of a block can be reconstructed in two ways:
 - as **node sequences**. In this case sequences are not aligned, but each entry corresponds to the exact sequence of a node, with all variations applied.
 - as a **multiple sequence alignment**. In this case sequences are aligned, but insertions are omitted.
 

@@ -24,7 +24,7 @@ This is expected to be useful to parsimoniously infer horizontal gene transfer e
 
 The resultant graph represents contiguous intervals of homologous DNA as vertices and every genome as an ordered walk across such vertices.
 Edges of the graph are unordered and only exist if at least one genome was found to connect both vertices in either the forward or reverse strand.
-For a more detailed description of the graph structure, see [what is a pangraph](/tutorial/tutorial_1#what-is-a-pangraph).
+For a more detailed description of the graph structure, see [what is a pangraph](tutorial/t01-building-pangraph.md#what-is-a-pangraph).
 
 This documentation is structures as a [set of tutorials](/category/tutorial) that explain the essential steps to build and manipulate a graph, along with a [reference documentation](/reference) of the available commands. In addition, we provide a python library [pyPanGraph](/category/pypangraph) for analysis of the graph data structure in Python.
 

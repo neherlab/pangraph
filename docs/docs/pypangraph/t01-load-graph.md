@@ -120,4 +120,4 @@ print(block.alignment.generate_alignment())
 #  '16194835320646696346': 'ATATATGGTGCGTTAATTTTTAAACCCT...'}
 ```
 
-More details on alignments are provided in [tutorial 3](tutorial3.md).
+More details on alignments are provided in [tutorial 3](t03-block-alignments.md).

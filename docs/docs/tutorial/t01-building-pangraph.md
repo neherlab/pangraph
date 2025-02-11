@@ -113,7 +113,7 @@ nodes = {
 }
 ```
 
-More details on the structure of this `json` file will be covered in the [next tutorial section](tutorial_2.md).
+More details on the structure of this `json` file will be covered in the [next tutorial section](t02-pangraph-output-file.md).
 
 
 ### Sequence diversity and alignment sensitivity
@@ -164,6 +164,6 @@ pangraph export gfa \
     -o graph_core.gfa
 ```
 
-The resulting graph is much simpler. The remaining crossings are due to changes in core-genome synteny. Each change in order of core blocks results in a crossing in the graph, as will be discussed in [a later tutorial section](../pypangraph/tutorial4.md).
+The resulting graph is much simpler. The remaining crossings are due to changes in core-genome synteny. Each change in order of core blocks results in a crossing in the graph, as will be discussed in [a later tutorial section](../pypangraph/t04-core-synteny.md).
 
 ![img](./../assets/t1_gfa_core.png)

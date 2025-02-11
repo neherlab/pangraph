@@ -85,7 +85,7 @@ pangraph export gfa \
 
 ![img](../assets/t4_klebs_marginal_pangraph.png)
 
-As expected the marginalized pangraph contains fewer blocks than the original one (388 vs 1244), and blocks are on average longer (mean length: 14 kbp vs 6 kbp). Blocks that appear in red are shared by both strains, while black blocks are present in only one of the two strains. The pangraph is composed of two stretches of syntenic blocks, which are in contact in a central point. This structure can be understood by comparing the two chromosomes with a dotplot (see [dotplots with pypangraph](../pypangraph/tutorial5.md))
+As expected the marginalized pangraph contains fewer blocks than the original one (388 vs 1244), and blocks are on average longer (mean length: 14 kbp vs 6 kbp). Blocks that appear in red are shared by both strains, while black blocks are present in only one of the two strains. The pangraph is composed of two stretches of syntenic blocks, which are in contact in a central point. This structure can be understood by comparing the two chromosomes with a dotplot (see [dotplots with pypangraph](../pypangraph/t05-dotplot.md))
 
 ![img](../assets/t4_klebs_dotplot.png)
 
