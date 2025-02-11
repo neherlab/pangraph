@@ -6,7 +6,7 @@ sidebar_position: 5
 
 Decomposing genomes in separate blocks provides a very good starting point for pairwise comparison between genomes. The pangenome graph can easily be used to draw a dotplot between two different paths, in which lines represent shared blocks.
 
-In this example we consider the `klebs_pangraph.json` graph generated from 9 complete chromosomes of _Klebsiella Pneumoniae_ in [a previous tutorial](../tutorial/tutorial_4.md).
+In this example we consider the `klebs_pangraph.json` graph generated from 9 complete chromosomes of _Klebsiella Pneumoniae_ in [a previous tutorial](../tutorial/t04-graph-projection.md).
 
 PyPangraph provides a convenient `dotplot` function to generate such a dotplot:
 

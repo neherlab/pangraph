@@ -10,7 +10,7 @@ As an example, we will use snippets from the `graph.json` file that was produced
 
 ## The structure of `graph.json`
 
-As discussed in the [previous tutorial section](./tutorial_1.md#what-is-a-pangraph), the three main entries of pangraph output file are `paths`, `blocks` and `nodes`.
+As discussed in the [previous tutorial section](./t01-building-pangraph.md#what-is-a-pangraph), the three main entries of pangraph output file are `paths`, `blocks` and `nodes`.
 
 - each entry in the `paths` list encodes one of the nucleotide sequences that were given as input to the `build` command, represented as a list of nodes (i.e. particular instances of a block)
 - each entry in the `blocks` list represents an alignable set of homologous sequences. A block contains the consensus of all of these sequences, together with information to reconstruct the full alignment. Each entry in the alignment is represented by a `node`.
