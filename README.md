@@ -69,7 +69,7 @@ Reconstruct input sequences from the graph:
 
 ## PyPangraph
 
-PyPangraph is a python package with convenient utilities to load and explore the graph data structure, see the [documentation](https://docs.pangraph.org/category/pypangraph) for installation instructions and more examples.
+PyPangraph is a python package with convenient utilities to load and explore the graph data structure, see the [documentation](https://docs.pangraph.org/pypangraph/about-pypangraph) for installation instructions and more examples.
 
 ```python
 import pypangraph as pp
