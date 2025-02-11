@@ -2,7 +2,7 @@
 
 This repository contains a collection of utilities to load, explore and analyze pangrenome graphs produced by [PanGraph](https://github.com/neherlab/pangraph).
 
-The package can be installed via pip or conda, see [the documentation](https://docs.pangraph.org/pypangraph/installation):
+The package can be installed via pip, see [the documentation](https://docs.pangraph.org/pypangraph/installation):
 ```bash
 pip install pypangraph
 ```
