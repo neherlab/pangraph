@@ -21,7 +21,7 @@ wget https://github.com/liampshaw/pangraph-tutorials/raw/main/data/sheppard/UVA0
 Building the pangraph and exporting it for visualization is done with these commands (should be very quick as we are using plasmids, which are much smaller than whole genomes):
 
 ```bash
-pangraph build --circular UVA01_plasmids.fa.gz > UVA01_plasmids_pangraph.json
+pangraph build --circular UVA01_plasmids.fa.gz -o UVA01_plasmids_pangraph.json
 pangraph export gfa -o UVA01_plasmids_pangraph.gfa --minimum-length 0 UVA01_plasmids_pangraph.json
 ```
 

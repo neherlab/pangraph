@@ -41,7 +41,7 @@ As a first step, we will build a pangraph object from the DNA of the 10 chromoso
 This can be done using the command `build` (see [`build` command](../reference#pangraph-build)):
 
 ```bash
-pangraph build -j 4 --circular ecoli.fa.gz > graph.json
+pangraph build -j 4 --circular ecoli.fa.gz -o graph.json
 ```
 - the option `--circular` is used when passing circular DNA sequences, like the bacterial chromosomes that we consider here.
 - the option `-j 4` specifies the number of threads to use.
@@ -144,7 +144,7 @@ As a first example, we consider exporting the pangraph in [Graphical Fragment As
 pangraph export gfa \
     --no-duplicated \
     graph.json \
-    > graph.gfa
+    -o graph.gfa
 ```
 
 This will create a `graph.gfa` file, which can be visualized using [Bandage](https://rrwick.github.io/Bandage/).
@@ -161,7 +161,7 @@ pangraph export gfa \
     --minimum-depth=10 \
     --include-sequences \
     graph.json \
-    > graph_core.gfa
+    -o graph_core.gfa
 ```
 
 The resulting graph is much simpler. The remaining crossings are due to changes in core-genome synteny. Each change in order of core blocks results in a crossing in the graph, as will be discussed in [a later tutorial section](../pypangraph/tutorial4.md).

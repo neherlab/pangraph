@@ -25,7 +25,7 @@ wget https://raw.githubusercontent.com/liampshaw/pangraph-tutorials/main/data/kp
 We can now run pangraph on these extracted regions (n=34). This should take only a few seconds to run.
 
 ```bash
-pangraph build kpc-contigs-u10k-d5k.fa > pangraph_kpc_u10k_d5k.json
+pangraph build kpc-contigs-u10k-d5k.fa -o pangraph_kpc_u10k_d5k.json
 pangraph export gfa --minimum-length 0 -o pangraph_kpc_u10k_d5k.gfa pangraph_kpc_u10k_d5k.json 
 pangraph export block-consensus -o pangraph_kpc_u10k_d5k.fa pangraph_kpc_u10k_d5k.json 
 

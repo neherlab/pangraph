@@ -72,7 +72,7 @@ AlignIO.write(aln, "aln.fa", "fasta")
 Other than the alignment for single blocks, we can also extract the alignment of the full core genome, i.e. the concatenated alignment of all single-copy core blocks. Pangraph has a [dedicated export subcommand](../reference.md#pangraph-export-core-genome) for this:
 
 ```bash
-pangraph export core-genome --guide-strain RCS34_p1 plasmids.json > core_aln.fa
+pangraph export core-genome --guide-strain RCS34_p1 plasmids.json -o core_aln.fa
 ```
 
 Alternatively pypangraph provides the following method:

@@ -16,7 +16,7 @@ Block consensus sequences can be exported using the [`export block-consensus` su
 ```bash
 pangraph export block-consensus \
     graph.json \
-    > block_cons.fa
+    -o block_cons.fa
 ```
 
 This generates the `block_cons.fa` FASTA file. This file contains one entry per block, with the block ID as the header and the consensus sequence as the sequence:
@@ -80,7 +80,7 @@ Pangraph also provides a quick command to extract the core-genome alignment of t
 pangraph export core-genome \
     graph.json \
     --guide-strain NC_010468 \
-    > core_genome_aln.fa
+   -o core_genome_aln.fa
 ```
 
 :::note
