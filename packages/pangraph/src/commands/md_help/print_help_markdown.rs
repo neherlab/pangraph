@@ -6,7 +6,7 @@ use std::borrow::Cow;
 pub fn print_help_markdown() -> Result<(), Report> {
   let help = clap_markdown::help_markdown::<PangraphArgs>();
 
-  let help = replace(&help, "# Command-Line Help for `pangraph`", "# Reference")?;
+  let help = replace(&help, "# Command-Line Help for `pangraph`", "")?;
 
   let help = replace(
     &help,
