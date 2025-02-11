@@ -1,0 +1,105 @@
+name: pypangraph
+
+on:
+  push:
+    branches: [ 'master', 'release-pypangraph' ]
+    paths:
+      - packages/pypangraph/**
+
+  pull_request:
+    paths:
+      - packages/pypangraph/**
+
+  repository_dispatch:
+    types: build
+
+  workflow_dispatch:
+
+  workflow_call:
+
+concurrency:
+  group: pypangraph-${{ github.workflow }}-${{ github.ref_type }}-${{ github.event.pull_request.number || github.ref || github.run_id }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+
+env:
+  GITHUB_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+
+
+jobs:
+  build:
+    name: "Build PyPangraph (${{ matrix.python-version }})"
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [ "3.9", "3.10", "3.11", "3.12" ]
+
+    steps:
+      - name: "Checkout code"
+      - uses: actions/checkout@v4
+
+      - name: "Set up Python ${{ matrix.python-version }}"
+        uses: actions/setup-python@v3
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: "Install dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install flake8 pytest
+          python -m pip install .
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: "Lint"
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: "Test"
+        run: |
+          pytest
+
+  publish-to-pypi:
+    name: "Publish to PyPI"
+    needs: [ build ]
+    if: endsWith(github.ref, '/release-pypangraph')
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: "Checkout code"
+      - uses: actions/checkout@v4
+
+      - name: "Setup Python"
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.x'
+
+      - name: "Install dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: "Build package"
+        run: python -m build
+
+      - name: "Publish package"
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.NEHERLAB_BOT_PYPI_TOKEN }}
+
+      - name: "Create git tag"
+        run: |
+          git config --global user.name "${{ secrets.NEHERLAB_BOT_GITHUB_NAME }}"
+          git config --global user.email "${{ secrets.NEHERLAB_BOT_GITHUB_EMAIL }}"
+
+          version=$(dasel select -r toml -w - -s ".package.version" -f "packages/pypangraph/pyproject.toml")
+
+          git tag "pypangraph-${version}"
+          git push origin "pypangraph-${version}"

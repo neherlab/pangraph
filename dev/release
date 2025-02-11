@@ -9,7 +9,7 @@
 #  2. dasel:
 #    mkdir -p "${HOME}/bin"
 #    export PATH="${HOME}/bin:${PATH}"
-#    curl -fsSL "https://github.com/TomWright/dasel/releases/download/v2.5.0/dasel_linux_amd64" -o "${HOME}/bin/dasel" && chmod +x "${HOME}/bin/dasel"
+#    curl -fsSL "https://github.com/TomWright/dasel/releases/download/v2.8.1/dasel_linux_amd64" -o "${HOME}/bin/dasel" && chmod +x "${HOME}/bin/dasel"
 #  3. cargo-edit for cargo set-version
 #    cargo install cargo-edit
 #

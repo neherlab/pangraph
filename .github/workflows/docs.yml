@@ -61,3 +61,13 @@ jobs:
         run: |
           cd docs/
           ./deploy
+
+      - name: "Create git tag"
+        run: |
+          git config --global user.name "${{ secrets.NEHERLAB_BOT_GITHUB_NAME }}"
+          git config --global user.email "${{ secrets.NEHERLAB_BOT_GITHUB_EMAIL }}"
+
+          version=$(date --utc +%Y-%m-%d_%H-%M-%SZ)
+
+          git tag "docs-${version}"
+          git push origin "docs-${version}"
