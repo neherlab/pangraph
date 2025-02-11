@@ -1,7 +1,18 @@
 ---
 sidebar_position: 9999
 ---
-# CLI commands
+
+# Command-line reference
+
+<!-- WARNING: GENERATED CONTENT -->
+<!-- Do not edit the generated file manually! All manual changes will be overwritten by automation. -->
+<!-- See developer guide for how to properly work with this. -->
+
+:::warning
+Generated content. Report issues at https://github.com/neherlab/pangraph/issues
+:::
+
+
 
 
 This document contains the automatically generated reference documentation for command-line arguments of the latest version of Pangraph CLI.
@@ -258,7 +269,7 @@ Export the core-genome alignment. Note that alignment excludes insertions
 
 Generates a simplified graph that only contains a subset of the input genomes
 
-**Usage:** `pangraph simplify [OPTIONS] [INPUT]`
+**Usage:** `pangraph simplify [OPTIONS] --strains <STRAINS> [INPUT]`
 
 ###### **Arguments:**
 
