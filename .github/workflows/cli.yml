@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [ 'master', 'release', 'rust' ]
+    branches: [ 'master', 'release' ]
 
   pull_request:
 

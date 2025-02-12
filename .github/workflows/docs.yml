@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [ 'release-docs' ]
+    branches: [ 'master', 'release-docs' ]
 
   pull_request:
     paths:
