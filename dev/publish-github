@@ -56,7 +56,7 @@ version=$(dasel select -r toml -w - -s ".workspace.package.version" -f "Cargo.to
 release_type=$("${THIS_DIR}/lib/semver" get prerel "${version}" | cut -d '.' -f 1)
 prerelease_flag=${release_type:+--prerelease}
 
-echo "${GITHUB_TOKEN}" | gh auth login --with-token
+gh auth login
 
 # shellcheck disable=SC2086
 # Create a release.
