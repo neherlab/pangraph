@@ -27,7 +27,7 @@ pushd "build" >/dev/null
     --delete \
     --only-show-errors \
     --content-type "text/html" \
-    --cache-control "max-age=0, must-revalidate" \
+    --cache-control "max-age=0, no-cache, must-revalidate" \
     --metadata-directive REPLACE \
     --exclude "*.*" \
     --include "*.html" \
