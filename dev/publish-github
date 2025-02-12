@@ -62,9 +62,9 @@ prerelease_flag=${release_type:+--prerelease}
 (
   if [ -z "$release_type" ]; then
     ./dev/extract-release-notes CHANGELOG.md
-    cat docs/assets/release-instructions.md
+    cat docs/other/release-instructions.md
   else
-    cat docs/assets/prerelease-warning.md
+    cat docs/other/prerelease-warning.md
     echo "For changes compared to the previous final release version, please refer to \"Unreleased\" section in [CHANGELOG.md](https://github.com/nextstrain/nextclade/blob/${git_sha}/CHANGELOG.md)"
   fi
 ) |

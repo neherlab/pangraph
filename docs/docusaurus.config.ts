@@ -62,7 +62,7 @@ const config: Config = {
     prism: {
       theme: prismThemes.vsLight,
       darkTheme: prismThemes.vsDark,
-      additionalLanguages: ['bash', 'powershell'],
+      additionalLanguages: ['bash', 'powershell', 'docker'],
     },
   } satisfies Preset.ThemeConfig,
 
@@ -80,6 +80,14 @@ const config: Config = {
         hashed: true,
       } satisfies DslPluginOptions,
     ],
+  ],
+
+  scripts: [
+    {
+      'src': 'https://plausible.io/js/script.js',
+      'defer': true,
+      'data-domain': 'docs.pangraph.org',
+    },
   ],
 } satisfies Config;
 
