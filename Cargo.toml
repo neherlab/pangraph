@@ -1,0 +1,273 @@
+[workspace]
+resolver = '2'
+
+members = [
+  "packages/minimap2",
+  "packages/minimap2-sys",
+  "packages/pangraph",
+  "packages/pangraph-cli",
+]
+
+[workspace.package]
+description = "A bioinformatic toolkit to align genome assemblies into pangenome graphs"
+version = "1.0.0"
+documentation = "https://docs.pangraph.org"
+homepage = "https://github.com/neherlab/pangraph"
+repository = "https://github.com/neherlab/pangraph"
+edition = "2021"
+license = "MIT"
+publish = false
+keywords = [
+  "bacteria",
+  "bioinformatics",
+  "genome",
+  "pangenome",
+  "pangraph"
+]
+authors = ["NeherLab team"]
+
+[workspace.dependencies]
+bzip2 = { version = "=0.4.4", features = ["static"] }
+flate2 = "=1.0.33"
+libz-sys = { version = "=1.1.20", features = ["static", "stock-zlib", "cmake"] }
+xz2 = { version = "=0.1.7", features = ["static"] }
+zstd = { version = "=0.13.2", features = ["zstdmt"] }
+
+
+minimap2 = { path = "packages/minimap2", features = ["serde"] }
+minimap2-sys = { path = "packages/minimap2-sys", features = ["simde", "static", "stock-zlib"] }
+
+
+approx = "=0.5.1"
+atty = "=0.2.14"
+auto_ops = "=0.3.0"
+bio = "=2.0.3"
+chrono = { version = "=0.4.38", default-features = false, features = ["clock", "std", "wasmbind"] }
+clap = { version = "=4.5.17", features = ["derive", "color", "unicode", "unstable-styles"] }
+clap-markdown = "=0.1.4"
+clap_complete = "=4.5.28"
+clap_complete_fig = "=4.5.2"
+cmd_lib = "=1.9.4"
+color-eyre = "=0.6.3"
+csv = "=1.3.0"
+ctor = "=0.2.8"
+derive_more = { version = "=1.0.0", features = ["full"] }
+env_logger = "=0.11.5"
+eyre = "=0.6.12"
+gcollections = "=1.5.0"
+getset = "0.1.3"
+indoc = "=2.0.5"
+intervallum = "=1.4.1"
+itertools = "=0.13.0"
+lazy_static = "=1.5.0"
+log = "=0.4.22"
+maplit = "=1.0.2"
+ndarray = { version = "=0.16.1", features = ["rayon", "serde", "blas", "approx"] }
+ndarray-stats = "=0.6.0"
+noodles = { version = "=0.60.0", features = ["core", "sam"] }
+num = "=0.4.3"
+num-traits = "=0.2.19"
+num_cpus = "=1.16.0"
+ordered-float = { version = "=4.2.2", features = ["serde"] }
+parking_lot = { version = "=0.12.3", features = ["deadlock_detection", "hardware-lock-elision", "serde", "arc_lock"] }
+pretty_assertions = "=1.4.1"
+pretty_dtoa = "=0.3.0"
+rand = { version = "=0.8.5", features = ["serde1", "log"] }
+rand_isaac = { version = "=0.3.0", features = ["serde1"] }
+rayon = "=1.10.0"
+regex = "=1.11.0"
+rstest = "=0.22.0"
+schemars = { version = "=1.0.0-alpha.15", features = ["chrono04", "either1", "enumset1", "indexmap2", "raw_value", "schemars_derive", "preserve_order"] }
+serde = { version = "=1.0.210", features = ["derive"] }
+serde-aux = "=4.5.0"
+serde_json = { version = "=1.0.128", features = ["preserve_order", "unbounded_depth"] }
+serde_stacker = { version = "=0.1.11" }
+serde_yaml = "=0.9.33"
+smart-default = "=0.7.1"
+strum = "=0.26.3"
+strum_macros = "=0.26.4"
+tempfile = "=3.12.0"
+twox-hash = { version = "=1.6.3", features = ["serde"] }
+
+
+[workspace.lints.rust]
+# Lint groups
+# https://doc.rust-lang.org/rustc/lints/groups.html
+warnings = { level = "warn", priority = -100 }
+future_incompatible = { level = "warn", priority = -90 }
+deprecated_in_future = { level = "warn", priority = -80 }
+
+rust_2018_compatibility = { level = "warn", priority = -70 }
+rust_2018_idioms = { level = "warn", priority = -70 }
+rust_2021_compatibility = { level = "warn", priority = -70 }
+rust_2024_compatibility = { level = "warn", priority = -70 }
+
+let_underscore = { level = "warn", priority = -50 }
+nonstandard_style = { level = "warn", priority = -50 }
+refining_impl_trait = { level = "warn", priority = -50 }
+unused = { level = "warn", priority = -50 }
+
+# Disable some of the lints enabled by default
+# https://doc.rust-lang.org/rustc/lints/listing/warn-by-default.html
+edition_2024_expr_fragment_specifier = "allow"
+elided_lifetimes_in_paths = "allow"
+non_snake_case = "allow"
+unused_variables = "allow"
+
+# Enable lints not enabled by default
+# https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
+absolute_paths_not_starting_with_crate = "warn"
+deprecated_safe = "warn"
+explicit_outlives_requirements = "warn"
+ffi_unwind_calls = "warn"
+keyword_idents_2018 = "warn"
+keyword_idents_2024 = "warn"
+let_underscore_drop = "warn"
+macro_use_extern_crate = "warn"
+meta_variable_misuse = "warn"
+missing_abi = "warn"
+missing_unsafe_on_extern = "warn"
+non_ascii_idents = "warn"
+non_local_definitions = "warn"
+redundant_lifetimes = "warn"
+rust_2021_incompatible_closure_captures = "warn"
+rust_2021_incompatible_or_patterns = "warn"
+rust_2021_prefixes_incompatible_syntax = "warn"
+rust_2021_prelude_collisions = "warn"
+single_use_lifetimes = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unit_bindings = "warn"
+unnameable_types = "warn"
+unsafe_code = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+unstable_features = "warn"
+unused_extern_crates = "warn"
+unused_import_braces = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_qualifications = "warn"
+variant_size_differences = "warn"
+# unused_crate_dependencies = "warn"
+# unreachable_pub = "warn"
+# missing_copy_implementations = "warn"
+# missing_debug_implementations = "warn"
+
+
+[workspace.lints.clippy]
+# https://rust-lang.github.io/rust-clippy/stable/
+# This is a strict (sometimes too much) Clippy setup.
+# We go bold and enable all Clippy lints, then disable the ones that we don't need.
+# This has an advantage that when upgrading Rust and Clippy, we receive new lints automatically.
+all = { level = "warn", priority = -2 }
+pedantic = { level = "warn", priority = -1 }
+blanket_clippy_restriction_lints = "allow"
+restriction = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+# Disable some of the Clippy lints
+absolute_paths = "allow"
+allow_attributes = "allow"
+allow_attributes_without_reason = "allow"
+arithmetic_side_effects = "allow"
+as_conversions = "allow"
+assign_op_pattern = "allow"
+assigning_clones = "allow"
+bool_to_int_with_if = "allow"
+cast_lossless = "allow"
+cast_possible_truncation = "allow"
+cast_possible_wrap = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cognitive_complexity = "allow"
+comparison_chain = "allow"
+default_numeric_fallback = "allow"
+deref_by_slicing = "allow"
+doc_markdown = "allow"
+else_if_without_else = "allow"
+equatable_if_let = "allow"
+exhaustive_enums = "allow"
+exhaustive_structs = "allow"
+expect_used = "allow"
+float_arithmetic = "allow"
+if_not_else = "allow"
+impl_trait_in_params = "allow"
+implicit_hasher = "allow"
+implicit_return = "allow"
+inconsistent_digit_grouping = "allow"
+indexing_slicing = "allow"
+integer_division = "allow"
+iter_nth_zero = "allow"
+large_digit_groups = "allow"
+len_zero = "allow"
+let_underscore_must_use = "allow"
+manual_string_new = "allow"
+integer_division_remainder_used = "allow"
+match_same_arms = "allow"
+min_ident_chars = "allow"
+missing_assert_message = "allow"
+missing_const_for_fn = "allow"
+missing_docs_in_private_items = "allow"
+missing_errors_doc = "allow"
+missing_inline_in_public_items = "allow"
+missing_panics_doc = "allow"
+missing_trait_methods = "allow"
+mod_module_files = "allow"
+module_inception = "allow"
+module_name_repetitions = "allow"
+modulo_arithmetic = "allow"
+must_use_candidate = "allow"
+needless_for_each = "allow"
+needless_raw_string_hashes = "allow"
+needless_raw_strings = "allow"
+new_without_default = "allow"
+non_ascii_literal = "allow"
+option_if_let_else = "allow"
+panic = "allow"
+panic_in_result_fn = "allow"
+pattern_type_mismatch = "allow"
+print_stderr = "allow"
+print_stdout = "allow"
+pub_use = "allow"
+pub_with_shorthand = "allow"
+question_mark_used = "allow"
+redundant_closure_for_method_calls = "allow"
+renamed_function_params = "allow"
+self_named_module_files = "allow"
+semicolon_inside_block = "allow"
+semicolon_outside_block = "allow"
+separated_literal_suffix = "allow"
+shadow_reuse = "allow"
+shadow_same = "allow"
+shadow_unrelated = "allow"
+should_implement_trait = "allow"
+significant_drop_in_scrutinee = "allow"
+significant_drop_tightening = "allow"
+similar_names = "allow"
+single_call_fn = "allow"
+single_char_lifetime_names = "allow"
+std_instead_of_alloc = "allow"
+std_instead_of_core = "allow"
+struct_excessive_bools = "allow"
+struct_field_names = "allow"
+suboptimal_flops = "allow"
+too_many_arguments = "allow"
+too_many_lines = "allow"
+type_repetition_in_bounds = "allow"
+unimplemented = "allow"
+unnecessary_wraps = "allow"
+unreachable = "allow"
+unreadable_literal = "allow"
+unsafe_derive_deserialize = "allow"
+unused_self = "allow"
+unused_unit = "allow"
+unwrap_in_result = "allow"
+unwrap_used = "allow"
+use_debug = "allow"
+use_self = "allow"
+useless_transmute = "allow"
+wildcard_enum_match_arm = "allow"
+
+
+[workspace.lints.rustdoc]
+broken_intra_doc_links = "warn"
+bare_urls = "warn"

@@ -1,0 +1,7 @@
+@import '~katex/dist/katex.min.css';
+
+html[data-theme='dark'] img {
+  background-color: #555;
+  padding: 10px;
+  box-sizing: border-box;
+}

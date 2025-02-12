@@ -1,0 +1,8 @@
+{
+  "label": "Installation",
+  "position": 2,
+  "link": {
+    "type": "generated-index",
+    "description": "This section describes multiple possible ways to install Pangraph. Try \"standalone\" if you aren't sure which one you need."
+  }
+}

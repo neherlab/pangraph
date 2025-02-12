@@ -1,0 +1,29 @@
+[package]
+name = "pangraph-cli"
+
+authors.workspace = true
+description.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+version.workspace = true
+
+build = "src/build.rs"
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+ctor = { workspace = true }
+eyre = { workspace = true }
+pangraph = { path = "../pangraph" }
+
+[build-dependencies]
+eyre = { workspace = true }
+pangraph = { path = "../pangraph" }

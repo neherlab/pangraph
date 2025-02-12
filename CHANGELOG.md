@@ -1,41 +1,30 @@
-# PanGraph Changelog
+## Unreleased
 
-## v0.7.3
+This release introduces several significant updates, including a complete rewrite of the algorithm in Rust to boost both speed and reliability in graph construction. PanGraph can now be compiled as a standalone binary, greatly simplifying installation. The release also contains several **breaking changes**.
 
-- bugfix in graph building: a particular edge-case would cause minor inconsistencies in the block alignment when merging graphs, see issue [#62](https://github.com/neherlab/pangraph/issues/62) and PR [#63](https://github.com/neherlab/pangraph/pull/63).
+### Major changes
 
-## v0.7.2
+- **Graph Construction Algorithm Enhancements**
+  - Block merging has been refined and simplified: when merging two blocks, sequences are re-aligned to the block consensus, resulting in more robust alignments.
+  - The alignment process is now easily parallelizable, extending beyond the previous limitation of parallel guide tree traversal.
+  - Insertions are now placed on the consensus sequence without aligning them to each other, simplifying bookkeeping of alignment variation when merging blocks.
 
-- minor fix in tree midpoint rooting during panX export, see [#59](https://github.com/neherlab/pangraph/issues/59).
+- **Graph JSON Output Format Updates**
+  - A new `nodes` dictionary links paths and blocks.
+  - Entries in the `paths` dictionary have been simplified to include only lists of nodes.
+  - Block `alignments` now use a simpler encoding; insertions are placed on the consensus without alignment, eliminating the need for a separate `gaps` entry.
 
-## v0.7.1
+- **Command Line Interface Modifications**
+  - Improved parallelization control with the new `--jobs` flag.
+  - The `export` command has been restructured into several subcommands:
+    - `export gfa` – Export the graph in GFA format.
+    - `export block-consensus` – Export block consensus sequences in a single FASTA file.
+    - `export block-sequences` – Export each block’s alignment in separate FASTA files.
+    - `export core-genome` – Export the core-genome alignment.
+  - The `marginalize` command has been renamed to `simplify`.
+  - A new `reconstruct` command has been added to rebuild the input sequences from the graph.
+  - The `polish` and `generate` commands have been removed.
 
-- minor fix for multi-threaded marginalize, see [#58](https://github.com/neherlab/pangraph/pull/58).
-
-## v0.7.0
-
-- fasta input files are checked for duplicated records, and white lines between records are tolerated, see [#55](https://github.com/neherlab/pangraph/pull/55).
-- PanGraph execution is now deterministic, and same input files always produce the same output, see [#57](https://github.com/neherlab/pangraph/pull/57). For the build command, a random seed can be set with the `-r` flag.
-- introduced the `-t` flag in the `build` and `merge` command. This activates consistency checks to verify that the input genomes can be exactly reconstructed. See [#57](https://github.com/neherlab/pangraph/pull/57).
-- Fixed [#56](https://github.com/neherlab/pangraph/issues/56)
-
-## v0.6.3
-
-- fixed an issue with PanX export by upgrading TreeTools version, see [#52](https://github.com/neherlab/pangraph/issues/52) by @mmolari and @PierreBarrat
-- minor upgrades to the analysis scripts following PanGraph's paper reviews, see [#51](https://github.com/neherlab/pangraph/pull/51).
-
-## v0.6.2
-
-- removed the dependency on conda/PyCall and substituted it with [TreeTools](https://github.com/PierreBarrat/TreeTools.jl), by @PierreBarrat and @mmolari, see [#45](https://github.com/neherlab/pangraph/pull/45). This reduces the size of the docker image.
-- added `script/config/accnums.json` file with list of accession number for GenBank sequences used for pangraph algorithm validation.
-- added `procps` to docker image. This is needed for compatibility of the docker image with nextflow. By @plaquette, see [#48](https://github.com/neherlab/pangraph/pull/48).
-- minor improvements in the analysis pipeline, see [#49](https://github.com/neherlab/pangraph/pull/49).
-
-## v0.6.1
-
-- added `pangraph version` command that prints PanGraph's version on stderr, by @mmolari and @ivan-aksamentov, see [#40](https://github.com/neherlab/pangraph/pull/40).
-- fix: wrong PanGraph's package version tag in `Project.toml`.
-- added `tools/release.sh` script to automate the release process, by @mmolari and @ivan-aksamentov, see [#41](https://github.com/neherlab/pangraph/pull/41).
 
 ## v0.6.0
 

@@ -1,45 +1,74 @@
-name: Docs
-
 on:
   push:
-    tags:
-      - '*'
+    branches: [ 'release-docs' ]
 
-  repository_dispatch:
-    types: docs
-
-  workflow_dispatch:
-
-permissions:
-  contents: write
+  pull_request:
+    paths:
+      - 'docs/**'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref || github.run_id }}
+  group: docs-${{ github.workflow }}-${{ github.ref_type }}-${{ github.event.pull_request.number || github.ref || github.run_id }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    shell: bash -euo pipefail {0}
+
+env:
+  GITHUB_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+
 jobs:
-  Build-and-Deploy-Docs:
-    name: 'Build and push docs'
 
-    runs-on: ubuntu-20.04
-
-    defaults:
-      run:
-        shell: bash
+  docs:
+    name: "docs"
+    runs-on: "ubuntu-24.04"
+    environment:
+      name: ${{ github.ref }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: "Checkout code"
+        uses: actions/checkout@v4
         with:
-          fetch-depth: '1'
+          fetch-depth: 1
+          submodules: true
+          lfs: true
 
-      - name: Build docs
+      - uses: "actions/setup-node@v4"
+        with:
+          node-version: "22"
+
+      - name: "Install deps"
         run: |
-          make documentation
+          sudo apt-get install rename --yes -qq >/dev/null
 
-      - name: Deploy docs
-        uses: JamesIves/github-pages-deploy-action@v4
-        with:
-          folder: docs/build
-          git-config-name: ${{ secrets.GH_PAGES_DEPLOY_USERNAME }}
-          git-config-email: ${{ secrets.GH_PAGES_DEPLOY_EMAIL }}
+          cd docs/
+          npm install -g bun
+          bun install
 
+      - name: "Build docs"
+        run: |
+          cd docs/
+          bun prod:build
+
+      - name: "Deploy docs"
+        if: endsWith(github.ref, '/release-docs')
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.AWS_CLOUDFRONT_DISTRIBUTION_ID }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
+          AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: |
+          cd docs/
+          ./deploy
+
+      - name: "Create git tag"
+        if: endsWith(github.ref, '/release-docs')
+        run: |
+          git config --global user.name "${{ secrets.NEHERLAB_BOT_GITHUB_NAME }}"
+          git config --global user.email "${{ secrets.NEHERLAB_BOT_GITHUB_EMAIL }}"
+
+          version=$(date --utc +%Y-%m-%d_%H-%M-%SZ)
+
+          git tag "docs-${version}"
+          git push origin "docs-${version}"

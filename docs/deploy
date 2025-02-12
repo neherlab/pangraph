@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+shopt -s globstar
+trap "exit" INT
+
+: "${AWS_S3_BUCKET:?The environment variable is required}"
+: "${AWS_CLOUDFRONT_DISTRIBUTION_ID:?The environment variable is required}"
+
+export AWS_MAX_ATTEMPTS=10
+
+pushd "build" >/dev/null
+{
+  # Upload non-HTML files
+  aws s3 sync \
+    --delete \
+    --only-show-errors \
+    --cache-control "max-age=2592000, public" \
+    --metadata-directive REPLACE \
+    --exclude "*.html" \
+    . "s3://${AWS_S3_BUCKET}/"
+
+  # Remove non-HTML files
+  find . -type f \( ! -iname "*.html" \) -exec rm {} \+
+
+  # Upload extensionless HTML files
+  aws s3 sync \
+    --delete \
+    --only-show-errors \
+    --content-type "text/html" \
+    --cache-control "max-age=0, no-cache, must-revalidate" \
+    --metadata-directive REPLACE \
+    --exclude "*.*" \
+    --include "*.html" \
+    . "s3://${AWS_S3_BUCKET}/"
+
+  # Update Cloudfront cache
+  aws cloudfront create-invalidation \
+    --no-paginate \
+    --distribution-id "${AWS_CLOUDFRONT_DISTRIBUTION_ID}" \
+    --paths "/*" \
+    >/dev/null
+}
+popd >/dev/null

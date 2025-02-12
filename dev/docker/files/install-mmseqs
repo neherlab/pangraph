@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euxo pipefail
+
+dest=${1:-"/usr/local"}
+mkdir -p "${dest}/bin"
+
+version="17-b804f"
+
+curl -fsSL "https://github.com/soedinglab/MMseqs2/releases/download/${version}/mmseqs-linux-sse41.tar.gz" \
+  | tar --strip-components=2 -C "${dest}/bin" -xz "mmseqs/bin/mmseqs"
+
+ls "${dest}/bin/mmseqs"
+"${dest}/bin/mmseqs" --help

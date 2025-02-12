@@ -1,0 +1,223 @@
+#!/usr/bin/env python3
+
+"""
+Run smoke tests - basic use-case checks with default data
+
+https://en.wikipedia.org/wiki/Smoke_testing_(software)
+
+Usage:
+
+    ./tests/run-smoke-tests 'target/release/pangraph'
+
+NOTE: you must build and re-build the tested executable yourself, this script does not do that
+
+"""
+
+import os
+from os import environ
+import subprocess
+import sys
+from multiprocessing import Pool, cpu_count
+from pathlib import Path
+from signal import signal, SIGINT, SIG_IGN
+from textwrap import dedent
+from typing import List
+
+verbose = True
+
+
+# Add arbitrary CLI invocations here
+def make_commands(exe, data_dir, out_dir, fast=False):
+    # fmt: off
+    # @formatter:off
+    fast_cmds = [
+        f"{exe} --help",
+        f"{exe} build --help",
+
+        f"{exe} build {data_dir}/ges-1.fa            -o {out_dir}/ges-1_default.json",
+        f"{exe} build {data_dir}/ges-1.fa            -o {out_dir}/ges-1_c-b5-s20-l100.json        -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/example-rev.fa      -o {out_dir}/example-rev_default.json",
+        f"{exe} build {data_dir}/example-rev.fa      -o {out_dir}/example-rev_c-b5-s20-l100.json  -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/example.fa          -o {out_dir}/example_default.json",
+        f"{exe} build {data_dir}/example.fa          -o {out_dir}/example_c-b5-s20-l100.json      -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/flu-h1.fa           -o {out_dir}/flu-h1_default.json",
+        f"{exe} build {data_dir}/flu-h1.fa           -o {out_dir}/flu-h1_c-b5-s20-l100.json       -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/flu-h3.fa           -o {out_dir}/flu-h3_default.json",
+        f"{exe} build {data_dir}/flu-h3.fa           -o {out_dir}/flu-h3_c-b5-s20-l100.json       -c -b 5 -s 20 -l 100",
+
+        f"{exe} export --help",
+
+        f"{exe} export gfa --help",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph.gfa",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_ml-100.gfa          --minimum-length=100",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_ml-100_nd.gfa       --minimum-length=100                         --no-duplicated",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_md-2.gfa                                    --minimum-depth=2",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_md-2_nd.gfa                                 --minimum-depth=2    --no-duplicated",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_ml-100_md-2.gfa     --minimum-length=100    --minimum-depth=2",
+        f"{exe} export gfa {data_dir}/test_graph.json    -o {out_dir}/export-gfa/test_graph_ml-100_md-2_nd.gfa  --minimum-length=100    --minimum-depth=2    --no-duplicated",
+
+        f"{exe} export block-consensus --help",
+        f"{exe} export block-consensus {data_dir}/test_graph.json -o {out_dir}/export-block-consensus/block-consensus.fa",
+
+        f"{exe} export block-sequences --help",
+        f"{exe} export block-sequences {data_dir}/test_graph.json -o {out_dir}/export-block-sequences/block-sequences-aligned",
+        f"{exe} export block-sequences {data_dir}/test_graph.json -o {out_dir}/export-block-sequences/block-sequences-unaligned      --unaligned",
+
+        f"{exe} export core-genome --help",
+        f"{exe} export core-genome {data_dir}/test_graph.json --guide-strain='pCAV1344-40' -o {out_dir}/export-core-genome/core-genome-aligned.fa",
+        f"{exe} export core-genome {data_dir}/test_graph.json --guide-strain='pCAV1344-40' -o {out_dir}/export-core-genome/core-genome-unaligned.fa   --unaligned",
+    ]
+    all_cmds = fast_cmds + [
+        f"{exe} build {data_dir}/ecoli.fa.gz         -o {out_dir}/ecoli_default.json",
+        f"{exe} build {data_dir}/ecoli.fa.gz         -o {out_dir}/ecoli_c-b5-s20-l100.json        -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/klebs.fa.gz         -o {out_dir}/klebs_default.json",
+        f"{exe} build {data_dir}/klebs.fa.gz         -o {out_dir}/klebs_c-b5-s20-l100.json        -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/mpox.fa             -o {out_dir}/mpox_default.json",
+        f"{exe} build {data_dir}/mpox.fa             -o {out_dir}/mpox_c-b5-s20-l100.json         -c -b 5 -s 20 -l 100",
+
+        f"{exe} build {data_dir}/sc2.fa              -o {out_dir}/sc2_default.json",
+        f"{exe} build {data_dir}/sc2.fa              -o {out_dir}/sc2_c-b5-s20-l100.json          -c -b 5 -s 20 -l 100",
+    ]
+    # fmt: on
+    # @formatter:on
+
+    return fast_cmds if fast else all_cmds
+
+
+def blue(text):
+    return f"\033[38;5;32m{text}\033[0m"
+
+
+def red(text):
+    return f"\033[38;5;203m{text}\033[0m"
+
+
+def orange(text):
+    return f"\033[38;5;166m{text}\033[0m"
+
+
+def green(text):
+    return f"\033[38;5;113m{text}\033[0m"
+
+
+def grey(text):
+    return f"\033[38;5;244m{text}\033[0m"
+
+
+def _run_cmd_impl(cmd: str):
+    output = []
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            text=True,
+            env={**environ, "CLICOLOR_FORCE": "1"},
+        )
+        output.append(result.stderr or "")
+        code = result.returncode
+    except subprocess.CalledProcessError as e:
+        output.append(e.output)
+        code = e.returncode
+    return output, code
+
+
+def clean_cmd(cmd: str) -> str:
+    return " ".join(dedent(cmd).splitlines()).strip()
+
+
+def clean_outputs(output: List[str]) -> List[str]:
+    return [o.strip() for o in output if o.strip()]
+
+
+def run_cmd(cmd):
+    cmd = clean_cmd(cmd)
+    output, code = _run_cmd_impl(cmd)
+    output = clean_outputs(output)
+    if code != 0 or verbose:
+        status = "🟥 Failed:" if code != 0 else "✅"
+        clr = red if code != 0 else grey
+        cmd = clr(f"{cmd}")
+        print("\n".join([f"{status} {cmd}"] + output))
+    return {"cmd": cmd, "code": code}
+
+
+def init_worker():
+    signal(SIGINT, SIG_IGN)
+
+
+def count_by(predicate, arr):
+    return sum(map(predicate, arr))
+
+
+def print_summary(results: List[dict]):
+    n = len(results)
+    failures = list(filter(lambda res: res["code"] != 0, results))
+    n_err = len(failures)
+    n_ok = n - n_err
+
+    if n > 0:
+        f_color = red if n_err > 0 else lambda x: x
+        print(
+            "\n".join(
+                [
+                    "",
+                    blue(f"Total tests: {n}"),
+                    green(f"  Succeeded: {n_ok}"),
+                    f_color(f"  Failed:    {n_err}"),
+                    "",
+                ]
+            )
+        )
+
+        if n_err > 0:
+            failures = [""] + [failure["cmd"] for failure in failures]
+            print(red("Failed commands:" + "\n\n  ".join(failures) + "\n\n"))
+
+        sys.exit(0 if n_err == 0 else 1)
+    else:
+        print("No tests found")
+        sys.exit(1)
+
+
+def normpath(path: Path) -> str:
+    return str(path.resolve())
+
+
+def relpath(path: Path, relative_to) -> str:
+    return os.path.relpath(normpath(path), relative_to)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        sys.exit(f"Usage: {sys.argv[0]} <path_to_executable> [--fast]")
+
+    fast_mode = "--fast" in sys.argv
+
+    THIS_DIR = normpath(Path(__file__).parent)
+    PROJECT_ROOT = normpath(Path(THIS_DIR) / "..")
+    PANGRAPH_BIN = relpath(Path(sys.argv[1]), PROJECT_ROOT)
+    DATA_DIR = relpath(Path(PROJECT_ROOT) / "data", PROJECT_ROOT)
+    RESULTS_DIR = relpath(Path(PROJECT_ROOT) / "tmp/smoke-tests", PROJECT_ROOT)
+
+    num_cores = cpu_count()
+
+    commands = make_commands(PANGRAPH_BIN, DATA_DIR, RESULTS_DIR, fast=fast_mode)
+    with Pool(processes=num_cores, initializer=init_worker) as pool:
+        try:
+            results = pool.map_async(run_cmd, commands)
+            results = results.get()
+            print_summary(results)
+        except KeyboardInterrupt:
+            pool.terminate()
+            pool.close()
+        finally:
+            pool.close()
+            pool.join()

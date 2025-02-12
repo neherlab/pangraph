@@ -1,0 +1,78 @@
+[package]
+name = "pangraph"
+
+authors.workspace = true
+description.workspace = true
+documentation.workspace = true
+edition.workspace = true
+homepage.workspace = true
+license.workspace = true
+publish.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+approx = { workspace = true }
+atty = { workspace = true }
+auto_ops = { workspace = true }
+bio = { workspace = true }
+bzip2 = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+clap-markdown = { workspace = true }
+clap_complete = { workspace = true }
+clap_complete_fig = { workspace = true }
+cmd_lib = { workspace = true }
+color-eyre = { workspace = true }
+csv = { workspace = true }
+ctor = { workspace = true }
+derive_more = { workspace = true }
+env_logger = { workspace = true }
+eyre = { workspace = true }
+flate2 = { workspace = true }
+gcollections = { workspace = true }
+getset = { workspace = true }
+indoc = { workspace = true }
+intervallum = { workspace = true }
+itertools = { workspace = true }
+lazy_static = { workspace = true }
+log = { workspace = true }
+maplit = { workspace = true }
+minimap2 = { workspace = true }
+ndarray = { workspace = true }
+ndarray-stats = { workspace = true }
+noodles = { workspace = true }
+num = { workspace = true }
+num-traits = { workspace = true }
+num_cpus = { workspace = true }
+ordered-float = { workspace = true }
+parking_lot = { workspace = true }
+pretty_assertions = { workspace = true }
+pretty_dtoa = { workspace = true }
+rand = { workspace = true }
+rand_isaac = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true }
+serde-aux = { workspace = true }
+serde_json = { workspace = true }
+serde_stacker = { workspace = true }
+serde_yaml = { workspace = true }
+smart-default = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+tempfile = { workspace = true }
+twox-hash = { workspace = true }
+xz2 = { workspace = true }
+zstd = { workspace = true }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+rstest = { workspace = true }
