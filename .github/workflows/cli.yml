@@ -1,5 +1,3 @@
-name: cli
-
 on:
   push:
     branches: [ 'master', 'release', 'rust' ]
@@ -190,6 +188,29 @@ jobs:
         run: |
           ./dev/docker/run ./dev/dev lint
 
+  run-smoke-tests:
+    name: "Smoke tests"
+    needs: [ build-cli ]
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: "Download build artifacts"
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pangraph-*
+          merge-multiple: true
+          path: ".out"
+
+      - name: "Run smoke tests"
+        run: |
+          chmod +x ./.out/pangraph-x86_64-unknown-linux-gnu
+          ./dev/run-smoke-tests ./.out/pangraph-x86_64-unknown-linux-gnu --fast
 
 
   run-compat-tests-x86_64-unknown-linux-gnu:
@@ -368,7 +389,7 @@ jobs:
 
   publish-to-github-releases:
     name: "Publish to GitHub Releases"
-    needs: [ build-cli, run-unit-tests, run-lints, run-smoke-tests, run-linux-distros-test, check-cli-docs ]
+    needs: [ build-cli, run-unit-tests, run-lints, run-smoke-tests, run-compat-tests-x86_64-unknown-linux-gnu, run-compat-tests-x86_64-unknown-linux-musl, run-compat-tests-x86_64-apple-darwin, run-compat-tests-aarch64-apple-darwin, run-compat-tests-x86_64-pc-windows-gnu, check-cli-docs ]
     if: endsWith(github.ref, '/release-cli')
     runs-on: ubuntu-24.04
 
@@ -405,7 +426,7 @@ jobs:
 
   publish-to-docker-hub:
     name: "Publish to Docker Hub"
-    needs: [ build-cli, run-unit-tests, run-lints, run-smoke-tests, run-linux-distros-test, check-cli-docs ]
+    needs: [ build-cli, run-unit-tests, run-lints, run-smoke-tests, run-compat-tests-x86_64-unknown-linux-gnu, run-compat-tests-x86_64-unknown-linux-musl, run-compat-tests-x86_64-apple-darwin, run-compat-tests-aarch64-apple-darwin, run-compat-tests-x86_64-pc-windows-gnu, check-cli-docs ]
     if: endsWith(github.ref, '/release-cli')
     runs-on: ubuntu-24.04
 
