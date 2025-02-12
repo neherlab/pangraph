@@ -78,7 +78,6 @@ jobs:
       - name: "Prepare .env file"
         run: |
           cp .env.example .env
-          sed -i -e "s|OSXCROSS_URL=http://example.com/osxcross/osxcross.tar.xz|OSXCROSS_URL=${{ secrets.OSXCROSS_URL }}|g" .env
 
       - name: "Build docker image (${{ matrix.arch }})"
         run: |
@@ -134,7 +133,6 @@ jobs:
       - name: "Prepare .env file"
         run: |
           cp .env.example .env
-          sed -i -e "s|OSXCROSS_URL=http://example.com/osxcross/osxcross.tar.xz|OSXCROSS_URL=${{ secrets.OSXCROSS_URL }}|g" .env
 
       - name: "Build docker image"
         run: |
@@ -183,7 +181,6 @@ jobs:
       - name: "Prepare .env file"
         run: |
           cp .env.example .env
-          sed -i -e "s|OSXCROSS_URL=http://example.com/osxcross/osxcross.tar.xz|OSXCROSS_URL=${{ secrets.OSXCROSS_URL }}|g" .env
 
       - name: "Build docker image"
         run: |
