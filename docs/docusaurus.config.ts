@@ -9,7 +9,7 @@ const config: Config = {
   tagline: 'Bioinformatic toolkit to align genome assemblies into pangenome graphs',
   favicon: 'img/favicon.ico',
 
-  url: 'https://pangraph.github.io', // FIXME
+  url: 'https://docs.pangraph.org', // FIXME
   baseUrl: '/',
 
   organizationName: 'neherlab',
