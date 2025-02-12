@@ -2,7 +2,7 @@
 sidebar_position: 3
 ---
 
-# From source
+# Installation: from source code
 
 :::warning[Advanced]
 

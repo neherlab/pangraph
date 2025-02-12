@@ -2,7 +2,7 @@
 sidebar_position: 2
 ---
 
-# With docker
+# Installation: with docker
 
 Run Pangraph CLI inside a Docker container.
 
