@@ -3,6 +3,7 @@ on:
     branches: [ 'master', 'release-pypangraph' ]
     paths:
       - packages/pypangraph/**
+      - .github/workflows/pypangraph.yml
 
   pull_request:
     paths:
