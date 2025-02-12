@@ -7,13 +7,12 @@ def parse_strandedness(strand: str) -> bool:
     + -> True,
     - -> False
     """
-    match strand:
-        case "+":
-            return True
-        case "-":
-            return False
-        case _:
-            raise ValueError(f"Strand {strand} not recognized.")
+    if strand == "+":
+        return True
+    elif strand == "-":
+        return False
+    else:
+        raise ValueError(f"Strand {strand} not recognized.")
 
 
 class Nodes:
