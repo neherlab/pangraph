@@ -13,26 +13,25 @@ This is the recommended way to install Pangraph
 
 :::
 
-Pangraph CLI is a self-contained single-file executable, which can be downloaded from the ["Releases" page](https://github.com/neherlab/pangraph/releases) of the project and run directly. Here is a table with direct links to the latest versions for convenience: 
+Pangraph CLI is a self-contained single-file executable, which can be downloaded from the ["Releases" page](https://github.com/neherlab/pangraph/releases) of the project and run directly. Here is a table with direct links to the latest versions for convenience:
 
-|         | x86_64                                                                                                                                                                                                               | arm64                                                                                                                                                                                                                  |
-|---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Linux   | [gnu](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-x86_64-unknown-linux-gnu), [musl](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-x86_64-unknown-linux-musl)[^1] | [gnu](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-aarch64-unknown-linux-gnu), [musl](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-aarch64-unknown-linux-musl)[^1] |
-| macOS   | [download](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-x86_64-apple-darwin)                                                                                                               | [download](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-aarch64-apple-darwin)                                                                                                                |
-| Windows | [download](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-x86_64-pc-windows-gnu.exe)                                                                                                         | -                                                                                                                                                                                                                      |
+|         | x86_64                                                                                                                                                                                                           | arm64                                                                                                                                                                                                              |
+|---------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Linux   | [gnu](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-x86_64-unknown-linux-gnu), [musl](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-x86_64-unknown-linux-musl) | [gnu](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-aarch64-unknown-linux-gnu), [musl](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-aarch64-unknown-linux-musl) |
+| macOS   | [download](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-x86_64-apple-darwin)                                                                                                           | [download](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-aarch64-apple-darwin)                                                                                                            |
+| Windows | [download](https://github.com/neherlab/pangraph/releases/latest/download/pangraph-x86_64-pc-windows-gnu.exe)                                                                                                     | -                                                                                                                                                                                                                  |
 
 :::info[Note]
 
-There are 2 flavors of pangraph executables for Linux platforms - "gnu" and "musl". 
+There are 2 flavors of pangraph executables for Linux platforms - "gnu" and "musl".
 
-The "gnu" flavor is generally faster but requires GNU libc >= 2.17 to be present on the system. Linux distros like Debian, Ubuntu, Red Hat, Fedora, Arch all come with GNU libc by default. 
+The "gnu" flavor is generally faster but requires GNU libc >= 2.17 to be present on the system. Linux distros like Debian, Ubuntu, Red Hat, Fedora, Arch all come with GNU libc by default.
 
 The "musl" flavor can be slower, but it makes no assumptions about libc. It is suitable for distros like Alpine, which have no GNU libc, or on older distros which have very old GNU libc.
 
 All flavors require Linux kernel >= 3.2.
 
 :::
-
 
 :::info[Note]
 
@@ -119,10 +118,6 @@ You can also download pangraph programmatically, for example to add it to your D
     ```
   </TabItem>
 </Tabs>
-
-
-
-
 
 ## optional dependencies - mmseqs2
 
