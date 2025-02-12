@@ -424,6 +424,7 @@ jobs:
 
       - name: "Publish build artifacts to GitHub releases"
         run: |
+          set -euxo pipefail
           export PATH="${PATH}:${HOME}/bin"
           export GITHUB_TOKEN="${{ secrets.NEHERLAB_BOT_GITHUB_TOKEN }}"
           ./dev/publish-github \
