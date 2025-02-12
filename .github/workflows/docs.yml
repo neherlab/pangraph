@@ -51,18 +51,19 @@ jobs:
           bun prod:build
 
       - name: "Deploy docs"
+        if: endsWith(github.ref, '/release-pypangraph')
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.AWS_CLOUDFRONT_DISTRIBUTION_ID }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        if: ${{ github.ref == 'refs/heads/release-docs' }}
         run: |
           cd docs/
           ./deploy
 
       - name: "Create git tag"
+        if: endsWith(github.ref, '/release-pypangraph')
         run: |
           git config --global user.name "${{ secrets.NEHERLAB_BOT_GITHUB_NAME }}"
           git config --global user.email "${{ secrets.NEHERLAB_BOT_GITHUB_EMAIL }}"
