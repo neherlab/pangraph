@@ -1,6 +1,6 @@
 on:
   push:
-    branches: [ 'master', 'release' ]
+    branches: [ 'master', 'release-cli' ]
 
   pull_request:
 
@@ -397,7 +397,7 @@ jobs:
   publish-to-github-releases:
     name: "Publish to GitHub Releases"
     needs: [ build-cli, run-unit-tests, run-lints, run-smoke-tests, run-compat-tests-x86_64-unknown-linux-gnu, run-compat-tests-x86_64-unknown-linux-musl, run-compat-tests-x86_64-apple-darwin, run-compat-tests-aarch64-apple-darwin, run-compat-tests-x86_64-pc-windows-gnu, check-cli-docs ]
-    if: endsWith(github.ref, '/release-cli')
+    if: github.ref == 'refs/heads/release-cli'
     runs-on: ubuntu-24.04
 
     steps:
@@ -435,7 +435,7 @@ jobs:
   publish-to-docker-hub:
     name: "Publish to Docker Hub"
     needs: [ build-cli, run-unit-tests, run-lints, run-smoke-tests, run-compat-tests-x86_64-unknown-linux-gnu, run-compat-tests-x86_64-unknown-linux-musl, run-compat-tests-x86_64-apple-darwin, run-compat-tests-aarch64-apple-darwin, run-compat-tests-x86_64-pc-windows-gnu, check-cli-docs ]
-    if: endsWith(github.ref, '/release-cli')
+    if: github.ref == 'refs/heads/release-cli'
     runs-on: ubuntu-24.04
 
     steps:
