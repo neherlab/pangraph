@@ -13,7 +13,7 @@ This is the recommended way to install Pangraph
 
 :::
 
-Pangraph CLI is a self-contained single-file executable which can be downloaded and run without any particular setup.
+Pangraph CLI is a self-contained single-file executable, which can be downloaded from the ["Releases" page](https://github.com/neherlab/pangraph/releases) of the project and run directly. Here is a table with direct links to the latest versions for convenience: 
 
 |         | x86_64                                                                                                                                                                                                               | arm64                                                                                                                                                                                                                  |
 |---------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
