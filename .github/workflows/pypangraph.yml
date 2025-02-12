@@ -76,6 +76,8 @@ jobs:
     needs: [ build ]
     if: endsWith(github.ref, '/release-pypangraph')
     runs-on: ubuntu-24.04
+    environment:
+      name: ${{ github.ref }}
 
     steps:
       - name: "Checkout code"
