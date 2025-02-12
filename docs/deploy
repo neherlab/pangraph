@@ -22,9 +22,6 @@ pushd "build" >/dev/null
   # Remove non-HTML files
   find . -type f \( ! -iname "*.html" \) -exec rm {} \+
 
-  # Remove .html extension
-  rename --filename 's/\.html//' **/*.html || true
-
   # Upload extensionless HTML files
   aws s3 sync \
     --delete \
@@ -33,6 +30,7 @@ pushd "build" >/dev/null
     --cache-control "max-age=0, must-revalidate" \
     --metadata-directive REPLACE \
     --exclude "*.*" \
+    --include "*.html" \
     . "s3://${AWS_S3_BUCKET}/"
 
   # Update Cloudfront cache
