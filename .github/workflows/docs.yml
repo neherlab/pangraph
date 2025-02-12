@@ -26,10 +26,12 @@ jobs:
       name: ${{ github.ref }}
 
     steps:
-      - uses: "actions/checkout@v4"
+      - name: "Checkout code"
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - uses: "actions/setup-node@v4"
         with:

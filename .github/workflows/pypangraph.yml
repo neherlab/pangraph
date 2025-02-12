@@ -39,6 +39,10 @@ jobs:
     steps:
       - name: "Checkout code"
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+          lfs: true
 
       - name: "Set up Python ${{ matrix.python-version }}"
         uses: actions/setup-python@v3
@@ -72,6 +76,10 @@ jobs:
     steps:
       - name: "Checkout code"
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+          lfs: true
 
       - name: "Setup Python"
         uses: actions/setup-python@v3

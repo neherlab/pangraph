@@ -52,6 +52,7 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - name: "Setup cache for Rust and Cargo"
         uses: actions/cache@v4
@@ -107,6 +108,7 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - name: "Setup cache for Rust and Cargo"
         uses: actions/cache@v4
@@ -155,6 +157,7 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - name: "Setup cache for Rust and Cargo"
         uses: actions/cache@v4
@@ -199,6 +202,7 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - name: "Download build artifacts"
         uses: actions/download-artifact@v4
@@ -224,6 +228,7 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - name: "Download build artifacts"
         uses: actions/download-artifact@v4
@@ -248,6 +253,7 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - name: "Download build artifacts"
         uses: actions/download-artifact@v4
@@ -368,6 +374,7 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - name: "Download build artifacts"
         uses: actions/download-artifact@v4
@@ -399,6 +406,7 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - name: "Download build artifacts"
         uses: actions/download-artifact@v4
@@ -436,6 +444,7 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
+          lfs: true
 
       - name: "Download build artifacts"
         uses: actions/download-artifact@v4
