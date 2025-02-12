@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pypangraph"
-version = "0.2.0"
+version = "1.0.0"
 authors = [
   { name="Marco Molari", email="mmolari91@gmail.com" },
 ]
@@ -28,5 +28,7 @@ dependencies = [
 "Pangraph.schema.json" = ["Pangraph.schema.json"]
 
 [project.urls]
-Homepage = "https://github.com/mmolari/pypangraph"
-Issues = "https://github.com/mmolari/pypangraph/issues"
+Homepage = "https://docs.pangraph.org"
+Documentation = "https://docs.pangraph.org"
+Repository = "https://github.com/neherlab/pangraph"
+Issues = "https://github.com/neherlab/pangraph/issues"
