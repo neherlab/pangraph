@@ -110,12 +110,12 @@ You can also download pangraph programmatically, for example to add it to your D
   </TabItem>
   <TabItem value="windowsX86" label="Windows x86">
     #### Latest Version
-    ```bash
-    curl -fsSL "https://github.com/neherlab/pangraph/releases/latest/download/pangraph-x86_64-pc-windows-gnu.exe" -o "pangraph.exe" && chmod +x pangraph.exe
+    ```powershell
+    Invoke-WebRequest "https://github.com/neherlab/pangraph/releases/latest/download/pangraph-x86_64-pc-windows-gnu.exe" -O "pangraph.exe"
     ```
     #### Specific Version
-    ```bash
-    curl -fsSL "https://github.com/neherlab/pangraph/releases/download/1.0.0/pangraph-x86_64-pc-windows-gnu.exe" -o "pangraph.exe" && chmod +x pangraph.exe
+    ```powershell
+    Invoke-WebRequest "https://github.com/neherlab/pangraph/releases/download/1.0.0/pangraph-x86_64-pc-windows-gnu.exe" -O "pangraph.exe"
     ```
   </TabItem>
 </Tabs>
