@@ -105,6 +105,7 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.NEHERLAB_BOT_PYPI_TOKEN }}
+          packages-dir: packages/pypangraph/dist
 
       - name: "Create git tag"
         run: |
