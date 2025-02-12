@@ -81,6 +81,14 @@ const config: Config = {
       } satisfies DslPluginOptions,
     ],
   ],
+
+  scripts: [
+    {
+      'src': 'https://plausible.io/js/script.js',
+      'defer': true,
+      'data-domain': 'docs.pangraph.org',
+    },
+  ],
 } satisfies Config;
 
 export default config;
