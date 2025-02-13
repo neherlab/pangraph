@@ -6,7 +6,7 @@
 
 > a bioinformatic toolkit to align large sets of closely related genomes into a graph data structure
 
-> [!WARNING]  
+> [!WARNING]
 > Pangraph is currently undergoing a major migration between v0 and v1. In this short transition period links and documentation may be inconsistent.
 
 ## Overview
@@ -16,6 +16,9 @@ The core of the algorithm partitions each genome into _blocks_ that represent a 
 Each genome is then an ordered walk along _blocks_. The collection of all genomes form a graph that captures all observed structural diversity.
 **pangraph** is a standalone tool useful to parsimoniously infer horizontal gene transfer events within a community; perform comparative studies of genome gain, loss, and rearrangement dynamics; or simply to compress many related genomes.
 
+The original implementation of pangraph (version v0) was implemented in Julia and was described in the publication [Noll, Molari, Shaw and Neher, 2023](https://www.microbiologyresearch.org/content/journal/mgen/10.1099/mgen.0.001034).
+The current version (v1) is a reimplementation of the original algorithm in Rust by Ivan Aksamentov and Marco Molari.
+The new implementation should be much easier to install and is faster in many use cases.
 
 ## Installation
 
@@ -80,15 +83,17 @@ print(graph)
 ```
 
 
-## Citing
-PanGraph: scalable bacterial pan-genome graph construction
-Nicholas Noll, Marco Molari, Richard Neher
-bioRxiv 2022.02.24.481757; doi: https://doi.org/10.1101/2022.02.24.481757
+## Citation
+If you use PanGraph in scientific publications, please cite the original paper presenting the algorithm:
+
+*PanGraph: scalable bacterial pan-genome graph construction*
+Nicholas Noll, Marco Molari, Liam P. Shaw, Richard A. Neher
+Microbial Genomics, **9**(6), 2023; doi: [10.1099/mgen.0.001034](https://doi.org/10.1099/mgen.0.001034)
 
 
 ## License
 
 [MIT License](LICENSE)
 
-> [!NOTE]  
+> [!NOTE]
 > The legacy v0 version of Pangraph is now stored on the [`v0` branch](https://github.com/neherlab/pangraph/tree/v0) of the repository, and legacy documentation is available [here](https://v0.docs.pangraph.org/).

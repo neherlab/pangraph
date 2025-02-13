@@ -6,15 +6,15 @@ sidebar_position: 5
 
 In this next tutorial section we explore block alignments in more detail.
 
-## extracting block alignments
+## Extracting block alignments
 
 Let's consider a core block from our graph:
 
 ```python
 block_stats = graph.to_blockstats_df()
 print(block_stats[block_stats.core])
-# block_id              count  n_strains  duplicated  core   len        
-# ...                                
+# block_id              count  n_strains  duplicated  core   len
+# ...
 # 1745536582941762917      15         15       False  True  2932
 # ...
 block = graph.blocks[1745536582941762917]
@@ -47,13 +47,13 @@ AlignIO.write(aln, "aln.fa", "fasta")
     As explained in [Pangraph tutorial](../tutorial/t03-exporting-sequences.md), insertions are not exported in alignments since they are not aligned to the consensus sequence of the block by pangraph.
 
     If these insertions are important for your analysis, you can instead export **unaligned but complete** block sequences as biopython SeqRecord objects with:
-    
+
     ```python
     records = block.to_biopython_records()
     ```
 
     These can then be easily written to file with:
-    
+
     ```python
     from Bio import SeqIO
     SeqIO.write(records, "seqs.fa", "fasta")
@@ -67,7 +67,7 @@ AlignIO.write(aln, "aln.fa", "fasta")
 
 :::
 
-## core genome alignment
+## Core genome alignment
 
 Other than the alignment for single blocks, we can also extract the alignment of the full core genome, i.e. the concatenated alignment of all single-copy core blocks. Pangraph has a [dedicated export subcommand](../reference.md#pangraph-export-core-genome) for this:
 
@@ -89,7 +89,7 @@ print(core_aln)
 The **guide strain** argument is the name of the path that is used to determine the order of the blocks in the alignment.
 
 
-## sequence divergence
+## Sequence divergence
 
 From the core-genome alignment we can quantify the sequence divergence in our dataset.
 
@@ -154,7 +154,7 @@ sns.clustermap(div)
 ![pairwise divergence](../assets/pp_t3_divergence_matrix.png)
 
 
-## core genome tree
+## Core genome tree
 
 An alternative way of visualizing the divergence between plasmids and their relationships is to build a phylogenetic tree. This can easily be done from the core-genome alignment with different tree builders. For instance using [FastTree](http://www.microbesonline.org/fasttree/):
 

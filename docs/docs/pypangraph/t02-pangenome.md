@@ -6,13 +6,13 @@ sidebar_position: 4
 
 In this next section of the tutorial we use some of the features of PyPangraph to explore the blocks that make up the pangenome graph, and extract information on the pangenome of our dataset.
 
-## block sizes and counts
+## Block sizes and counts
 
 PyPangraph provides functions to easily compute statistics on the blocks.
 
 ```python
 stats_df = graph.to_blockstats_df()
-# block_id              count  n_strains  duplicated   core   len                                
+# block_id              count  n_strains  duplicated   core   len
 # 124231456905500231       15         15       False   True  2202
 # 149501466629434994        2          2       False  False   210
 # 279570196774736738        2          2       False  False  1308
@@ -29,7 +29,7 @@ This dataframe contains the following columns:
 - `core`: whether the block is present exactly once in all paths
 - `len`: the length of the block in base pairs
 
-These information can be used to answer several questions such as:
+This information can be used to answer several questions such as:
 
 <details>
     <summary>what is the longest core block?</summary>
@@ -70,13 +70,13 @@ These information can be used to answer several questions such as:
     stats_df[stats_df.core]["len"].sum()
     # 64'989 bp
     ```
-    
+
 </details>
 
 
-## pangenome frequency
+## Pangenome frequency
 
-From this dataframe we can also compute the pangenome frequency of our dataset, i.e. the distribution of the number of blocks that are present in a given number of strains.
+From this dataframe we can also compute the pangenome frequency distribution of our dataset, i.e. the distribution of the number of blocks that are present in a given number of strains.
 
 ```python
 import seaborn as sns
@@ -88,7 +88,7 @@ sns.histplot(stats_df, x="n_strains", weights="len", discrete=True)
 
 A high fraction of the pangenome (~70kbp) is composed of singleton blocks, i.e. blocks that are present in only one path/plasmid. An equally large fraction (~65 kbp) is core, i.e. present in all paths.
 
-## block presence-absence
+## Block presence-absence
 
 Pypangraph also provides a function to get the number of block copies in each path.
 
@@ -96,7 +96,7 @@ Pypangraph also provides a function to get the number of block copies in each pa
 bl_count = graph.to_blockcount_df()
 print(bl_count)
 #         path_id       RCS48_p1  RCS49_p1  RCS64_p2  RCS80_p1  ...
-# block_id                                                      
+# block_id
 # 124231456905500231           1         1         1         1  ...
 # 149501466629434994           0         0         0         0  ...
 # 853681554159741190           1         1         1         1  ...
@@ -118,9 +118,9 @@ sns.heatmap(block_PA.loc[bl_order].T)
 
 ![block presence-absence](../assets/pp_t2_block_PA.png)
 
-Blocks with intermediate frequency indicate similarity between some subgroups of plasmids. To better quantify this similarity we can look at different pairs of genomes.
+Blocks with intermediate frequency indicate substructure in the datasets with some subgroups of plasmids sharing certain blocks. To better quantify this similarity we can look at different pairs of genomes.
 
-## similarity in accessory genome content
+## Similarity in accessory genome content
 
 With these dataframes we can also answer the following questions: how similar are any two genomes in their accessory genome content?
 
@@ -133,7 +133,7 @@ Pypangraph provides a convenient function to compute these quantities:
 ```python
 pw_comp = graph.pairwise_accessory_genome_comparison()
 #                     shared   diff
-# path_i   path_j                  
+# path_i   path_j
 # RCS48_p1 RCS48_p1    79580      0
 #          RCS49_p1    79249    689
 #          RCS64_p2    78061  13548
@@ -154,24 +154,22 @@ sns.heatmap(D.loc[order, order])
 
 The optimal ordering of the genomes was determined with hierarchical clustering of the distance matrix, as explained below.
 
-??? note "optimal ordering of the distance matrix with hierarchical clustering"
+To better visualize the similarity between genomes, we can use hierarchical clustering to reorder the distance matrix.
 
-    To better visualize the similarity between genomes, we can use hierarchical clustering to reorder the distance matrix.
+This can easily be done with the `scipy.cluster.hierarchy` module:
 
-    This can easily be done with the `scipy.cluster.hierarchy` module:
+```python
+import scipy.cluster.hierarchy as sch
 
-    ```python
-    import scipy.cluster.hierarchy as sch
-
-    # Perform hierarchical clustering
-    linkage_matrix = sch.linkage(dist_df, method="ward")
-    ordered_indices = sch.leaves_list(linkage_matrix)
-    order = dist_df.index[ordered_indices]
-    ```
+# Perform hierarchical clustering
+linkage_matrix = sch.linkage(dist_df, method="ward")
+ordered_indices = sch.leaves_list(linkage_matrix)
+order = dist_df.index[ordered_indices]
+```
 
 This matrix shows that there are plasmid clusters that have little within-cluster accessory genome, while plasmids from different clusters show several tens of kbps of accessory genome differences.
 
-In the same way we can also visualzie the amount of shared pangenome:
+In the same way we can also visualize the amount of shared pangenome:
 
 ```python
 S = pw_comp["shared"].unstack()
@@ -180,4 +178,4 @@ sns.heatmap(S.loc[order, order])
 
 ![shared matrix](../assets/pp_t2_pw_shared.png)
 
-Plasmids from our datasets have sizes varying between 80 and 120 kbp. All of the plasmids share a backbone of ~70 kbp, with higher sharing between plasmids from the same clade.
+Plasmids from our datasets have sizes varying between 80 and 120 kbp. All plasmids share a backbone of ~70 kbp, with higher sharing between plasmids from the same clade.
