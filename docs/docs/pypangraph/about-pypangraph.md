@@ -14,7 +14,7 @@ Below you'll find some simple usage of PyPangraph. For a more complete guide you
 import pypangraph as pp
 
 # load a graph
-graph = pp.Pangraph.load_graph("graph.json")
+graph = pp.Pangraph.from_json("graph.json")
 # pangraph object with 15 paths, 137 blocks and 1042 nodes
 
 # recover a specific path with its identifier

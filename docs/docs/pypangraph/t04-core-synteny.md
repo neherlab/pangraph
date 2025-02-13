@@ -6,7 +6,7 @@ sidebar_position: 6
 
 In this tutorial we will learn how to visualize paths in a pangraph and to survey changes in core-genome synteny.
 
-## visualizing paths
+## Visualizing paths
 
 As discussed in the introduction, paths are representation of genomes as sequences of blocks. After loading a graph, we can export a simple representation of the graph with the `to_path_dictionary` method. This method returns a dictionary where each key is the name of a path and the value is a list of tuples. Each tuple contains the block id and the strand of the block in the path.
 
@@ -45,15 +45,15 @@ for path_name, path in path_dict.items():
 
         L = block_stats.loc[block_id, "len"] # block consensus length
         is_core = block_stats.loc[block_id, "core"]
-        
+
         # block color
         color = block_color[block_id] if is_core else "lightgray"
         block_color[block_id] = mpl.colors.to_hex(color)
 
         height = 0.8 if is_core else 0.6 # block thickness
-        
+
         ax.barh(y, L, left=x, height=height, color=color)
-        
+
         x += L
     y += 1
 
@@ -71,7 +71,7 @@ From this plot we observe a strong conservation in the order of core blocks. Thi
 pangraph export gfa --no-duplicated --minimum-depth 15 plasmids.json -o plasmids_core.gfa
 ```
 
-Moreover we can save the block colors that we used in the previous plot in a csv file, that can be loaded by Bandage to color the blocks.
+Moreover, we can save the block colors that we used in the previous plot in a csv file, that can be loaded by Bandage to color the blocks.
 
 ```python
 pd.Series(block_color, name="Colour").to_csv("block_colors.csv")
@@ -84,7 +84,7 @@ After loading the graph and coloring it we obtain the following picture:
 
 This shows immediately that the order of core blocks is perfectly conserved in our dataset.
 
-## core genome synteny
+## Core genome synteny
 
 Plasmids are a relatively simple case to visualize and study, since they are small and have a low number of blocks. For full chromosomal genomes, visualizations can be too complex to be informative.
 
@@ -134,7 +134,7 @@ plt.show()
 
 ![MSUs](../assets/pp_t4_MSUs.png)
 
-We observe that, while most genomes have a conserved order of MSUs, three genomes present variations. These consist of inversions or transloacations of a set of core blocks.
+We observe that, while most genomes have a conserved order of MSUs, three genomes present variations. These consist of inversions or translocations of a set of core blocks.
 
 Similarly to what done for plasmids, we can visualize these units on Bandage. We can export the graph in GFA format, only keeping core blocks, with:
 
@@ -143,7 +143,7 @@ pangraph export gfa \
     --no-duplicated \
     --minimum-depth 10 \
     -o ecoli.gfa \
-    graph.json 
+    graph.json
 ```
 
 And then we can export the dictionary of core-block colors with:
