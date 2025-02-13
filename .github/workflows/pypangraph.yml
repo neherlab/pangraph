@@ -111,6 +111,9 @@ jobs:
 
       - name: "Create git tag"
         run: |
+          mkdir -p ${HOME}/bin
+          export PATH="${PATH}:${HOME}/bin"
+
           curl -fsSL "https://github.com/TomWright/dasel/releases/download/v2.8.1/dasel_linux_amd64" -o "${HOME}/bin/dasel" && chmod +x "${HOME}/bin/dasel"
 
           git config --global user.name "${{ secrets.NEHERLAB_BOT_GITHUB_NAME }}"
