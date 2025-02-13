@@ -11,6 +11,7 @@ use crate::{make_internal_error, make_internal_report};
 use color_eyre::owo_colors::{AnsiColors, OwoColorize};
 use color_eyre::{Help, SectionExt};
 use eyre::{Report, WrapErr};
+use indicatif::{ProgressBar, ProgressStyle};
 use itertools::Itertools;
 use log::info;
 
@@ -71,8 +72,20 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
     .map(|fasta| Pangraph::singleton(fasta, Forward, args.circular)) // FIXME: strand hardcoded
     .collect_vec();
 
+  let n_genomes = graphs.len();
+
   // Build guide tree
   let tree = build_tree_using_neighbor_joining(graphs)?;
+
+  // set up progress bar
+  let pb = ProgressBar::new(n_genomes as u64);
+  pb.set_style(
+    ProgressStyle::with_template(
+      "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {pos}/{human_len} mergers ({eta})",
+    )
+    .unwrap()
+    .progress_chars("#>-"),
+  );
 
   // Main loop: traverse the tree starting from leaf nodes and build the graphs bottom-up all the way to the root node.
   // The graph of the root node is the graph we are looking for.
@@ -91,6 +104,8 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
             left.paths.len(),
             right.paths.len()
           );
+
+          pb.inc(1);
 
           clade.data = Some(merge_graphs(left, right, args).wrap_err("When merging graphs")?);
 
@@ -123,6 +138,8 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
   .into_iter()
   .collect::<Result<Vec<_>, Report>>()
   .wrap_err("When traversing guide tree")?;
+
+  pb.finish_with_message("graph merging completed");
 
   let graph = tree
     .write()
