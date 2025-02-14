@@ -67,7 +67,7 @@ pub struct PangraphBuildArgs {
   #[clap(long, short = 'f')]
   pub verify: bool,
 
-  /// Toggle to disable progress bar
+  /// Toggle to disable progress bar. Notice that the progress bar is only displayed if the output is specified via the `-o` argument.
   #[clap(long)]
   pub no_progress_bar: bool,
 }
