@@ -10,6 +10,7 @@ pub mod lock;
 pub mod map_merge;
 pub mod ndarray;
 pub mod number_min_max;
+pub mod progress_bar;
 pub mod random;
 pub mod string;
 pub mod string_rotate;
