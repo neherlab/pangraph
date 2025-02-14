@@ -57,7 +57,7 @@ pub fn setup_logger(filter_level: LevelFilter) {
     })
     .build();
 
-  LogWrapper::new(INDICATIF.get_or_init(|| MultiProgress::new()).clone(), logger)
+  LogWrapper::new(INDICATIF.get_or_init(MultiProgress::new).clone(), logger)
     .try_init()
     .unwrap();
 }
