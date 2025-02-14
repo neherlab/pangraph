@@ -16,7 +16,7 @@ impl ProgressBar {
       pb.enable_steady_tick(Duration::from_secs(1));
       pb.set_style(
         ProgressStyle::with_template(
-          "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {human_pos}/{human_len} mergers ({eta})",
+          "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {human_pos}/{human_len} mergers",
         )
         .unwrap()
         .progress_chars("#>-"),
