@@ -2,9 +2,12 @@ use crate::io::fs::filename_maybe;
 use crate::utils::datetime::{date_format_precise, date_now};
 use color_eyre::owo_colors::{OwoColorize, Style};
 use env_logger::Env;
+use indicatif::MultiProgress;
+use indicatif_log_bridge::LogWrapper;
 use log::{Level, LevelFilter, Record};
 use std::env;
 use std::io::Write;
+use std::sync::OnceLock;
 
 fn get_current_exe_filename() -> Option<String> {
   env::current_exe().ok().and_then(filename_maybe)
@@ -38,8 +41,10 @@ fn color_log_level(record: &Record) -> String {
   format!("{:}{level_str}{:}", "[".dimmed(), "]".dimmed())
 }
 
+pub static INDICATIF: OnceLock<MultiProgress> = OnceLock::new();
+
 pub fn setup_logger(filter_level: LevelFilter) {
-  env_logger::Builder::from_env(Env::default().default_filter_or("warn"))
+  let logger = env_logger::Builder::from_env(Env::default().default_filter_or("warn"))
     .filter_level(filter_level)
     .format(|buf, record| {
       let current_exe = get_current_exe_filename().unwrap_or_default().dimmed().to_string();
@@ -50,7 +55,11 @@ pub fn setup_logger(filter_level: LevelFilter) {
       writeln!(buf, "{date} {level:} {file_line:} {args}")?;
       Ok(())
     })
-    .init();
+    .build();
+
+  LogWrapper::new(INDICATIF.get_or_init(MultiProgress::new).clone(), logger)
+    .try_init()
+    .unwrap();
 }
 
 pub fn global_init() {

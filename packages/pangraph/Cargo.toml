@@ -38,6 +38,8 @@ eyre = { workspace = true }
 flate2 = { workspace = true }
 gcollections = { workspace = true }
 getset = { workspace = true }
+indicatif = { workspace = true }
+indicatif-log-bridge = { workspace = true }
 indoc = { workspace = true }
 intervallum = { workspace = true }
 itertools = { workspace = true }

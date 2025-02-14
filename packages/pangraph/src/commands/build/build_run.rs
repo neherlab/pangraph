@@ -7,6 +7,7 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::strand::Strand::Forward;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
+use crate::utils::progress_bar::ProgressBar;
 use crate::{make_internal_error, make_internal_report};
 use color_eyre::owo_colors::{AnsiColors, OwoColorize};
 use color_eyre::{Help, SectionExt};
@@ -66,6 +67,7 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
 pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
   // Build singleton graphs from input sequences
   // TODO: initial graphs can potentially be constructed when initializing tree clades. This could avoid a lot of boilerplate code.
+  let n_paths = fastas.len();
   let graphs = fastas
     .into_iter()
     .map(|fasta| Pangraph::singleton(fasta, Forward, args.circular)) // FIXME: strand hardcoded
@@ -73,6 +75,9 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
 
   // Build guide tree
   let tree = build_tree_using_neighbor_joining(graphs)?;
+
+  // Instantiate the progress bar
+  let pb = ProgressBar::new(n_paths - 1, args.no_progress_bar)?;
 
   // Main loop: traverse the tree starting from leaf nodes and build the graphs bottom-up all the way to the root node.
   // The graph of the root node is the graph we are looking for.
@@ -93,6 +98,9 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
           );
 
           clade.data = Some(merge_graphs(left, right, args).wrap_err("When merging graphs")?);
+
+          // increase progress bar
+          pb.inc(1);
 
           info!(
             "=== Graph merging completed: clades sizes {} + {} -> {}",
@@ -123,6 +131,9 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
   .into_iter()
   .collect::<Result<Vec<_>, Report>>()
   .wrap_err("When traversing guide tree")?;
+
+  // Finish progress bar
+  pb.finish_with_message("Graph merging completed");
 
   let graph = tree
     .write()
