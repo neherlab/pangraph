@@ -67,17 +67,21 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
 pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
   // Build singleton graphs from input sequences
   // TODO: initial graphs can potentially be constructed when initializing tree clades. This could avoid a lot of boilerplate code.
+  let n_paths = fastas.len();
   let graphs = fastas
     .into_iter()
     .map(|fasta| Pangraph::singleton(fasta, Forward, args.circular)) // FIXME: strand hardcoded
     .collect_vec();
 
-  let n_genomes = graphs.len();
-
   // Build guide tree
   let tree = build_tree_using_neighbor_joining(graphs)?;
 
-  let pb = ProgressBar::new(n_genomes)?;
+  // Unless no_progress_bar is true, instantiate the progress bar
+  let pb = if args.no_progress_bar || (n_paths <= 1) {
+    None
+  } else {
+    Some(ProgressBar::new(n_paths - 1)?)
+  };
 
   // Main loop: traverse the tree starting from leaf nodes and build the graphs bottom-up all the way to the root node.
   // The graph of the root node is the graph we are looking for.
@@ -97,9 +101,11 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
             right.paths.len()
           );
 
-          pb.inc(1);
-
           clade.data = Some(merge_graphs(left, right, args).wrap_err("When merging graphs")?);
+
+          if let Some(pb) = &pb {
+            pb.inc(1);
+          }
 
           info!(
             "=== Graph merging completed: clades sizes {} + {} -> {}",
@@ -131,7 +137,9 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
   .collect::<Result<Vec<_>, Report>>()
   .wrap_err("When traversing guide tree")?;
 
-  pb.finish_with_message("Graph merging completed");
+  if let Some(pb) = pb {
+    pb.finish_with_message("Graph merging completed");
+  }
 
   let graph = tree
     .write()

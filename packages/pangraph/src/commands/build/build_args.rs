@@ -66,4 +66,8 @@ pub struct PangraphBuildArgs {
   /// Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise.
   #[clap(long, short = 'f')]
   pub verify: bool,
+
+  /// Toggle to disable progress bar
+  #[clap(long)]
+  pub no_progress_bar: bool,
 }
