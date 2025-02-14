@@ -10,7 +10,10 @@ pub struct ProgressBar {
 }
 
 impl ProgressBar {
-  pub fn new(n_total: usize) -> Result<Self, Report> {
+  pub fn new(n_total: usize, deactivate: bool) -> Result<Self, Report> {
+    if deactivate || (n_total <= 1) {
+      return Ok(Self { pb: None });
+    }
     let pb = is_tty(Stream::Stdout).then(|| {
       let pb = ProgressBarBase::new(n_total as u64);
       pb.enable_steady_tick(Duration::from_secs(1));

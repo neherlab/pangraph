@@ -76,12 +76,8 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
   // Build guide tree
   let tree = build_tree_using_neighbor_joining(graphs)?;
 
-  // Unless no_progress_bar is true, instantiate the progress bar
-  let pb = if args.no_progress_bar || (n_paths <= 1) {
-    None
-  } else {
-    Some(ProgressBar::new(n_paths - 1)?)
-  };
+  // Instantiate the progress bar
+  let pb = ProgressBar::new(n_paths - 1, args.no_progress_bar)?;
 
   // Main loop: traverse the tree starting from leaf nodes and build the graphs bottom-up all the way to the root node.
   // The graph of the root node is the graph we are looking for.
@@ -103,9 +99,8 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
 
           clade.data = Some(merge_graphs(left, right, args).wrap_err("When merging graphs")?);
 
-          if let Some(pb) = &pb {
-            pb.inc(1);
-          }
+          // increase progress bar
+          pb.inc(1);
 
           info!(
             "=== Graph merging completed: clades sizes {} + {} -> {}",
@@ -137,9 +132,8 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
   .collect::<Result<Vec<_>, Report>>()
   .wrap_err("When traversing guide tree")?;
 
-  if let Some(pb) = pb {
-    pb.finish_with_message("Graph merging completed");
-  }
+  // Finish progress bar
+  pb.finish_with_message("Graph merging completed");
 
   let graph = tree
     .write()
