@@ -128,6 +128,7 @@ Align genomes into a multiple sequence alignment graph
   Possible values: `minimap2`, `mmseqs`
 
 * `-f`, `--verify` — Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise
+* `--no-progress-bar` — Toggle to disable progress bar. Notice that the progress bar is only displayed if the output is specified via the `-o` argument
 
 
 
