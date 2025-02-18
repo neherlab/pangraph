@@ -7,7 +7,7 @@
 
 ### Add progress bar
 
-`pangraph build` command now displays a progress bar which helps to estimate the time required to complete the operation. Add `--no-progress-bar` .
+`pangraph build` command now displays a progress bar which helps to estimate the time required to complete the operation. Add `--no-progress-bar` if you want to hide it.
 
 
 ## 1.0.0
