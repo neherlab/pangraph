@@ -1,4 +1,4 @@
-## Unreleased
+## 1.1.0
 
 ### Make Pangraph CLI logs less verbose
 
