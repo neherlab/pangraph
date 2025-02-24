@@ -205,15 +205,15 @@ impl Pangraph {
     Ok(())
   }
 
-  pub fn path_ids(&self) -> impl Iterator<Item = PathId> + '_ {
+  pub fn path_ids(&self) -> impl Iterator<Item = PathId> + use<'_> {
     self.paths.keys().copied()
   }
 
-  pub fn block_ids(&self) -> impl Iterator<Item = BlockId> + '_ {
+  pub fn block_ids(&self) -> impl Iterator<Item = BlockId> + use<'_> {
     self.blocks.keys().copied()
   }
 
-  pub fn node_ids(&self) -> impl Iterator<Item = NodeId> + '_ {
+  pub fn node_ids(&self) -> impl Iterator<Item = NodeId> + use<'_> {
     self.nodes.keys().copied()
   }
 
@@ -226,7 +226,7 @@ impl Pangraph {
   }
 
   /// Returns a list of core block ids. Core blocks are present exactly once in each path.
-  pub fn core_block_ids(&self) -> impl Iterator<Item = BlockId> + '_ {
+  pub fn core_block_ids(&self) -> impl Iterator<Item = BlockId> + use<'_> {
     let path_ids: BTreeSet<_> = self.path_ids().collect();
     self.blocks.iter().filter_map(move |(block_id, block)| {
       let block_path_ids: BTreeSet<_> = block

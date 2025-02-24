@@ -99,7 +99,7 @@ impl<P: PositionLike> Range<P> {
   }
 
   #[inline]
-  pub fn iter(&self) -> impl Iterator<Item = P> {
+  pub fn iter(&self) -> impl Iterator<Item = P> + use<P> {
     ((self.begin.into())..(self.end.into())).map(Into::into)
   }
 

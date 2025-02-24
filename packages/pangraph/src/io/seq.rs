@@ -2,8 +2,8 @@ use crate::make_error;
 use crate::representation::seq::Seq;
 use crate::representation::seq_char::AsciiChar;
 use eyre::Report;
-use rand::seq::SliceRandom;
 use rand::Rng;
+use rand::seq::IndexedRandom;
 
 pub fn complement(nuc: &AsciiChar) -> Result<AsciiChar, Report> {
   Ok(match *nuc {

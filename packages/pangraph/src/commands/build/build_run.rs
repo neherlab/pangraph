@@ -90,7 +90,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
       (Some(left), Some(right)) => {
         // Case: internal node with two children. Action: produce graph for this node based on the graphs of its children.
         // Assumption: Child nodes are assumed to be already visited at this point.
-        if let (Some(left), Some(right)) = (&left.read().data, &right.read().data) {
+        match (&left.read().data, &right.read().data) { (Some(left), Some(right)) => {
           info!(
             "=== Graph merging start:     clades sizes {} + {}",
             left.paths.len(),
@@ -118,9 +118,9 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
             .wrap_err("failed sanity check after merging graphs.")?;
 
           Ok(())
-        } else {
+        } _ => {
           make_internal_error!("Found internal clade with two children, of which one or both have no graph attached.")
-        }
+        }}
       }
       (None, Some(child)) | (Some(child), None) => {
         // Case: internal node with one child. Action: ???
