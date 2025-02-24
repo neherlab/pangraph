@@ -1,5 +1,5 @@
-use parking_lot::lock_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard, RwLock};
 use parking_lot::RawRwLock;
+use parking_lot::lock_api::{ArcRwLockReadGuard, ArcRwLockWriteGuard, RwLock};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;

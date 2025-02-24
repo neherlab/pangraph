@@ -1,6 +1,6 @@
 use crate::io::json::json_or_yaml_write_file;
 use eyre::Report;
-use schemars::{schema_for, JsonSchema};
+use schemars::{JsonSchema, schema_for};
 use std::path::Path;
 
 /// Write JSON Schema derived from type T into a file

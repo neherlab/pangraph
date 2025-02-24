@@ -1,9 +1,9 @@
 use crate::align::nextclade::align::params::NextalignParams;
 use crate::align::nextclade::alphabet::complement::reverse_complement_in_place;
 use crate::align::nextclade::alphabet::letter::Letter;
-use crate::align::nextclade::alphabet::nuc::{from_nuc_seq, Nuc};
+use crate::align::nextclade::alphabet::nuc::{Nuc, from_nuc_seq};
 use bio::alphabets;
-use bio::data_structures::bwt::{bwt, less, Less, Occ, BWT};
+use bio::data_structures::bwt::{BWT, Less, Occ, bwt, less};
 use bio::data_structures::fmindex::{BackwardSearchResult, FMIndex, FMIndexable};
 use bio::data_structures::suffix_array::suffix_array;
 use eyre::Report;
@@ -385,7 +385,7 @@ fn chain_seeds(matches: &[SeedMatch2]) -> Vec<SeedMatch2> {
 
         scores[endpoint.j] = matches[endpoint.j].length + best_chain_score;
         previous_match[endpoint.j] = index;
-      }
+      },
       EndpointSide::End => {
         // Check whether this match is optimal and if so, insert into triplets vec
         // Find last triplet that ends after this match's ref_end as later triplets have superior ref_ends
@@ -416,7 +416,7 @@ fn chain_seeds(matches: &[SeedMatch2]) -> Vec<SeedMatch2> {
           triplets.sort_by(|b, a| a.ref_end.cmp(&b.ref_end));
           triplets.retain(|triplet| triplet.ref_end < added_triplet.ref_end || triplet.score >= added_triplet.score);
         }
-      }
+      },
     }
   }
 
@@ -531,6 +531,6 @@ pub fn get_seed_matches_maybe_reverse_complement<'a>(
       } else {
         Err(report)
       }
-    }
+    },
   }
 }

@@ -4,7 +4,7 @@ use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::strand::Strand;
 use crate::{make_error, make_internal_error};
 use eyre::{Report, WrapErr};
-use itertools::{izip, Itertools};
+use itertools::{Itertools, izip};
 use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset, Minimap2Result};
 use noodles::sam::record::Cigar;
 use num_traits::clamp_min;
@@ -32,7 +32,11 @@ fn align_with_minimap2_lib_impl(
   params: &AlignmentArgs,
 ) -> Result<Vec<Alignment>, Report> {
   if names.len() != seqs.len() {
-    return make_internal_error!("Number of sequences and number of sequence names is expected to be the same, but found: {} sequences and {} names", seqs.len(), names.len());
+    return make_internal_error!(
+      "Number of sequences and number of sequence names is expected to be the same, but found: {} sequences and {} names",
+      seqs.len(),
+      names.len()
+    );
   }
 
   let preset = match params.sensitivity {

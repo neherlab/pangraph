@@ -2,7 +2,7 @@ use crate::commands::build::build_run::build_run;
 use crate::commands::export::export_run::export_run;
 use crate::commands::md_help::print_help_markdown::print_help_markdown;
 use crate::commands::reconstruct::reconstruct_run::reconstruct_run;
-use crate::commands::root_args::{generate_shell_completions, parse_cli_args, PangraphCommands};
+use crate::commands::root_args::{PangraphCommands, generate_shell_completions, parse_cli_args};
 use crate::commands::schema::generate_schema::generate_schema;
 use crate::commands::simplify::simplify_run::simplify_run;
 use eyre::Report;

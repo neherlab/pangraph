@@ -9,16 +9,16 @@ pub fn export_run(args: PangraphExportArgs) -> Result<(), Report> {
   match args {
     PangraphExportArgs::Gfa(args) => {
       export_gfa(args)?;
-    }
+    },
     PangraphExportArgs::BlockConsensus(args) => {
       export_block_consensus(args)?;
-    }
+    },
     PangraphExportArgs::BlockSequences(args) => {
       export_block_sequences(args)?;
-    }
+    },
     PangraphExportArgs::CoreGenome(args) => {
       export_core_genome(args)?;
-    }
+    },
   }
   Ok(())
 }

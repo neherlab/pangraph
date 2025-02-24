@@ -5,9 +5,9 @@ use crate::make_internal_error;
 use crate::pangraph::strand::Strand;
 use eyre::Report;
 use itertools::Itertools;
-use noodles::sam::record::cigar::op::Kind;
-use noodles::sam::record::cigar::Op;
 use noodles::sam::record::Cigar;
+use noodles::sam::record::cigar::Op;
+use noodles::sam::record::cigar::op::Kind;
 use std::cmp::max;
 
 /// Split the alignments whenever an alignment contains an in/del longer than the threshold length.
@@ -53,17 +53,17 @@ pub fn keep_groups(cigar: &Cigar, args: &AlignmentArgs) -> Result<Vec<(usize, us
         I_sum = 0;
         D_sum = 0;
         last_match = Some(i);
-      }
+      },
       Kind::Insertion => {
         I_sum += op.len();
-      }
+      },
       Kind::Deletion => {
         D_sum += op.len();
-      }
+      },
       Kind::SoftClip | Kind::HardClip | Kind::Pad | Kind::Skip => {
         // TODO: Should these cases also be handled?
         return make_internal_error!("Unexpected CIGAR operation: '{:#}'", op.kind());
-      }
+      },
     }
 
     // Of indel is longer than threshold, split groups

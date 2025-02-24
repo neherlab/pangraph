@@ -103,13 +103,13 @@ fn reconsensus_mutations(block: &mut PangraphBlock) -> Result<(), Report> {
             edit.subs.push(Sub::new(pos, original));
             edit.subs.sort_by_key(|s| s.pos);
           }
-        }
+        },
         1 => {
           let s = &subs_at_pos[0];
           if s.alt == alt {
             edit.subs.retain(|sub| !(sub.pos == pos && sub.alt == alt));
           }
-        }
+        },
         _ => {
           return make_error!(
             "At block {}: at position {pos}: sequence states disagree: {:}",
@@ -119,8 +119,8 @@ fn reconsensus_mutations(block: &mut PangraphBlock) -> Result<(), Report> {
               .map(|sub| sub.alt.to_string())
               .collect_vec()
               .join(", ")
-          )
-        }
+          );
+        },
       }
     }
   }

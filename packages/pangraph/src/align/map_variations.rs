@@ -1,4 +1,4 @@
-use crate::align::nextclade::align_with_nextclade::{align_with_nextclade, AlignWithNextcladeOutput, NextalignParams};
+use crate::align::nextclade::align_with_nextclade::{AlignWithNextcladeOutput, NextalignParams, align_with_nextclade};
 use crate::align::nextclade::alphabet::nuc::{from_nuc, from_nuc_seq};
 use crate::pangraph::edits::{Del, Edit, Ins, Sub};
 use crate::representation::seq::Seq;

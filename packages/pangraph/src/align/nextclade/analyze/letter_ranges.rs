@@ -80,12 +80,12 @@ pub fn find_letter_ranges_by<L: Letter<L>, P: PositionLike>(
         result.push(LetterRange { range, letter });
 
         found_maybe = None;
-      }
+      },
       None => {
         if i < len {
           i += 1;
         }
-      }
+      },
     }
   }
   result

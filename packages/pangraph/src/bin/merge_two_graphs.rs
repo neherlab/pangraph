@@ -3,7 +3,7 @@ use ctor::ctor;
 use eyre::{Report, WrapErr};
 use log::info;
 use pangraph::commands::build::build_args::PangraphBuildArgs;
-use pangraph::io::json::{json_write_file, JsonPretty};
+use pangraph::io::json::{JsonPretty, json_write_file};
 use pangraph::pangraph::graph_merging::merge_graphs;
 use pangraph::pangraph::pangraph::Pangraph;
 use pangraph::utils::global_init::global_init;
