@@ -118,7 +118,9 @@ impl<'a> FastaReader<'a> {
 
           if self.index == 0 && self.n_chars == 0 {
             // We have read no records and no non-whitespace characters by the end of input
-            warn!("FASTA input is empty or consists entirely from whitespace: this is allowed but might not be what's intended");
+            warn!(
+              "FASTA input is empty or consists entirely from whitespace: this is allowed but might not be what's intended"
+            );
             return Ok(());
           }
 
@@ -138,7 +140,9 @@ impl<'a> FastaReader<'a> {
     }
 
     let header_line = self.line.trim();
-    let (name, desc) = header_line[1..].split_once(' ').unwrap_or((&header_line[1..], ""));
+    let (name, desc) = header_line[1..]
+      .split_once(' ')
+      .unwrap_or_else(|| (&header_line[1..], ""));
     record.seq_name = name.to_owned();
     record.desc = if desc.is_empty() { None } else { Some(desc.to_owned()) };
     record.index = self.index;

@@ -98,6 +98,7 @@ twox-hash = { version = "=2.1.0", features = ["serialize"] }
 warnings = { level = "warn", priority = -100 }
 future_incompatible = { level = "warn", priority = -90 }
 deprecated_in_future = { level = "warn", priority = -80 }
+deprecated_safe = { level = "warn", priority = -81 }
 
 rust_2018_compatibility = { level = "warn", priority = -70 }
 rust_2018_idioms = { level = "warn", priority = -70 }
@@ -120,7 +121,6 @@ unused_variables = "allow"
 # Enable lints not enabled by default
 # https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html
 absolute_paths_not_starting_with_crate = "warn"
-deprecated_safe = "warn"
 explicit_outlives_requirements = "warn"
 ffi_unwind_calls = "warn"
 keyword_idents_2018 = "warn"
@@ -163,14 +163,15 @@ variant_size_differences = "warn"
 # We go bold and enable all Clippy lints, then disable the ones that we don't need.
 # This has an advantage that when upgrading Rust and Clippy, we receive new lints automatically.
 all = { level = "warn", priority = -2 }
-pedantic = { level = "warn", priority = -1 }
 blanket_clippy_restriction_lints = "allow"
-restriction = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+restriction = { level = "warn", priority = -1 }
 # Disable some of the Clippy lints
 absolute_paths = "allow"
 allow_attributes = "allow"
 allow_attributes_without_reason = "allow"
+arbitrary_source_item_ordering = "allow"
 arithmetic_side_effects = "allow"
 as_conversions = "allow"
 assign_op_pattern = "allow"
@@ -253,6 +254,7 @@ std_instead_of_core = "allow"
 struct_excessive_bools = "allow"
 struct_field_names = "allow"
 suboptimal_flops = "allow"
+too_long_first_doc_paragraph = "allow"
 too_many_arguments = "allow"
 too_many_lines = "allow"
 type_repetition_in_bounds = "allow"
@@ -262,6 +264,7 @@ unreachable = "allow"
 unreadable_literal = "allow"
 unsafe_derive_deserialize = "allow"
 unused_self = "allow"
+unused_trait_names = "allow"
 unused_unit = "allow"
 unwrap_in_result = "allow"
 unwrap_used = "allow"

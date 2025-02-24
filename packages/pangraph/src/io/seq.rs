@@ -4,6 +4,7 @@ use crate::representation::seq_char::AsciiChar;
 use eyre::Report;
 use rand::Rng;
 use rand::seq::IndexedRandom;
+use std::iter::repeat_with;
 
 pub fn complement(nuc: &AsciiChar) -> Result<AsciiChar, Report> {
   Ok(match *nuc {
@@ -33,8 +34,8 @@ pub fn reverse_complement(seq: &Seq) -> Result<Seq, Report> {
 
 pub fn generate_random_nuc_sequence(length: usize, rng: &mut impl Rng) -> Seq {
   const CHOICES: [char; 4] = ['A', 'C', 'G', 'T'];
-  (0..length)
-    .map(|_| CHOICES.choose(rng).expect("choosing from an empty set"))
+  repeat_with(|| CHOICES.choose(rng).expect("choosing from an empty set"))
+    .take(length)
     .map(|c| AsciiChar::from(*c))
     .collect()
 }
