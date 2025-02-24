@@ -28,10 +28,10 @@ authors = ["NeherLab team"]
 
 [workspace.dependencies]
 bzip2 = { version = "=0.5.1", features = ["static"] }
-flate2 = "=1.0.35"
+flate2 = "=1.1.0"
 libz-sys = { version = "=1.1.21", features = ["static", "stock-zlib", "cmake"] }
 xz2 = { version = "=0.1.7", features = ["static"] }
-zstd = { version = "=0.13.2", features = ["zstdmt"] }
+zstd = { version = "=0.13.3", features = ["zstdmt"] }
 
 
 minimap2 = { path = "packages/minimap2", features = ["serde"] }
@@ -62,7 +62,7 @@ indoc = "=2.0.5"
 intervallum = "=1.4.1"
 itertools = "=0.14.0"
 lazy_static = "=1.5.0"
-log = "=0.4.25"
+log = "=0.4.26"
 maplit = "=1.0.2"
 ndarray = { version = "=0.16.1", features = ["rayon", "serde", "blas", "approx"] }
 ndarray-stats = "=0.6.0"

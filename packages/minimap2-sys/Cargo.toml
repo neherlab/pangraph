@@ -34,7 +34,7 @@ libz-sys = { version = "1.1.21", default-features = false }
 
 [build-dependencies]
 bindgen = { version = "0.71.1", features = ["which-rustfmt", "runtime"] }
-cc = { version = "1.2.14" }
+cc = { version = "1.2.15" }
 
 [features]
 default = ["libz-sys/libc"]
