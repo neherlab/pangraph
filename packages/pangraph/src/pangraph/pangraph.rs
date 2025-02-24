@@ -8,7 +8,7 @@ use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::pangraph_path::{PangraphPath, PathId};
 use crate::pangraph::strand::Strand;
 use crate::representation::seq::Seq;
-use crate::utils::map_merge::{map_merge, ConflictResolution};
+use crate::utils::map_merge::{ConflictResolution, map_merge};
 use eyre::{Report, WrapErr};
 use maplit::btreemap;
 use schemars::JsonSchema;

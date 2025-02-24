@@ -1,6 +1,6 @@
 use crate::io::file::open_file_or_stdin;
 use crate::make_report;
-use eyre::{eyre, Report, WrapErr};
+use eyre::{Report, WrapErr, eyre};
 use std::ffi::{OsStr, OsString};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};

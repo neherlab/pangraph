@@ -1,7 +1,7 @@
 use crate::circularize::circularize::remove_transitive_edges;
 use crate::commands::simplify::simplify_args::PangraphSimplifyArgs;
 use crate::io::file::create_file_or_stdout;
-use crate::io::json::{json_write, JsonPretty};
+use crate::io::json::{JsonPretty, json_write};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_path::PathId;
 use eyre::Report;

@@ -1,9 +1,9 @@
 use crate::align::nextclade::align::params::NextalignParams;
 use crate::align::nextclade::alphabet::complement::reverse_complement_in_place;
 use crate::align::nextclade::alphabet::letter::Letter;
-use crate::align::nextclade::alphabet::nuc::{from_nuc_seq, Nuc};
+use crate::align::nextclade::alphabet::nuc::{Nuc, from_nuc_seq};
 use bio::alphabets;
-use bio::data_structures::bwt::{bwt, less, Less, Occ, BWT};
+use bio::data_structures::bwt::{BWT, Less, Occ, bwt, less};
 use bio::data_structures::fmindex::{BackwardSearchResult, FMIndex, FMIndexable};
 use bio::data_structures::suffix_array::suffix_array;
 use eyre::Report;

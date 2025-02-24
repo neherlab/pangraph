@@ -1,6 +1,6 @@
 use eyre::{Report, WrapErr};
-use noodles::sam::record::cigar::op::Kind;
 use noodles::sam::record::Cigar;
+use noodles::sam::record::cigar::op::Kind;
 use std::str::FromStr;
 
 pub fn parse_cigar_str(cigar_str: impl AsRef<str>) -> Result<Cigar, Report> {
@@ -25,8 +25,8 @@ pub fn cigar_total_len(cigar: &Cigar) -> usize {
 mod tests {
   use super::*;
   use eyre::Report;
-  use noodles::sam::record::cigar::op::Kind;
   use noodles::sam::record::cigar::Op;
+  use noodles::sam::record::cigar::op::Kind;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 

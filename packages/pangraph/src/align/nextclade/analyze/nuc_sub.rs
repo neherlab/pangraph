@@ -1,5 +1,5 @@
 use crate::align::nextclade::alphabet::letter::Letter;
-use crate::align::nextclade::alphabet::nuc::{from_nuc, Nuc};
+use crate::align::nextclade::alphabet::nuc::{Nuc, from_nuc};
 use crate::align::nextclade::analyze::abstract_mutation::{AbstractMutation, MutParams, Pos, QryLetter, RefLetter};
 use crate::align::nextclade::analyze::nuc_del::NucDel;
 use crate::align::nextclade::coord::position::NucRefGlobalPosition;

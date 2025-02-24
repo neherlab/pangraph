@@ -5,9 +5,9 @@ use crate::make_internal_error;
 use crate::pangraph::strand::Strand;
 use eyre::Report;
 use itertools::Itertools;
-use noodles::sam::record::cigar::op::Kind;
-use noodles::sam::record::cigar::Op;
 use noodles::sam::record::Cigar;
+use noodles::sam::record::cigar::Op;
+use noodles::sam::record::cigar::op::Kind;
 use std::cmp::max;
 
 /// Split the alignments whenever an alignment contains an in/del longer than the threshold length.

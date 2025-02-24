@@ -9,7 +9,7 @@ use crate::utils::lock::Lock;
 use crate::utils::ndarray::broadcast;
 use eyre::Report;
 use itertools::Itertools;
-use ndarray::{s, Array1, Array2, Axis};
+use ndarray::{Array1, Array2, Axis, s};
 use ndarray_stats::QuantileExt;
 
 /// Generate guide tree using neighbor joining method.

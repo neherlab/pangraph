@@ -1,7 +1,7 @@
 use auto_ops::{impl_op_ex, impl_op_ex_commutative};
 use derive_more::Display as DeriveDisplay;
 use num::Integer;
-use num_traits::{clamp, clamp_max, clamp_min, AsPrimitive};
+use num_traits::{AsPrimitive, clamp, clamp_max, clamp_min};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};

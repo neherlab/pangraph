@@ -1,5 +1,5 @@
 use crate::io::fasta::FastaRecord;
-use crate::io::json::{json_write_str, JsonPretty};
+use crate::io::json::{JsonPretty, json_write_str};
 use crate::io::seq::reverse_complement;
 use crate::pangraph::edits::Edit;
 use crate::pangraph::pangraph::Pangraph;

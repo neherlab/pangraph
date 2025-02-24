@@ -4,7 +4,7 @@ mod common;
 mod tests {
   use eyre::Report;
   use pangraph::commands::export::export_args::PangraphExportBlockSequencesArgs;
-  use pangraph::commands::export::export_block_sequences::{export_block_sequences, ExportBlockSequencesParams};
+  use pangraph::commands::export::export_block_sequences::{ExportBlockSequencesParams, export_block_sequences};
   use pangraph::io::fasta::read_many_fasta;
   use pangraph::pangraph::pangraph::Pangraph;
   use pangraph::pangraph::pangraph_node::NodeId;

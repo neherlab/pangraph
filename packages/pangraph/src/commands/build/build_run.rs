@@ -1,7 +1,7 @@
 use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
 use crate::commands::reconstruct::reconstruct_run::{compare_sequences, reconstruct};
-use crate::io::fasta::{read_many_fasta, FastaRecord};
-use crate::io::json::{json_write_file, JsonPretty};
+use crate::io::fasta::{FastaRecord, read_many_fasta};
+use crate::io::json::{JsonPretty, json_write_file};
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::strand::Strand::Forward;
@@ -90,37 +90,40 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
       (Some(left), Some(right)) => {
         // Case: internal node with two children. Action: produce graph for this node based on the graphs of its children.
         // Assumption: Child nodes are assumed to be already visited at this point.
-        match (&left.read().data, &right.read().data) { (Some(left), Some(right)) => {
-          info!(
-            "=== Graph merging start:     clades sizes {} + {}",
-            left.paths.len(),
-            right.paths.len()
-          );
+        match (&left.read().data, &right.read().data) {
+          (Some(left), Some(right)) => {
+            info!(
+              "=== Graph merging start:     clades sizes {} + {}",
+              left.paths.len(),
+              right.paths.len()
+            );
 
-          clade.data = Some(merge_graphs(left, right, args).wrap_err("When merging graphs")?);
+            clade.data = Some(merge_graphs(left, right, args).wrap_err("When merging graphs")?);
 
-          // increase progress bar
-          pb.inc(1);
+            // increase progress bar
+            pb.inc(1);
 
-          info!(
-            "=== Graph merging completed: clades sizes {} + {} -> {}",
-            left.paths.len(),
-            right.paths.len(),
-            clade.data.as_ref().unwrap().paths.len()
-          );
+            info!(
+              "=== Graph merging completed: clades sizes {} + {} -> {}",
+              left.paths.len(),
+              right.paths.len(),
+              clade.data.as_ref().unwrap().paths.len()
+            );
 
-          #[cfg(debug_assertions)]
-          clade
-            .data
-            .as_ref()
-            .unwrap()
-            .sanity_check()
-            .wrap_err("failed sanity check after merging graphs.")?;
+            #[cfg(debug_assertions)]
+            clade
+              .data
+              .as_ref()
+              .unwrap()
+              .sanity_check()
+              .wrap_err("failed sanity check after merging graphs.")?;
 
-          Ok(())
-        } _ => {
-          make_internal_error!("Found internal clade with two children, of which one or both have no graph attached.")
-        }}
+            Ok(())
+          }
+          _ => {
+            make_internal_error!("Found internal clade with two children, of which one or both have no graph attached.")
+          }
+        }
       }
       (None, Some(child)) | (Some(child), None) => {
         // Case: internal node with one child. Action: ???

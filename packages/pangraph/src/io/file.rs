@@ -2,12 +2,12 @@ use crate::io::fs::ensure_dir;
 use eyre::{Report, WrapErr};
 use log::{info, warn};
 use std::fs::File;
-use std::io::{stdin, stdout, BufRead, BufReader, BufWriter, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write, stdin, stdout};
 use std::path::{Path, PathBuf};
 
 use crate::io::compression::{Compressor, Decompressor};
 #[cfg(not(target_arch = "wasm32"))]
-use atty::{is as is_tty, Stream};
+use atty::{Stream, is as is_tty};
 
 pub const DEFAULT_FILE_BUF_SIZE: usize = 256 * 1024;
 

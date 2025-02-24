@@ -292,12 +292,12 @@ mod tests {
   use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
   use crate::pangraph::pangraph_path::{PangraphPath, PathId};
   use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use crate::representation::seq::Seq;
   use crate::utils::interval::Interval;
   use crate::utils::random::get_random_number_generator;
   use maplit::{btreemap, btreeset};
   use noodles::sam::record::Cigar;
   use pretty_assertions::assert_eq;
-  use crate::representation::seq::Seq;
 
   #[test]
   fn test_extract_hits() {
@@ -841,9 +841,10 @@ mod tests {
 
     let bid20_2 = G.nodes[&nid_200_3].block_id();
     assert!(G.blocks.contains_key(&bid20_2)); // block is already in the graph
-    assert!(!P
-      .iter()
-      .any(|p| p.anchor_block.id() == bid20_2 || p.append_block.id() == bid20_2));
+    assert!(
+      !P.iter()
+        .any(|p| p.anchor_block.id() == bid20_2 || p.append_block.id() == bid20_2)
+    );
     let ed20_2 = &G.blocks[&bid20_2].alignments()[&nid_200_3];
     assert_eq!(ed20_2, &Edit::new([i(50, 5, "A")], [], [s(25, 'T')]));
 

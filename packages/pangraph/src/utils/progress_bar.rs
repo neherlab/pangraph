@@ -1,5 +1,5 @@
 use crate::utils::global_init::INDICATIF;
-use atty::{is as is_tty, Stream};
+use atty::{Stream, is as is_tty};
 use eyre::Report;
 use indicatif::{ProgressBar as ProgressBarBase, ProgressStyle};
 use std::borrow::Cow;

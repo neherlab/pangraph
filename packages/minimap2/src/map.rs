@@ -3,9 +3,9 @@
 
 use crate::buf::Minimap2Buffer;
 use crate::index::Minimap2Index;
-use eyre::{eyre, Report};
+use eyre::{Report, eyre};
 use itertools::Itertools;
-use minimap2_sys::{free, mm_event_identity, mm_extra_t, mm_idx_t, mm_map, mm_reg1_t, MM_CIGAR_CHARS};
+use minimap2_sys::{MM_CIGAR_CHARS, free, mm_event_identity, mm_extra_t, mm_idx_t, mm_map, mm_reg1_t};
 use ordered_float::OrderedFloat;
 use std::ffi::{CStr, CString};
 use std::os::raw::{c_char, c_int};

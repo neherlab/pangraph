@@ -5,9 +5,9 @@ mod tests {
   use eyre::Report;
   use itertools::Itertools;
   use pangraph::commands::export::export_args::PangraphExportCoreAlignmentArgs;
-  use pangraph::commands::export::export_core_genome::{export_core_genome, ExportCoreAlignmentParams};
+  use pangraph::commands::export::export_core_genome::{ExportCoreAlignmentParams, export_core_genome};
   use pangraph::io::fasta::read_many_fasta;
-  use pangraph::io::json::{json_write_str, JsonPretty};
+  use pangraph::io::json::{JsonPretty, json_write_str};
   use pangraph::o;
   use pangraph::pangraph::pangraph::Pangraph;
   use pretty_assertions::assert_eq;

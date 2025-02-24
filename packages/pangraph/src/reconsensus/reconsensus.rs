@@ -119,7 +119,7 @@ fn reconsensus_mutations(block: &mut PangraphBlock) -> Result<(), Report> {
               .map(|sub| sub.alt.to_string())
               .collect_vec()
               .join(", ")
-          )
+          );
         }
       }
     }

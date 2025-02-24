@@ -1,7 +1,7 @@
 #![allow(unsafe_code)]
-use crate::options_args::{init_opts, Minimap2Args};
+use crate::options_args::{Minimap2Args, init_opts};
 use crate::ptr::is_null;
-use eyre::{eyre, Report};
+use eyre::{Report, eyre};
 use minimap2_sys::{mm_check_opt, mm_idxopt_t, mm_mapopt_t, mm_set_opt};
 use std::ffi::CString;
 use std::mem::MaybeUninit;
