@@ -171,14 +171,14 @@ impl PangraphBlock {
           let descr = Some(meta);
 
           (id, descr)
-        }
+        },
         RecordNaming::Path => {
           let path_id = graph.nodes[node_id].path_id();
           let path = &graph.paths[&path_id];
           let id = path.name.as_ref().map_or_else(|| path_id.to_string(), |p| p.to_owned());
           let desc = path.desc.clone();
           (id, desc)
-        }
+        },
       };
 
       let seq = if aligned {
