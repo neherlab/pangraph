@@ -1,4 +1,16 @@
-## Unreleased
+## 1.1.0
+
+### Make Pangraph CLI logs less verbose
+
+`pangraph build` command now displays only essential information when in "info" verbosity mode (with a single `-v`). To display a more verbose log, add multiple occurences of `-v`: e.g. `-vv`, `-vvv` etc.
+
+
+### Add progress bar
+
+`pangraph build` command now displays a progress bar which helps to estimate the time required to complete the operation. Add `--no-progress-bar` if you want to hide it.
+
+
+## 1.0.0
 
 This release introduces several significant updates, including a complete rewrite of the algorithm in Rust to boost both speed and reliability in graph construction. PanGraph can now be compiled as a standalone binary, greatly simplifying installation. The release also contains several **breaking changes**.
 

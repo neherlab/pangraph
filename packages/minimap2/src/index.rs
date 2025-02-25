@@ -1,11 +1,11 @@
 use crate::options::Minimap2Options;
 use crate::options_args::Minimap2Args;
-use eyre::{eyre, Report};
-use minimap2_sys::{mm_idx_destroy, mm_idx_str, mm_idx_t, mm_mapopt_update, MM_I_HPC};
-use std::ffi::{c_char, CString};
+use eyre::{Report, eyre};
+use minimap2_sys::{MM_I_HPC, mm_idx_destroy, mm_idx_str, mm_idx_t, mm_mapopt_update};
+use std::ffi::{CString, c_char};
 use std::os::raw::{c_int, c_short};
-use std::sync::atomic::AtomicPtr;
 use std::sync::Arc;
+use std::sync::atomic::AtomicPtr;
 
 #[derive(Debug)]
 pub struct Minimap2Index {

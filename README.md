@@ -40,7 +40,7 @@ PanGraph is available as a Docker container:
 docker pull neherlab/pangraph:latest
 ```
 
-See the [documentation](https://docs.pangraph.org/installation/with-docker) for extended instuctions on its usage.
+See the [documentation](https://docs.pangraph.org/installation/with-docker) for extended instructions on its usage.
 
 
 ## Examples
@@ -56,8 +56,8 @@ pangraph build sequences.fa -o graph.json
 Extract the core-genome alignment from the graph, with blocks appearing in the order of the reference genome `NC_010468`:
 ```bash
 pangraph export core-genome graph.json \
-    --guide-strain NC_010468 \
-    -o core_genome_aln.fa
+  --guide-strain NC_010468 \
+  -o core_genome_aln.fa
 ```
 
 Export the graph in gfa format for visualization:

@@ -1,7 +1,7 @@
 use clap::{Parser, ValueHint};
 use ctor::ctor;
 use eyre::Report;
-use pangraph::align::nextclade::align_with_nextclade::{align_with_nextclade, NextalignParams};
+use pangraph::align::nextclade::align_with_nextclade::{NextalignParams, align_with_nextclade};
 use pangraph::io::fasta::{read_many_fasta, read_one_fasta};
 use pangraph::utils::global_init::global_init;
 use std::path::PathBuf;
