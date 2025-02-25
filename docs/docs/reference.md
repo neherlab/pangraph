@@ -115,6 +115,7 @@ Align genomes into a multiple sequence alignment graph
 
   Default value: `10`
 * `-K`, `--kmer-length <KMER_LENGTH>` — Sets kmer length for mmseqs2 aligner
+* `-S`, `--strict-max-divergence` — Set strict maximal divergence. When toggled, proposed mergers with maximal divergence above 1/b are rejected
 * `-c`, `--circular` — Toggle if input genomes are circular
 * `-x`, `--max-self-map <MAX_SELF_MAP>` — Maximum number of alignment rounds to consider per pairwise graph merger
 

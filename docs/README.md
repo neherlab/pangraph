@@ -55,7 +55,7 @@ The `docs/docs/reference.md` file is generated using script `generate-reference-
 ```bash
 cargo build --bin=pangraph
 cd docs
-./generate-reference-docs "../target/debug/pangraph" "docs/docs/reference.md"
+./generate-reference-docs "../target/debug/pangraph" "docs/reference.md"
 ```
 
 > ⚠️ Do not edit the generated file manually! All manual changes will be overwritten by automation.
