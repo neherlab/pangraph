@@ -37,7 +37,7 @@ This is the recommended way to install Pangraph. You can download the latest rel
 PanGraph is available as a Docker container:
 
 ```bash
-    docker pull neherlab/pangraph:latest
+docker pull neherlab/pangraph:latest
 ```
 
 See the [documentation](https://docs.pangraph.org/installation/with-docker) for extended instuctions on its usage.
@@ -50,24 +50,24 @@ For a quick reference, see below.
 
 Align a multi-fasta `sequences.fa` in a graph:
 ```bash
-	pangraph build sequences.fa > graph.json
+pangraph build sequences.fa > graph.json
 ```
 
 Extract the core-genome alignment from the graph, with blocks appearing in the order of the reference genome `NC_010468`:
 ```bash
-	pangraph export core-genome graph.json \
-        --guide-strain NC_010468 \
-        > core_genome_aln.fa
+pangraph export core-genome graph.json \
+    --guide-strain NC_010468 \
+    > core_genome_aln.fa
 ```
 
 Export the graph in gfa format for visualization:
 ```bash
-    pangraph export gfa graph.json > graph.gfa
+pangraph export gfa graph.json > graph.gfa
 ```
 
 Reconstruct input sequences from the graph:
 ```bash
-    pangraph reconstruct graph.json > sequences.fa
+pangraph reconstruct graph.json > sequences.fa
 ```
 
 ## PyPangraph
