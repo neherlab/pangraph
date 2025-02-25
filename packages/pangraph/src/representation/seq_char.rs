@@ -19,6 +19,10 @@ impl AsciiChar {
     debug_assert!(s.len() == 1);
     Self(s.as_bytes()[0])
   }
+
+  pub fn is_ambiguous(&self) -> bool {
+    matches!(self.0, b'N' | b'n')
+  }
 }
 
 impl core::fmt::Display for AsciiChar {

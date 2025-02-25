@@ -188,7 +188,7 @@ pub fn find_matches(
 pub fn filter_matches(
   alns: &[Alignment],
   args: &AlignmentArgs,
-  block_divergence: &Option<BTreeMap<BlockId, f64>>,
+  block_divergence: &Option<BTreeMap<BlockId, Option<f64>>>,
 ) -> Vec<Alignment> {
   // - evaluates the energy of the alignments
   // - keeps only matches with E < 0
@@ -206,17 +206,25 @@ pub fn filter_matches(
     .map(|(aln, _)| aln)
     .collect_vec();
 
+  // if strict_max_divergence is set, and beta > 0, then
   // filter alignment, only keep those with max divergence below the threshold
-  if args.strict_max_divergence {
+  if args.strict_max_divergence && (args.beta > 0.0) {
     let bd = block_divergence.as_ref().unwrap();
     let alns = alns
       .iter()
       .filter(|aln| {
-        let div_q = bd.get(&aln.qry.name).copied().unwrap_or(0.0);
-        let div_r = bd.get(&aln.reff.name).copied().unwrap_or(0.0);
-        let aln_div = aln.divergence.unwrap_or(0.0);
-        let total_div = div_q + div_r + aln_div;
-        total_div < 1. / args.beta
+        let div_q = bd.get(&aln.qry.name).unwrap();
+        let div_r = bd.get(&aln.reff.name).unwrap();
+        let aln_div = aln.divergence.unwrap();
+
+        // if any of these options is not set, remove the alignment
+        match (div_q, div_r) {
+          (Some(div_q), Some(div_r)) => {
+            let total_div = div_q + div_r + aln_div;
+            total_div < 1. / args.beta
+          }
+          _ => false,
+        }
       })
       .copied()
       .collect_vec();

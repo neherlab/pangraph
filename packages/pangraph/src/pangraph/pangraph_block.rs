@@ -12,6 +12,7 @@ use derive_more::{Display, From};
 use eyre::{Report, WrapErr};
 use getset::{CopyGetters, Getters};
 use maplit::btreemap;
+use ordered_float::OrderedFloat;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -196,14 +197,33 @@ impl PangraphBlock {
     })
   }
 
-  pub fn max_divergence(&self) -> f64 {
+  pub fn max_divergence(&self) -> Option<f64> {
+    // length of consensus sequence minus ambiguous nucleotides
     let consensus_len = self.consensus_len();
-    self
+    let ambiguous_positions = self.consensus.ambiguous_positions();
+
+    // if any of the divergences cannot be calculated, return None
+    let divs = self
       .alignments
       .values()
-      .map(|edit| edit.divergence(consensus_len))
-      .max_by(|a, b| a.partial_cmp(b).unwrap())
-      .unwrap()
+      .map(|edit| edit.divergence(consensus_len, &ambiguous_positions))
+      .collect::<Vec<_>>();
+
+    // if any of the divergences cannot be calculated, return None
+    if divs.iter().any(|div| div.is_none()) {
+      None
+    } else {
+      Some(
+        divs
+          .iter()
+          .map(|div| OrderedFloat(div.unwrap()))
+          .max()
+          .unwrap()
+          .into_inner(),
+      )
+    }
+
+    // return the maximum divergence
   }
 }
 

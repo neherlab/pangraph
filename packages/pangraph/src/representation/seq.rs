@@ -184,6 +184,19 @@ impl Seq {
   pub fn rotate_right(&mut self, mid: usize) {
     self.data.rotate_right(mid);
   }
+
+  pub fn n_ambiguous_bases(&self) -> usize {
+    self.data.iter().filter(|&c| c.is_ambiguous()).count()
+  }
+
+  pub fn ambiguous_positions(&self) -> Vec<usize> {
+    self
+      .data
+      .iter()
+      .enumerate()
+      .filter_map(|(i, c)| c.is_ambiguous().then_some(i))
+      .collect()
+  }
 }
 
 impl PartialEq<str> for Seq {
