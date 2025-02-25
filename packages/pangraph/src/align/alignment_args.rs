@@ -32,4 +32,8 @@ pub struct AlignmentArgs {
   #[clap(long, short = 'K')]
   #[clap(value_hint = ValueHint::Other)]
   pub kmer_length: Option<usize>,
+
+  /// Set strict maximal divergence. When toggled, proposed mergers with maximal divergence above 1/b are rejected.
+  #[clap(long, short = 'S')]
+  pub strict_max_divergence: bool,
 }

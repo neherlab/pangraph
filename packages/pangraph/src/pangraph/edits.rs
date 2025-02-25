@@ -36,6 +36,10 @@ impl Sub {
       alt: self.alt,
     }
   }
+
+  pub fn to_n(&self) -> bool {
+    self.alt == AsciiChar(b'N') || self.alt == AsciiChar(b'n')
+  }
 }
 
 #[must_use]
@@ -247,6 +251,15 @@ impl Edit {
     // otherwise, apply the edits and check if the resulting sequence is empty
     let seq_len = self.apply(consensus).unwrap().len();
     seq_len == 0
+  }
+
+  // Return the average divergence from the consensus sequence,
+  // given as number of mutations (excluding `N`) per non-deleted base.
+  pub fn divergence(&self, cons_len: usize) -> f64 {
+    let deleted_len = self.dels.iter().map(|d| d.len).sum::<usize>();
+    let n_bases = cons_len - deleted_len;
+    let n_mutations = self.subs.iter().filter(|s| !s.to_n()).count();
+    n_mutations as f64 / n_bases as f64
   }
 
   #[cfg(any(test, debug_assertions))]

@@ -130,6 +130,15 @@ impl Pangraph {
     }
   }
 
+  // Returns a map of block ids to the maximum divergence in the block alignment.
+  pub fn blocks_max_divergence(&self) -> BTreeMap<BlockId, f64> {
+    self
+      .blocks
+      .iter()
+      .map(|(bid, block)| (*bid, block.max_divergence()))
+      .collect()
+  }
+
   #[cfg(any(test, debug_assertions))]
   pub fn sanity_check(&self) -> Result<(), Report> {
     for (node_id, node) in &self.nodes {

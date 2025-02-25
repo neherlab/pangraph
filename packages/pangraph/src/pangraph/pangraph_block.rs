@@ -195,6 +195,16 @@ impl PangraphBlock {
       })
     })
   }
+
+  pub fn max_divergence(&self) -> f64 {
+    let consensus_len = self.consensus_len();
+    self
+      .alignments
+      .values()
+      .map(|edit| edit.divergence(consensus_len))
+      .max_by(|a, b| a.partial_cmp(b).unwrap())
+      .unwrap()
+  }
 }
 
 #[derive(Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
