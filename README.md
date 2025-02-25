@@ -50,24 +50,24 @@ For a quick reference, see below.
 
 Align a multi-fasta `sequences.fa` in a graph:
 ```bash
-pangraph build sequences.fa > graph.json
+pangraph build sequences.fa -o graph.json
 ```
 
 Extract the core-genome alignment from the graph, with blocks appearing in the order of the reference genome `NC_010468`:
 ```bash
 pangraph export core-genome graph.json \
     --guide-strain NC_010468 \
-    > core_genome_aln.fa
+    -o core_genome_aln.fa
 ```
 
 Export the graph in gfa format for visualization:
 ```bash
-pangraph export gfa graph.json > graph.gfa
+pangraph export gfa graph.json -o graph.gfa
 ```
 
 Reconstruct input sequences from the graph:
 ```bash
-pangraph reconstruct graph.json > sequences.fa
+pangraph reconstruct graph.json -o sequences.fa
 ```
 
 ## PyPangraph
