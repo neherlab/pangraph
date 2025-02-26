@@ -212,7 +212,11 @@ fn update_block_consensus(block: &mut PangraphBlock, consensus: &Seq) -> Result<
   // Re-align sequences
   let alignments = seqs
     .into_par_iter()
-    .map(|(nid, seq)| Ok((nid, map_variations(consensus, &seq)?)))
+    .map(|(nid, seq)| {
+      // TODO: improve on this
+      let mean_shift = (consensus.len() as i32 - seq.len() as i32) / 2;
+      Ok((nid, map_variations(consensus, &seq, mean_shift)?))
+    })
     .collect::<Result<_, Report>>()?;
 
   *block = PangraphBlock::new(block.id(), consensus, alignments);

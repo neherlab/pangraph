@@ -46,7 +46,8 @@ impl MergePromise {
         let edits = if seq.is_empty() {
           Edit::deleted(self.anchor_block.consensus().len())
         } else {
-          map_variations(self.anchor_block.consensus(), &seq)?
+          let mean_shift = (self.anchor_block.consensus().len() as i32 - seq.len() as i32) / 2;
+          map_variations(self.anchor_block.consensus(), &seq, mean_shift)?
         };
 
         #[cfg(any(test, debug_assertions))]

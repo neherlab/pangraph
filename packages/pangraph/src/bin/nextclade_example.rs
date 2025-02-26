@@ -30,9 +30,14 @@ fn main() -> Result<(), Report> {
   let ref_record = read_one_fasta(input_ref_fasta)?;
 
   let qry_records = read_many_fasta(&input_query_fastas)?;
-
   for qry_record in qry_records {
-    let result = align_with_nextclade(&ref_record.seq, &qry_record.seq, &NextalignParams::default())?;
+    let mean_shift = (ref_record.seq.len() as i32 - qry_record.seq.len() as i32) / 2;
+    let result = align_with_nextclade(
+      &ref_record.seq,
+      &qry_record.seq,
+      mean_shift,
+      &NextalignParams::default(),
+    )?;
     println!("{:#?}", &result);
   }
 

@@ -5,7 +5,7 @@ use crate::representation::seq::Seq;
 use eyre::Report;
 use itertools::Itertools;
 
-pub fn map_variations(ref_seq: &Seq, qry_seq: &Seq) -> Result<Edit, Report> {
+pub fn map_variations(ref_seq: &Seq, qry_seq: &Seq, mean_shift: i32) -> Result<Edit, Report> {
   let params = NextalignParams {
     min_length: 1,
     ..NextalignParams::default()
@@ -16,7 +16,7 @@ pub fn map_variations(ref_seq: &Seq, qry_seq: &Seq) -> Result<Edit, Report> {
     deletions,
     insertions,
     ..
-  } = align_with_nextclade(ref_seq.as_str(), qry_seq.as_str(), &params)?;
+  } = align_with_nextclade(ref_seq.as_str(), qry_seq.as_str(), mean_shift, &params)?;
 
   let subs = substitutions
     .iter()
@@ -55,7 +55,8 @@ mod tests {
     let r = "ACTTTGCGTCTGATAGCTTAGCGGATATTTACTGTA";
     let q = "ACTAGATTGAGTCTGATAGCTTAGCGGATATTGTA";
 
-    let actual = map_variations(&Seq::from(r), &Seq::from(q)).unwrap();
+    let mean_shift = (r.len() as i32 - q.len() as i32) / 2;
+    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift).unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(6, 'A')],
@@ -83,8 +84,8 @@ mod tests {
 
     let r = "ACACTGATTTCGTCCCTTAGGTACTCTACACTGTAGCCTA";
     let q = "CTGATTTAGTCCCTTAGGGGTTACTCTACACTGTAG";
-
-    let actual = map_variations(&Seq::from(r), &Seq::from(q)).unwrap();
+    let mean_shift = (r.len() as i32 - q.len() as i32) / 2;
+    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift).unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(10, 'A')],
@@ -112,8 +113,8 @@ mod tests {
 
     let r = "ACACTGATTTCGTCCCTTAGGTACTCTACACTGTAGCCTA";
     let q = "CCTGACACTGATTTAGTCCTAGGGGTTACTCTACACCGTAGCCTAGCCGCCG";
-
-    let actual = map_variations(&Seq::from(r), &Seq::from(q)).unwrap();
+    let mean_shift = (r.len() as i32 - q.len() as i32) / 2;
+    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift).unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(10, 'A'), Sub::new(31, 'C')],
@@ -140,8 +141,8 @@ mod tests {
 
     let r = "CGCCCTACTACAAGAGGGAACTTTTTTTTTAAGTATAGCCACAATAGCTGG";
     let q = "CGCCCTACTACAAGAGGGAACGGGGGGGGGGGGGAAGTATAGCCACAATAGCTGG";
-
-    let actual = map_variations(&Seq::from(r), &Seq::from(q)).unwrap();
+    let mean_shift = (r.len() as i32 - q.len() as i32) / 2;
+    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift).unwrap();
 
     let expected = Edit {
       subs: vec![],

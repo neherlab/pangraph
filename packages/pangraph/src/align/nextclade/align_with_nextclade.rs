@@ -22,13 +22,14 @@ pub struct AlignWithNextcladeOutput {
 pub fn align_with_nextclade(
   reff: impl AsRef<str>,
   qry: impl AsRef<str>,
+  mean_shift: i32,
   params: &NextalignParams,
 ) -> Result<AlignWithNextcladeOutput, Report> {
   let ref_seq = to_nuc_seq(reff.as_ref()).wrap_err("When converting reference sequence")?;
   let qry_seq = to_nuc_seq(qry.as_ref()).wrap_err("When converting query sequence")?;
   let gap_open_close = get_gap_open_close_scores_flat(&ref_seq, params);
 
-  let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, params)
+  let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, mean_shift, params)
     .wrap_err("When aligning sequences with nextclade align")?;
 
   // println!("{:?}", alignment);
@@ -88,7 +89,8 @@ mod tests {
       ..NextalignParams::default()
     };
 
-    let actual = align_with_nextclade(ref_seq, qry_seq, &params)?;
+    let mean_shift = (ref_seq.len() as i32 - qry_seq.len() as i32) / 2;
+    let actual = align_with_nextclade(ref_seq, qry_seq, mean_shift, &params)?;
 
     let expected = AlignWithNextcladeOutput {
       qry_aln,
@@ -148,7 +150,8 @@ mod tests {
       ..NextalignParams::default()
     };
 
-    let actual = align_with_nextclade(ref_seq, qry_seq, &params)?;
+    let mean_shift = (ref_seq.len() as i32 - qry_seq.len() as i32) / 2;
+    let actual = align_with_nextclade(ref_seq, qry_seq, mean_shift, &params)?;
 
     let expected = AlignWithNextcladeOutput {
       qry_aln,
@@ -213,7 +216,9 @@ mod tests {
       ..NextalignParams::default()
     };
 
-    let actual = align_with_nextclade(ref_seq, qry_seq, &params)?;
+    let mean_shift = (ref_seq.len() as i32 - qry_seq.len() as i32) / 2;
+
+    let actual = align_with_nextclade(ref_seq, qry_seq, mean_shift, &params)?;
 
     let subs = [
       (9, Nuc::A),
