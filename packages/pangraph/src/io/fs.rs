@@ -1,6 +1,6 @@
 use crate::io::file::open_file_or_stdin;
 use crate::make_report;
-use eyre::{eyre, Report, WrapErr};
+use eyre::{Report, WrapErr, eyre};
 use std::ffi::{OsStr, OsString};
 use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
@@ -54,7 +54,7 @@ pub fn extension(filepath: impl AsRef<Path>) -> Option<String> {
 }
 
 pub fn has_extension(filepath: impl AsRef<Path>, ext: impl AsRef<str>) -> bool {
-  extension(filepath.as_ref()).map_or(false, |fext| fext.eq_ignore_ascii_case(ext.as_ref()))
+  extension(filepath.as_ref()).is_some_and(|fext| fext.eq_ignore_ascii_case(ext.as_ref()))
 }
 
 pub fn add_extension(filepath: impl AsRef<Path>, extension: impl AsRef<OsStr>) -> PathBuf {

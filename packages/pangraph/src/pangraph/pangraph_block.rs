@@ -1,5 +1,5 @@
 use crate::io::fasta::FastaRecord;
-use crate::io::json::{json_write_str, JsonPretty};
+use crate::io::json::{JsonPretty, json_write_str};
 use crate::io::seq::reverse_complement;
 use crate::pangraph::edits::Edit;
 use crate::pangraph::pangraph::Pangraph;
@@ -171,14 +171,14 @@ impl PangraphBlock {
           let descr = Some(meta);
 
           (id, descr)
-        }
+        },
         RecordNaming::Path => {
           let path_id = graph.nodes[node_id].path_id();
           let path = &graph.paths[&path_id];
           let id = path.name.as_ref().map_or_else(|| path_id.to_string(), |p| p.to_owned());
           let desc = path.desc.clone();
           (id, desc)
-        }
+        },
       };
 
       let seq = if aligned {

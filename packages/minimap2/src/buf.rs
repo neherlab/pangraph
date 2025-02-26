@@ -1,5 +1,5 @@
 #![allow(unsafe_code)]
-use eyre::{eyre, Report};
+use eyre::{Report, eyre};
 use minimap2_sys::{mm_tbuf_destroy, mm_tbuf_init, mm_tbuf_t};
 use std::ptr::NonNull;
 

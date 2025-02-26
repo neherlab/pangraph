@@ -1,4 +1,4 @@
-use clap::{value_parser, Args, ValueHint};
+use clap::{Args, ValueHint, value_parser};
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
 

@@ -47,7 +47,7 @@ pub fn compare_sequences(left: &FastaRecord, right: &FastaRecord) -> bool {
   true
 }
 
-pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord, Report>> + '_ {
+pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord, Report>> + use<'_> {
   graph
     .paths
     .iter()

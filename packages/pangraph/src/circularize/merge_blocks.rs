@@ -217,7 +217,7 @@ fn graph_merging_update_paths(graph: &mut Pangraph, new_nodes: &BTreeMap<NodeId,
       Some(new_node) if graph.nodes[nid].block_id() == bid_left => {
         *nid = new_node.id();
         true
-      }
+      },
       Some(_) => false,
       None => true,
     });

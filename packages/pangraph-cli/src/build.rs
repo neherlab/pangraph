@@ -1,5 +1,5 @@
 use eyre::Report;
-use pangraph::commands::schema::generate_schema::{generate_schema, PangraphGenerateSchemaArgs};
+use pangraph::commands::schema::generate_schema::{PangraphGenerateSchemaArgs, generate_schema};
 use std::path::PathBuf;
 
 fn main() -> Result<(), Report> {

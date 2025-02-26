@@ -1,11 +1,11 @@
-use crate::align::nextclade::align::backtrace::{backtrace, AlignmentOutput};
+use crate::align::nextclade::align::backtrace::{AlignmentOutput, backtrace};
 use crate::align::nextclade::align::band_2d::Stripe;
 use crate::align::nextclade::align::band_2d::{full_matrix, simple_stripes};
 use crate::align::nextclade::align::params::NextalignParams;
-use crate::align::nextclade::align::score_matrix::{score_matrix, ScoreMatrixResult};
+use crate::align::nextclade::align::score_matrix::{ScoreMatrixResult, score_matrix};
 use crate::align::nextclade::align::seed_alignment::create_alignment_band;
 use crate::align::nextclade::align::seed_match::{
-  get_seed_matches_maybe_reverse_complement, CodonSpacedIndex, SeedMatchesResult,
+  CodonSpacedIndex, SeedMatchesResult, get_seed_matches_maybe_reverse_complement,
 };
 use crate::align::nextclade::alphabet::letter::Letter;
 use crate::align::nextclade::alphabet::nuc::Nuc;
@@ -53,7 +53,11 @@ pub fn align_nuc_simplestripe(
   let mut alignment = align_pairwise(qry_seq, ref_seq, gap_open_close, params, &stripes);
 
   while alignment.hit_boundary && attempt < params.max_alignment_attempts {
-    debug!("In nucleotide alignment: Band boundary is hit on attempt {}. Retrying with relaxed parameters. Alignment score was: {}", attempt+1, alignment.alignment_score);
+    debug!(
+      "In nucleotide alignment: Band boundary is hit on attempt {}. Retrying with relaxed parameters. Alignment score was: {}",
+      attempt + 1,
+      alignment.alignment_score
+    );
     // double bandwidth parameters or increase to one if 0
     band_width = max(2 * band_width, 1);
     stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
@@ -64,7 +68,10 @@ pub fn align_nuc_simplestripe(
 
   // report success/failure of broadening of band width
   if alignment.hit_boundary {
-    warn!("In nucleotide alignment: Attempted to relax band parameters {attempt} times, but still hitting the band boundary. Returning last attempt with score: {}", alignment.alignment_score);
+    warn!(
+      "In nucleotide alignment: Attempted to relax band parameters {attempt} times, but still hitting the band boundary. Returning last attempt with score: {}",
+      alignment.alignment_score
+    );
   } else if attempt > 0 {
     debug!(
       "In nucleotide alignment: Succeeded without hitting band boundary on attempt {}. Alignment score was: {}",
@@ -97,7 +104,9 @@ pub fn align_nuc(
   if ref_len + qry_len < (20 * params.kmer_length) {
     // for very short sequences, use full square
     let stripes = full_matrix(ref_len, qry_len);
-    trace!("When processing sequence #{index} '{seq_name}': In nucleotide alignment: Band construction: short sequences, using full matrix");
+    trace!(
+      "When processing sequence #{index} '{seq_name}': In nucleotide alignment: Band construction: short sequences, using full matrix"
+    );
     return Ok(Some(align_pairwise(qry_seq, ref_seq, gap_open_close, params, &stripes)));
   }
 
@@ -128,13 +137,19 @@ pub fn align_nuc(
     minimal_bandwidth,
   );
   if band_area > max_band_area {
-    return make_error!("Alignment matrix size {band_area} exceeds maximum value {max_band_area}. The threshold can be adjusted using CLI flag '--max-band-area' or using 'maxBandArea' field in the dataset's pathogen.json");
+    return make_error!(
+      "Alignment matrix size {band_area} exceeds maximum value {max_band_area}. The threshold can be adjusted using CLI flag '--max-band-area' or using 'maxBandArea' field in the dataset's pathogen.json"
+    );
   }
 
   let mut alignment = align_pairwise(&qry_seq, ref_seq, gap_open_close, params, &stripes);
 
   while alignment.hit_boundary && attempt < params.max_alignment_attempts {
-    debug!("When processing sequence #{index} '{seq_name}': In nucleotide alignment: Band boundary is hit on attempt {}. Retrying with relaxed parameters. Alignment score was: {}", attempt+1, alignment.alignment_score);
+    debug!(
+      "When processing sequence #{index} '{seq_name}': In nucleotide alignment: Band boundary is hit on attempt {}. Retrying with relaxed parameters. Alignment score was: {}",
+      attempt + 1,
+      alignment.alignment_score
+    );
     // double bandwidth parameters or increase to one if 0
     terminal_bandwidth = max(2 * terminal_bandwidth, 1);
     excess_bandwidth = max(2 * excess_bandwidth, 1);
@@ -158,14 +173,21 @@ pub fn align_nuc(
   }
   // report success/failure of broadening of band width
   if alignment.hit_boundary {
-    debug!("When processing sequence #{index} '{seq_name}': In nucleotide alignment: Attempted to relax band parameters {attempt} times, but still hitting the band boundary. Returning last attempt with score: {}", alignment.alignment_score);
+    debug!(
+      "When processing sequence #{index} '{seq_name}': In nucleotide alignment: Attempted to relax band parameters {attempt} times, but still hitting the band boundary. Returning last attempt with score: {}",
+      alignment.alignment_score
+    );
     if band_area > max_band_area {
       debug!(
         "When processing sequence #{index} '{seq_name}': final band area {band_area} exceeded the cutoff {max_band_area}"
       );
     }
   } else if attempt > 0 {
-    debug!("When processing sequence #{index} '{seq_name}': In nucleotide alignment: Succeeded without hitting band boundary on attempt {}. Alignment score was: {}", attempt+1, alignment.alignment_score);
+    debug!(
+      "When processing sequence #{index} '{seq_name}': In nucleotide alignment: Succeeded without hitting band boundary on attempt {}. Alignment score was: {}",
+      attempt + 1,
+      alignment.alignment_score
+    );
   }
   alignment.is_reverse_complement = is_reverse_complement;
   Ok(Some(alignment))
