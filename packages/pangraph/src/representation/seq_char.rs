@@ -21,7 +21,31 @@ impl AsciiChar {
   }
 
   pub fn is_ambiguous(&self) -> bool {
-    matches!(self.0, b'N' | b'n')
+    matches!(
+      self.0,
+      b'N'
+        | b'n'
+        | b'R'
+        | b'r'
+        | b'Y'
+        | b'y'
+        | b'S'
+        | b's'
+        | b'W'
+        | b'w'
+        | b'K'
+        | b'k'
+        | b'M'
+        | b'm'
+        | b'B'
+        | b'b'
+        | b'D'
+        | b'd'
+        | b'H'
+        | b'h'
+        | b'V'
+        | b'v'
+    )
   }
 }
 
