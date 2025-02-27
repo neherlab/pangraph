@@ -1,9 +1,11 @@
 use crate::align::map_variations::map_variations;
 use crate::make_error;
+use crate::pangraph::edits::{Del, Edit};
 use crate::pangraph::edits::{Ins, Sub};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::NodeId;
+use crate::utils::interval::positions_to_intervals;
 // use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
 use crate::reconsensus::remove_nodes::find_empty_nodes;
 use crate::representation::seq::Seq;
@@ -52,11 +54,24 @@ fn reconsensus(block: &mut PangraphBlock) -> Result<(), Report> {
   if !ins.is_empty() || !dels.is_empty() {
     let consensus = block.consensus();
     let consensus = apply_indels(consensus, &dels, &ins);
+    // average shift of the new consensus with respect to the old one
+    // once the indels are applied
+    // used to help re-align the sequences
+    let new_consensus_shift = Edit {
+      subs: vec![],
+      dels: positions_to_intervals(&dels)
+        .iter()
+        .map(|d| Del::new(d.start, d.len()))
+        .collect(),
+      inss: ins,
+    }
+    .average_displacement(block.consensus_len())
+    .unwrap();
 
     // debug assert: consensus is not empty
     debug_assert!(!consensus.is_empty(), "Consensus is empty after indels");
 
-    update_block_consensus(block, &consensus)?;
+    update_block_consensus(block, &consensus, new_consensus_shift)?;
   }
   Ok(())
 }
@@ -185,18 +200,25 @@ fn apply_indels(cons: impl Into<Seq>, dels: &[usize], inss: &[Ins]) -> Seq {
 }
 
 /// Updates the consensus sequence of the block and re-aligns the sequences to the new consensus.
-fn update_block_consensus(block: &mut PangraphBlock, consensus: &Seq) -> Result<(), Report> {
+fn update_block_consensus(block: &mut PangraphBlock, consensus: &Seq, new_consensus_shift: i32) -> Result<(), Report> {
   // Reconstruct block sequences
   let seqs = block
     .alignments()
     .iter()
-    .map(|(&nid, edit)| Ok((nid, edit.apply(block.consensus())?)))
-    .collect::<Result<BTreeMap<NodeId, Seq>, Report>>()?;
+    .map(|(&nid, edit)| {
+      let seq = edit.apply(block.consensus())?;
+      let old_shift = edit.average_displacement(block.consensus_len()).unwrap();
+      let new_shift = old_shift - new_consensus_shift;
+      // NB: previously simply approximated as:
+      // let new_shift = (consensus.len() as i32 - seq.len() as i32) / 2;
+      Ok((nid, (seq, new_shift)))
+    })
+    .collect::<Result<BTreeMap<NodeId, (Seq, i32)>, Report>>()?;
 
   // debug assets: all sequences are non-empty
   #[cfg(any(debug_assertions, test))]
   {
-    for (nid, seq) in &seqs {
+    for (nid, (seq, d)) in &seqs {
       if seq.is_empty() {
         return make_error!(
           "node is empty!\nblock: {}\nnode: {}\nedits: {:?}\nconsensus: {}",
@@ -212,11 +234,7 @@ fn update_block_consensus(block: &mut PangraphBlock, consensus: &Seq) -> Result<
   // Re-align sequences
   let alignments = seqs
     .into_par_iter()
-    .map(|(nid, seq)| {
-      // TODO: improve on this
-      let mean_shift = (consensus.len() as i32 - seq.len() as i32) / 2;
-      Ok((nid, map_variations(consensus, &seq, mean_shift)?))
-    })
+    .map(|(nid, (seq, shift))| Ok((nid, map_variations(consensus, &seq, shift)?)))
     .collect::<Result<_, Report>>()?;
 
   *block = PangraphBlock::new(block.id(), consensus, alignments);
