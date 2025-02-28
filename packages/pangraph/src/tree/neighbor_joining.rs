@@ -3,7 +3,7 @@
 use crate::distance::mash::mash_distance::mash_distance;
 use crate::distance::mash::minimizer::MinimizersParams;
 use crate::pangraph::pangraph::Pangraph;
-use crate::tree::balance::balance;
+// use crate::tree::balance::balance;
 use crate::tree::clade::Clade;
 use crate::utils::lock::Lock;
 use crate::utils::ndarray::broadcast;
@@ -28,7 +28,7 @@ pub fn build_tree_using_neighbor_joining(graphs: Vec<Pangraph>) -> Result<Lock<C
   let tree = Lock::new(Clade::from_children(None, &nodes[0], &nodes[1]));
 
   // Balance guide tree (to increase available parallelism during parallel traversal?)
-  let tree = balance(&tree);
+  // let tree = balance(&tree);
 
   Ok(tree)
 }
