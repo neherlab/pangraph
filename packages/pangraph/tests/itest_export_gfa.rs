@@ -8,7 +8,6 @@ mod tests {
   use pangraph::commands::export::export_gfa::export_gfa;
   use pangraph::io::fs::read_file_to_string;
   use pangraph::io::gfa::GfaWriteParams;
-  use pangraph::pangraph::pangraph::Pangraph;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
   use std::path::PathBuf;
@@ -32,7 +31,6 @@ mod tests {
   ) -> Result<(), Report> {
     let input_json = Some(PathBuf::from("../../data/test_graph.json"));
     let output = tempdir()?.path().join("output.gfa");
-    let graph = Pangraph::from_path(&input_json)?;
 
     export_gfa(PangraphExportGfaArgs {
       input_json,

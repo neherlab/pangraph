@@ -76,17 +76,17 @@ pub fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
     blocks: map_merge(
       &left_graph.blocks,
       &right_graph.blocks,
-      ConflictResolution::Custom(|(kl, vl), (kr, vr)| panic!("Conflicting key: '{kl}'")),
+      ConflictResolution::Custom(|(kl, _vl), (_kr, _vr)| panic!("Conflicting key: '{kl}'")),
     ),
     paths: map_merge(
       &left_graph.paths,
       &right_graph.paths,
-      ConflictResolution::Custom(|(kl, vl), (kr, vr)| panic!("Conflicting key: '{kl}'")),
+      ConflictResolution::Custom(|(kl, _vl), (_kr, _vr)| panic!("Conflicting key: '{kl}'")),
     ),
     nodes: map_merge(
       &left_graph.nodes,
       &right_graph.nodes,
-      ConflictResolution::Custom(|(kl, vl), (kr, vr)| panic!("Conflicting key: '{kl}'")),
+      ConflictResolution::Custom(|(kl, _vl), (_kr, _vr)| panic!("Conflicting key: '{kl}'")),
     ),
   }
 }
@@ -156,7 +156,7 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
   graph.blocks = map_merge(
     &graph.blocks,
     &merged_blocks,
-    ConflictResolution::Custom(|(k1, _), (k2, _)| panic!("Conflicting key '{k1}'")),
+    ConflictResolution::Custom(|(k1, _), (_k2, _)| panic!("Conflicting key '{k1}'")),
   );
 
   // update consensus and alignment of merged blocks.

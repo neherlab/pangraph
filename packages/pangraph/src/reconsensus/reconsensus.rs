@@ -82,7 +82,7 @@ fn reconsensus_mutations(block: &mut PangraphBlock) -> Result<(), Report> {
   let mut muts = btreemap! {};
 
   // count mutations
-  for (&nid, edit) in block.alignments() {
+  for edit in block.alignments().values() {
     for s in &edit.subs {
       *muts
         .entry(s.pos)

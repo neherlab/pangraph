@@ -9,6 +9,7 @@ use std::env;
 use std::io::Write;
 use std::sync::OnceLock;
 
+#[allow(unused)]
 fn get_current_exe_filename() -> Option<String> {
   env::current_exe().ok().and_then(filename_maybe)
 }
@@ -47,7 +48,6 @@ pub fn setup_logger(filter_level: LevelFilter) {
   let logger = env_logger::Builder::from_env(Env::default().default_filter_or("warn"))
     .filter_level(filter_level)
     .format(|buf, record| {
-      let current_exe = get_current_exe_filename().unwrap_or_default().dimmed().to_string();
       let file_line = get_file_line(record);
       let level = color_log_level(record);
       let date = date_format_precise(&date_now()).dimmed().to_string();

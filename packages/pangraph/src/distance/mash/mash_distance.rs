@@ -90,8 +90,6 @@ mod tests {
 
   #[rstest]
   fn test_mash_distance_general_case() {
-    #[rustfmt::skip]
-
     let params = MinimizersParams { w: 16, k: 8 };
 
     // from this tree:
