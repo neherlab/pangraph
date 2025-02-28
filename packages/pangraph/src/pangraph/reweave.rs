@@ -37,15 +37,20 @@ impl MergePromise {
       .alignments()
       .par_iter()
       .map(|(node_id, edits)| {
-        let mut seq = edits.apply(self.append_block.consensus())?;
+        let seq = edits.apply(self.append_block.consensus())?;
 
         let edits = if seq.is_empty() {
           Edit::deleted(self.anchor_block.consensus().len())
         } else {
-          if !self.orientation.is_forward() {
-            seq = reverse_complement(&seq)?;
-            let edits = edits.reverse_complement(self.append_block.consensus().len()).unwrap();
+          let (seq, edits) = if !self.orientation.is_forward() {
+            (
+              reverse_complement(&seq)?,
+              &edits.reverse_complement(self.append_block.consensus().len()).unwrap(),
+            )
+          } else {
+            (seq, edits)
           };
+
           let mean_shift = edits.average_displacement(self.append_block.consensus().len()).unwrap();
           // Nb: previously, the mean_shift was simply approximated as:
           // let mean_shift = (self.anchor_block.consensus().len() as i32 - seq.len() as i32) / 2;

@@ -218,7 +218,7 @@ fn update_block_consensus(block: &mut PangraphBlock, consensus: &Seq, new_consen
   // debug assets: all sequences are non-empty
   #[cfg(any(debug_assertions, test))]
   {
-    for (nid, (seq, d)) in &seqs {
+    for (nid, (seq, _d)) in &seqs {
       if seq.is_empty() {
         return make_error!(
           "node is empty!\nblock: {}\nnode: {}\nedits: {:?}\nconsensus: {}",
