@@ -189,7 +189,7 @@ jobs:
 
       - name: "Run lints"
         run: |
-          ./dev/docker/run ./dev/dev lint
+          ./dev/docker/run ./dev/dev lint-ci
 
   run-smoke-tests:
     name: "Smoke tests"
