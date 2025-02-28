@@ -198,7 +198,7 @@ pub fn filter_matches(
 
   // TODO: energy is calculated for each alignment.
   // Consider calculating it earlier and making it a property to simplify filtering and sorting.
-  let alns = alns
+  let mut alns = alns
     .iter()
     .map(|aln| (aln, alignment_energy2(aln, args)))
     .filter(|(_, energy)| energy < &0.0)
@@ -210,7 +210,7 @@ pub fn filter_matches(
   // filter alignment, only keep those with max divergence below the threshold
   if args.strict_max_divergence && (args.beta > 0.0) {
     let bd = block_divergence.as_ref().unwrap();
-    let alns = alns
+    alns = alns
       .iter()
       .filter(|aln| {
         let div_q = bd.get(&aln.qry.name).unwrap();
@@ -222,7 +222,7 @@ pub fn filter_matches(
           (Some(div_q), Some(div_r)) => {
             let total_div = div_q + div_r + aln_div;
             total_div < 1. / args.beta
-          }
+          },
           _ => false,
         }
       })
