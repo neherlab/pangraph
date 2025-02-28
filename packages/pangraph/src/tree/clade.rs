@@ -122,13 +122,13 @@ mod tests {
     let b = Lock::new(Clade::new(N::new("B")));
     let c = Lock::new(Clade::new(N::new("C")));
     let d = Lock::new(Clade::new(N::new("D")));
-    let e = Lock::new(Clade::new(N::new("E")));
-    let f = Lock::new(Clade::new(N::new("F")));
+    let _e = Lock::new(Clade::new(N::new("E")));
+    let _f = Lock::new(Clade::new(N::new("F")));
     let g = Lock::new(Clade::new(N::new("G")));
     let h = Lock::new(Clade::new(N::new("H")));
-    let i = Lock::new(Clade::new(N::new("I")));
-    let j = Lock::new(Clade::new(N::new("J")));
-    let k = Lock::new(Clade::new(N::new("K")));
+    let _i = Lock::new(Clade::new(N::new("I")));
+    let _j = Lock::new(Clade::new(N::new("J")));
+    let _k = Lock::new(Clade::new(N::new("K")));
 
     let ab = Lock::new(Clade::from_children(N::new(""), &a, &b));
     let cd = Lock::new(Clade::from_children(N::new(""), &c, &d));

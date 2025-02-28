@@ -94,7 +94,6 @@ pub fn score_matrix<T: Letter<T>>(
       let r_gap_extend: i32;
       let r_gap_open: i32;
       let q_gap_open: i32;
-      let tmp_match: i32;
       let mut tmp_score: i32;
 
       if qpos == 0 {

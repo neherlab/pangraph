@@ -438,7 +438,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Forward);
     let edge = Edge { n1, n2 };
 
-    let (pairings, new_nodes) = find_node_pairings(&graph_b(), &edge);
+    let (pairings, _) = find_node_pairings(&graph_b(), &edge);
 
     assert_eq!(
       pairings,
@@ -459,7 +459,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Reverse);
     let edge = Edge { n1, n2 };
 
-    let (pairings, new_nodes) = find_node_pairings(&graph_a(), &edge);
+    let (pairings, _) = find_node_pairings(&graph_a(), &edge);
 
     assert_eq!(
       pairings,
@@ -480,7 +480,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Forward);
     let edge = Edge { n1, n2 };
 
-    let (pairings, new_nodes) = find_node_pairings(&graph_c(), &edge);
+    let (pairings, _) = find_node_pairings(&graph_c(), &edge);
 
     assert_eq!(
       pairings,
@@ -619,7 +619,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Reverse);
     let edge = Edge::new(n1, n2);
 
-    let (pairings, new_nodes) = find_node_pairings(&graph_a(), &edge);
+    let (pairings, _) = find_node_pairings(&graph_a(), &edge);
 
     let new_nodes_ids = expected_new_node_ids_a();
     let block = concatenate_alignments(
@@ -638,7 +638,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Forward);
     let edge = Edge::new(n1, n2);
 
-    let (pairings, new_nodes) = find_node_pairings(&graph_b(), &edge);
+    let (pairings, _) = find_node_pairings(&graph_b(), &edge);
 
     let new_nodes_ids = expected_new_node_ids_b();
     let block = concatenate_alignments(
@@ -657,7 +657,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Forward);
     let edge = Edge::new(n1, n2);
 
-    let (pairings, new_nodes) = find_node_pairings(&graph_c(), &edge);
+    let (pairings, _) = find_node_pairings(&graph_c(), &edge);
 
     let new_nodes_ids = expected_new_node_ids_c();
     let block = concatenate_alignments(&block_1(), &block_2(), &pairings, &new_nodes_ids, BlockId(1));
@@ -778,7 +778,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Reverse);
     let edge = Edge::new(n1, n2);
     let mut g = graph_a();
-    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    let (_, new_nodes) = find_node_pairings(&g, &edge);
     graph_merging_update_paths(&mut g, &new_nodes, BlockId(1));
     assert_eq!(g.paths, expected_graph_a().paths);
   }
@@ -789,7 +789,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Forward);
     let edge = Edge::new(n1, n2);
     let mut g = graph_b();
-    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    let (_, new_nodes) = find_node_pairings(&g, &edge);
     graph_merging_update_paths(&mut g, &new_nodes, BlockId(1));
     assert_eq!(g.paths, expected_graph_b().paths);
   }
@@ -800,7 +800,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Forward);
     let edge = Edge::new(n1, n2);
     let mut g = graph_c();
-    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    let (_, new_nodes) = find_node_pairings(&g, &edge);
     graph_merging_update_paths(&mut g, &new_nodes, BlockId(1));
     assert_eq!(g.paths, expected_graph_c().paths);
   }
@@ -811,7 +811,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Reverse);
     let edge = Edge::new(n1, n2);
     let mut g = graph_a();
-    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    let (_, new_nodes) = find_node_pairings(&g, &edge);
     graph_merging_update_nodes(&mut g, &new_nodes, BlockId(1));
     assert_eq!(g.nodes, expected_graph_a().nodes);
   }
@@ -822,7 +822,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Forward);
     let edge = Edge::new(n1, n2);
     let mut g = graph_b();
-    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    let (_, new_nodes) = find_node_pairings(&g, &edge);
     graph_merging_update_nodes(&mut g, &new_nodes, BlockId(1));
     assert_eq!(g.nodes, expected_graph_b().nodes);
   }
@@ -833,7 +833,7 @@ mod tests {
     let n2 = SimpleNode::new(BlockId(2), Forward);
     let edge = Edge::new(n1, n2);
     let mut g = graph_c();
-    let (pairings, new_nodes) = find_node_pairings(&g, &edge);
+    let (_, new_nodes) = find_node_pairings(&g, &edge);
     graph_merging_update_nodes(&mut g, &new_nodes, BlockId(1));
     assert_eq!(g.nodes, expected_graph_c().nodes);
   }

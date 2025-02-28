@@ -56,8 +56,7 @@ pub fn simple_stripes(mean_shift: i32, band_width: usize, ref_len: usize, qry_le
 pub fn full_matrix(ref_len: usize, qry_len: usize) -> Vec<Stripe> {
   let mut stripes = Vec::<Stripe>::with_capacity(ref_len + 1);
   let ref_len_i32 = ref_len.to_i32().unwrap();
-  let qry_len_i32 = qry_len.to_i32().unwrap();
-  for i in 0..=ref_len_i32 {
+  for _ in 0..=ref_len_i32 {
     stripes.push(Stripe::new(0, qry_len + 1));
   }
   stripes
