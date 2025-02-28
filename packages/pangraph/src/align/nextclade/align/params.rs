@@ -168,7 +168,7 @@ impl Default for NextalignParams {
       min_match_length: 40,  // Experimentally determined, to keep off-target matches reasonably low
       allowed_mismatches: 8, // Ns count as mismatches
       window_size: 30,
-      max_alignment_attempts: 3,
+      max_alignment_attempts: 3, // to be chosen such that eventually the band width surpasses the expected threshold indel length
 
       // The following args are deprecated and are kept for backwards compatibility (to emit errors if they are set)
       max_indel: None,

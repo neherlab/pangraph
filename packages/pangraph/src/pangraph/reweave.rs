@@ -260,7 +260,10 @@ pub fn reweave(
   assign_new_block_ids(mergers);
   assign_anchor_block(mergers, &graph);
 
+  // dictionary of BlockId -> alignments. Nb: each alignment is present twice.
   let tb = target_blocks(mergers);
+
+  // containers for updates and promises
   let mut u = vec![];
   let mut h = vec![];
 

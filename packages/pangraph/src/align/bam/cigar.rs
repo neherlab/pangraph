@@ -1,6 +1,6 @@
-use eyre::{Report, WrapErr};
+use eyre::{Report, WrapErr, eyre};
 use noodles::sam::record::Cigar;
-use noodles::sam::record::cigar::op::Kind;
+use noodles::sam::record::cigar::op::{Kind, Op};
 use std::str::FromStr;
 
 pub fn parse_cigar_str(cigar_str: impl AsRef<str>) -> Result<Cigar, Report> {
@@ -19,6 +19,23 @@ pub fn cigar_matches_len(cigar: &Cigar) -> usize {
 
 pub fn cigar_total_len(cigar: &Cigar) -> usize {
   cigar.iter().map(|op| op.len()).sum()
+}
+
+pub fn invert_cigar(cigar: &Cigar) -> Result<Cigar, Report> {
+  let inverted_ops: Result<Vec<Op>, Report> = cigar
+    .iter()
+    .rev()
+    .map(|op| match op.kind() {
+      Kind::Match | Kind::SequenceMatch | Kind::SequenceMismatch => Ok(*op),
+      Kind::Insertion => Ok(Op::new(Kind::Deletion, op.len())),
+      Kind::Deletion => Ok(Op::new(Kind::Insertion, op.len())),
+      _ => Err(eyre!("CIGAR inversion: unsupported operation kind: {:?}", op.kind())),
+    })
+    .collect();
+
+  let inverted_ops = inverted_ops?;
+
+  Cigar::try_from(inverted_ops).wrap_err("Failed to create inverted CIGAR")
 }
 
 #[cfg(test)]
@@ -84,5 +101,35 @@ mod tests {
     assert_eq!(actual, expected);
 
     Ok(())
+  }
+
+  #[rstest]
+  fn test_invert_cigar() -> Result<(), Report> {
+    let cigar_str = "10M7I5M1D20M";
+    let cigar = parse_cigar_str(cigar_str)?;
+
+    let inverted = invert_cigar(&cigar)?;
+
+    let expected = Cigar::try_from(vec![
+      Op::new(Kind::Match, 20),
+      Op::new(Kind::Insertion, 1),
+      Op::new(Kind::Match, 5),
+      Op::new(Kind::Deletion, 7),
+      Op::new(Kind::Match, 10),
+    ])?;
+
+    assert_eq!(inverted, expected);
+
+    Ok(())
+  }
+
+  #[rstest]
+  fn test_invert_cigar_with_unsupported_op() {
+    let cigar_str = "10M2S";
+    let cigar = parse_cigar_str(cigar_str).unwrap();
+
+    let result = invert_cigar(&cigar);
+
+    assert!(result.is_err());
   }
 }
