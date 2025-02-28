@@ -116,7 +116,6 @@ edition_2024_expr_fragment_specifier = "allow"
 elided_lifetimes_in_paths = "allow"
 non_snake_case = "allow"
 tail_expr_drop_order = "allow"
-unused_variables = "allow"
 
 # Enable lints not enabled by default
 # https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html

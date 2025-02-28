@@ -89,9 +89,9 @@ mod tests {
       let f = Lock::new(Clade::new(N::new("F")));
       let g = Lock::new(Clade::new(N::new("G")));
       let h = Lock::new(Clade::new(N::new("H")));
-      let i = Lock::new(Clade::new(N::new("I")));
-      let j = Lock::new(Clade::new(N::new("J")));
-      let k = Lock::new(Clade::new(N::new("K")));
+      let _i = Lock::new(Clade::new(N::new("I")));
+      let _j = Lock::new(Clade::new(N::new("J")));
+      let _k = Lock::new(Clade::new(N::new("K")));
 
       let ah = Lock::new(Clade::from_children(N::new(""), &a, &h));
       let be = Lock::new(Clade::from_children(N::new(""), &b, &e));

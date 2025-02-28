@@ -79,7 +79,7 @@ impl Pangraph {
     self.blocks = map_merge(
       &self.blocks,
       &u.b_new.iter().map(|b| (b.id(), b.clone())).collect(),
-      ConflictResolution::Custom(|(kl, vl), (kr, vr)| panic!("Conflicting key: '{kl}'")),
+      ConflictResolution::Custom(|(kl, _vl), (_kr, _vr)| panic!("Conflicting key: '{kl}'")),
     );
 
     for (old_node_id, new_nodes) in &u.n_new {
@@ -121,7 +121,7 @@ impl Pangraph {
     let empty_blocks: Vec<BlockId> = self
       .blocks
       .iter()
-      .filter(|(bid, block)| block.alignments().is_empty())
+      .filter(|(_, block)| block.alignments().is_empty())
       .map(|(bid, _)| *bid)
       .collect();
 
