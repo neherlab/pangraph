@@ -162,9 +162,9 @@ fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
       // if the match is on the reverse strand, the cigar also needs to be reverse-complemented
       let cigar = is_anchor.then(|| {
         let in_cg = if m.orientation.is_forward() {
-          &invert_cigar(&m.cigar)
-        } else {
           &m.cigar
+        } else {
+          &invert_cigar(&m.cigar)
         };
         cigar_switch_ref_qry(in_cg).unwrap()
       });
@@ -603,13 +603,20 @@ mod tests {
       fn h(name: usize, start: usize, stop: usize) -> Hit {
         Hit {
           name: BlockId(name),
-          length: 0, // FIXME
+          length: 0,
           interval: Interval::new(start, stop),
         }
       }
 
       #[allow(clippy::items_after_statements)]
-      fn a(qry: Hit, reff: Hit, strand: Strand, new_block_id: usize, anchor_block: AnchorBlock) -> Alignment {
+      fn a(
+        qry: Hit,
+        reff: Hit,
+        strand: Strand,
+        new_block_id: usize,
+        anchor_block: AnchorBlock,
+        cigar: Cigar,
+      ) -> Alignment {
         Alignment {
           qry,
           reff,
@@ -617,19 +624,32 @@ mod tests {
           new_block_id: Some(BlockId(new_block_id)),
           anchor_block: Some(anchor_block),
 
-          // FIXME: these were all unset in Python version
           matches: 0,
           length: 0,
           quality: 0,
-          cigar: Cigar::default(),
+          cigar,
           divergence: None,
           align: None,
         }
       }
 
       let m = vec![
-        a(h(1, 10, 50), h(2, 100, 150), Forward, 42, AnchorBlock::Qry),
-        a(h(3, 1000, 1050), h(1, 80, 130), Reverse, 43, AnchorBlock::Qry),
+        a(
+          h(1, 10, 50),
+          h(2, 100, 150),
+          Forward,
+          42,
+          AnchorBlock::Qry,
+          Cigar::from_str("10D10M10I40M").unwrap(),
+        ),
+        a(
+          h(3, 1000, 1050),
+          h(1, 80, 130),
+          Reverse,
+          43,
+          AnchorBlock::Qry,
+          Cigar::from_str("50M").unwrap(),
+        ),
       ];
 
       (G, m, bid)
@@ -695,9 +715,11 @@ mod tests {
     assert_eq!(h[0].block.id(), BlockId(42));
     assert_eq!(h[0].is_anchor, true);
     assert_eq!(h[0].orientation, Forward);
+    assert_eq!(h[0].cigar, Some(Cigar::from_str("10I10M10D40M").unwrap()));
     assert_eq!(h[1].block.id(), BlockId(43));
     assert_eq!(h[1].is_anchor, false);
     assert_eq!(h[1].orientation, Reverse);
+    assert_eq!(h[1].cigar, None);
 
     assert_eq!(h[0].block.consensus(), &G.blocks[&bid].consensus()[0..50]);
     assert_eq!(h[1].block.consensus(), &G.blocks[&bid].consensus()[80..130]);
