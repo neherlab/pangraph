@@ -166,7 +166,7 @@ fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
         } else {
           &m.cigar
         };
-        cigar_switch_ref_qry(&in_cg).unwrap()
+        cigar_switch_ref_qry(in_cg).unwrap()
       });
       hits.push(ExtractedHit {
         hit: m.qry.clone(),

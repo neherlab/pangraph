@@ -42,6 +42,12 @@ pub fn cigar_switch_ref_qry(cigar: &Cigar) -> Result<Cigar, Report> {
   Cigar::try_from(switched_ops).wrap_err("Failed to create switched CIGAR")
 }
 
+pub fn cigar_no_indels(cigar: &Cigar) -> bool {
+  cigar
+    .iter()
+    .all(|op| matches!(op.kind(), Kind::Match | Kind::SequenceMatch | Kind::SequenceMismatch))
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -155,5 +161,20 @@ mod tests {
     let result = cigar_switch_ref_qry(&cigar);
 
     assert!(result.is_err());
+  }
+
+  #[rstest]
+  fn test_is_cigar_all_matches() -> Result<(), Report> {
+    let cigar_str = "10M20=";
+    let cigar = parse_cigar_str(cigar_str)?;
+
+    assert!(cigar_no_indels(&cigar));
+
+    let cigar_str = "10M1I20=";
+    let cigar = parse_cigar_str(cigar_str)?;
+
+    assert!(!cigar_no_indels(&cigar));
+
+    Ok(())
   }
 }
