@@ -815,7 +815,7 @@ mod tests {
       }
 
       #[allow(clippy::items_after_statements)]
-      fn a(qry: Hit, reff: Hit, strand: Strand) -> Alignment {
+      fn a(qry: Hit, reff: Hit, strand: Strand, cigar: Cigar) -> Alignment {
         Alignment {
           qry,
           reff,
@@ -827,17 +827,37 @@ mod tests {
           matches: 0,
           length: 0,
           quality: 0,
-          cigar: Cigar::default(),
+          cigar,
           divergence: None,
           align: None,
         }
       }
 
       let M = vec![
-        a(h(10, 200, 10, 200), h(40, 500, 10, 200), Forward),
-        a(h(20, 400, 0, 200), h(40, 500, 300, 500), Reverse),
-        a(h(20, 400, 300, 400), h(50, 250, 0, 100), Forward),
-        a(h(30, 100, 0, 100), h(50, 250, 150, 250), Forward),
+        a(
+          h(10, 200, 10, 200),
+          h(40, 500, 10, 200),
+          Forward,
+          Cigar::from_str("10I170M10D10M").unwrap(),
+        ),
+        a(
+          h(20, 400, 0, 200),
+          h(40, 500, 300, 500),
+          Reverse,
+          Cigar::from_str("200M").unwrap(),
+        ),
+        a(
+          h(20, 400, 300, 400),
+          h(50, 250, 0, 100),
+          Forward,
+          Cigar::from_str("100M").unwrap(),
+        ),
+        a(
+          h(30, 100, 0, 100),
+          h(50, 250, 150, 250),
+          Forward,
+          Cigar::from_str("80M10I10M10D").unwrap(),
+        ),
       ];
 
       (G, M)
@@ -931,6 +951,7 @@ mod tests {
     assert_eq!(p1.anchor_block.consensus(), O.blocks[&BlockId(10)].consensus());
     assert_eq!(p1.append_block.consensus(), &O.blocks[&BlockId(40)].consensus()[0..200]);
     assert_eq!(p1.append_block.id(), G.nodes[&nid_300_1].block_id());
+    assert_eq!(p1.cigar, Cigar::from_str("10D170M10I10M").unwrap());
 
     let bid40_3 = G.nodes[&nid_300_3].block_id();
     let p2 = &p_dict[&bid40_3];
@@ -941,7 +962,36 @@ mod tests {
     );
     assert_eq!(p2.append_block.id(), G.nodes[&nid_200_4].block_id());
     assert_eq!(p2.append_block.consensus(), &O.blocks[&BlockId(20)].consensus()[0..200]);
+    assert_eq!(p2.cigar, Cigar::from_str("200M").unwrap());
 
+    let bid50_1 = G.nodes[&nid_200_2].block_id();
+    let p3 = &p_dict[&bid50_1];
+    assert_eq!(p3.orientation, Forward);
+    assert_eq!(p3.anchor_block.id(), G.nodes[&nid_300_4].block_id());
+    assert_eq!(p3.anchor_block.consensus(), &O.blocks[&BlockId(50)].consensus()[0..150]);
+    assert_eq!(p3.append_block.id(), G.nodes[&nid_200_2].block_id());
+    assert_eq!(
+      p3.append_block.consensus(),
+      &O.blocks[&BlockId(20)].consensus()[300..400]
+    );
+    assert_eq!(p3.cigar, Cigar::from_str("100M").unwrap());
+
+    let bid50_2 = G.nodes[&nid_100_2].block_id();
+    let p4 = &p_dict[&bid50_2];
+    assert_eq!(p4.orientation, Forward);
+    assert_eq!(p4.anchor_block.id(), bid50_2);
+    assert_eq!(
+      p4.anchor_block.consensus(),
+      &O.blocks[&BlockId(50)].consensus()[150..250]
+    );
+    assert_eq!(p4.append_block.id(), G.nodes[&nid_300_5].block_id());
+    assert_eq!(p4.append_block.consensus(), &O.blocks[&BlockId(30)].consensus()[0..100]);
+    assert_eq!(p4.cigar, Cigar::from_str("80M10I10M10D").unwrap());
+
+    // assert_eq!(p1.append_block.id(), p1.anchor_block.id());
+    // assert_eq!(p2.append_block.id(), p2.anchor_block.id());
+    // assert_eq!(p3.append_block.id(), p3.anchor_block.id());
+    // assert_eq!(p4.append_block.id(), p4.anchor_block.id());
     Ok(())
   }
 }
