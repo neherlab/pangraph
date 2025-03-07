@@ -109,6 +109,8 @@ fn assign_new_block_ids(mergers: &mut [Alignment]) {
   }
 }
 
+/// Assigns the anchor block for each merger
+/// based on the depth of the reference and query blocks.
 fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
   for m in mergers.iter_mut() {
     let ref_block = &graph.blocks[&m.reff.name];
@@ -121,6 +123,9 @@ fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
   }
 }
 
+/// Given a list of alignments, returns a dictionary of BlockId -> Vec<Alignment>.
+/// Since each alignment is between two blocks, it will be present twice
+/// in the dictionary.
 fn target_blocks(mergers: &[Alignment]) -> BTreeMap<BlockId, Vec<Alignment>> {
   let mut target_blocks = BTreeMap::new();
 
@@ -139,12 +144,20 @@ fn target_blocks(mergers: &[Alignment]) -> BTreeMap<BlockId, Vec<Alignment>> {
   target_blocks
 }
 
+/// Given a block id and a list of its alignments,
+/// returns a list of ExtractedHit objects.
+/// Each ExtractedHit object contains information on the alignment
+/// relative to the considered block. This is useful for later splitting
+/// the block in separate slices.
+/// If the block is the anchor block in the alignment, they also contain
+/// the cigar string of the alignment.
 fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
   let mut hits = Vec::with_capacity(mergers.len() * 2);
 
   for m in mergers {
     if m.reff.name == bid {
       let is_anchor = m.anchor_block.unwrap() == AnchorBlock::Ref;
+      // add cigar if the block is the anchor block
       let cigar = is_anchor.then(|| m.cigar.clone());
       hits.push(ExtractedHit {
         hit: m.reff.clone(),                   // TODO: avoid copy
@@ -157,6 +170,7 @@ fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
 
     if m.qry.name == bid {
       let is_anchor = m.anchor_block.unwrap() == AnchorBlock::Qry;
+      // add the cigar if the block is the anchor block
       // here we need to switch the cigar from refernce-based to query-based
       // i.e. switch I <-> D
       // if the match is on the reverse strand, the cigar also needs to be reverse-complemented
@@ -239,8 +253,13 @@ fn split_block(
   graph: &Pangraph,
   thr_len: usize,
 ) -> Result<(GraphUpdate, Vec<ToMerge>), Report> {
+  // go from alignments to ExtractedHit objects, i.e. alignments relative to the block
   let extracted_hits = extract_hits(bid, mergers);
   let consensus_len = graph.blocks[&bid].consensus_len();
+
+  // using information on the hits, calculate intervals along which to split the block.
+  // these could be either aligned or not.
+  // the cigar string can be changed in the process if an interval is extended with a short overhang.
   let intervals = extract_intervals(&extracted_hits, consensus_len, thr_len)
     .wrap_err_with(|| format!("When extracting intervals for block {bid}"))
     .with_section(|| format!("{extracted_hits:#?}").header("Extracted hits:"))?;
@@ -291,10 +310,13 @@ pub fn reweave(
   mut graph: Pangraph,
   thr_len: usize,
 ) -> Result<(Pangraph, Vec<MergePromise>), Report> {
+  // for each merger, assign a new block id (hash of original block ids and alignment intervals)
   assign_new_block_ids(mergers);
+  // and decide which block is the anchor, based on depth (ref block if equal depth)
   assign_anchor_block(mergers, &graph);
 
   // dictionary of BlockId -> alignments. Nb: each alignment is present twice.
+  // this is done to quickly access all alignments for a given block
   let tb = target_blocks(mergers);
 
   // containers for updates and promises
@@ -302,13 +324,26 @@ pub fn reweave(
   let mut h = vec![];
 
   for (bid, m) in tb {
+    // split the block in separate slices
+    // each slice is either unaligned (new block to be appended to the graph)
+    // or aligned (two blocks to be merged)
     let (graph_update, to_merge) =
       split_block(bid, &m, &graph, thr_len).wrap_err_with(|| format!("When splitting block {bid}"))?;
+
+    // graph updates are mappings between old block ids and old nodes to new block ids and new nodes
     u.push(graph_update);
+    // ToMerge blocks are "half" of a merge promise: the part of the mergers that come from a single block
     h.extend(to_merge);
   }
 
+  // here two ToMerge objects are grouped in a MergePromise.
+  // a MergePromise, once solved, returns a new block to be added to the graph.
+  // they can be later all solved in parallel.
   let merge_promises = group_promises(&h).wrap_err("When grouping promises")?;
+
+  // apply graph updates to the graph:
+  // replace old blocks with new blocks, with updated nodes.
+  // also replace old nodes with new nodes in paths.
   for graph_update in u {
     graph.update(&graph_update);
   }

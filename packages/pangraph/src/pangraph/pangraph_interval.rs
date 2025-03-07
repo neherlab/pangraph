@@ -216,6 +216,9 @@ fn refine_intervals(intervals: &mut Vec<PangraphInterval>, thr_len: usize) -> Re
   Ok(())
 }
 
+/// given a list of hits on a block, split the block into a list of intervals.
+/// Each interval is either aligned to a new block or unaligned.
+/// The intervals are refined by merging unaligned intervals shorter than a threshold length.
 pub fn extract_intervals(
   hits: &[ExtractedHit],
   block_length: usize,
