@@ -21,10 +21,14 @@ pub fn cigar_total_len(cigar: &Cigar) -> usize {
   cigar.iter().map(|op| op.len()).sum()
 }
 
-pub fn invert_cigar(cigar: &Cigar) -> Result<Cigar, Report> {
-  let inverted_ops: Result<Vec<Op>, Report> = cigar
+pub fn invert_cigar(cigar: &Cigar) -> Cigar {
+  let inverted_ops: Vec<Op> = cigar.iter().copied().rev().collect();
+  Cigar::try_from(inverted_ops).expect("Failed to create inverted CIGAR")
+}
+
+pub fn cigar_switch_ref_qry(cigar: &Cigar) -> Result<Cigar, Report> {
+  let switched_ops: Result<Vec<Op>, Report> = cigar
     .iter()
-    .rev()
     .map(|op| match op.kind() {
       Kind::Match | Kind::SequenceMatch | Kind::SequenceMismatch => Ok(*op),
       Kind::Insertion => Ok(Op::new(Kind::Deletion, op.len())),
@@ -33,9 +37,9 @@ pub fn invert_cigar(cigar: &Cigar) -> Result<Cigar, Report> {
     })
     .collect();
 
-  let inverted_ops = inverted_ops?;
+  let switched_ops = switched_ops?;
 
-  Cigar::try_from(inverted_ops).wrap_err("Failed to create inverted CIGAR")
+  Cigar::try_from(switched_ops).wrap_err("Failed to create switched CIGAR")
 }
 
 #[cfg(test)]
@@ -105,16 +109,16 @@ mod tests {
 
   #[rstest]
   fn test_invert_cigar() -> Result<(), Report> {
-    let cigar_str = "10M7I5M1D20M";
+    let cigar_str = "10M1I5M1D20M";
     let cigar = parse_cigar_str(cigar_str)?;
 
-    let inverted = invert_cigar(&cigar)?;
+    let inverted = invert_cigar(&cigar);
 
     let expected = Cigar::try_from(vec![
       Op::new(Kind::Match, 20),
-      Op::new(Kind::Insertion, 1),
+      Op::new(Kind::Deletion, 1),
       Op::new(Kind::Match, 5),
-      Op::new(Kind::Deletion, 7),
+      Op::new(Kind::Insertion, 1),
       Op::new(Kind::Match, 10),
     ])?;
 
@@ -124,11 +128,31 @@ mod tests {
   }
 
   #[rstest]
-  fn test_invert_cigar_with_unsupported_op() {
+  fn test_switch_ref_qry() -> Result<(), Report> {
+    let cigar_str = "10M7I5M1D20M";
+    let cigar = parse_cigar_str(cigar_str)?;
+
+    let inverted = cigar_switch_ref_qry(&cigar)?;
+
+    let expected = Cigar::try_from(vec![
+      Op::new(Kind::Match, 10),
+      Op::new(Kind::Deletion, 7),
+      Op::new(Kind::Match, 5),
+      Op::new(Kind::Insertion, 1),
+      Op::new(Kind::Match, 20),
+    ])?;
+
+    assert_eq!(inverted, expected);
+
+    Ok(())
+  }
+
+  #[rstest]
+  fn test_switch_ref_qry_with_unsupported_op() {
     let cigar_str = "10M2S";
     let cigar = parse_cigar_str(cigar_str).unwrap();
 
-    let result = invert_cigar(&cigar);
+    let result = cigar_switch_ref_qry(&cigar);
 
     assert!(result.is_err());
   }

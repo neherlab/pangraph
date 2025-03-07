@@ -1,5 +1,5 @@
 use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
-use crate::align::bam::cigar::invert_cigar;
+use crate::align::bam::cigar::{cigar_switch_ref_qry, invert_cigar};
 use crate::align::map_variations::map_variations;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_error;
@@ -157,7 +157,17 @@ fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
 
     if m.qry.name == bid {
       let is_anchor = m.anchor_block.unwrap() == AnchorBlock::Qry;
-      let cigar = is_anchor.then(|| invert_cigar(&m.cigar).unwrap()); // invert cigar: from ref-based to qry-based
+      // here we need to switch the cigar from refernce-based to query-based
+      // i.e. switch I <-> D
+      // if the match is on the reverse strand, the cigar also needs to be reverse-complemented
+      let cigar = is_anchor.then(|| {
+        let in_cg = if m.orientation.is_forward() {
+          &invert_cigar(&m.cigar)
+        } else {
+          &m.cigar
+        };
+        cigar_switch_ref_qry(&in_cg).unwrap()
+      });
       hits.push(ExtractedHit {
         hit: m.qry.clone(),
         new_block_id: m.new_block_id.unwrap(),
