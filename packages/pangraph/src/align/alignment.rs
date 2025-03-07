@@ -26,12 +26,13 @@ impl Hit {
   }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ExtractedHit {
   pub hit: Hit,
   pub new_block_id: BlockId,
   pub is_anchor: bool,
   pub orientation: Strand,
+  pub cigar: Option<Cigar>,
 }
 
 /// Pairwise homologous alignment between two sequences.

@@ -1,4 +1,5 @@
 use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
+use crate::align::bam::cigar::invert_cigar;
 use crate::align::map_variations::map_variations;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_error;
@@ -12,6 +13,7 @@ use crate::utils::id::id;
 use color_eyre::{Section, SectionExt};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
+use noodles::sam::record::Cigar;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 
@@ -20,14 +22,16 @@ pub struct MergePromise {
   anchor_block: PangraphBlock,
   append_block: PangraphBlock,
   orientation: Strand,
+  cigar: Cigar,
 }
 
 impl MergePromise {
-  pub fn new(anchor_block: PangraphBlock, append_block: PangraphBlock, orientation: Strand) -> Self {
+  pub fn new(anchor_block: PangraphBlock, append_block: PangraphBlock, orientation: Strand, cigar: Cigar) -> Self {
     Self {
       anchor_block,
       append_block,
       orientation,
+      cigar,
     }
   }
 
@@ -76,15 +80,17 @@ struct ToMerge {
   pub block: PangraphBlock,
   pub is_anchor: bool,
   pub orientation: Strand,
+  pub cigar: Option<Cigar>,
 }
 
 impl ToMerge {
   #[allow(dead_code)]
-  pub fn new(block: PangraphBlock, is_anchor: bool, orientation: Strand) -> Self {
+  pub fn new(block: PangraphBlock, is_anchor: bool, orientation: Strand, cigar: Option<Cigar>) -> Self {
     Self {
       block,
       is_anchor,
       orientation,
+      cigar,
     }
   }
 
@@ -138,20 +144,26 @@ fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
 
   for m in mergers {
     if m.reff.name == bid {
+      let is_anchor = m.anchor_block.unwrap() == AnchorBlock::Ref;
+      let cigar = is_anchor.then(|| m.cigar.clone());
       hits.push(ExtractedHit {
-        hit: m.reff.clone(),                                    // TODO: avoid copy
+        hit: m.reff.clone(),                   // TODO: avoid copy
         new_block_id: m.new_block_id.unwrap(), // FIXME: "partially initialized object" anti-pattern shoots back
-        is_anchor: m.anchor_block.unwrap() == AnchorBlock::Ref, // FIXME: "partially initialized object" anti-pattern shoots back
+        is_anchor,                             // FIXME: "partially initialized object" anti-pattern shoots back
         orientation: m.orientation,
+        cigar,
       });
     }
 
     if m.qry.name == bid {
+      let is_anchor = m.anchor_block.unwrap() == AnchorBlock::Qry;
+      let cigar = is_anchor.then(|| invert_cigar(&m.cigar).unwrap()); // invert cigar: from ref-based to qry-based
       hits.push(ExtractedHit {
         hit: m.qry.clone(),
         new_block_id: m.new_block_id.unwrap(),
-        is_anchor: m.anchor_block.unwrap() == AnchorBlock::Qry,
+        is_anchor,
         orientation: m.orientation,
+        cigar,
       });
     }
   }
@@ -196,10 +208,16 @@ fn group_promises(h: &[ToMerge]) -> Result<Vec<MergePromise>, Report> {
     let (b1, b2) = (&bs[0], &bs[1]);
     let anchor_block = if b1.is_anchor { &b1.block } else { &b2.block };
     let append_block = if b1.is_anchor { &b2.block } else { &b1.block };
+    let cigar = if b1.is_anchor {
+      b1.cigar.clone().unwrap()
+    } else {
+      b2.cigar.clone().unwrap()
+    };
     promises.push(MergePromise {
       anchor_block: anchor_block.clone(), // TODO: avoid cloning
       append_block: append_block.clone(), // TODO: avoid cloning
       orientation: b1.orientation,
+      cigar,
     });
   }
   Ok(promises)
@@ -242,6 +260,7 @@ fn split_block(
         block: b_slice,
         is_anchor: interval.is_anchor.unwrap(), // FIXME: this field should never be uninitialized
         orientation: interval.orientation.unwrap(), // FIXME: this field should never be uninitialized
+        cigar: interval.cigar,
       });
     } else {
       u.b_new.push(b_slice);
@@ -296,6 +315,8 @@ mod tests {
     clippy::many_single_char_names
   )]
 
+  use std::str::FromStr;
+
   use super::*;
   use crate::align::alignment::Hit;
   use crate::io::seq::generate_random_nuc_sequence;
@@ -320,12 +341,13 @@ mod tests {
       }
     }
 
-    fn create_hit(new_bid: BlockId, is_anchor: bool, strand: Strand, hit: Hit) -> ExtractedHit {
+    fn create_hit(new_bid: BlockId, is_anchor: bool, strand: Strand, hit: Hit, cigar: Option<Cigar>) -> ExtractedHit {
       ExtractedHit {
         new_block_id: new_bid,
         is_anchor,
         orientation: strand,
         hit,
+        cigar,
       }
     }
 
@@ -341,7 +363,7 @@ mod tests {
         matches: 0,
         length: 0,
         quality: 0,
-        cigar: Cigar::default(),
+        cigar: Cigar::from_str("10M").unwrap(),
         divergence: None,
         align: None,
       }
@@ -364,15 +386,15 @@ mod tests {
 
     let hits = extract_hits(BlockId(1), &[a1, a2, a3, a4]);
 
-    assert_eq!(
-      hits,
+    assert_eq!(hits, {
+      let cg = Cigar::from_str("10M").unwrap();
       vec![
-        create_hit(BlockId(3), true, Forward, h1_a),
-        create_hit(BlockId(3), false, Forward, h1_b),
-        create_hit(BlockId(4), false, Forward, h1_c),
-        create_hit(BlockId(5), false, Reverse, h1_d),
+        create_hit(BlockId(3), true, Forward, h1_a, Some(cg)),
+        create_hit(BlockId(3), false, Forward, h1_b, None),
+        create_hit(BlockId(4), false, Forward, h1_c, None),
+        create_hit(BlockId(5), false, Reverse, h1_d, None),
       ]
-    );
+    });
   }
 
   #[rustfmt::skip]
@@ -385,22 +407,26 @@ mod tests {
     let b3_anchor = PangraphBlock::new(BlockId(3), "E", btreemap! {} /* {11: None, 12: None} */);
     let b3_append = PangraphBlock::new(BlockId(3), "F", btreemap! {} /* {13: None} */);
 
+    let cigar1 = Cigar::from_str("100M")?;
+    let cigar2 = Cigar::from_str("200M")?;
+    let cigar3 = Cigar::from_str("300M")?;
+
     let h = &[
-      ToMerge::new(b1_anchor.clone(), true, Forward),
-      ToMerge::new(b1_append.clone(), false, Forward),
-      ToMerge::new(b3_anchor.clone(), true, Reverse),
-      ToMerge::new(b2_append.clone(), false, Forward),
-      ToMerge::new(b2_anchor.clone(), true, Forward),
-      ToMerge::new(b3_append.clone(), false, Reverse),
+      ToMerge::new(b1_anchor.clone(), true, Forward, Some(cigar1.clone())),
+      ToMerge::new(b1_append.clone(), false, Forward, None),
+      ToMerge::new(b3_anchor.clone(), true, Reverse, Some(cigar2.clone())),
+      ToMerge::new(b2_append.clone(), false, Forward, None),
+      ToMerge::new(b2_anchor.clone(), true, Forward, Some(cigar3.clone())),
+      ToMerge::new(b3_append.clone(), false, Reverse, None),
     ];
 
     let promises = group_promises(h)?;
     assert_eq!(
       promises,
       vec![
-        MergePromise::new(b1_anchor, b1_append, Forward),
-        MergePromise::new(b2_anchor, b2_append, Forward),
-        MergePromise::new(b3_anchor, b3_append, Reverse),
+      MergePromise::new(b1_anchor, b1_append, Forward, cigar1),
+      MergePromise::new(b2_anchor, b2_append, Forward, cigar3),
+      MergePromise::new(b3_anchor, b3_append, Reverse, cigar2),
       ]
     );
 

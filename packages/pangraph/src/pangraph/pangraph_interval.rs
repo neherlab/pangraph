@@ -7,15 +7,16 @@ use crate::utils::interval::Interval;
 use color_eyre::{Section, SectionExt};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
+use noodles::sam::record::Cigar;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PangraphInterval {
   pub interval: Interval,
   pub aligned: bool,
   pub new_block_id: BlockId,
   pub is_anchor: Option<bool>,
   pub orientation: Option<Strand>,
+  pub cigar: Option<Cigar>,
 }
 
 impl PangraphInterval {
@@ -98,6 +99,7 @@ fn unaligned_interval(interval: Interval, block_id: BlockId) -> PangraphInterval
     new_block_id,
     is_anchor: None,
     orientation: None,
+    cigar: None,
   }
 }
 
@@ -110,6 +112,7 @@ fn aligned_interval(h: &ExtractedHit) -> PangraphInterval {
     new_block_id: h.new_block_id,
     is_anchor: Some(h.is_anchor),
     orientation: Some(h.orientation),
+    cigar: h.cigar.clone(),
   }
 }
 
@@ -247,6 +250,7 @@ mod tests {
           interval,
           length: 0,
         },
+        cigar: None,
       }
     };
 
@@ -273,63 +277,72 @@ mod tests {
           aligned: false,
           new_block_id: calculate_hash(bid, &Interval::new(0, 10)),
           is_anchor: None,
-          orientation: None
+          orientation: None,
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(10, 100),
           aligned: true,
           new_block_id: BlockId(1),
           is_anchor: Some(true),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(100, 200),
           aligned: false,
           new_block_id: calculate_hash(bid, &Interval::new(100, 200)),
           is_anchor: None,
-          orientation: None
+          orientation: None,
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(200, 300),
           aligned: true,
           new_block_id: BlockId(2),
           is_anchor: Some(false),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(300, 310),
           aligned: false,
           new_block_id: calculate_hash(bid, &Interval::new(300, 310)),
           is_anchor: None,
-          orientation: None
+          orientation: None,
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(310, 500),
           aligned: true,
           new_block_id: BlockId(3),
           is_anchor: Some(true),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(500, 600),
           aligned: false,
           new_block_id: calculate_hash(bid, &Interval::new(500, 600)),
           is_anchor: None,
-          orientation: None
+          orientation: None,
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(600, 900),
           aligned: true,
           new_block_id: BlockId(4),
           is_anchor: Some(false),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(900, 1000),
           aligned: false,
           new_block_id: calculate_hash(bid, &Interval::new(900, 1000)),
           is_anchor: None,
-          orientation: None
+          orientation: None,
+          cigar: None
         },
       ]
     );
@@ -349,49 +362,56 @@ mod tests {
           aligned: true,
           new_block_id: BlockId(1),
           is_anchor: Some(true),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(100, 200),
           aligned: false,
           new_block_id: calculate_hash(bid, &Interval::new(100, 200)),
           is_anchor: None,
-          orientation: None
+          orientation: None,
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(200, 300),
           aligned: true,
           new_block_id: BlockId(2),
           is_anchor: Some(false),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(300, 500),
           aligned: true,
           new_block_id: BlockId(3),
           is_anchor: Some(true),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(500, 600),
           aligned: false,
           new_block_id: calculate_hash(bid, &Interval::new(500, 600)),
           is_anchor: None,
-          orientation: None
+          orientation: None,
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(600, 900),
           aligned: true,
           new_block_id: BlockId(4),
           is_anchor: Some(false),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None
         },
         PangraphInterval {
           interval: Interval::new(900, 1000),
           aligned: false,
           new_block_id: calculate_hash(bid, &Interval::new(900, 1000)),
           is_anchor: None,
-          orientation: None
+          orientation: None,
+          cigar: None
         },
       ]
     );
