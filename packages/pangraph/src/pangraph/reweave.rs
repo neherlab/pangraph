@@ -305,6 +305,10 @@ fn split_block(
   Ok((u, h))
 }
 
+/// One of the most important functions used during graph building.
+/// Given a set of (already pre-filtered) alignments between different blocks in the graph,
+/// it re-structures the graph by splitting and merging blocks. It does not directly compute
+/// the merged alignments, but returns merge promises, to be later resolved in parallel.
 pub fn reweave(
   mergers: &mut [Alignment],
   mut graph: Pangraph,

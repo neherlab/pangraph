@@ -258,6 +258,8 @@ mod tests {
       is_anchor: None,
       orientation: None,
       cigar: None,
+      extend_left: None,
+      extend_right: None,
     };
     let new_ed = slice_substitutions(&i, &ed.subs);
     assert_eq!(new_ed, vec![Sub::new(0, 'G'), Sub::new(1, 'C'), Sub::new(7, 'G'),]);
@@ -268,6 +270,8 @@ mod tests {
       is_anchor: None,
       orientation: None,
       cigar: None,
+      extend_left: None,
+      extend_right: None,
     };
     let new_ed = slice_substitutions(&i, &ed.subs);
     assert_eq!(new_ed, vec![Sub::new(3, 'C'), Sub::new(5, 'A')]);
@@ -283,6 +287,8 @@ mod tests {
       is_anchor: None,
       orientation: None,
       cigar: None,
+      extend_left: None,
+      extend_right: None,
     };
     let new_ed = slice_deletions(&i, &ed.dels);
     assert_eq!(
@@ -296,6 +302,8 @@ mod tests {
       is_anchor: None,
       orientation: None,
       cigar: None,
+      extend_left: None,
+      extend_right: None,
     };
     let new_ed = slice_deletions(&i, &ed.dels);
     assert_eq!(new_ed, vec![Del { pos: 0, len: 2 }, Del { pos: 3, len: 3 },]);
@@ -311,6 +319,8 @@ mod tests {
       is_anchor: None,
       orientation: None,
       cigar: None,
+      extend_left: None,
+      extend_right: None,
     };
     let new_ed = slice_insertions(&i, &ed.inss, seq.len());
     assert_eq!(new_ed, vec![Ins::new(0, "TTT"), Ins::new(4, "C"), Ins::new(7, "T"),]);
@@ -321,6 +331,8 @@ mod tests {
       is_anchor: None,
       orientation: None,
       cigar: None,
+      extend_left: None,
+      extend_right: None,
     };
     let new_ed = slice_insertions(&i, &ed.inss, seq.len());
     assert_eq!(new_ed, vec![Ins::new(2, "A"), Ins::new(6, "A")]);
@@ -337,6 +349,8 @@ mod tests {
       is_anchor: None,
       orientation: None,
       cigar: None,
+      extend_left: None,
+      extend_right: None,
     };
     let new_pos = interval_node_coords(&i, &ed, seq.len());
     assert_eq!(new_pos, (5, 14));
@@ -348,6 +362,8 @@ mod tests {
       is_anchor: None,
       orientation: None,
       cigar: None,
+      extend_left: None,
+      extend_right: None,
     };
     let new_pos = interval_node_coords(&i, &ed, seq.len());
     assert_eq!(new_pos, (16, 19));
@@ -419,6 +435,8 @@ mod tests {
       is_anchor: None,
       orientation: None,
       cigar: None,
+      extend_left: None,
+      extend_right: None,
     };
     let ed = Edit {
       subs: vec![Sub::new(2, 'G'), Sub::new(13, 'T'), Sub::new(24, 'T')],
@@ -442,6 +460,8 @@ mod tests {
       is_anchor: Some(true),
       orientation: Some(Forward),
       cigar: None,
+      extend_left: None,
+      extend_right: None,
     };
 
     let (new_b, new_nodes) = block_slice(&b, &i, &G);
@@ -581,6 +601,8 @@ mod tests {
       is_anchor: Some(false),
       orientation: Some(Reverse),
       cigar: None,
+      extend_left: None,
+      extend_right: None,
     };
 
     let (new_b, new_nodes) = block_slice(&b, &i, &G);
