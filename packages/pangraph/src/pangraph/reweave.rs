@@ -279,22 +279,22 @@ fn group_promises(h: &[ToMerge]) -> Result<Vec<MergePromise>, Report> {
   for (_, bs) in groups {
     validate_blocks(&bs)?;
 
-    let (b1, b2) = (&bs[0], &bs[1]);
-    let anchor_block = if b1.is_anchor { &b1.block } else { &b2.block };
-    let append_block = if b1.is_anchor { &b2.block } else { &b1.block };
-    // TODO: define function to update cigar
-    let cigar = if b1.is_anchor {
-      b1.cigar.clone().unwrap()
+    let (b_anch, b_app) = if bs[0].is_anchor {
+      (bs[0], bs[1])
     } else {
-      b2.cigar.clone().unwrap()
+      (bs[1], bs[0])
     };
 
-    let cigar = update_cigar(&cigar, &b1.extension, &b2.extension, b1.orientation);
+    let anchor_block = b_anch.block.clone(); // TODO: avoid clone
+    let append_block = b_app.block.clone(); // TODO: avoid clone
+    let orientation = b_anch.orientation;
+    let cigar = b_anch.cigar.clone().unwrap();
+    let cigar = update_cigar(&cigar, &b_anch.extension, &b_app.extension, orientation);
 
     promises.push(MergePromise {
-      anchor_block: anchor_block.clone(), // TODO: avoid cloning
-      append_block: append_block.clone(), // TODO: avoid cloning
-      orientation: b1.orientation,
+      anchor_block,
+      append_block,
+      orientation,
       cigar,
     });
   }
