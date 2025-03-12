@@ -1,5 +1,5 @@
 use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
-use crate::align::bam::cigar::{cigar_switch_ref_qry, invert_cigar};
+use crate::align::bam::cigar::{Side, add_flanking_indel, cigar_switch_ref_qry, invert_cigar};
 use crate::align::map_variations::map_variations;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_error;
@@ -14,6 +14,7 @@ use color_eyre::{Section, SectionExt};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use noodles::sam::record::Cigar;
+use noodles::sam::record::cigar::op::Kind;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 
@@ -75,12 +76,19 @@ impl MergePromise {
   }
 }
 
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Extension {
+  pub left: Option<usize>,
+  pub right: Option<usize>,
+}
+
 #[derive(Debug)]
 struct ToMerge {
-  pub block: PangraphBlock,
-  pub is_anchor: bool,
-  pub orientation: Strand,
-  pub cigar: Option<Cigar>,
+  pub block: PangraphBlock, // block to be merged
+  pub is_anchor: bool,      // is this the anchor block in the merge?
+  pub orientation: Strand,  // is the alignment on the forward or reverse strand?
+  pub cigar: Option<Cigar>, // cigar string of the alignment, only for anchor block
+  pub extension: Extension, // optional flanking extensions of the alignment interval, for cigar update
 }
 
 impl ToMerge {
@@ -91,6 +99,10 @@ impl ToMerge {
       is_anchor,
       orientation,
       cigar,
+      extension: Extension {
+        left: None,
+        right: None,
+      },
     }
   }
 
@@ -215,6 +227,44 @@ fn validate_blocks(bs: &[&ToMerge]) -> Result<(), Report> {
   Ok(())
 }
 
+/// Function to update a cigar string with flanking indels when the alignment is extended.
+/// Extensions are relative to block coordinates, while the cigar string is relative to
+/// the alignment with anchor block == reference and append block == query.
+fn update_cigar(
+  cigar: &Cigar,
+  anchor_extension: &Extension,
+  append_extension: &Extension,
+  orientation: Strand,
+) -> Cigar {
+  let mut new_cigar = cigar.clone();
+
+  // anchor extension - more reference is a deletion on the query
+  if let Some(left) = anchor_extension.left {
+    new_cigar = add_flanking_indel(&new_cigar, Kind::Deletion, left, &Side::Leading).unwrap();
+  };
+  if let Some(right) = anchor_extension.right {
+    new_cigar = add_flanking_indel(&new_cigar, Kind::Deletion, right, &Side::Trailing).unwrap();
+  };
+
+  // append extension - more query is an insertion on the query
+  if let Some(left) = append_extension.left {
+    let side = match orientation {
+      Strand::Forward => Side::Leading,
+      Strand::Reverse => Side::Trailing,
+    };
+    new_cigar = add_flanking_indel(&new_cigar, Kind::Insertion, left, &side).unwrap();
+  };
+  if let Some(right) = append_extension.right {
+    let side = match orientation {
+      Strand::Forward => Side::Trailing,
+      Strand::Reverse => Side::Leading,
+    };
+    new_cigar = add_flanking_indel(&new_cigar, Kind::Insertion, right, &side).unwrap();
+  };
+
+  new_cigar
+}
+
 fn group_promises(h: &[ToMerge]) -> Result<Vec<MergePromise>, Report> {
   let mut promises = Vec::new();
 
@@ -232,11 +282,15 @@ fn group_promises(h: &[ToMerge]) -> Result<Vec<MergePromise>, Report> {
     let (b1, b2) = (&bs[0], &bs[1]);
     let anchor_block = if b1.is_anchor { &b1.block } else { &b2.block };
     let append_block = if b1.is_anchor { &b2.block } else { &b1.block };
+    // TODO: define function to update cigar
     let cigar = if b1.is_anchor {
       b1.cigar.clone().unwrap()
     } else {
       b2.cigar.clone().unwrap()
     };
+
+    let cigar = update_cigar(&cigar, &b1.extension, &b2.extension, b1.orientation);
+
     promises.push(MergePromise {
       anchor_block: anchor_block.clone(), // TODO: avoid cloning
       append_block: append_block.clone(), // TODO: avoid cloning
@@ -290,6 +344,10 @@ fn split_block(
         is_anchor: interval.is_anchor.unwrap(), // FIXME: this field should never be uninitialized
         orientation: interval.orientation.unwrap(), // FIXME: this field should never be uninitialized
         cigar: interval.cigar,
+        extension: Extension {
+          left: interval.extend_left,
+          right: interval.extend_right,
+        },
       });
     } else {
       u.b_new.push(b_slice);
@@ -372,12 +430,14 @@ mod tests {
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
   use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
   use crate::pangraph::pangraph_path::{PangraphPath, PathId};
+  use crate::pangraph::strand::Strand;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use crate::representation::seq::Seq;
   use crate::utils::interval::Interval;
   use crate::utils::random::get_random_number_generator;
   use maplit::{btreemap, btreeset};
   use noodles::sam::record::Cigar;
+  use noodles::sam::record::cigar::op::{Kind, Op};
   use pretty_assertions::assert_eq;
 
   #[test]
@@ -990,7 +1050,8 @@ mod tests {
     assert_eq!(p1.anchor_block.consensus(), O.blocks[&BlockId(10)].consensus());
     assert_eq!(p1.append_block.consensus(), &O.blocks[&BlockId(40)].consensus()[0..200]);
     assert_eq!(p1.append_block.id(), G.nodes[&nid_300_1].block_id());
-    assert_eq!(p1.cigar, Cigar::from_str("10D170M10I10M").unwrap());
+    // CIGAR modified by left 10 bp overhands in ref and qry
+    assert_eq!(p1.cigar, Cigar::from_str("10I20D170M10I10M").unwrap());
 
     let bid40_3 = G.nodes[&nid_300_3].block_id();
     let p2 = &p_dict[&bid40_3];
@@ -1013,7 +1074,8 @@ mod tests {
       p3.append_block.consensus(),
       &O.blocks[&BlockId(20)].consensus()[300..400]
     );
-    assert_eq!(p3.cigar, Cigar::from_str("100M").unwrap());
+    // CIGAR modified by right 50 bp overhang in ref
+    assert_eq!(p3.cigar, Cigar::from_str("100M50D").unwrap());
 
     let bid50_2 = G.nodes[&nid_100_2].block_id();
     let p4 = &p_dict[&bid50_2];
@@ -1032,5 +1094,72 @@ mod tests {
     // assert_eq!(p3.append_block.id(), p3.anchor_block.id());
     // assert_eq!(p4.append_block.id(), p4.anchor_block.id());
     Ok(())
+  }
+
+  #[test]
+  fn test_update_cigar_no_extensions() {
+    let base = Cigar::from_str("10M20D100M10I").unwrap();
+    // no extensions provided: should return the same CIGAR
+    let anchor_ext = Extension {
+      left: None,
+      right: None,
+    };
+    let append_ext = Extension {
+      left: None,
+      right: None,
+    };
+    let updated = update_cigar(&base, &anchor_ext, &append_ext, Forward);
+    assert_eq!(updated, base);
+  }
+
+  #[test]
+  fn test_update_cigar_forward() {
+    let base = Cigar::from_str("10I100M10D10M10D").unwrap();
+    // Set anchor extension to add insertions and append extension to add deletions
+    let anchor_ext = Extension {
+      left: Some(5),
+      right: Some(10),
+    };
+    let append_ext = Extension {
+      left: Some(3),
+      right: None,
+    };
+    let updated = update_cigar(&base, &anchor_ext, &append_ext, Forward);
+    let expected = Cigar::try_from(vec![
+      Op::new(Kind::Deletion, 5),
+      Op::new(Kind::Insertion, 13),
+      Op::new(Kind::Match, 100),
+      Op::new(Kind::Deletion, 10),
+      Op::new(Kind::Match, 10),
+      Op::new(Kind::Deletion, 20),
+    ])
+    .unwrap();
+    assert_eq!(updated, expected);
+  }
+
+  #[test]
+  fn test_update_cigar_reverse() {
+    let base = Cigar::from_str("10I100M10D10M10D").unwrap();
+    // Use same extension values but with reverse orientation
+    let anchor_ext = Extension {
+      left: Some(5),
+      right: Some(10),
+    };
+    let append_ext = Extension {
+      left: Some(3),
+      right: None,
+    };
+    let updated = update_cigar(&base, &anchor_ext, &append_ext, Reverse);
+    let expected = Cigar::try_from(vec![
+      Op::new(Kind::Deletion, 5),
+      Op::new(Kind::Insertion, 10),
+      Op::new(Kind::Match, 100),
+      Op::new(Kind::Deletion, 10),
+      Op::new(Kind::Match, 10),
+      Op::new(Kind::Deletion, 20),
+      Op::new(Kind::Insertion, 3),
+    ])
+    .unwrap();
+    assert_eq!(updated, expected);
   }
 }

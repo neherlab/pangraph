@@ -53,7 +53,11 @@ pub enum Side {
   Trailing,
 }
 
-pub fn add_flanking_indel(cigar: &Cigar, kind: Kind, add_len: usize, side: Side) -> Result<Cigar, Report> {
+/// Add a flanking insertion or deletion to the CIGAR.
+/// If an in/del is already present before the first match, it will be extended.
+/// If there is no in/del before the first match, a new in/del will be added.
+/// The side parameter determines whether the in/del is added at the beginning (leading) or end (trailing).
+pub fn add_flanking_indel(cigar: &Cigar, kind: Kind, add_len: usize, side: &Side) -> Result<Cigar, Report> {
   if kind != Kind::Insertion && kind != Kind::Deletion {
     return Err(eyre!("Unsupported operation kind for extension: {:?}", kind));
   }
@@ -225,7 +229,7 @@ mod tests {
   fn test_add_leading_indel() -> Result<(), Report> {
     // CIGAR with leading match op
     let cigar = parse_cigar_str("10M5I20M")?;
-    let modified = add_flanking_indel(&cigar, Kind::Insertion, 3, Side::Leading)?;
+    let modified = add_flanking_indel(&cigar, Kind::Insertion, 3, &Side::Leading)?;
     // Expect that a new insertion op is added at the beginning since
     // the first op (Match) is not an insertion.
     let expected = Cigar::try_from(vec![
@@ -238,7 +242,7 @@ mod tests {
 
     // Now test when the first op is already the desired indel
     let cigar = parse_cigar_str("5I10M20M")?;
-    let modified = add_flanking_indel(&cigar, Kind::Insertion, 3, Side::Leading)?;
+    let modified = add_flanking_indel(&cigar, Kind::Insertion, 3, &Side::Leading)?;
     let expected = Cigar::try_from(vec![
       Op::new(Kind::Insertion, 8),
       Op::new(Kind::Match, 10),
@@ -252,7 +256,7 @@ mod tests {
   fn test_add_trailing_indel() -> Result<(), Report> {
     // CIGAR with trailing match op
     let cigar = parse_cigar_str("10M5D20M")?;
-    let modified = add_flanking_indel(&cigar, Kind::Deletion, 4, Side::Trailing)?;
+    let modified = add_flanking_indel(&cigar, Kind::Deletion, 4, &Side::Trailing)?;
     // Expect that a new deletion op is added at the end since
     // the last op (Match) is not a deletion.
     let expected = Cigar::try_from(vec![
@@ -265,7 +269,7 @@ mod tests {
 
     // Now test when the last op is already the desired indel
     let cigar = parse_cigar_str("10M20I")?;
-    let modified = add_flanking_indel(&cigar, Kind::Insertion, 4, Side::Trailing)?;
+    let modified = add_flanking_indel(&cigar, Kind::Insertion, 4, &Side::Trailing)?;
     let expected = Cigar::try_from(vec![Op::new(Kind::Match, 10), Op::new(Kind::Insertion, 24)])?;
     assert_eq!(modified, expected);
     Ok(())
@@ -276,7 +280,7 @@ mod tests {
     // CIGAR with a prefix having multiple ops before the first match.
     // Here, the prefix is "5D,3I" before the first match, and we extend the insertion.
     let cigar = parse_cigar_str("5D3I10M")?;
-    let modified = add_flanking_indel(&cigar, Kind::Insertion, 2, Side::Leading)?;
+    let modified = add_flanking_indel(&cigar, Kind::Insertion, 2, &Side::Leading)?;
     // Expected prefix: "5D" remains, "3I" becomes "5I", then "10M".
     let expected = Cigar::try_from(vec![
       Op::new(Kind::Deletion, 5),
@@ -293,7 +297,7 @@ mod tests {
     // For "10M5I3D2I", the head is "10M" and the trailing region is "5I,3D,2I".
     // When adding a trailing deletion, we expect the first deletion op in the suffix to be extended.
     let cigar = parse_cigar_str("10M5I3D2I")?;
-    let modified = add_flanking_indel(&cigar, Kind::Deletion, 4, Side::Trailing)?;
+    let modified = add_flanking_indel(&cigar, Kind::Deletion, 4, &Side::Trailing)?;
     // Expected: head "10M", then trailing region becomes "5I, (3D+4=7D),2I".
     let expected = Cigar::try_from(vec![
       Op::new(Kind::Match, 10),
@@ -310,7 +314,7 @@ mod tests {
     // CIGAR has no match-like op (e.g. only insertion and deletion)
     let cigar = parse_cigar_str("5I3D")?;
     // When adding a trailing deletion, the head is the entire CIGAR and suffix is empty.
-    let modified = add_flanking_indel(&cigar, Kind::Deletion, 4, Side::Trailing)?;
+    let modified = add_flanking_indel(&cigar, Kind::Deletion, 4, &Side::Trailing)?;
     // Expect: original ops followed by a new deletion "4D".
     let expected = Cigar::try_from(vec![Op::new(Kind::Insertion, 5), Op::new(Kind::Deletion, 7)])?;
     assert_eq!(modified, expected);
@@ -322,7 +326,7 @@ mod tests {
     // For CIGAR "5D10M", prefix is ["5D"]; when adding deletion type,
     // the prefix should extend to "7D" followed by "10M".
     let cigar = parse_cigar_str("5D10M")?;
-    let modified = add_flanking_indel(&cigar, Kind::Deletion, 2, Side::Leading)?;
+    let modified = add_flanking_indel(&cigar, Kind::Deletion, 2, &Side::Leading)?;
     let expected = Cigar::try_from(vec![Op::new(Kind::Deletion, 7), Op::new(Kind::Match, 10)])?;
     assert_eq!(modified, expected);
     Ok(())
@@ -333,7 +337,7 @@ mod tests {
     // For CIGAR "10M2I", trailing region is ["2I"].
     // When adding an insertion trailing, it should extend "2I" to "5I".
     let cigar = parse_cigar_str("10M2I")?;
-    let modified = add_flanking_indel(&cigar, Kind::Insertion, 3, Side::Trailing)?;
+    let modified = add_flanking_indel(&cigar, Kind::Insertion, 3, &Side::Trailing)?;
     let expected = Cigar::try_from(vec![Op::new(Kind::Match, 10), Op::new(Kind::Insertion, 5)])?;
     assert_eq!(modified, expected);
     Ok(())
