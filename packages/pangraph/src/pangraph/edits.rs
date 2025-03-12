@@ -4,6 +4,8 @@ use crate::representation::seq_char::AsciiChar;
 use crate::utils::interval::Interval;
 use eyre::Report;
 use itertools::Itertools;
+use noodles::sam::record::Cigar;
+use noodles::sam::record::cigar::op::Kind;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::Range;
@@ -353,6 +355,40 @@ impl Edit {
     Some((total_shift as f64 / aligned_count as f64).round() as i32)
   }
 
+  /// Create an Edit set from a given Cigar object.
+  ///
+  /// Matches advance the reference position.
+  /// Insertions generate an Ins with a sequence of 'N's of the appropriate length.
+  /// Deletions generate a Del.
+  pub fn from_cigar(cigar: &Cigar) -> Self {
+    let mut rpos = 0;
+    let mut inss = Vec::new();
+    let mut dels = Vec::new();
+    for op in cigar.iter() {
+      match op.kind() {
+        Kind::Match | Kind::SequenceMatch | Kind::SequenceMismatch => {
+          rpos += op.len();
+        },
+        Kind::Insertion => {
+          let inserted_seq = Seq::from_elem(AsciiChar(b'N'), op.len());
+          inss.push(Ins::new(rpos, inserted_seq));
+        },
+        Kind::Deletion => {
+          dels.push(Del::new(rpos, op.len()));
+          rpos += op.len();
+        },
+        _ => {
+          // Ignore other operation kinds.
+        },
+      }
+    }
+    Edit {
+      subs: vec![],
+      dels,
+      inss,
+    }
+  }
+
   #[cfg(any(test, debug_assertions))]
   pub fn sanity_check(&self, len: usize) -> Result<(), Report> {
     let block_interval = Interval::new(0, len);
@@ -447,6 +483,7 @@ mod tests {
   use super::*;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
+  use std::str::FromStr;
 
   #[rstest]
   fn test_edits_apply_simple_case() {
@@ -800,5 +837,55 @@ mod tests {
     };
     let cons_len = 10;
     assert_eq!(edit.average_displacement(cons_len), None);
+  }
+
+  #[rstest]
+  fn test_from_cigar_matches_only() {
+    let cigar = Cigar::from_str("100M").unwrap();
+    let edits = Edit::from_cigar(&cigar);
+    // Expect no insertions or deletions.
+    assert!(edits.inss.is_empty());
+    assert!(edits.dels.is_empty());
+  }
+
+  #[rstest]
+  fn test_from_cigar_with_insertion() {
+    let cigar = Cigar::from_str("10M1I5M").unwrap();
+    let edits = Edit::from_cigar(&cigar);
+    // Expect one insertion at position 10 with length 1 and no deletions.
+    let expected_edits = Edit {
+      subs: vec![],
+      dels: vec![],
+      inss: vec![Ins::new(10, "N")],
+    };
+    assert_eq!(edits, expected_edits);
+  }
+
+  #[rstest]
+  fn test_from_cigar_with_deletion() {
+    let cigar = Cigar::from_str("10M2D5M").unwrap();
+    let edits = Edit::from_cigar(&cigar);
+    // Expect one deletion at position 10 with length 2 and no insertions.
+    let expected_edits = Edit {
+      subs: vec![],
+      dels: vec![Del::new(10, 2)],
+      inss: vec![],
+    };
+    assert_eq!(edits, expected_edits);
+  }
+
+  #[rstest]
+  fn test_from_cigar_with_mixed_ops() {
+    let cigar = Cigar::from_str("5M2I3M4D6M3I").unwrap();
+    let edits = Edit::from_cigar(&cigar);
+    // first insertion: 2 bases at position 5
+    // first deletion: 6 bases at position (5+3) = 8
+    // second insertion: 3 bases at position (5+3+4+6) = 18
+    let expected_edits = Edit {
+      subs: vec![],
+      dels: vec![Del::new(8, 4)],
+      inss: vec![Ins::new(5, "NN"), Ins::new(18, "NNN")],
+    };
+    assert_eq!(edits, expected_edits);
   }
 }
