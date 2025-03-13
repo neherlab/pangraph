@@ -65,7 +65,7 @@ fn reconsensus(block: &mut PangraphBlock) -> Result<(), Report> {
         .collect(),
       inss: ins,
     }
-    .average_displacement(block.consensus_len())
+    .aln_mean_shift(block.consensus_len())
     .unwrap();
 
     // debug assert: consensus is not empty
@@ -207,7 +207,7 @@ fn update_block_consensus(block: &mut PangraphBlock, consensus: &Seq, new_consen
     .iter()
     .map(|(&nid, edit)| {
       let seq = edit.apply(block.consensus())?;
-      let old_shift = edit.average_displacement(block.consensus_len()).unwrap();
+      let old_shift = edit.aln_mean_shift(block.consensus_len()).unwrap();
       let new_shift = old_shift - new_consensus_shift;
       // NB: previously simply approximated as:
       // let new_shift = (consensus.len() as i32 - seq.len() as i32) / 2;

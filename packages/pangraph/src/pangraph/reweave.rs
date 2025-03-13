@@ -37,6 +37,12 @@ impl MergePromise {
   }
 
   pub fn solve_promise(&mut self) -> Result<PangraphBlock, Report> {
+    // TODO: avoid aligning if cigar is only matches
+
+    // let cigar_edits =
+    // let cigar_mean_shift =
+    // let cigar_bandwidth =
+
     self
       .append_block
       .alignments()
@@ -56,7 +62,8 @@ impl MergePromise {
             (seq, edits)
           };
 
-          let mean_shift = edits.average_displacement(self.append_block.consensus().len()).unwrap();
+          // TODO: add average cigar shift (same for all sequences)
+          let mean_shift = edits.aln_mean_shift(self.append_block.consensus().len()).unwrap();
           // Nb: previously, the mean_shift was simply approximated as:
           // let mean_shift = (self.anchor_block.consensus().len() as i32 - seq.len() as i32) / 2;
           map_variations(self.anchor_block.consensus(), &seq, mean_shift)?

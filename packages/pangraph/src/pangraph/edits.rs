@@ -319,7 +319,7 @@ impl Edit {
     total_positions.saturating_sub(deletion_overlap)
   }
 
-  /// Given an alignment, returns the average displacement of the sequence compared
+  /// Given an alignment, returns the mean shift of the sequence compared
   /// to the consensus. This is the average absolute difference between the position
   /// of the aligned nucleotide on the query (after applying edits) and its position
   /// on the consensus.
@@ -331,7 +331,10 @@ impl Edit {
   /// ref : ---xxxxxxxxxxxxx
   /// qry : xxxxxxxxxxxxx---
   /// average displacement = -3
-  pub fn average_displacement(&self, cons_len: usize) -> Option<i32> {
+  pub fn aln_mean_shift(&self, cons_len: usize) -> Option<i32> {
+    // TODO: the efficiency of this function can probably be improved by
+    // sorting in-dels, instead of calling aligned_count_after multiple times.
+
     // Total number of aligned positions.
     let aligned_count = self.aligned_count_after(0, cons_len);
     if aligned_count == 0 {
@@ -353,6 +356,40 @@ impl Edit {
       total_shift += (d.len * count_after) as i32;
     }
     Some((total_shift as f64 / aligned_count as f64).round() as i32)
+  }
+
+  /// Returns the maximum bandwidth of the alignment.
+  /// The bandwidth is the maximum absolute difference between the position of the aligned
+  /// nucleotide on the query (after applying edits) and its position on the consensus.
+  pub fn aln_bandwidth(&self, cons_len: usize, mean_shift: i32) -> Option<usize> {
+    // check that there is at least some aligned sequence
+    if self.aligned_count_after(0, cons_len) == 0 {
+      return None;
+    }
+
+    // create an ordered list of tuples (position, shift) for insertions and deletions
+    let ins_tuples = self.inss.iter().map(|i| (i.pos, -(i.seq.len() as i32)));
+    let del_tuples = self.dels.iter().map(|d| (d.pos, d.len as i32));
+    let sorted_tuples = ins_tuples.chain(del_tuples).sorted_by_key(|(p, _)| *p);
+
+    // calculate the maximum bandwidth
+    let mut max_bandwidth: usize = 0;
+    let mut current_bandwidth = 0;
+    for (pos, shift) in sorted_tuples {
+      current_bandwidth += shift;
+
+      // leading and trailing indels don't count towards the maximum bandwidth
+      // neglect leading and trailing insertions, and leading deletions
+      if pos == 0 || // leading indels
+      pos == cons_len || // trailing insertions
+      ((shift > 0) && (pos + shift as usize == cons_len))
+      // trailing deletions
+      {
+        continue;
+      }
+      max_bandwidth = max_bandwidth.max((current_bandwidth - mean_shift).unsigned_abs() as usize);
+    }
+    Some(max_bandwidth)
   }
 
   /// Create an Edit set from a given Cigar object.
@@ -727,7 +764,7 @@ mod tests {
     // No edits: expect zero displacement.
     let edit = Edit::empty();
     let cons_len = 10;
-    assert_eq!(edit.average_displacement(cons_len), Some(0));
+    assert_eq!(edit.aln_mean_shift(cons_len), Some(0));
   }
 
   #[rstest]
@@ -739,7 +776,7 @@ mod tests {
       inss: vec![Ins::new(0, "AA")],
     };
     let cons_len = 10;
-    assert_eq!(edit.average_displacement(cons_len), Some(-2));
+    assert_eq!(edit.aln_mean_shift(cons_len), Some(-2));
 
     // Insertion at the end: all positions receive a shift of 0.
     let edit = Edit {
@@ -748,7 +785,7 @@ mod tests {
       inss: vec![Ins::new(10, "AA")],
     };
     let cons_len = 10;
-    assert_eq!(edit.average_displacement(cons_len), Some(0));
+    assert_eq!(edit.aln_mean_shift(cons_len), Some(0));
   }
 
   #[rstest]
@@ -760,7 +797,7 @@ mod tests {
       inss: vec![],
     };
     let cons_len = 10;
-    assert_eq!(edit.average_displacement(cons_len), Some(2));
+    assert_eq!(edit.aln_mean_shift(cons_len), Some(2));
 
     // A trailing deletion of length 2: all positions receive a shift of 0.
     let edit = Edit {
@@ -769,7 +806,7 @@ mod tests {
       inss: vec![],
     };
     let cons_len = 10;
-    assert_eq!(edit.average_displacement(cons_len), Some(0));
+    assert_eq!(edit.aln_mean_shift(cons_len), Some(0));
   }
 
   #[rstest]
@@ -786,7 +823,7 @@ mod tests {
       dels: vec![Del::new(0, 3)],
       inss: vec![Ins::new(3, "AA")],
     };
-    assert_eq!(edit.average_displacement(cons_len), Some(1));
+    assert_eq!(edit.aln_mean_shift(cons_len), Some(1));
 
     // An internal insertion of length 4
     //     01234    56789
@@ -798,7 +835,7 @@ mod tests {
       dels: vec![],
       inss: vec![Ins::new(4, "AAAA")],
     };
-    assert_eq!(edit.average_displacement(cons_len), Some(-2));
+    assert_eq!(edit.aln_mean_shift(cons_len), Some(-2));
 
     // An internal deletion of length 3
     //     0123456789
@@ -810,7 +847,7 @@ mod tests {
       dels: vec![Del::new(4, 3)],
       inss: vec![],
     };
-    assert_eq!(edit.average_displacement(cons_len), Some(1));
+    assert_eq!(edit.aln_mean_shift(cons_len), Some(1));
 
     // Two deletions and insertions
     //        0123  45678901
@@ -823,7 +860,7 @@ mod tests {
       dels: vec![Del::new(2, 2), Del::new(6, 3)],
       inss: vec![Ins::new(0, "AAA"), Ins::new(4, "AA")],
     };
-    assert_eq!(edit.average_displacement(cons_len), Some(-2));
+    assert_eq!(edit.aln_mean_shift(cons_len), Some(-2));
   }
 
   #[rstest]
@@ -836,7 +873,7 @@ mod tests {
       inss: vec![],
     };
     let cons_len = 10;
-    assert_eq!(edit.average_displacement(cons_len), None);
+    assert_eq!(edit.aln_mean_shift(cons_len), None);
   }
 
   #[rstest]
@@ -887,5 +924,59 @@ mod tests {
       inss: vec![Ins::new(5, "NN"), Ins::new(18, "NNN")],
     };
     assert_eq!(edits, expected_edits);
+  }
+
+  #[rstest]
+  fn test_aln_bandwidth_empty() {
+    let edit = Edit::empty();
+    let cons_len = 10;
+    let mean_shift = edit.aln_mean_shift(cons_len).unwrap();
+    let bandwidth = edit.aln_bandwidth(cons_len, mean_shift);
+    assert_eq!(bandwidth, Some(0));
+  }
+
+  #[rstest]
+  fn test_aln_bandwidth_leading_trailing_indels() {
+    // Create an alignment with leading and trailing insertions and deletions.
+    // Bandwidth should be zero
+    // ref : xx-----xxxxxx...
+    // qry : --xxxxxxxxxxx...
+    // mean shift = -3
+    let edit = Edit {
+      subs: vec![],
+      dels: vec![Del::new(0, 2), Del::new(90, 10)],
+      inss: vec![Ins::new(0, "AAAAA"), Ins::new(100, "TTTTTTT")],
+    };
+    let cons_len = 100;
+    let mean_shift = edit.aln_mean_shift(cons_len).unwrap();
+    let bandwidth = edit.aln_bandwidth(cons_len, mean_shift);
+    assert_eq!(mean_shift, -3);
+    assert_eq!(bandwidth, Some(0));
+  }
+
+  #[rstest]
+  fn test_aln_bandwidth_internal_indels() {
+    // Create an alignment with internal insertions and deletions.
+    //                1             2            3         4
+    //      012345678901234    5678901234   5678901234567890123456789
+    // ref: xxxxxxxxxxxxxxx----xxxxxxxxxx---xxxxxxxxxxxxxxxxxxxxxxxxx------------
+    // qry: --xxxxxxxx-----xxxxxxxxx---xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    //        01234567     890123456   789012345678901234567890123456789012345678
+    //                       1            2         3         4         5
+    // shift  ++++++++         +++++   ++   +++++++++++++++++++++++++
+    //        22222222         33333   66   3333333333333333333333333
+    // max  ..        345676543     456  543                         ............
+    // mean shift = 2.95 -> 3
+    // bandwidth = 7-3 = 4
+    let edit = Edit {
+      subs: vec![],
+      dels: vec![Del::new(0, 2), Del::new(10, 5), Del::new(20, 3)],
+      inss: vec![Ins::new(15, "AAAA"), Ins::new(25, "TTT"), Ins::new(50, "GGGGGGGGGGGG")],
+    };
+    let cons_len = 50;
+    let mean_shift = edit.aln_mean_shift(cons_len).unwrap();
+    let bandwidth = edit.aln_bandwidth(cons_len, mean_shift);
+    assert_eq!(mean_shift, 3);
+    assert_eq!(bandwidth, Some(4));
   }
 }
