@@ -37,11 +37,13 @@ impl MergePromise {
   }
 
   pub fn solve_promise(&mut self) -> Result<PangraphBlock, Report> {
-    // TODO: avoid aligning if cigar is only matches
+    // TODO: avoid re-aligning if cigar is only a single match (no indels)
 
-    // let cigar_edits =
-    // let cigar_mean_shift =
-    // let cigar_bandwidth =
+    let cigar_edits = Edit::from_cigar(&self.cigar);
+    let cigar_mean_shift = cigar_edits.aln_mean_shift(self.anchor_block.consensus().len()).unwrap();
+    let cigar_bandwidth = cigar_edits
+      .aln_bandwidth(self.anchor_block.consensus().len(), cigar_mean_shift)
+      .unwrap();
 
     self
       .append_block
@@ -63,10 +65,16 @@ impl MergePromise {
           };
 
           // TODO: add average cigar shift (same for all sequences)
-          let mean_shift = edits.aln_mean_shift(self.append_block.consensus().len()).unwrap();
+          let edits_mean_shift = edits.aln_mean_shift(self.append_block.consensus().len()).unwrap();
+          let edits_bandwidth = edits
+            .aln_bandwidth(self.append_block.consensus().len(), edits_mean_shift)
+            .unwrap();
+
+          let mean_shift = cigar_mean_shift + edits_mean_shift;
+          let bandwidth = cigar_bandwidth + edits_bandwidth;
           // Nb: previously, the mean_shift was simply approximated as:
           // let mean_shift = (self.anchor_block.consensus().len() as i32 - seq.len() as i32) / 2;
-          map_variations(self.anchor_block.consensus(), &seq, mean_shift)?
+          map_variations(self.anchor_block.consensus(), &seq, mean_shift, bandwidth)?
         };
 
         #[cfg(any(test, debug_assertions))]

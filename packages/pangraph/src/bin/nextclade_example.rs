@@ -19,23 +19,31 @@ struct Args {
 
   #[clap(value_hint = ValueHint::FilePath)]
   pub input_query_fastas: Vec<PathBuf>,
+
+  #[clap(long, short = 's')]
+  pub mean_shift: i32,
+
+  #[clap(long, short = 'b')]
+  pub bandwidth: usize,
 }
 
 fn main() -> Result<(), Report> {
   let Args {
     input_ref_fasta,
     input_query_fastas,
+    mean_shift,
+    bandwidth,
   } = Args::parse();
 
   let ref_record = read_one_fasta(input_ref_fasta)?;
 
   let qry_records = read_many_fasta(&input_query_fastas)?;
   for qry_record in qry_records {
-    let mean_shift = (ref_record.seq.len() as i32 - qry_record.seq.len() as i32) / 2;
     let result = align_with_nextclade(
       &ref_record.seq,
       &qry_record.seq,
       mean_shift,
+      bandwidth,
       &NextalignParams::default(),
     )?;
     println!("{:#?}", &result);

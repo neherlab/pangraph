@@ -5,7 +5,7 @@ use crate::representation::seq::Seq;
 use eyre::Report;
 use itertools::Itertools;
 
-pub fn map_variations(ref_seq: &Seq, qry_seq: &Seq, mean_shift: i32) -> Result<Edit, Report> {
+pub fn map_variations(ref_seq: &Seq, qry_seq: &Seq, mean_shift: i32, bandwidth: usize) -> Result<Edit, Report> {
   let params = NextalignParams {
     min_length: 1,
     ..NextalignParams::default()
@@ -16,7 +16,7 @@ pub fn map_variations(ref_seq: &Seq, qry_seq: &Seq, mean_shift: i32) -> Result<E
     deletions,
     insertions,
     ..
-  } = align_with_nextclade(ref_seq.as_str(), qry_seq.as_str(), mean_shift, &params)?;
+  } = align_with_nextclade(ref_seq.as_str(), qry_seq.as_str(), mean_shift, bandwidth, &params)?;
 
   let subs = substitutions
     .iter()
@@ -55,14 +55,21 @@ mod tests {
     let r = "ACTTTGCGTCTGATAGCTTAGCGGATATTTACTGTA";
     let q = "ACTAGATTGAGTCTGATAGCTTAGCGGATATTGTA";
 
-    let mean_shift = (r.len() as i32 - q.len() as i32) / 2;
-    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift).unwrap();
+    let mean_shift = -2;
+    let bandwidth = 3;
+    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift, bandwidth).unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(6, 'A')],
       dels: vec![Del::new(29, 4)],
       inss: vec![Ins::new(3, "AGA")],
     };
+
+    // test that our example is correct
+    let exp_mean_shift = expected.aln_mean_shift(r.len()).unwrap();
+    let exp_shift = expected.aln_bandwidth(r.len(), exp_mean_shift).unwrap();
+    assert_eq!(exp_mean_shift, mean_shift);
+    assert_eq!(exp_shift, bandwidth);
 
     // test that our example is correct
     assert_eq!(q, &expected.apply(r).unwrap());
@@ -84,14 +91,21 @@ mod tests {
 
     let r = "ACACTGATTTCGTCCCTTAGGTACTCTACACTGTAGCCTA";
     let q = "CTGATTTAGTCCCTTAGGGGTTACTCTACACTGTAG";
-    let mean_shift = (r.len() as i32 - q.len() as i32) / 2;
-    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift).unwrap();
+    let mean_shift = 2;
+    let bandwidth = 2;
+    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift, bandwidth).unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(10, 'A')],
       dels: vec![Del::new(0, 3), Del::new(36, 4)],
       inss: vec![Ins::new(21, "GGT")],
     };
+
+    // test that our example is correct
+    let exp_mean_shift = expected.aln_mean_shift(r.len()).unwrap();
+    let exp_shift = expected.aln_bandwidth(r.len(), exp_mean_shift).unwrap();
+    assert_eq!(exp_mean_shift, mean_shift);
+    assert_eq!(exp_shift, bandwidth);
 
     // test that our example is correct
     assert_eq!(q, expected.apply(r).unwrap());
@@ -113,14 +127,21 @@ mod tests {
 
     let r = "ACACTGATTTCGTCCCTTAGGTACTCTACACTGTAGCCTA";
     let q = "CCTGACACTGATTTAGTCCTAGGGGTTACTCTACACCGTAGCCTAGCCGCCG";
-    let mean_shift = (r.len() as i32 - q.len() as i32) / 2;
-    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift).unwrap();
+    let mean_shift = -4;
+    let bandwidth = 2;
+    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift, bandwidth).unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(10, 'A'), Sub::new(31, 'C')],
       dels: vec![Del::new(15, 2)],
       inss: vec![Ins::new(0, "CCTG"), Ins::new(21, "GGT"), Ins::new(40, "GCCGCCG")],
     };
+
+    // test that our example is correct
+    let exp_mean_shift = expected.aln_mean_shift(r.len()).unwrap();
+    let exp_shift = expected.aln_bandwidth(r.len(), exp_mean_shift).unwrap();
+    assert_eq!(exp_mean_shift, mean_shift);
+    assert_eq!(exp_shift, bandwidth);
 
     // test that our example is correct
     assert_eq!(q, expected.apply(r).unwrap());
@@ -141,14 +162,21 @@ mod tests {
 
     let r = "CGCCCTACTACAAGAGGGAACTTTTTTTTTAAGTATAGCCACAATAGCTGG";
     let q = "CGCCCTACTACAAGAGGGAACGGGGGGGGGGGGGAAGTATAGCCACAATAGCTGG";
-    let mean_shift = (r.len() as i32 - q.len() as i32) / 2;
-    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift).unwrap();
+    let mean_shift = -2;
+    let bandwidth = 11;
+    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift, bandwidth).unwrap();
 
     let expected = Edit {
       subs: vec![],
       dels: vec![Del::new(21, 9)],
       inss: vec![Ins::new(21, "GGGGGGGGGGGGG")],
     };
+
+    // test that our example is correct
+    let exp_mean_shift = expected.aln_mean_shift(r.len()).unwrap();
+    let exp_shift = expected.aln_bandwidth(r.len(), exp_mean_shift).unwrap();
+    assert_eq!(exp_mean_shift, mean_shift);
+    assert_eq!(exp_shift, bandwidth);
 
     // test that our example is correct
     assert_eq!(q, expected.apply(r).unwrap());

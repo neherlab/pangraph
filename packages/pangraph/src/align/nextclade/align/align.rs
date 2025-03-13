@@ -14,6 +14,8 @@ use eyre::{Report, WrapErr};
 use log::{debug, trace, warn};
 use std::cmp::max;
 
+const BANDWIDTH_EXTRA_TOLERANCE: usize = 2;
+
 fn align_pairwise<T: Letter<T>>(
   qry_seq: &[T],
   ref_seq: &[T],
@@ -33,6 +35,7 @@ pub fn align_nuc_simplestripe(
   ref_seq: &[Nuc],
   gap_open_close: &[i32],
   mean_shift: i32,
+  initial_bandwidth: usize,
   params: &NextalignParams,
 ) -> Result<AlignmentOutput<Nuc>, Report> {
   let qry_len = qry_seq.len();
@@ -44,10 +47,7 @@ pub fn align_nuc_simplestripe(
     );
   }
 
-  // mean shift equal to half difference between ref and query lengths
-  // let mean_shift = (ref_len as i32 - qry_len as i32) / 2;
-  // band width equal to 2 times absolute difference + 10
-  let mut band_width = (mean_shift.abs() * 4 + 10) as usize;
+  let mut band_width = initial_bandwidth + BANDWIDTH_EXTRA_TOLERANCE;
   let mut stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
 
   let mut attempt = 0;

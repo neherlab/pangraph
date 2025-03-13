@@ -5,9 +5,12 @@ use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
 use crate::utils::interval::Interval;
 use color_eyre::{Section, SectionExt};
-use eyre::{Report, WrapErr};
+use eyre::Report;
 use itertools::Itertools;
 use noodles::sam::record::Cigar;
+
+#[cfg(any(debug_assertions, test))]
+use eyre::WrapErr;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PangraphInterval {
