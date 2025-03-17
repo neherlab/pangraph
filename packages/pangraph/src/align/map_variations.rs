@@ -15,8 +15,19 @@ pub fn map_variations(ref_seq: &Seq, qry_seq: &Seq, mean_shift: i32, bandwidth: 
     substitutions,
     deletions,
     insertions,
+    hit_boundary,
     ..
   } = align_with_nextclade(ref_seq.as_str(), qry_seq.as_str(), mean_shift, bandwidth, &params)?;
+
+  // if hit_boundary {
+  //   return Err(eyre::eyre!(
+  //     "Alignment hit boundary: mean_shift: {}, bandwidth: {}\nref: {}\nqry: {}",
+  //     mean_shift,
+  //     bandwidth,
+  //     ref_seq,
+  //     qry_seq
+  //   ));
+  // }
 
   let subs = substitutions
     .iter()
