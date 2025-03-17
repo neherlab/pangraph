@@ -372,23 +372,39 @@ impl Edit {
     let del_tuples = self.dels.iter().map(|d| (d.pos, d.len as i32));
     let sorted_tuples = ins_tuples.chain(del_tuples).sorted_by_key(|(p, _)| *p);
 
+    // // calculate the maximum bandwidth
+    // let mut max_bandwidth: usize = 0;
+    // let mut current_band_position = 0;
+    // max_bandwidth = max_bandwidth.max((current_band_position - mean_shift).unsigned_abs() as usize);
+
+    // for (_, shift) in sorted_tuples {
+    //   // update band position
+    //   current_band_position += shift;
+    //   max_bandwidth = max_bandwidth.max((current_band_position - mean_shift).unsigned_abs() as usize);
+    // }
+
+    let n_edits = sorted_tuples.len();
     // calculate the maximum bandwidth
     let mut max_bandwidth: usize = 0;
-    let mut current_bandwidth = 0;
-    for (pos, shift) in sorted_tuples {
-      current_bandwidth += shift;
+    let mut current_band_position = 0;
 
-      // leading and trailing indels don't count towards the maximum bandwidth
-      // neglect leading and trailing insertions, and leading deletions
-      if pos == 0 || // leading indels
-      pos == cons_len || // trailing insertions
-      ((shift > 0) && (pos + shift as usize == cons_len))
-      // trailing deletions
-      {
+    for (i, (pos, shift)) in sorted_tuples.enumerate() {
+      // if the first in/del is not at the beginning, consider that the first aligned band is at
+      // shift 0, and update max_bandwidth accordingly.
+      if (i == 0) && (pos > 0) {
+        max_bandwidth = max_bandwidth.max((current_band_position - mean_shift).unsigned_abs() as usize);
+      }
+
+      // update band position
+      current_band_position += shift;
+
+      // the last trailing in/del does not count (in case two trailing in/dels are present one counts)
+      if (i == n_edits - 1) && ((pos == cons_len) || ((shift > 0) && (pos + shift as usize == cons_len))) {
         continue;
       }
-      max_bandwidth = max_bandwidth.max((current_bandwidth - mean_shift).unsigned_abs() as usize);
+      max_bandwidth = max_bandwidth.max((current_band_position - mean_shift).unsigned_abs() as usize);
     }
+
     Some(max_bandwidth)
   }
 
@@ -415,7 +431,8 @@ impl Edit {
           rpos += op.len();
         },
         _ => {
-          // Ignore other operation kinds.
+          // raise error for unsupported operations
+          unimplemented!("Unsupported CIGAR operation: {:?}", op);
         },
       }
     }
@@ -936,22 +953,42 @@ mod tests {
   }
 
   #[rstest]
-  fn test_aln_bandwidth_leading_trailing_indels() {
-    // Create an alignment with leading and trailing insertions and deletions.
-    // Bandwidth should be zero
-    // ref : xx-----xxxxxx...
-    // qry : --xxxxxxxxxxx...
+  fn test_aln_bandwidth_single_leanding_trailing_indels() {
+    // Create an alignment with leading and trailing indels with zero bandwidth
+    // ref : ---xxxxxx...xxxxxx
+    // qry : xxxxxxxxx...xxx---
     // mean shift = -3
     let edit = Edit {
       subs: vec![],
-      dels: vec![Del::new(0, 2), Del::new(90, 10)],
-      inss: vec![Ins::new(0, "AAAAA"), Ins::new(100, "TTTTTTT")],
+      dels: vec![Del::new(97, 3)],
+      inss: vec![Ins::new(0, "AAA")],
     };
     let cons_len = 100;
     let mean_shift = edit.aln_mean_shift(cons_len).unwrap();
     let bandwidth = edit.aln_bandwidth(cons_len, mean_shift);
     assert_eq!(mean_shift, -3);
     assert_eq!(bandwidth, Some(0));
+  }
+
+  #[rstest]
+  fn test_aln_bandwidth_double_leading_trailing_indels() {
+    // create alignment with double leading and trailing indels
+    // the bandwidth is given by the shorter one
+    // ref : ---xxxxxxxxxxx...xxxxxx----
+    // qry : xxx-----xxxxxx...xxx---xxxx
+    // mean shift = 1
+    // bandwidth = 4 0r 3
+    // TODO: make sure to take the minimum (3) instead of the maximum (4)
+    let edit = Edit {
+      subs: vec![],
+      dels: vec![Del::new(0, 4), Del::new(97, 3)],
+      inss: vec![Ins::new(0, "AAA"), Ins::new(100, "AAAA")],
+    };
+    let cons_len = 100;
+    let mean_shift = edit.aln_mean_shift(cons_len).unwrap();
+    let bandwidth = edit.aln_bandwidth(cons_len, mean_shift);
+    assert_eq!(mean_shift, 1);
+    assert_eq!(bandwidth, Some(4));
   }
 
   #[rstest]

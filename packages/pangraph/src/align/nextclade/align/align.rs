@@ -14,7 +14,7 @@ use eyre::{Report, WrapErr};
 use log::{debug, trace, warn};
 use std::cmp::max;
 
-const BANDWIDTH_EXTRA_TOLERANCE: usize = 2;
+const BANDWIDTH_EXTRA_TOLERANCE: usize = 1;
 
 fn align_pairwise<T: Letter<T>>(
   qry_seq: &[T],
@@ -50,14 +50,13 @@ pub fn align_nuc_simplestripe(
   let mut band_width = initial_bandwidth + BANDWIDTH_EXTRA_TOLERANCE;
   let mut stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
 
-  let mut attempt = 0;
+  let mut attempt = 1;
   let mut alignment = align_pairwise(qry_seq, ref_seq, gap_open_close, params, &stripes);
 
   while alignment.hit_boundary && attempt < params.max_alignment_attempts {
     debug!(
       "In nucleotide alignment: Band boundary is hit on attempt {}. Retrying with relaxed parameters. Alignment score was: {}",
-      attempt + 1,
-      alignment.alignment_score
+      attempt, alignment.alignment_score
     );
     // double bandwidth parameters or increase to one if 0
     band_width = max(2 * band_width, 1);

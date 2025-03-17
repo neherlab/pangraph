@@ -39,6 +39,9 @@ impl MergePromise {
   pub fn solve_promise(&mut self) -> Result<PangraphBlock, Report> {
     // TODO: avoid re-aligning if cigar is only a single match (no indels)
 
+    // calculate the mean shift and bandwidth of the alignment due to the displacement
+    // between the anchor and append blocks sequences (from the cigar string)
+    // this is the same for all sequences in the append block
     let cigar_edits = Edit::from_cigar(&self.cigar);
     let cigar_mean_shift = cigar_edits.aln_mean_shift(self.anchor_block.consensus().len()).unwrap();
     let cigar_bandwidth = cigar_edits
@@ -64,16 +67,17 @@ impl MergePromise {
             (seq, edits)
           };
 
-          // TODO: add average cigar shift (same for all sequences)
+          // calculate the mean shift and bandwidth of the alignment due to the displacement
+          // of each sequence in the append block relative to the append block consensus
           let edits_mean_shift = edits.aln_mean_shift(self.append_block.consensus().len()).unwrap();
           let edits_bandwidth = edits
             .aln_bandwidth(self.append_block.consensus().len(), edits_mean_shift)
             .unwrap();
 
+          // sum the two contributions
           let mean_shift = cigar_mean_shift + edits_mean_shift;
           let bandwidth = cigar_bandwidth + edits_bandwidth;
-          // Nb: previously, the mean_shift was simply approximated as:
-          // let mean_shift = (self.anchor_block.consensus().len() as i32 - seq.len() as i32) / 2;
+
           map_variations(self.anchor_block.consensus(), &seq, mean_shift, bandwidth)?
         };
 
@@ -253,7 +257,7 @@ fn update_cigar(
 ) -> Cigar {
   let mut new_cigar = cigar.clone();
 
-  // anchor extension - more reference is a deletion on the query
+  // anchor extension - more reference is a deletion
   if let Some(left) = anchor_extension.left {
     new_cigar = add_flanking_indel(&new_cigar, Kind::Deletion, left, &Side::Leading).unwrap();
   };
@@ -261,7 +265,7 @@ fn update_cigar(
     new_cigar = add_flanking_indel(&new_cigar, Kind::Deletion, right, &Side::Trailing).unwrap();
   };
 
-  // append extension - more query is an insertion on the query
+  // append extension - more query is an insertion
   if let Some(left) = append_extension.left {
     let side = match orientation {
       Strand::Forward => Side::Leading,
