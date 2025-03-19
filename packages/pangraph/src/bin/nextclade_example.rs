@@ -3,12 +3,13 @@ use ctor::ctor;
 use eyre::Report;
 use pangraph::align::nextclade::align_with_nextclade::{NextalignParams, align_with_nextclade};
 use pangraph::io::fasta::{read_many_fasta, read_one_fasta};
-use pangraph::utils::global_init::global_init;
+use pangraph::utils::global_init::{global_init, setup_logger};
 use std::path::PathBuf;
 
 #[ctor]
 fn init() {
   global_init();
+  setup_logger(log::LevelFilter::Warn);
 }
 
 #[derive(Parser, Debug)]
