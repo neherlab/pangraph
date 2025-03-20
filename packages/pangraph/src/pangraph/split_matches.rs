@@ -1,12 +1,11 @@
 use crate::align::alignment::{Alignment, Hit};
 use crate::align::alignment_args::AlignmentArgs;
-use crate::align::bam::cigar::{cigar_matches_len, cigar_total_len};
+use crate::align::bam::cigar::{Side, add_flanking_indel, cigar_matches_len, cigar_total_len};
 use crate::make_internal_error;
 use crate::pangraph::strand::Strand;
 use eyre::Report;
 use itertools::Itertools;
 use noodles::sam::record::Cigar;
-use noodles::sam::record::cigar::Op;
 use noodles::sam::record::cigar::op::Kind;
 use std::cmp::max;
 
@@ -188,7 +187,7 @@ fn generate_subalignment(aln: &Alignment, group: &(usize, usize)) -> Result<Alig
 /// If lateral overhangs are shorter than threshold, add them to the alignment to avoid excessive fragmentation
 #[allow(non_snake_case)]
 pub fn side_patches(aln: &mut Alignment, args: &AlignmentArgs) -> Result<(), Report> {
-  let mut ops = aln.cigar.to_vec();
+  let mut ops = aln.cigar.clone(); // TODO: avoid cloning every time
 
   // Check reference
   let (rs, re, rL) = (aln.reff.interval.start, aln.reff.interval.end, aln.reff.length);
@@ -197,14 +196,14 @@ pub fn side_patches(aln: &mut Alignment, args: &AlignmentArgs) -> Result<(), Rep
     let delta_l = rs;
     aln.reff.interval.start = 0;
     aln.length += delta_l;
-    ops.insert(0, Op::new(Kind::Deletion, delta_l));
+    ops = add_flanking_indel(&ops, Kind::Deletion, delta_l, &Side::Leading).unwrap();
   }
   if (re < rL) && (rL - re < args.indel_len_threshold) {
     // Append right reference patch
     let delta_l = rL - re;
     aln.reff.interval.end = rL;
     aln.length += delta_l;
-    ops.push(Op::new(Kind::Deletion, delta_l));
+    ops = add_flanking_indel(&ops, Kind::Deletion, delta_l, &Side::Trailing).unwrap();
   }
 
   // Check query
@@ -214,27 +213,25 @@ pub fn side_patches(aln: &mut Alignment, args: &AlignmentArgs) -> Result<(), Rep
     let delta_l = qs;
     aln.qry.interval.start = 0;
     aln.length += delta_l;
-    let extra_ins = Op::new(Kind::Insertion, delta_l);
-    if aln.orientation == Strand::Forward {
-      ops.push(extra_ins);
-    } else {
-      ops.insert(0, extra_ins);
-    }
+    let side = match aln.orientation {
+      Strand::Forward => Side::Leading,
+      Strand::Reverse => Side::Trailing,
+    };
+    ops = add_flanking_indel(&ops, Kind::Insertion, delta_l, &side).unwrap();
   }
   if (qe < qL) && (qL - qe < args.indel_len_threshold) {
     // Append query end
     let delta_l = qL - qe;
     aln.qry.interval.end = qL;
     aln.length += delta_l;
-    let extra_ins = Op::new(Kind::Insertion, delta_l);
-    if aln.orientation == Strand::Forward {
-      ops.push(extra_ins);
-    } else {
-      ops.insert(0, extra_ins);
-    }
+    let side = match aln.orientation {
+      Strand::Forward => Side::Trailing,
+      Strand::Reverse => Side::Leading,
+    };
+    ops = add_flanking_indel(&ops, Kind::Insertion, delta_l, &side).unwrap();
   }
 
-  aln.cigar = Cigar::try_from(ops)?;
+  aln.cigar = ops;
 
   Ok(())
 }
