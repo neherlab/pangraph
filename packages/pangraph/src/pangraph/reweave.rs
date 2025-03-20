@@ -78,7 +78,13 @@ impl MergePromise {
           let mean_shift = cigar_mean_shift + edits_mean_shift;
           let bandwidth = cigar_bandwidth + edits_bandwidth;
 
-          map_variations(self.anchor_block.consensus(), &seq, mean_shift, bandwidth)?
+            map_variations(self.anchor_block.consensus(), &seq, mean_shift, bandwidth)
+            .wrap_err_with(|| {
+              format!(
+              "during map variation:\ncigar mean shift: {}\ncigar bandwidth: {}\nedits mean shift: {}\nedits bandwidth: {}\ncigar: {:?}\nedits: {:?}",
+              cigar_mean_shift, cigar_bandwidth, edits_mean_shift, edits_bandwidth, self.cigar, edits
+              )
+            })?
         };
 
         #[cfg(any(test, debug_assertions))]
