@@ -1,5 +1,5 @@
 use crate::make_error;
-use eyre::{Report, WrapErr, eyre};
+use eyre::{Report, WrapErr};
 use noodles::sam::record::Cigar;
 use noodles::sam::record::cigar::op::{Kind, Op};
 use std::str::FromStr;
