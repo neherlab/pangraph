@@ -461,13 +461,13 @@ mod tests {
   }
 
   #[rstest]
-  fn test_split_matches_with_side_patches_reverse() {
+  fn test_split_matches_with_side_patches_reverse_qry_leading() {
     // CG          3I  3D  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  4I   5D
     //
     //                 0   3                      20                21                            43         48
     // ref         --- DDD MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---- DDDDD
     // qry         III --- MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM IIII -----
-    // 300 +       56      53                     37                22                             4    0
+    // 200 +       56      53                     37                22                             4    0
     // groups              |-----------------------|                |------------------------------|
     // side patch  |-------------------------------|                |-------------------------------      -----|
 
@@ -515,6 +515,72 @@ mod tests {
         length: 32,
         quality: 10,
         cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M 5D".replace(' ', "")).unwrap(),
+        orientation: Strand::Reverse,
+        new_block_id: None, // FIXME
+        anchor_block: None, // FIXME
+        divergence: Some(0.1),
+        align: None,
+      },
+    ];
+
+    assert_eq!(expected, actual);
+  }
+
+  #[rstest]
+  fn test_split_matches_with_side_patches_reverse_qry_trailing() {
+    // CG          3I  3D  6M     3I  3M  4D   5M    14I            7M      3D  4I   5M    5D    3M  4I   5D
+    //
+    //                 0   3                      20                21                            43         48
+    // ref         --- DDD MMMMMM --- MMM DDDD MMMMM -------------- MMMMMMM DDD ---- MMMMM DDDDD MMM ---- DDDDD
+    // qry         III --- MMMMMM III MMM ---- MMMMM IIIIIIIIIIIIII MMMMMMM --- IIII MMMMM ----- MMM IIII -----
+    //             56      53                     37                22                             4    0
+    // groups              |-----------------------|                |------------------------------|
+    // side patch  |-------------------------------|                |-------------------------------      -----|
+
+    let aln = Alignment {
+      qry: Hit::new(BlockId(0), 257, (0, 57)),
+      reff: Hit::new(BlockId(1), 49, (0, 49)),
+      matches: 29,
+      length: 77,
+      quality: 10,
+      cigar: parse_cigar_str("3I 3D 6M 3I 3M 4D 5M 14I 7M 3D 4I 5M 5D 3M 4I 5D".replace(' ', "")).unwrap(),
+      orientation: Strand::Reverse,
+      new_block_id: None, // FIXME
+      anchor_block: None, // FIXME
+      divergence: Some(0.1),
+      align: None,
+    };
+
+    let actual = split_matches(
+      &aln,
+      &AlignmentArgs {
+        indel_len_threshold: 10,
+        ..AlignmentArgs::default()
+      },
+    )
+    .unwrap();
+
+    let expected = vec![
+      Alignment {
+        qry: Hit::new(BlockId(0), 257, (37, 54)),
+        reff: Hit::new(BlockId(1), 49, (0, 21)),
+        matches: 14,
+        length: 24,
+        quality: 10,
+        cigar: parse_cigar_str("3D 6M 3I 3M 4D 5M".replace(' ', "")).unwrap(),
+        orientation: Strand::Reverse,
+        new_block_id: None, // FIXME
+        anchor_block: None, // FIXME
+        divergence: Some(0.1),
+        align: None,
+      },
+      Alignment {
+        qry: Hit::new(BlockId(0), 257, (0, 23)),
+        reff: Hit::new(BlockId(1), 49, (21, 49)),
+        matches: 15,
+        length: 36,
+        quality: 10,
+        cigar: parse_cigar_str("7M 3D 4I 5M 5D 3M 5D 4I".replace(' ', "")).unwrap(),
         orientation: Strand::Reverse,
         new_block_id: None, // FIXME
         anchor_block: None, // FIXME
