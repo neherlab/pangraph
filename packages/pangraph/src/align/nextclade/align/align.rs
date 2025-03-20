@@ -206,8 +206,8 @@ mod tests {
     let ref_str = "------------------------------TTGGCCCCGGTGCTGTCCGTCAACACGTCGTCGTCCGGCGACCTACCTGGTCTCAAAGGAGGTTTTGTTAAATGAATTAGATGGGTAAGGTTACCACGTCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     let qry_str = "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTTGGCCCCGGTGCTGTCCGTCAACACGTCGTCGTCCGGCGACCTACCTGGTCTCAAAGGAGGTTTTGTTAAATGAATTAGATGGGTAAGGTTACCACGTCA------------------------------";
 
-    let qry_str = qry_str.replace("-", "");
-    let ref_str = ref_str.replace("-", "");
+    let qry_str = qry_str.replace('-', "");
+    let ref_str = ref_str.replace('-', "");
 
     let qry_seq = to_nuc_seq(&qry_str).unwrap();
     let ref_seq = to_nuc_seq(&ref_str).unwrap();
@@ -229,7 +229,7 @@ mod tests {
       &params,
     )
     .unwrap();
-    assert_eq!(alignment.hit_boundary, false);
+    assert!(!alignment.hit_boundary);
 
     let mean_shift = 0;
     let initial_bandwidth = 31;
@@ -242,7 +242,7 @@ mod tests {
       &params,
     )
     .unwrap();
-    assert_eq!(alignment.hit_boundary, false);
+    assert!(!alignment.hit_boundary);
 
     let mean_shift = 0;
     let initial_bandwidth = 30;
@@ -255,6 +255,6 @@ mod tests {
       &params,
     )
     .unwrap();
-    assert_eq!(alignment.hit_boundary, true);
+    assert!(alignment.hit_boundary);
   }
 }
