@@ -99,6 +99,7 @@ pub fn add_flanking_indel(cigar: &Cigar, kind: Kind, add_len: usize, side: &Side
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::utils::error::report_to_string;
   use eyre::Report;
   use noodles::sam::record::cigar::Op;
   use noodles::sam::record::cigar::op::Kind;
@@ -208,7 +209,10 @@ mod tests {
 
     let result = cigar_switch_ref_qry(&cigar);
 
-    assert!(result.is_err());
+    assert_eq!(
+      report_to_string(&result.unwrap_err()),
+      "CIGAR inversion: unsupported operation kind: SoftClip"
+    );
   }
 
   #[rstest]
