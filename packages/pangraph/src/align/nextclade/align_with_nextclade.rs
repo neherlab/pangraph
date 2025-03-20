@@ -9,6 +9,8 @@ use crate::align::nextclade::analyze::nuc_sub::NucSub;
 use eyre::{Report, WrapErr};
 use serde::{Deserialize, Serialize};
 
+pub const EXTRA_BANDWIDTH: usize = 5;
+
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct AlignWithNextcladeOutput {
   pub qry_aln: String,
@@ -38,6 +40,7 @@ pub fn align_with_nextclade(
 
   let gap_open_close = get_gap_open_close_scores_flat(&ref_seq, params);
 
+  let bandwidth = bandwidth + EXTRA_BANDWIDTH;
   let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, mean_shift, bandwidth, params)
     .wrap_err("When aligning sequences with nextclade align")?;
 

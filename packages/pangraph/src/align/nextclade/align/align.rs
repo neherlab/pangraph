@@ -14,8 +14,6 @@ use eyre::{Report, WrapErr};
 use log::{debug, trace, warn};
 use std::cmp::max;
 
-const BANDWIDTH_EXTRA_TOLERANCE: usize = 5;
-
 fn align_pairwise<T: Letter<T>>(
   qry_seq: &[T],
   ref_seq: &[T],
@@ -51,7 +49,7 @@ pub fn align_nuc_simplestripe(
     "In nucleotide alignment: Aligning sequences of lengths: query: {qry_len}, reference: {ref_len}, with mean_shift: {mean_shift}, initial_bandwidth: {initial_bandwidth}"
   );
 
-  let mut band_width = initial_bandwidth + BANDWIDTH_EXTRA_TOLERANCE;
+  let mut band_width = initial_bandwidth;
   let mut stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
 
   let mut attempt = 1;
@@ -194,4 +192,69 @@ pub fn align_nuc(
   }
   alignment.is_reverse_complement = is_reverse_complement;
   Ok(Some(alignment))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::align::nextclade::align::gap_open::get_gap_open_close_scores_flat;
+  use crate::align::nextclade::align::params::NextalignParams;
+  use crate::align::nextclade::alphabet::nuc::to_nuc_seq;
+
+  #[test]
+  fn test_align_nuc_simplestripe_trigger_band_hit() {
+    let ref_str = "------------------------------TTGGCCCCGGTGCTGTCCGTCAACACGTCGTCGTCCGGCGACCTACCTGGTCTCAAAGGAGGTTTTGTTAAATGAATTAGATGGGTAAGGTTACCACGTCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    let qry_str = "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTTGGCCCCGGTGCTGTCCGTCAACACGTCGTCGTCCGGCGACCTACCTGGTCTCAAAGGAGGTTTTGTTAAATGAATTAGATGGGTAAGGTTACCACGTCA------------------------------";
+
+    let qry_str = qry_str.replace("-", "");
+    let ref_str = ref_str.replace("-", "");
+
+    let qry_seq = to_nuc_seq(&qry_str).unwrap();
+    let ref_seq = to_nuc_seq(&ref_str).unwrap();
+
+    let params = NextalignParams {
+      max_alignment_attempts: 1,
+      ..Default::default()
+    };
+    let gap_open_close = get_gap_open_close_scores_flat(&ref_seq, &params);
+
+    let mean_shift = -30;
+    let initial_bandwidth = 1;
+    let alignment = align_nuc_simplestripe(
+      &qry_seq,
+      &ref_seq,
+      &gap_open_close,
+      mean_shift,
+      initial_bandwidth,
+      &params,
+    )
+    .unwrap();
+    assert_eq!(alignment.hit_boundary, false);
+
+    let mean_shift = 0;
+    let initial_bandwidth = 31;
+    let alignment = align_nuc_simplestripe(
+      &qry_seq,
+      &ref_seq,
+      &gap_open_close,
+      mean_shift,
+      initial_bandwidth,
+      &params,
+    )
+    .unwrap();
+    assert_eq!(alignment.hit_boundary, false);
+
+    let mean_shift = 0;
+    let initial_bandwidth = 30;
+    let alignment = align_nuc_simplestripe(
+      &qry_seq,
+      &ref_seq,
+      &gap_open_close,
+      mean_shift,
+      initial_bandwidth,
+      &params,
+    )
+    .unwrap();
+    assert_eq!(alignment.hit_boundary, true);
+  }
 }
