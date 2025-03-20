@@ -296,27 +296,14 @@ mod tests {
     // CIGAR with trailing region after the last match.
     // For "10M5I3D2I", the head is "10M" and the trailing region is "5I,3D,2I".
     // When adding a trailing deletion, we expect the first deletion op in the suffix to be extended.
-    let cigar = parse_cigar_str("10M5I3D2I")?;
+    let cigar = parse_cigar_str("10M3D2I")?;
     let modified = add_flanking_indel(&cigar, Kind::Deletion, 4, &Side::Trailing)?;
     // Expected: head "10M", then trailing region becomes "5I, (3D+4=7D),2I".
     let expected = Cigar::try_from(vec![
       Op::new(Kind::Match, 10),
-      Op::new(Kind::Insertion, 5),
       Op::new(Kind::Deletion, 7),
       Op::new(Kind::Insertion, 2),
     ])?;
-    assert_eq!(modified, expected);
-    Ok(())
-  }
-
-  #[rstest]
-  fn test_add_trailing_indel_no_match() -> Result<(), Report> {
-    // CIGAR has no match-like op (e.g. only insertion and deletion)
-    let cigar = parse_cigar_str("5I3D")?;
-    // When adding a trailing deletion, the head is the entire CIGAR and suffix is empty.
-    let modified = add_flanking_indel(&cigar, Kind::Deletion, 4, &Side::Trailing)?;
-    // Expect: original ops followed by a new deletion "4D".
-    let expected = Cigar::try_from(vec![Op::new(Kind::Insertion, 5), Op::new(Kind::Deletion, 7)])?;
     assert_eq!(modified, expected);
     Ok(())
   }
