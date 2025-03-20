@@ -1,3 +1,4 @@
+use crate::make_error;
 use eyre::{Report, WrapErr, eyre};
 use noodles::sam::record::Cigar;
 use noodles::sam::record::cigar::op::{Kind, Op};
@@ -33,7 +34,7 @@ pub fn cigar_switch_ref_qry(cigar: &Cigar) -> Result<Cigar, Report> {
       Kind::Match | Kind::SequenceMatch | Kind::SequenceMismatch => Ok(*op),
       Kind::Insertion => Ok(Op::new(Kind::Deletion, op.len())),
       Kind::Deletion => Ok(Op::new(Kind::Insertion, op.len())),
-      _ => Err(eyre!("CIGAR inversion: unsupported operation kind: {:?}", op.kind())),
+      _ => make_error!("CIGAR inversion: unsupported operation kind: {:?}", op.kind()),
     })
     .collect();
 
@@ -59,7 +60,7 @@ pub enum Side {
 /// The side parameter determines whether the in/del is added at the beginning (leading) or end (trailing).
 pub fn add_flanking_indel(cigar: &Cigar, kind: Kind, add_len: usize, side: &Side) -> Result<Cigar, Report> {
   if kind != Kind::Insertion && kind != Kind::Deletion {
-    return Err(eyre!("Unsupported operation kind for extension: {:?}", kind));
+    return make_error!("Unsupported operation kind for extension: {:?}", kind);
   }
 
   let cigar_iter: Box<dyn Iterator<Item = (usize, &Op)>> = match side {
