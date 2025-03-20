@@ -1,5 +1,6 @@
 use crate::make_error;
 use eyre::{Report, WrapErr};
+use itertools::Either;
 use noodles::sam::record::Cigar;
 use noodles::sam::record::cigar::op::{Kind, Op};
 use std::str::FromStr;
@@ -63,9 +64,9 @@ pub fn add_flanking_indel(cigar: &Cigar, kind: Kind, add_len: usize, side: &Side
     return make_error!("Unsupported operation kind for extension: {:?}", kind);
   }
 
-  let cigar_iter: Box<dyn Iterator<Item = (usize, &Op)>> = match side {
-    Side::Leading => Box::new(cigar.iter().enumerate()),
-    Side::Trailing => Box::new(cigar.iter().enumerate().rev()),
+  let cigar_iter = match side {
+    Side::Leading => Either::Left(cigar.iter().enumerate()),
+    Side::Trailing => Either::Right(cigar.iter().enumerate().rev()),
   };
 
   let mut replace = None;
