@@ -32,7 +32,7 @@ pub fn align_with_nextclade(
 
   // TODO: remove
   let params = &NextalignParams {
-    max_alignment_attempts: 1,
+    max_alignment_attempts: 4,
     ..params.clone()
   };
 
