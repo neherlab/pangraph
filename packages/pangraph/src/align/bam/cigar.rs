@@ -21,9 +21,9 @@ pub fn cigar_total_len(cigar: &Cigar) -> usize {
   cigar.iter().map(|op| op.len()).sum()
 }
 
-pub fn invert_cigar(cigar: &Cigar) -> Cigar {
+pub fn invert_cigar(cigar: &Cigar) -> Result<Cigar, Report> {
   let inverted_ops: Vec<Op> = cigar.iter().copied().rev().collect();
-  Cigar::try_from(inverted_ops).expect("Failed to create inverted CIGAR")
+  Cigar::try_from(inverted_ops).wrap_err("Failed to create inverted CIGAR")
 }
 
 pub fn cigar_switch_ref_qry(cigar: &Cigar) -> Result<Cigar, Report> {
@@ -165,7 +165,7 @@ mod tests {
     let cigar_str = "10M1I5M1D20M";
     let cigar = parse_cigar_str(cigar_str)?;
 
-    let inverted = invert_cigar(&cigar);
+    let inverted = invert_cigar(&cigar)?;
 
     let expected = Cigar::try_from(vec![
       Op::new(Kind::Match, 20),

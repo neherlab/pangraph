@@ -188,7 +188,7 @@ fn target_blocks(mergers: &[Alignment]) -> BTreeMap<BlockId, Vec<Alignment>> {
 /// the block in separate slices.
 /// If the block is the anchor block in the alignment, they also contain
 /// the cigar string of the alignment.
-fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
+fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Result<Vec<ExtractedHit>, Report> {
   let mut hits = Vec::with_capacity(mergers.len() * 2);
 
   for m in mergers {
@@ -211,14 +211,16 @@ fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
       // here we need to switch the cigar from refernce-based to query-based
       // i.e. switch I <-> D
       // if the match is on the reverse strand, the cigar also needs to be reverse-complemented
-      let cigar = is_anchor.then(|| {
-        let in_cg = if m.orientation.is_forward() {
-          &m.cigar
-        } else {
-          &invert_cigar(&m.cigar)
-        };
-        cigar_switch_ref_qry(in_cg).unwrap()
-      });
+      let cigar = is_anchor
+        .then(|| -> Result<Cigar, Report> {
+          let in_cg = if m.orientation.is_forward() {
+            &m.cigar
+          } else {
+            &invert_cigar(&m.cigar)?
+          };
+          cigar_switch_ref_qry(in_cg)
+        })
+        .transpose()?;
       hits.push(ExtractedHit {
         hit: m.qry.clone(),
         new_block_id: m.new_block_id.unwrap(),
@@ -231,7 +233,7 @@ fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
 
   hits.shrink_to_fit();
 
-  hits
+  Ok(hits)
 }
 
 #[allow(clippy::missing_asserts_for_indexing)]
@@ -333,7 +335,7 @@ fn split_block(
   thr_len: usize,
 ) -> Result<(GraphUpdate, Vec<ToMerge>), Report> {
   // go from alignments to ExtractedHit objects, i.e. alignments relative to the block
-  let extracted_hits = extract_hits(bid, mergers);
+  let extracted_hits = extract_hits(bid, mergers)?;
   let consensus_len = graph.blocks[&bid].consensus_len();
 
   // using information on the hits, calculate intervals along which to split the block.
@@ -518,7 +520,7 @@ mod tests {
     let a3 = new_aln(BlockId(5), &h2_f, &h1_d, Reverse, AnchorBlock::Ref);
     let a4 = new_aln(BlockId(6), &h2_g, &h2_h, Reverse, AnchorBlock::Qry);
 
-    let hits = extract_hits(BlockId(1), &[a1, a2, a3, a4]);
+    let hits = extract_hits(BlockId(1), &[a1, a2, a3, a4]).unwrap();
 
     assert_eq!(hits, {
       let cg = Cigar::from_str("10M").unwrap();
