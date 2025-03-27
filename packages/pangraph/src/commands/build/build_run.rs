@@ -5,7 +5,7 @@ use crate::io::json::{JsonPretty, json_write_file};
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::strand::Strand::Forward;
-use crate::tree::clade::postorder;
+use crate::tree::clade::postorder_result;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
 use crate::utils::progress_bar::ProgressBar;
 use crate::{make_internal_error, make_internal_report};
@@ -33,6 +33,17 @@ pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Repo
   Ok(())
 }
 
+pub fn graph_sequences_sanity_check(graph: &Pangraph, fastas: &Vec<FastaRecord>) -> Result<(), Report> {
+  let mut results = reconstruct(graph);
+  results.try_for_each(|actual| -> Result<(), Report> {
+    let actual = actual?;
+    let expected = &fastas[actual.index];
+    compare_sequences(expected, &actual)?;
+    Ok(())
+  })?;
+  Ok(())
+}
+
 pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   let input_fastas = &args.input_fastas;
 
@@ -50,7 +61,7 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
       results.try_for_each(|actual| -> Result<(), Report> {
         let actual = actual?;
         let expected = &fastas[actual.index];
-        compare_sequences(expected, &actual);
+        compare_sequences(expected, &actual)?;
         Ok(())
       })?;
     }
@@ -69,7 +80,8 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
   // TODO: initial graphs can potentially be constructed when initializing tree clades. This could avoid a lot of boilerplate code.
   let n_paths = fastas.len();
   let graphs = fastas
-    .into_iter()
+    .iter()
+    .cloned()
     .map(|fasta| Pangraph::singleton(fasta, Forward, args.circular)) // FIXME: strand hardcoded
     .collect_vec();
 
@@ -81,7 +93,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
 
   // Main loop: traverse the tree starting from leaf nodes and build the graphs bottom-up all the way to the root node.
   // The graph of the root node is the graph we are looking for.
-  postorder(&tree, |clade| {
+  postorder_result(&tree, |clade| {
     match (&clade.left, &clade.right) {
       (None, None) => {
         // Case: leaf node. Action: nothing to do.
@@ -118,6 +130,34 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
               .sanity_check()
               .wrap_err("failed sanity check after merging graphs.")?;
 
+            // perform sanity check with fasta sequences
+            graph_sequences_sanity_check(clade.data.as_ref().unwrap(), &fastas)
+              .inspect_err(|_e| {
+                // export left and right graph in case of error
+                let left_path = format!(
+                  "left_{}.json",
+                  clade.left.as_ref().unwrap().read().data.as_ref().unwrap().paths.len()
+                );
+                let right_path = format!(
+                  "right_{}.json",
+                  clade.right.as_ref().unwrap().read().data.as_ref().unwrap().paths.len()
+                );
+                json_write_file(
+                  &left_path,
+                  clade.left.as_ref().unwrap().read().data.as_ref().unwrap(),
+                  JsonPretty(true),
+                )
+                .unwrap();
+                json_write_file(
+                  &right_path,
+                  clade.right.as_ref().unwrap().read().data.as_ref().unwrap(),
+                  JsonPretty(true),
+                )
+                .unwrap();
+                eprintln!("Left and right graphs written to {} and {}", left_path, right_path);
+              })
+              .wrap_err("failed sequence comparison check after merging graphs.")?;
+
             Ok(())
           },
           _ => {
@@ -131,8 +171,6 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
       },
     }
   })
-  .into_iter()
-  .collect::<Result<Vec<_>, Report>>()
   .wrap_err("When traversing guide tree")?;
 
   // Finish progress bar

@@ -2,11 +2,11 @@ use crate::commands::reconstruct::reconstruct_args::PangraphReconstructArgs;
 use crate::io::fasta::{FastaReader, FastaRecord, FastaWriter};
 use crate::io::json::json_read_file;
 use crate::io::seq::reverse_complement;
-use crate::make_internal_report;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::pangraph_path::PangraphPath;
 use crate::representation::seq::Seq;
+use crate::{make_error, make_internal_report};
 use eyre::Report;
 use itertools::Itertools;
 use log::info;
@@ -28,7 +28,7 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
       let actual = actual?;
       let mut expected = FastaRecord::new();
       reader.read(&mut expected)?;
-      compare_sequences(&expected, &actual);
+      compare_sequences(&expected, &actual)?;
       Ok(())
     })?;
   } else {
@@ -42,9 +42,15 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
   Ok(())
 }
 
-pub fn compare_sequences(left: &FastaRecord, right: &FastaRecord) -> bool {
-  pretty_assertions::assert_eq!(left, right);
-  true
+pub fn compare_sequences(left: &FastaRecord, right: &FastaRecord) -> Result<bool, Report> {
+  if left != right {
+    return make_error!(
+      "Sequence mismatch detected: expected length {} but got {}",
+      left.seq.len(),
+      right.seq.len()
+    );
+  }
+  Ok(true)
 }
 
 pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord, Report>> + use<'_> {
@@ -80,7 +86,13 @@ fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<Se
       .collect::<Result<Seq, Report>>()?;
 
     let genome_len = path.tot_len();
-    assert_eq!(genome.len(), genome_len);
+    if genome.len() != genome_len {
+      return make_error!(
+        "When reconstructing sequences, genome length mismatch: computed length {} expected {}",
+        genome.len(),
+        genome_len
+      );
+    }
 
     genome.rotate_right(first_node_pos);
 

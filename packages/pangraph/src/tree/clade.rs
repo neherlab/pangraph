@@ -93,6 +93,31 @@ where
   result
 }
 
+// Add new function that stops on first error when returning Results
+pub fn postorder_result<T, D, E, F>(clade: &Lock<Clade<D>>, f: F) -> Result<Vec<T>, E>
+where
+  F: Fn(&mut Clade<D>) -> Result<T, E>,
+{
+  fn recurse<T, D, E, F>(clade: &Lock<Clade<D>>, result: &mut Vec<T>, f: &F) -> Result<(), E>
+  where
+    F: Fn(&mut Clade<D>) -> Result<T, E>,
+  {
+    if let Some(left) = &clade.read().left {
+      recurse(left, result, f)?;
+    }
+    if let Some(right) = &clade.read().right {
+      recurse(right, result, f)?;
+    }
+    let item = f(&mut clade.write())?;
+    result.push(item);
+    Ok(())
+  }
+
+  let mut result = vec![];
+  recurse(clade, &mut result, &f)?;
+  Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
   #![allow(clippy::many_single_char_names)]
