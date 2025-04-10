@@ -3,6 +3,8 @@ use ctor::ctor;
 use eyre::{Report, WrapErr};
 use log::info;
 use pangraph::commands::build::build_args::PangraphBuildArgs;
+use pangraph::commands::reconstruct::reconstruct_run::{compare_sequences, reconstruct};
+use pangraph::io::fasta::read_many_fasta;
 use pangraph::io::json::{JsonPretty, json_write_file};
 use pangraph::pangraph::graph_merging::merge_graphs;
 use pangraph::pangraph::pangraph::Pangraph;
@@ -28,6 +30,10 @@ struct Args {
   #[clap(long, short = 'R')]
   #[clap(value_hint = ValueHint::FilePath)]
   pub right_graph: Option<PathBuf>,
+
+  #[clap(long, short = 'V')]
+  #[clap(value_hint = ValueHint::FilePath)]
+  pub verify_seqs: Option<PathBuf>,
 }
 
 fn main() -> Result<(), Report> {
@@ -64,6 +70,23 @@ fn main() -> Result<(), Report> {
   info!("Writing merged graph to {:?}", args.build_args.output_json);
 
   json_write_file(&args.build_args.output_json, &merged, JsonPretty(true))?;
+
+  // verify
+  if let Some(verify_seqs_path) = args.verify_seqs {
+    info!("Verifying merged graph against {:?}", verify_seqs_path);
+    let mut seqs = reconstruct(&merged);
+    // read sequences into a list
+    let verify_seqs = read_many_fasta(&[verify_seqs_path])?;
+
+    seqs.try_for_each(|actual| -> Result<(), Report> {
+      let actual = actual?;
+      // look for sequence with the expected index
+      let idx = actual.index;
+      let expected = &verify_seqs[idx];
+      compare_sequences(&expected, &actual)?;
+      Ok(())
+    })?;
+  }
 
   Ok(())
 }
