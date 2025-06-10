@@ -56,14 +56,20 @@ pub fn align_with_nextclade(
   // but they are recorded as limits in the alignment range.
   // We need to add them manually.
   let mut deletions = deletions;
-  if alignment_range.begin.inner > 0 {
-    deletions.push(NucDelRange::from_usize(0, alignment_range.begin.inner as usize));
-  }
-  if (alignment_range.end.inner as usize) < ref_seq.len() {
-    deletions.push(NucDelRange::from_usize(
-      alignment_range.end.inner as usize,
-      ref_seq.len(),
-    ));
+  if let Some(alignment_range) = alignment_range {
+    if alignment_range.begin.inner > 0 {
+      deletions.push(NucDelRange::from_usize(0, alignment_range.begin.inner as usize));
+    }
+    if (alignment_range.end.inner as usize) < ref_seq.len() {
+      deletions.push(NucDelRange::from_usize(
+        alignment_range.end.inner as usize,
+        ref_seq.len(),
+      ));
+    }
+  } else {
+    // If alignment_range is None, it means that there is not interval alignable.
+    // We need to add a deletion covering the whole reference sequence.
+    deletions.push(NucDelRange::from_usize(0, ref_seq.len()));
   }
 
   Ok(AlignWithNextcladeOutput {
@@ -303,7 +309,7 @@ mod tests {
       substitutions: vec![],
       deletions: vec![NucDelRange::from_usize(0, 37)], // Should delete entire reference
       insertions: vec![Insertion {
-        pos: 37,
+        pos: 36,
         ins: to_nuc_seq("GGGGGGGGGGGGGGGGGG")?,
       }],
       is_reverse_complement: false,
