@@ -266,8 +266,8 @@ mod tests {
     let ref_str = aln_ref.replace('-', "");
     let qry_seq = to_nuc_seq(&qry_str).unwrap();
     let ref_seq = to_nuc_seq(&ref_str).unwrap();
-    let aln_ref = to_nuc_seq(&aln_ref).unwrap();
-    let aln_qry = to_nuc_seq(&aln_qry).unwrap();
+    let aln_ref = to_nuc_seq(aln_ref).unwrap();
+    let aln_qry = to_nuc_seq(aln_qry).unwrap();
 
     let params = NextalignParams {
       max_alignment_attempts: 1,
