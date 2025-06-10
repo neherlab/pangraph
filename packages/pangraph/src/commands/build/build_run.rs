@@ -33,14 +33,19 @@ pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Repo
   Ok(())
 }
 
+#[cfg(debug_assertions)]
 pub fn graph_sequences_sanity_check(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(), Report> {
+  // Reconstruct sequences from the given graph.
   let mut results = reconstruct(graph);
+
+  // Check that the reconstructed sequences match the original FASTA records.
   results.try_for_each(|actual| -> Result<(), Report> {
     let actual = actual?;
     let expected = &fastas[actual.index];
     compare_sequences(expected, &actual)?;
     Ok(())
   })?;
+
   Ok(())
 }
 
@@ -130,32 +135,9 @@ pub fn build(fastas: &[FastaRecord], args: &PangraphBuildArgs) -> Result<Pangrap
               .sanity_check()
               .wrap_err("failed sanity check after merging graphs.")?;
 
-            // perform sanity check with fasta sequences
+            // compare sequences in the merged graph with the original FASTA records
+            #[cfg(debug_assertions)]
             graph_sequences_sanity_check(clade.data.as_ref().unwrap(), fastas)
-              .inspect_err(|_e| {
-                // export left and right graph in case of error
-                let left_path = format!(
-                  "left_{}.json",
-                  clade.left.as_ref().unwrap().read().data.as_ref().unwrap().paths.len()
-                );
-                let right_path = format!(
-                  "right_{}.json",
-                  clade.right.as_ref().unwrap().read().data.as_ref().unwrap().paths.len()
-                );
-                json_write_file(
-                  &left_path,
-                  clade.left.as_ref().unwrap().read().data.as_ref().unwrap(),
-                  JsonPretty(true),
-                )
-                .unwrap();
-                json_write_file(
-                  &right_path,
-                  clade.right.as_ref().unwrap().read().data.as_ref().unwrap(),
-                  JsonPretty(true),
-                )
-                .unwrap();
-                eprintln!("Left and right graphs written to {left_path} and {right_path}");
-              })
               .wrap_err("failed sequence comparison check after merging graphs.")?;
 
             Ok(())
