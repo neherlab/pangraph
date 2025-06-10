@@ -33,7 +33,7 @@ pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Repo
   Ok(())
 }
 
-pub fn graph_sequences_sanity_check(graph: &Pangraph, fastas: &Vec<FastaRecord>) -> Result<(), Report> {
+pub fn graph_sequences_sanity_check(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(), Report> {
   let mut results = reconstruct(graph);
   results.try_for_each(|actual| -> Result<(), Report> {
     let actual = actual?;
@@ -55,7 +55,7 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   build_cmd_preliminary_checks(args).wrap_err("When performing preliminary checks before building the pangraph.")?;
 
   let pangraph = if args.verify {
-    let pangraph = build(fastas.clone(), args)?;
+    let pangraph = build(&fastas, args)?;
     {
       let mut results = reconstruct(&pangraph);
       results.try_for_each(|actual| -> Result<(), Report> {
@@ -67,7 +67,7 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
     }
     Ok(pangraph)
   } else {
-    build(fastas, args)
+    build(&fastas, args)
   }?;
 
   json_write_file(&args.output_json, &pangraph, JsonPretty(true))?;
@@ -75,7 +75,7 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   Ok(())
 }
 
-pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
+pub fn build(fastas: &[FastaRecord], args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
   // Build singleton graphs from input sequences
   // TODO: initial graphs can potentially be constructed when initializing tree clades. This could avoid a lot of boilerplate code.
   let n_paths = fastas.len();
@@ -131,7 +131,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
               .wrap_err("failed sanity check after merging graphs.")?;
 
             // perform sanity check with fasta sequences
-            graph_sequences_sanity_check(clade.data.as_ref().unwrap(), &fastas)
+            graph_sequences_sanity_check(clade.data.as_ref().unwrap(), fastas)
               .inspect_err(|_e| {
                 // export left and right graph in case of error
                 let left_path = format!(
@@ -154,7 +154,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
                   JsonPretty(true),
                 )
                 .unwrap();
-                eprintln!("Left and right graphs written to {} and {}", left_path, right_path);
+                eprintln!("Left and right graphs written to {left_path} and {right_path}");
               })
               .wrap_err("failed sequence comparison check after merging graphs.")?;
 

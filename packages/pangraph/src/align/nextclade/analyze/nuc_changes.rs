@@ -59,14 +59,8 @@ pub fn find_nuc_changes(qry_aln: &[Nuc], ref_aln: &[Nuc]) -> FindNucChangesOutpu
   substitutions.sort();
   deletions.sort();
 
-  let alignment_range = if alignment_start >= 0 && alignment_end >= 0 {
-    Some(NucRefGlobalRange::from_usize(
-      alignment_start as usize,
-      alignment_end as usize,
-    ))
-  } else {
-    None
-  };
+  let alignment_range = (alignment_start >= 0 && alignment_end >= 0)
+    .then(|| NucRefGlobalRange::from_usize(alignment_start as usize, alignment_end as usize));
 
   FindNucChangesOutput {
     substitutions,

@@ -93,7 +93,7 @@ fn main() -> Result<(), Report> {
       if let Some(expected) = initial_seqs.get(&idx) {
         compare_sequences(expected, &seq)?;
       } else {
-        return Err(eyre::eyre!("Sequence with index {idx} not found in initial sequences").into());
+        return Err(eyre::eyre!("Sequence with index {idx} not found in initial sequences"));
       }
       Ok(())
     })?;
