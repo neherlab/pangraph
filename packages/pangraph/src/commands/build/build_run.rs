@@ -34,7 +34,7 @@ pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Repo
 }
 
 #[cfg(debug_assertions)]
-pub fn graph_sequences_sanity_check(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(), Report> {
+pub fn reconstruct_and_compare_graph_seqs(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(), Report> {
   // Reconstruct sequences from the given graph.
   let mut results = reconstruct(graph);
 
@@ -59,34 +59,23 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
 
   build_cmd_preliminary_checks(args).wrap_err("When performing preliminary checks before building the pangraph.")?;
 
-  let pangraph = if args.verify {
-    let pangraph = build(&fastas, args)?;
-    {
-      let mut results = reconstruct(&pangraph);
-      results.try_for_each(|actual| -> Result<(), Report> {
-        let actual = actual?;
-        let expected = &fastas[actual.index];
-        compare_sequences(expected, &actual)?;
-        Ok(())
-      })?;
-    }
-    Ok(pangraph)
-  } else {
-    build(&fastas, args)
-  }?;
+  let pangraph = build(fastas, args, args.verify)?;
 
   json_write_file(&args.output_json, &pangraph, JsonPretty(true))?;
 
   Ok(())
 }
 
-pub fn build(fastas: &[FastaRecord], args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
+pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -> Result<Pangraph, Report> {
+  // If verification is requested, we need to keep a copy of the original FASTA records
+  // to compare them with the sequences reconstructed from the graph.
+  let fasta_copy = verify.then(|| fastas.clone());
+
   // Build singleton graphs from input sequences
   // TODO: initial graphs can potentially be constructed when initializing tree clades. This could avoid a lot of boilerplate code.
   let n_paths = fastas.len();
   let graphs = fastas
-    .iter()
-    .cloned()
+    .into_iter()
     .map(|fasta| Pangraph::singleton(fasta, Forward, args.circular)) // FIXME: strand hardcoded
     .collect_vec();
 
@@ -127,18 +116,23 @@ pub fn build(fastas: &[FastaRecord], args: &PangraphBuildArgs) -> Result<Pangrap
               clade.data.as_ref().unwrap().paths.len()
             );
 
-            #[cfg(debug_assertions)]
-            clade
-              .data
-              .as_ref()
-              .unwrap()
-              .sanity_check()
-              .wrap_err("failed sanity check after merging graphs.")?;
+            if verify {
+              // verify the merged graph if requested
+              // only in debug mode
+              #[cfg(debug_assertions)]
+              clade
+                .data
+                .as_ref()
+                .unwrap()
+                .sanity_check()
+                .wrap_err("failed sanity check after merging graphs.")?;
 
-            // compare sequences in the merged graph with the original FASTA records
-            #[cfg(debug_assertions)]
-            graph_sequences_sanity_check(clade.data.as_ref().unwrap(), fastas)
-              .wrap_err("failed sequence comparison check after merging graphs.")?;
+              // compare sequences in the merged graph with the original FASTA records
+              // only in debug mode
+              #[cfg(debug_assertions)]
+              reconstruct_and_compare_graph_seqs(clade.data.as_ref().unwrap(), fasta_copy.as_ref().unwrap())
+                .wrap_err("failed sequence comparison check after merging graphs.")?;
+            }
 
             Ok(())
           },
@@ -163,6 +157,17 @@ pub fn build(fastas: &[FastaRecord], args: &PangraphBuildArgs) -> Result<Pangrap
     .data
     .take()
     .ok_or_else(|| make_internal_report!("Root clade of the guide tree contains no graph after graph alignment"))?;
+
+  // verify the final graph if requested
+  if verify {
+    graph
+      .sanity_check()
+      .wrap_err("Failed sanity check after merging graphs.")?;
+
+    // compare sequences in the final graph with the original FASTA records
+    reconstruct_and_compare_graph_seqs(&graph, &fasta_copy.unwrap())
+      .wrap_err("Failed sequence comparison check after merging graphs.")?;
+  }
 
   Ok(graph)
 }
