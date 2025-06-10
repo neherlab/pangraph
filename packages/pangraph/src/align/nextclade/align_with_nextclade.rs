@@ -273,4 +273,45 @@ mod tests {
 
     Ok(())
   }
+
+  #[rstest]
+  fn test_align_with_nextclade_unaligned() -> Result<(), Report> {
+    // Test case:
+    // ref (L = 37) vs qry (L = 18) with bandwidth 0 and mean shift 40
+    //       0         1         2         3
+    // idx   0123456789012345678901234567890123456
+    // ref = AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+    // qry = --------------------------------------...----GGGGGGGGGGGGGGGGGG
+
+    let ref_seq = o!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    let qry_seq = o!("GGGGGGGGGGGGGGGGGG");
+
+    let params = NextalignParams {
+      min_length: 3,
+      ..NextalignParams::default()
+    };
+
+    let mean_shift = 70;
+    let bandwidth = 0;
+
+    let actual = align_with_nextclade(ref_seq, qry_seq, mean_shift, bandwidth, &params)?;
+
+    // TODO: What the correct result should be:
+    let expected = AlignWithNextcladeOutput {
+      qry_aln: o!("-------------------------------------"), // query does not have insertions
+      ref_aln: o!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA------------------"),
+      substitutions: vec![],
+      deletions: vec![NucDelRange::from_usize(0, 37)], // Should delete entire reference
+      insertions: vec![Insertion {
+        pos: 37,
+        ins: to_nuc_seq("GGGGGGGGGGGGGGGGGG")?,
+      }],
+      is_reverse_complement: false,
+      hit_boundary: false,
+    };
+
+    assert_eq!(expected, actual);
+
+    Ok(())
+  }
 }
