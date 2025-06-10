@@ -257,4 +257,43 @@ mod tests {
     .unwrap();
     assert!(alignment.hit_boundary);
   }
+
+  #[test]
+  fn test_align_nuc_simplestripe_unaligned() {
+    let aln_ref = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA------------------";
+    let aln_qry = "-------------------------------------GGGGGGGGGGGGGGGGGG";
+    let qry_str = aln_qry.replace('-', "");
+    let ref_str = aln_ref.replace('-', "");
+    let qry_seq = to_nuc_seq(&qry_str).unwrap();
+    let ref_seq = to_nuc_seq(&ref_str).unwrap();
+    let aln_ref = to_nuc_seq(&aln_ref).unwrap();
+    let aln_qry = to_nuc_seq(&aln_qry).unwrap();
+
+    let params = NextalignParams {
+      max_alignment_attempts: 1,
+      min_length: 3,
+      ..Default::default()
+    };
+    let gap_open_close = get_gap_open_close_scores_flat(&ref_seq, &params);
+    let mean_shift = 70;
+    let initial_bandwidth = 0;
+    let alignment = align_nuc_simplestripe(
+      &qry_seq,
+      &ref_seq,
+      &gap_open_close,
+      mean_shift,
+      initial_bandwidth,
+      &params,
+    )
+    .unwrap();
+
+    let expected = AlignmentOutput {
+      qry_seq: aln_qry,
+      ref_seq: aln_ref,
+      alignment_score: 0,
+      hit_boundary: false,
+      is_reverse_complement: false,
+    };
+    assert_eq!(alignment, expected);
+  }
 }
