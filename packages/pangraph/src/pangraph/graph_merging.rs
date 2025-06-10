@@ -117,7 +117,13 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
   // - calculate energy and keep only matches with E < 0
   // - sort them by energy
   // - discard incompatible matches (the ones that have overlapping regions)
-  let mut matches = filter_matches(&matches, &args.aln_args);
+
+  let block_div = args
+    .aln_args
+    .strict_max_divergence
+    .then(|| graph.blocks_max_divergence());
+
+  let mut matches = filter_matches(&matches, &args.aln_args, &block_div);
   debug!("Matches after filtering: {}", matches.len());
   trace!("{matches:#?}");
 
@@ -179,21 +185,50 @@ pub fn find_matches(
   .wrap_err_with(|| format!("When trying to align sequences using {}", &args.alignment_kernel))
 }
 
-pub fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
+pub fn filter_matches(
+  alns: &[Alignment],
+  args: &AlignmentArgs,
+  block_divergence: &Option<BTreeMap<BlockId, Option<f64>>>,
+) -> Vec<Alignment> {
   // - evaluates the energy of the alignments
   // - keeps only matches with E < 0
+  // - (optionally) keeps only matches with max divergence < threshold
   // - sorts them by energy
   // - discards incompatible matches (the ones that have overlapping regions)
 
   // TODO: energy is calculated for each alignment.
   // Consider calculating it earlier and making it a property to simplify filtering and sorting.
-  let alns = alns
+  let mut alns = alns
     .iter()
     .map(|aln| (aln, alignment_energy2(aln, args)))
     .filter(|(_, energy)| energy < &0.0)
     .sorted_by_key(|(_, energy)| OrderedFloat(*energy))
     .map(|(aln, _)| aln)
     .collect_vec();
+
+  // if strict_max_divergence is set, and beta > 0, then
+  // filter alignment, only keep those with max divergence below the threshold
+  if args.strict_max_divergence && (args.beta > 0.0) {
+    let bd = block_divergence.as_ref().unwrap();
+    alns = alns
+      .iter()
+      .filter(|aln| {
+        let div_q = bd.get(&aln.qry.name).unwrap();
+        let div_r = bd.get(&aln.reff.name).unwrap();
+        let aln_div = aln.divergence.unwrap();
+
+        // if any of these options is not set, remove the alignment
+        match (div_q, div_r) {
+          (Some(div_q), Some(div_r)) => {
+            let total_div = div_q + div_r + aln_div;
+            total_div < 1. / args.beta
+          },
+          _ => false,
+        }
+      })
+      .copied()
+      .collect_vec();
+  }
 
   // Iteratively accept alignments if they do not overlap with previously accepted ones
   let mut accepted_alns = vec![];
@@ -364,7 +399,7 @@ mod tests {
 
     let alns = [aln_0.clone(), aln_1.clone(), aln_2, aln_3];
 
-    assert_eq!(filter_matches(&alns, &args), vec![aln_1, aln_0]);
+    assert_eq!(filter_matches(&alns, &args, &None), vec![aln_1, aln_0]);
 
     Ok(())
   }

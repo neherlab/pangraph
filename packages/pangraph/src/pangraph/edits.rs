@@ -36,6 +36,10 @@ impl Sub {
       alt: self.alt,
     }
   }
+
+  pub fn to_n(&self) -> bool {
+    self.alt.is_ambiguous()
+  }
 }
 
 #[must_use]
@@ -247,6 +251,23 @@ impl Edit {
     // otherwise, apply the edits and check if the resulting sequence is empty
     let seq_len = self.apply(consensus).unwrap().len();
     seq_len == 0
+  }
+
+  // Return the average divergence from the consensus sequence,
+  // given as number of mutations (excluding `N`) per non-deleted base.
+  pub fn divergence(&self, cons_len: usize, exclude_positions: &[usize]) -> Option<f64> {
+    let deleted_len = self.dels.iter().map(|d| d.len).sum::<usize>();
+    let excluded_deleted = exclude_positions
+      .iter()
+      .filter(|&pos| self.dels.iter().any(|d| d.contains(*pos)))
+      .count();
+    let n_bases = cons_len - deleted_len - exclude_positions.len() + excluded_deleted;
+    let n_mutations = self
+      .subs
+      .iter()
+      .filter(|s| !s.to_n() && !exclude_positions.contains(&s.pos))
+      .count();
+    (n_bases > 0).then_some(n_mutations as f64 / n_bases as f64)
   }
 
   #[cfg(any(test, debug_assertions))]
