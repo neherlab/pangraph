@@ -8,12 +8,13 @@ use eyre::Report;
 use log::debug;
 use std::collections::BTreeMap;
 
-/// takes as input a list of recently-merged blocks
+/// removes unaligned nodes from the graph. These are nodes whose alignments consist only of indels.
+/// takes as input a list of recently-merged blocks and the nodes dictionary.
 /// 1. looks for unaligned nodes
 /// 2. removes them from their parent blocks
 /// 3. creates new singleton blocks for each unaligned node
 /// 4. appends these new blocks to the list of blocks
-/// 5. substitute the new nodes in the nodes dictionary
+/// 5. substitute the new nodes in the nodes dictionary, keeping the same node_id so that paths are not affected
 pub fn detach_unaligned_nodes(
   blocks: &mut Vec<PangraphBlock>,
   nodes_dict: &mut BTreeMap<NodeId, PangraphNode>,
@@ -22,11 +23,15 @@ pub fn detach_unaligned_nodes(
   let unaligned_nodes = extract_unaligned_nodes(blocks)?;
 
   for (node_id, sequence) in unaligned_nodes {
-    // create new node/block
-    let (new_node, new_block) = create_new_node_and_block(node_id, sequence, nodes_dict)?;
+    // removes the old node from the nodes dictionary
+    let old_node = nodes_dict
+      .remove(&node_id)
+      .ok_or_else(|| eyre::eyre!("Node {} not found in nodes dictionary", node_id))?;
+    // create new node and block
+    let (new_node, new_block) = create_new_node_and_block(node_id, sequence, &old_node)?;
     // add the new block to the blocks list
     blocks.push(new_block);
-    // replace in the nodes dictionary
+    // replace the new node in the nodes dictionary
     nodes_dict.insert(node_id, new_node.clone());
     debug!("Replaced node {} in nodes dictionary with new node", node_id);
   }
@@ -67,12 +72,8 @@ fn extract_unaligned_nodes(blocks: &mut [PangraphBlock]) -> Result<Vec<(NodeId, 
 fn create_new_node_and_block(
   node_id: NodeId,
   seq: Seq,
-  node_dict: &BTreeMap<NodeId, PangraphNode>,
+  old_node: &PangraphNode,
 ) -> Result<(PangraphNode, PangraphBlock), Report> {
-  let old_node = node_dict
-    .get(&node_id)
-    .ok_or_else(|| eyre::eyre!("Node {} not found in nodes dictionary", node_id))?;
-
   // if the node is on the reverse strand, we need to reverse the sequence
   let seq = if old_node.strand() == Forward {
     seq
@@ -96,4 +97,52 @@ fn create_new_node_and_block(
   );
 
   Ok((new_node, new_block))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::pangraph::pangraph_path::PathId;
+  use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use eyre::Report;
+  use pretty_assertions::assert_eq;
+  use rstest::rstest;
+
+  #[rstest]
+  fn test_create_new_node_and_block_forward() -> Result<(), Report> {
+    let node_id = NodeId(1);
+    let seq = Seq::from_str("ATGTTGATAG");
+    let old_block_id = BlockId(0);
+    let old_path_id = PathId(0);
+    let old_node = PangraphNode::new(Some(node_id), old_block_id, old_path_id, Forward, (10, 20));
+
+    let (new_node, new_block) = create_new_node_and_block(node_id, seq.clone(), &old_node)?;
+
+    let expected_new_node = PangraphNode::new(Some(node_id), new_block.id(), old_path_id, Forward, (10, 20));
+    let expected_new_block = PangraphBlock::from_consensus(seq, new_block.id(), node_id);
+
+    assert_eq!(new_node, expected_new_node);
+    assert_eq!(new_block, expected_new_block);
+
+    Ok(())
+  }
+
+  #[rstest]
+  fn test_create_new_node_and_block_reverse() -> Result<(), Report> {
+    let node_id = NodeId(2);
+    let seq = Seq::from_str("ATGTTGATAG");
+    let old_block_id = BlockId(0);
+    let old_path_id = PathId(1);
+    let old_node = PangraphNode::new(Some(node_id), old_block_id, old_path_id, Reverse, (5, 15));
+
+    let (new_node, new_block) = create_new_node_and_block(node_id, seq.clone(), &old_node)?;
+
+    let expected_new_node = PangraphNode::new(Some(node_id), new_block.id(), old_path_id, Forward, (5, 15));
+    let expected_new_block = PangraphBlock::from_consensus(reverse_complement(&seq)?, new_block.id(), node_id);
+
+    assert_eq!(new_node, expected_new_node);
+    assert_eq!(new_block, expected_new_block);
+
+    Ok(())
+  }
 }
