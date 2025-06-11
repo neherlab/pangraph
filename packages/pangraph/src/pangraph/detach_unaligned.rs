@@ -111,7 +111,6 @@ mod tests {
   use maplit::btreemap;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
-  use std::collections::BTreeMap;
 
   #[rstest]
   fn test_create_new_node_and_block_forward() -> Result<(), Report> {
@@ -176,6 +175,48 @@ mod tests {
     );
     assert_eq!(blocks[0], expected_bl);
 
+    Ok(())
+  }
+
+  #[rstest]
+  fn test_detach_unaligned_nodes() -> Result<(), Report> {
+    // setup one block with one aligned and one unaligned node
+    let cons = Seq::from_str("AAAAAAAAAAAAAAAA");
+    let aligned_edit = Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]);
+    let unaligned_edit = Edit::new(vec![Ins::new(0, "CCCCCCCC")], vec![Del::new(0, 16)], vec![]);
+    let block = PangraphBlock::new(
+      BlockId(0),
+      cons.clone(),
+      btreemap! {
+        NodeId(1) => aligned_edit.clone(),
+        NodeId(2) => unaligned_edit,
+      },
+    );
+    let mut blocks = vec![block];
+    let node1 = PangraphNode::new(Some(NodeId(1)), BlockId(0), PathId(0), Forward, (0, 16));
+    let node2 = PangraphNode::new(Some(NodeId(2)), BlockId(0), PathId(1), Reverse, (0, 8));
+    let mut nodes = btreemap! {
+      NodeId(1) => node1,
+      NodeId(2) => node2,
+    };
+    // perform detach
+    detach_unaligned_nodes(&mut blocks, &mut nodes)?;
+    // original block now only has the aligned node
+    assert_eq!(blocks.len(), 2);
+
+    let expected_block1 = PangraphBlock::new(BlockId(0), cons, btreemap! {NodeId(1) => aligned_edit});
+    let new_block_seq = Seq::from_str("GGGGGGGG");
+    let new_block_id = BlockId(id((NodeId(2), &new_block_seq)));
+    let expected_block2 = PangraphBlock::from_consensus(Seq::from_str("GGGGGGGG"), new_block_id, NodeId(2));
+
+    assert_eq!(blocks[0], expected_block1);
+    assert_eq!(blocks[1], expected_block2);
+
+    let expected_node_dict = btreemap! {
+      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(0), PathId(0), Forward, (0, 16)),
+      NodeId(2) => PangraphNode::new(Some(NodeId(2)), new_block_id, PathId(1), Forward, (0, 8)),
+    };
+    assert_eq!(nodes, expected_node_dict);
     Ok(())
   }
 }
