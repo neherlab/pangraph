@@ -319,6 +319,13 @@ impl Edit {
     total_positions.saturating_sub(deletion_overlap)
   }
 
+  /// Returns the number of aligned positions (including substitutions)
+  /// i.e. the number of non-deleted positions in the consensus sequence
+  pub fn aligned_count(&self, cons_len: usize) -> usize {
+    let tot_deletion: usize = self.dels.iter().map(|d| d.len).sum();
+    cons_len.saturating_sub(tot_deletion)
+  }
+
   /// Given an alignment, returns the mean shift of the sequence compared
   /// to the consensus. This is the average absolute difference between the position
   /// of the aligned nucleotide on the query (after applying edits) and its position
@@ -732,6 +739,28 @@ mod tests {
       inss: vec![Ins::new(1, "AAA"), Ins::new(5, "GGG")],
     };
     assert_eq!(edits.internal_insertions(consensus_len), 6);
+  }
+
+  #[rstest]
+  fn test_aligned_count_simple() {
+    // When there are no deletions, the aligned count is just cons_len minus p.
+    let edit = Edit::empty();
+    let cons_len = 10;
+    assert_eq!(edit.aligned_count(cons_len), 10);
+
+    let edit = Edit {
+      subs: vec![Sub::new(0, 'A')],
+      dels: vec![Del::new(3, 2), Del::new(6, 1)],
+      inss: vec![],
+    };
+    assert_eq!(edit.aligned_count(cons_len), 7);
+
+    let edit = Edit {
+      subs: vec![Sub::new(0, 'A')],
+      dels: vec![Del::new(0, 10)],
+      inss: vec![],
+    };
+    assert_eq!(edit.aligned_count(cons_len), 0);
   }
 
   #[rstest]

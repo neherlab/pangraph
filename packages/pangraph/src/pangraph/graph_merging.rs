@@ -5,6 +5,7 @@ use crate::align::minimap2_lib::align_with_minimap2_lib::align_with_minimap2_lib
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use crate::circularize::circularize::remove_transitive_edges;
 use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
+use crate::pangraph::detach_unaligned::detach_unaligned_nodes;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::reweave::reweave;
@@ -140,27 +141,31 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
   let (mut graph, mergers) =
     reweave(&mut matches, graph, args.aln_args.indel_len_threshold).wrap_err("During reweave")?;
 
-  let merged_blocks = mergers
+  let mut merged_blocks: Vec<PangraphBlock> = mergers
     .into_par_iter()
     .map(|mut merge_promise| {
       merge_promise
         .solve_promise()
         .wrap_err_with(|| format!("When solving merge promise: {merge_promise:#?}"))
     })
-    .collect::<Result<Vec<_>, Report>>()?
+    .collect::<Result<Vec<_>, _>>()?;
+
+  // cleanup: detach nodes that are not aligned and make them into singleton blocks.
+  detach_unaligned_nodes(&mut merged_blocks, &mut graph.nodes)?;
+  // add the new blocks to the graph
+  let new_blocks_dict = merged_blocks
     .into_iter()
     .map(|block| (block.id(), block))
     .collect::<BTreeMap<_, _>>();
 
-  // add the new blocks to the graph
   graph.blocks = map_merge(
     &graph.blocks,
-    &merged_blocks,
+    &new_blocks_dict,
     ConflictResolution::Custom(|(k1, _), (_k2, _)| panic!("Conflicting key '{k1}'")),
   );
 
   // update consensus and alignment of merged blocks.
-  let merge_block_ids = merged_blocks.keys().copied().collect_vec();
+  let merge_block_ids = new_blocks_dict.keys().copied().collect_vec();
   reconsensus_graph(&mut graph, merge_block_ids).wrap_err("During reconsensus")?;
 
   Ok((graph, true))
