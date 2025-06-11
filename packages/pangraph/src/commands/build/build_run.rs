@@ -33,7 +33,6 @@ pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Repo
   Ok(())
 }
 
-#[cfg(debug_assertions)]
 pub fn reconstruct_and_compare_graph_seqs(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(), Report> {
   // Reconstruct sequences from the given graph.
   let mut results = reconstruct(graph);
@@ -45,6 +44,20 @@ pub fn reconstruct_and_compare_graph_seqs(graph: &Pangraph, fastas: &[FastaRecor
     compare_sequences(expected, &actual)?;
     Ok(())
   })?;
+
+  Ok(())
+}
+
+pub fn graph_sanity_checks(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(), Report> {
+  // check that graph internal structure (blocks, paths, nodes, edits...) is valid
+  #[cfg(debug_assertions)]
+  graph
+    .sanity_check()
+    .wrap_err("When performing sanity check on the pangraph")?;
+
+  // Reconstruct sequences from the graph and compare them with the original FASTA records.
+  reconstruct_and_compare_graph_seqs(graph, fastas)
+    .wrap_err("When comparing reconstructed sequences with original FASTA records")?;
 
   Ok(())
 }
@@ -116,22 +129,14 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -
               clade.data.as_ref().unwrap().paths.len()
             );
 
-            if verify {
-              // verify the merged graph if requested
-              // only in debug mode
-              #[cfg(debug_assertions)]
-              clade
-                .data
-                .as_ref()
-                .unwrap()
-                .sanity_check()
-                .wrap_err("failed sanity check after merging graphs.")?;
-
-              // compare sequences in the merged graph with the original FASTA records
-              // only in debug mode
-              #[cfg(debug_assertions)]
-              reconstruct_and_compare_graph_seqs(clade.data.as_ref().unwrap(), fasta_copy.as_ref().unwrap())
-                .wrap_err("failed sequence comparison check after merging graphs.")?;
+            // perform checks only in debug mode and if requested
+            #[cfg(debug_assertions)]
+            {
+              if verify {
+                // verify the graph if requested
+                graph_sanity_checks(clade.data.as_ref().unwrap(), fasta_copy.as_ref().unwrap())
+                  .wrap_err("When performing sanity checks on the merged graph")?;
+              }
             }
 
             Ok(())
@@ -160,13 +165,8 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -
 
   // verify the final graph if requested
   if verify {
-    graph
-      .sanity_check()
-      .wrap_err("Failed sanity check after merging graphs.")?;
-
-    // compare sequences in the final graph with the original FASTA records
-    reconstruct_and_compare_graph_seqs(&graph, &fasta_copy.unwrap())
-      .wrap_err("Failed sequence comparison check after merging graphs.")?;
+    graph_sanity_checks(&graph, fasta_copy.as_ref().unwrap())
+      .wrap_err("When performing sanity checks on the final pangraph")?;
   }
 
   Ok(graph)
