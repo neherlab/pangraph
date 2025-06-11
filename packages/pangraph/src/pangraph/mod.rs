@@ -1,3 +1,4 @@
+pub mod detach_unaligned;
 pub mod edits;
 pub mod graph_merging;
 pub mod pangraph;
