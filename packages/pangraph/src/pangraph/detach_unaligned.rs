@@ -102,11 +102,16 @@ fn create_new_node_and_block(
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::pangraph::edits::{Del, Edit, Ins, Sub};
+  use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
   use crate::pangraph::pangraph_path::PathId;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use crate::representation::seq::Seq;
   use eyre::Report;
+  use maplit::btreemap;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
+  use std::collections::BTreeMap;
 
   #[rstest]
   fn test_create_new_node_and_block_forward() -> Result<(), Report> {
@@ -142,6 +147,34 @@ mod tests {
 
     assert_eq!(new_node, expected_new_node);
     assert_eq!(new_block, expected_new_block);
+
+    Ok(())
+  }
+
+  #[rstest]
+  fn test_extract_unaligned_nodes_simple() -> Result<(), Report> {
+    let block_id = BlockId(0);
+    let block_cons = Seq::from_str("AAAAAAAAAAAAAAAA");
+    // two nodes: one aligned, one unaligned
+    let aln = btreemap! {
+      NodeId(1) => Edit::new(vec![],                    vec![],                vec![Sub::new(3, 'G')]),
+      NodeId(2) => Edit::new(vec![Ins::new(16, "CCCCCCCC")],   vec![Del::new(0, 16)], vec![]),
+    };
+    let block = PangraphBlock::new(block_id, block_cons.clone(), aln);
+
+    let mut blocks = vec![block];
+    let unaligned = extract_unaligned_nodes(blocks.as_mut_slice())?;
+
+    // check that node_2 was extracted
+    assert_eq!(unaligned, vec![(NodeId(2), Seq::from_str("CCCCCCCC"))]);
+    // check that the node was removed from the block alignment
+    assert_eq!(blocks.len(), 1);
+    let expected_bl = PangraphBlock::new(
+      block_id,
+      block_cons,
+      btreemap! {NodeId(1) => Edit::new(vec![], vec![], vec![Sub::new(3, 'G')])},
+    );
+    assert_eq!(blocks[0], expected_bl);
 
     Ok(())
   }
