@@ -1,6 +1,6 @@
 use crate::make_error;
 use eyre::{Report, WrapErr};
-use itertools::Either;
+use itertools::{Either, Itertools};
 use noodles::sam::record::Cigar;
 use noodles::sam::record::cigar::op::{Kind, Op};
 use std::str::FromStr;
@@ -29,7 +29,7 @@ pub fn invert_cigar(cigar: &Cigar) -> Result<Cigar, Report> {
 }
 
 pub fn cigar_switch_ref_qry(cigar: &Cigar) -> Result<Cigar, Report> {
-  let switched_ops: Result<Vec<Op>, Report> = cigar
+  let switched_ops: Vec<Op> = cigar
     .iter()
     .map(|op| match op.kind() {
       Kind::Match | Kind::SequenceMatch | Kind::SequenceMismatch => Ok(*op),
@@ -37,9 +37,7 @@ pub fn cigar_switch_ref_qry(cigar: &Cigar) -> Result<Cigar, Report> {
       Kind::Deletion => Ok(Op::new(Kind::Insertion, op.len())),
       _ => make_error!("CIGAR inversion: unsupported operation kind: {:?}", op.kind()),
     })
-    .collect();
-
-  let switched_ops = switched_ops?;
+    .try_collect()?;
 
   Cigar::try_from(switched_ops).wrap_err("Failed to create switched CIGAR")
 }
