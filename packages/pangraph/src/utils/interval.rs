@@ -193,4 +193,100 @@ mod tests {
     // Duplicates should be merged into a single contiguous interval.
     assert_eq!(intervals, vec![Interval::new(5, 9)]);
   }
+
+  #[test]
+  fn test_positions_to_intervals_single_position_at_zero() {
+    let intervals = positions_to_intervals(&[0]);
+    assert_eq!(intervals, vec![Interval::new(0, 1)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_two_contiguous() {
+    let intervals = positions_to_intervals(&[7, 8]);
+    assert_eq!(intervals, vec![Interval::new(7, 9)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_two_non_contiguous() {
+    let intervals = positions_to_intervals(&[5, 10]);
+    assert_eq!(intervals, vec![Interval::new(5, 6), Interval::new(10, 11)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_starting_from_zero() {
+    let intervals = positions_to_intervals(&[0, 1, 2, 3]);
+    assert_eq!(intervals, vec![Interval::new(0, 4)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_gap_of_one() {
+    let intervals = positions_to_intervals(&[1, 3, 5, 7]);
+    assert_eq!(
+      intervals,
+      vec![
+        Interval::new(1, 2),
+        Interval::new(3, 4),
+        Interval::new(5, 6),
+        Interval::new(7, 8)
+      ]
+    );
+  }
+
+  #[test]
+  fn test_positions_to_intervals_large_gaps() {
+    let intervals = positions_to_intervals(&[1, 100, 1000]);
+    assert_eq!(
+      intervals,
+      vec![Interval::new(1, 2), Interval::new(100, 101), Interval::new(1000, 1001)]
+    );
+  }
+
+  #[test]
+  fn test_positions_to_intervals_mixed_contiguous_and_gaps() {
+    let intervals = positions_to_intervals(&[1, 2, 3, 10, 11, 20]);
+    assert_eq!(
+      intervals,
+      vec![
+        Interval::new(1, 4),   // 1,2,3 -> [1,4)
+        Interval::new(10, 12), // 10,11 -> [10,12)
+        Interval::new(20, 21)  // 20 -> [20,21)
+      ]
+    );
+  }
+
+  #[test]
+  fn test_positions_to_intervals_all_duplicates() {
+    let intervals = positions_to_intervals(&[42, 42, 42, 42]);
+    assert_eq!(intervals, vec![Interval::new(42, 43)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_complex_duplicates_with_gaps() {
+    let intervals = positions_to_intervals(&[1, 1, 3, 3, 3, 7, 8, 8, 9]);
+    assert_eq!(
+      intervals,
+      vec![
+        Interval::new(1, 2),  // 1,1 -> [1,2)
+        Interval::new(3, 4),  // 3,3,3 -> [3,4)
+        Interval::new(7, 10)  // 7,8,8,9 -> [7,10)
+      ]
+    );
+  }
+
+  #[test]
+  fn test_positions_to_intervals_many_single_intervals() {
+    let intervals = positions_to_intervals(&[1, 3, 5, 7, 9, 11, 13]);
+    assert_eq!(
+      intervals,
+      vec![
+        Interval::new(1, 2),
+        Interval::new(3, 4),
+        Interval::new(5, 6),
+        Interval::new(7, 8),
+        Interval::new(9, 10),
+        Interval::new(11, 12),
+        Interval::new(13, 14)
+      ]
+    );
+  }
 }
