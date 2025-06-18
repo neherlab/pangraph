@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
@@ -58,25 +59,30 @@ pub fn have_no_overlap(intervals: &[Interval], candidate: &Interval) -> bool {
 
 pub fn positions_to_intervals(positions: &[usize]) -> Vec<Interval> {
   if positions.is_empty() {
-    return Vec::new();
+    return vec![];
   }
-  let mut sorted = positions.to_vec();
-  sorted.sort_unstable();
 
-  let mut intervals = Vec::new();
-  let mut start = sorted[0];
-  let mut end = sorted[0];
-
-  for &pos in sorted.iter().skip(1) {
-    // If the position is contiguous (or a duplicate), extend the current interval.
-    if pos > end + 1 {
-      intervals.push(Interval::new(start, end + 1));
-      start = pos;
-    }
-    end = pos;
-  }
-  intervals.push(Interval::new(start, end + 1));
-  intervals
+  positions
+  .iter()
+  .sorted_unstable()
+  .dedup()
+  .enumerate()
+  // Consecutive positions:
+  //   [1,2,3,5,6,9]
+  // when paired with their indices:
+  //   [(0,1),(1,2),(2,3),(3,5),(4,6),(5,9)]
+  // will have the same `(pos - index)` value for consecutive groups:
+  //   [1,1,1,2,2,4]
+  // This allows ``.chunk_by()` to efficiently group consecutive positions without manual iteration
+  .chunk_by(|(index, pos)| *pos - index)
+  .into_iter()
+  .map(|(_, group)| {
+    let mut positions = group.map(|(_, pos)| *pos);
+    let start = positions.next().expect("group cannot be empty");
+    let end = positions.last().unwrap_or(start) + 1;
+    Interval::new(start, end)
+  })
+  .collect_vec()
 }
 
 #[cfg(test)]
