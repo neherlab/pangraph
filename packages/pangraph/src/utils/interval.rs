@@ -139,25 +139,25 @@ mod tests {
   }
 
   #[test]
-  fn test_from_position_list_empty() {
+  fn test_positions_to_intervals_list_empty() {
     let intervals = positions_to_intervals(&[]);
     assert!(intervals.is_empty());
   }
 
   #[test]
-  fn test_from_position_list_single() {
+  fn test_positions_to_intervals_list_single() {
     let intervals = positions_to_intervals(&[5]);
     assert_eq!(intervals, vec![Interval::new(5, 6)]);
   }
 
   #[test]
-  fn test_from_position_list_contiguous() {
+  fn test_positions_to_intervals_list_contiguous() {
     let intervals = positions_to_intervals(&[1, 2, 3, 4, 5]);
     assert_eq!(intervals, vec![Interval::new(1, 6)]);
   }
 
   #[test]
-  fn test_from_position_list_non_contiguous() {
+  fn test_positions_to_intervals_list_non_contiguous() {
     let intervals = positions_to_intervals(&[1, 3, 5]);
     assert_eq!(
       intervals,
@@ -166,7 +166,7 @@ mod tests {
   }
 
   #[test]
-  fn test_from_position_list_unsorted() {
+  fn test_positions_to_intervals_list_unsorted() {
     let intervals = positions_to_intervals(&[10, 1, 2, 3, 20, 21]);
     assert_eq!(
       intervals,
@@ -179,7 +179,7 @@ mod tests {
   }
 
   #[test]
-  fn test_from_position_list_duplicates() {
+  fn test_positions_to_intervals_list_duplicates() {
     let intervals = positions_to_intervals(&[5, 5, 5, 6, 7, 7, 8]);
     // Duplicates should be merged into a single contiguous interval.
     assert_eq!(intervals, vec![Interval::new(5, 9)]);
