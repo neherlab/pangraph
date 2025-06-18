@@ -140,31 +140,25 @@ mod tests {
 
   #[test]
   fn test_from_position_list_empty() {
-    let positions: Vec<usize> = vec![];
-    let intervals = positions_to_intervals(&positions);
+    let intervals = positions_to_intervals(&[]);
     assert!(intervals.is_empty());
   }
 
   #[test]
   fn test_from_position_list_single() {
-    let positions = vec![5];
-    let intervals = positions_to_intervals(&positions);
+    let intervals = positions_to_intervals(&[5]);
     assert_eq!(intervals, vec![Interval::new(5, 6)]);
   }
 
   #[test]
   fn test_from_position_list_contiguous() {
-    let positions = vec![1, 2, 3, 4, 5];
-    let intervals = positions_to_intervals(&positions);
-    // [1, 5] becomes [1, 6) as our intervals are half-open.
+    let intervals = positions_to_intervals(&[1, 2, 3, 4, 5]);
     assert_eq!(intervals, vec![Interval::new(1, 6)]);
   }
 
   #[test]
   fn test_from_position_list_non_contiguous() {
-    let positions = vec![1, 3, 5];
-    let intervals = positions_to_intervals(&positions);
-    // Each position stands alone.
+    let intervals = positions_to_intervals(&[1, 3, 5]);
     assert_eq!(
       intervals,
       vec![Interval::new(1, 2), Interval::new(3, 4), Interval::new(5, 6)]
@@ -173,9 +167,7 @@ mod tests {
 
   #[test]
   fn test_from_position_list_unsorted() {
-    let positions = vec![10, 1, 2, 3, 20, 21];
-    let intervals = positions_to_intervals(&positions);
-    // After sorting: [1,2,3,10,20,21]
+    let intervals = positions_to_intervals(&[10, 1, 2, 3, 20, 21]);
     assert_eq!(
       intervals,
       vec![
@@ -188,8 +180,7 @@ mod tests {
 
   #[test]
   fn test_from_position_list_duplicates() {
-    let positions = vec![5, 5, 5, 6, 7, 7, 8];
-    let intervals = positions_to_intervals(&positions);
+    let intervals = positions_to_intervals(&[5, 5, 5, 6, 7, 7, 8]);
     // Duplicates should be merged into a single contiguous interval.
     assert_eq!(intervals, vec![Interval::new(5, 9)]);
   }
