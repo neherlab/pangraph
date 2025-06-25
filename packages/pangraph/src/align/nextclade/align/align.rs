@@ -45,10 +45,6 @@ pub fn align_nuc_simplestripe(
     );
   }
 
-  // debug!(
-  //   "In nucleotide alignment: Aligning sequences of lengths: query: {qry_len}, reference: {ref_len}, with mean_shift: {mean_shift}, initial_bandwidth: {initial_bandwidth}"
-  // );
-
   let mut band_width = initial_bandwidth;
   let mut stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
 
@@ -56,10 +52,6 @@ pub fn align_nuc_simplestripe(
   let mut alignment = align_pairwise(qry_seq, ref_seq, gap_open_close, params, &stripes);
 
   while alignment.hit_boundary && attempt < params.max_alignment_attempts {
-    // debug!(
-    //   "In nucleotide alignment: Band boundary is hit on attempt {}. Retrying with relaxed parameters. Alignment score was: {}",
-    //   attempt, alignment.alignment_score
-    // );
     // double bandwidth parameters or increase to one if 0
     band_width = max(2 * band_width, max(1, mean_shift.unsigned_abs() as usize));
     stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
@@ -74,11 +66,6 @@ pub fn align_nuc_simplestripe(
       "In nucleotide alignment (qry len: {qry_len}, ref len: {ref_len}, shift: {mean_shift}, bandwidth: {band_width}): still hitting the band boundary after {} attempts. Returning last attempt with score: {}",
       attempt, alignment.alignment_score
     );
-  } else if attempt > 0 {
-    // debug!(
-    //   "In nucleotide alignment: Succeeded without hitting band boundary on attempt {}. Alignment score was: {}",
-    //   attempt, alignment.alignment_score
-    // );
   }
   Ok(alignment)
 }
