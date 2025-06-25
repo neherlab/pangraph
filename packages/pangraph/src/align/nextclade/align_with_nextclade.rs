@@ -10,6 +10,7 @@ use eyre::{Report, WrapErr};
 use serde::{Deserialize, Serialize};
 
 pub const EXTRA_BANDWIDTH: usize = 5;
+pub const MAX_ALIGNMENT_ATTEMPTS: usize = 4;
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct AlignWithNextcladeOutput {
@@ -34,7 +35,7 @@ pub fn align_with_nextclade(
 
   // TODO: remove
   let params = &NextalignParams {
-    max_alignment_attempts: 4,
+    max_alignment_attempts: MAX_ALIGNMENT_ATTEMPTS,
     ..params.clone()
   };
 
