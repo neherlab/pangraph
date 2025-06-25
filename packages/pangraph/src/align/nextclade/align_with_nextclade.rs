@@ -48,14 +48,13 @@ pub fn align_with_nextclade(
 
   let FindNucChangesOutput {
     substitutions,
-    deletions,
+    mut deletions,
     alignment_range,
   } = find_nuc_changes(&stripped.qry_seq, &ref_seq);
 
   // NB: in nextclade aligner initial/final gaps are not saved as deletions,
   // but they are recorded as limits in the alignment range.
   // We need to add them manually.
-  let mut deletions = deletions;
   if let Some(alignment_range) = alignment_range {
     if alignment_range.begin.inner > 0 {
       deletions.push(NucDelRange::from_usize(0, alignment_range.begin.inner as usize));
