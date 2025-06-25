@@ -1,4 +1,5 @@
 use crate::align::map_variations::map_variations;
+use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::make_error;
 use crate::pangraph::edits::{Del, Edit};
 use crate::pangraph::edits::{Ins, Sub};
@@ -28,7 +29,11 @@ use std::collections::BTreeMap;
 ///     - for mutations, changes any mutated position. Also update the alignment (this is straightforward)
 ///     - for any in/del present in > M/2 sites, appends it to the consensus
 ///   - if the consensus has updated indels, then re-aligns all the sequences to the new consensus
-pub fn reconsensus_graph(graph: &mut Pangraph, ids_updated_blocks: Vec<BlockId>) -> Result<(), Report> {
+pub fn reconsensus_graph(
+  graph: &mut Pangraph,
+  ids_updated_blocks: Vec<BlockId>,
+  args: &PangraphBuildArgs,
+) -> Result<(), Report> {
   // // remove selected nodes from graph
   // remove_emtpy_nodes(graph, &ids_updated_blocks);
   debug_assert!(
@@ -38,7 +43,7 @@ pub fn reconsensus_graph(graph: &mut Pangraph, ids_updated_blocks: Vec<BlockId>)
 
   for block_id in ids_updated_blocks {
     let block = graph.blocks.get_mut(&block_id).unwrap();
-    reconsensus(block)?;
+    reconsensus(block, args)?;
   }
 
   Ok(())
@@ -47,7 +52,7 @@ pub fn reconsensus_graph(graph: &mut Pangraph, ids_updated_blocks: Vec<BlockId>)
 /// Performs the reconsensus operation inplace on a block.
 /// - if a position is mutated in > N/2 sites, it adds the mutation to the consensus and updates the alignment.
 /// - if an in/del is present in > N/2 sites, it adds it to the consensus and re-aligns the sequences to the updated consensus.
-fn reconsensus(block: &mut PangraphBlock) -> Result<(), Report> {
+fn reconsensus(block: &mut PangraphBlock, args: &PangraphBuildArgs) -> Result<(), Report> {
   reconsensus_mutations(block)?;
   let ins = majority_insertions(block);
   let dels = majority_deletions(block);
@@ -73,7 +78,7 @@ fn reconsensus(block: &mut PangraphBlock) -> Result<(), Report> {
     // debug assert: consensus is not empty
     debug_assert!(!consensus.is_empty(), "Consensus is empty after indels");
 
-    update_block_consensus(block, &consensus, new_consensus_shift, new_consensus_bandwidth)?;
+    update_block_consensus(block, &consensus, new_consensus_shift, new_consensus_bandwidth, args)?;
   }
   Ok(())
 }
@@ -207,6 +212,7 @@ fn update_block_consensus(
   consensus: &Seq,
   new_consensus_shift: i32,
   new_consensus_bandwidth: usize,
+  args: &PangraphBuildArgs,
 ) -> Result<(), Report> {
   // Reconstruct block sequences
   let seqs = block
@@ -241,7 +247,7 @@ fn update_block_consensus(
   // Re-align sequences
   let alignments = seqs
     .into_par_iter()
-    .map(|(nid, (seq, shift, bw))| Ok((nid, map_variations(consensus, &seq, shift, bw)?)))
+    .map(|(nid, (seq, shift, bw))| Ok((nid, map_variations(consensus, &seq, shift, bw, args)?)))
     .collect::<Result<_, Report>>()?;
 
   *block = PangraphBlock::new(block.id(), consensus, alignments);
@@ -375,7 +381,7 @@ mod tests {
   fn test_reconsensus() {
     let mut block = block_3();
     let expected_block = block_3_reconsensus();
-    reconsensus(&mut block).unwrap();
+    reconsensus(&mut block, &PangraphBuildArgs::default()).unwrap();
     assert_eq!(block.consensus(), expected_block.consensus());
     assert_eq!(block.alignments(), expected_block.alignments());
   }

@@ -9,9 +9,6 @@ use crate::align::nextclade::analyze::nuc_sub::NucSub;
 use eyre::{Report, WrapErr};
 use serde::{Deserialize, Serialize};
 
-pub const EXTRA_BANDWIDTH: usize = 5;
-pub const MAX_ALIGNMENT_ATTEMPTS: usize = 4;
-
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct AlignWithNextcladeOutput {
   pub qry_aln: String,
@@ -33,15 +30,8 @@ pub fn align_with_nextclade(
   let ref_seq = to_nuc_seq(reff.as_ref()).wrap_err("When converting reference sequence")?;
   let qry_seq = to_nuc_seq(qry.as_ref()).wrap_err("When converting query sequence")?;
 
-  // TODO: remove
-  let params = &NextalignParams {
-    max_alignment_attempts: MAX_ALIGNMENT_ATTEMPTS,
-    ..params.clone()
-  };
-
   let gap_open_close = get_gap_open_close_scores_flat(&ref_seq, params);
 
-  let bandwidth = bandwidth + EXTRA_BANDWIDTH;
   let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, mean_shift, bandwidth, params)
     .wrap_err("When aligning sequences with nextclade align")?;
 
@@ -88,11 +78,16 @@ pub fn align_with_nextclade(
 mod tests {
   use super::*;
   use crate::align::nextclade::coord::position::NucRefGlobalPosition;
-
+  use crate::commands::build::build_args::PangraphBuildArgs;
   use crate::o;
   use eyre::Report;
+  use lazy_static::lazy_static;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
+
+  lazy_static! {
+    static ref EXTRA_BANDWIDTH: usize = PangraphBuildArgs::default().extra_band_width;
+  }
 
   #[rstest]
   fn test_align_with_nextclade_general_case() -> Result<(), Report> {
@@ -108,7 +103,7 @@ mod tests {
     };
 
     let mean_shift = 0;
-    let bandwidth = 4;
+    let bandwidth = 4 + *EXTRA_BANDWIDTH;
     let actual = align_with_nextclade(ref_seq, qry_seq, mean_shift, bandwidth, &params)?;
 
     let expected = AlignWithNextcladeOutput {
@@ -169,7 +164,7 @@ mod tests {
       ..NextalignParams::default()
     };
     let mean_shift = 0;
-    let bandwidth = 0;
+    let bandwidth = *EXTRA_BANDWIDTH;
     let actual = align_with_nextclade(ref_seq, qry_seq, mean_shift, bandwidth, &params)?;
 
     let expected = AlignWithNextcladeOutput {
@@ -237,7 +232,7 @@ mod tests {
     };
 
     let mean_shift = 0;
-    let bandwidth = 0;
+    let bandwidth = *EXTRA_BANDWIDTH;
     let actual = align_with_nextclade(ref_seq, qry_seq, mean_shift, bandwidth, &params)?;
 
     let subs = [
@@ -298,7 +293,7 @@ mod tests {
     };
 
     let mean_shift = 70;
-    let bandwidth = 0;
+    let bandwidth = *EXTRA_BANDWIDTH;
 
     let actual = align_with_nextclade(ref_seq, qry_seq, mean_shift, bandwidth, &params)?;
 
