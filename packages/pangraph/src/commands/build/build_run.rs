@@ -5,7 +5,7 @@ use crate::io::json::{JsonPretty, json_write_file};
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::strand::Strand::Forward;
-use crate::tree::clade::postorder_result;
+use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
 use crate::utils::progress_bar::ProgressBar;
 use crate::{make_internal_error, make_internal_report};
@@ -100,7 +100,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -
 
   // Main loop: traverse the tree starting from leaf nodes and build the graphs bottom-up all the way to the root node.
   // The graph of the root node is the graph we are looking for.
-  postorder_result(&tree, |clade| {
+  postorder(&tree, |clade| {
     match (&clade.left, &clade.right) {
       (None, None) => {
         // Case: leaf node. Action: nothing to do.
