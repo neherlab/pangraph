@@ -28,10 +28,12 @@ impl Minimap2Index {
     let bucket_bits: c_int = idxopt.bucket_bits.into();
     let n: c_int = seqs.len().try_into()?;
 
-    let seqs: Vec<CString> = seqs.iter().map(|s| CString::new(s.as_ref()).unwrap()).collect();
+    let seqs: Result<Vec<CString>, _> = seqs.iter().map(|s| CString::new(s.as_ref())).collect();
+    let seqs = seqs.map_err(|e| eyre!("minimap2: failed to convert sequence to CString: {}", e))?;
     let mut seqs: Vec<*const c_char> = seqs.iter().map(|s| s.as_ptr()).collect();
 
-    let names: Vec<CString> = names.iter().map(|s| CString::new(s.as_ref()).unwrap()).collect();
+    let names: Result<Vec<CString>, _> = names.iter().map(|s| CString::new(s.as_ref())).collect();
+    let names = names.map_err(|e| eyre!("minimap2: failed to convert name to CString: {}", e))?;
     let mut names: Vec<*const c_char> = names.iter().map(|s| s.as_ptr()).collect();
 
     // SAFETY: Explained by the correct construction of inputs and non-overlapping data.

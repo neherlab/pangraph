@@ -14,19 +14,21 @@ impl ProgressBar {
     if deactivate || (n_total <= 1) {
       return Ok(Self { pb: None });
     }
-    let pb = is_tty(Stream::Stdout).then(|| {
+    let pb = if is_tty(Stream::Stdout) {
       let pb = ProgressBarBase::new(n_total as u64);
       pb.enable_steady_tick(Duration::from_secs(1));
-      pb.set_style(
-        ProgressStyle::with_template(
-          "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {human_pos}/{human_len} mergers",
-        )
-        .unwrap()
-        .progress_chars("#>-"),
-      );
-      let pb = INDICATIF.get().unwrap().add(pb);
-      pb
-    });
+      let style = ProgressStyle::with_template(
+        "{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {human_pos}/{human_len} mergers",
+      )
+      .map_err(|e| eyre::eyre!("Failed to create progress bar template: {}", e))?
+      .progress_chars("#>-");
+      pb.set_style(style);
+      let indicatif = INDICATIF.get()
+        .ok_or_else(|| eyre::eyre!("Failed to get INDICATIF instance"))?;
+      Some(indicatif.add(pb))
+    } else {
+      None
+    };
     Ok(Self { pb })
   }
 

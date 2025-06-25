@@ -43,10 +43,12 @@ impl MergePromise {
     // between the anchor and append blocks sequences (from the cigar string)
     // this is the same for all sequences in the append block
     let cigar_edits = Edit::from_cigar(&self.cigar);
-    let cigar_mean_shift = cigar_edits.aln_mean_shift(self.anchor_block.consensus().len()).unwrap();
+    let cigar_mean_shift = cigar_edits
+      .aln_mean_shift(self.anchor_block.consensus().len())
+      .ok_or_else(|| eyre::eyre!("Failed to calculate cigar mean shift"))?;
     let cigar_bandwidth = cigar_edits
       .aln_bandwidth(self.anchor_block.consensus().len(), cigar_mean_shift)
-      .unwrap();
+      .ok_or_else(|| eyre::eyre!("Failed to calculate cigar bandwidth"))?;
 
     self
       .append_block
@@ -61,7 +63,7 @@ impl MergePromise {
           let (seq, edits) = if !self.orientation.is_forward() {
             (
               reverse_complement(&seq)?,
-              &edits.reverse_complement(self.append_block.consensus().len()).unwrap(),
+              &edits.reverse_complement(self.append_block.consensus().len())?,
             )
           } else {
             (seq, edits)
@@ -69,10 +71,11 @@ impl MergePromise {
 
           // calculate the mean shift and bandwidth of the alignment due to the displacement
           // of each sequence in the append block relative to the append block consensus
-          let edits_mean_shift = edits.aln_mean_shift(self.append_block.consensus().len()).unwrap();
+          let edits_mean_shift = edits.aln_mean_shift(self.append_block.consensus().len())
+            .ok_or_else(|| eyre::eyre!("Failed to calculate edits mean shift"))?;
           let edits_bandwidth = edits
             .aln_bandwidth(self.append_block.consensus().len(), edits_mean_shift)
-            .unwrap();
+            .ok_or_else(|| eyre::eyre!("Failed to calculate edits bandwidth"))?;
 
           // sum the two contributions
           let mean_shift = cigar_mean_shift + edits_mean_shift;
