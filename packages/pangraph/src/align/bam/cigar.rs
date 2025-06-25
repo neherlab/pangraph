@@ -1,6 +1,6 @@
 use crate::make_error;
 use eyre::{Report, WrapErr};
-use itertools::Either;
+use itertools::{Either, Itertools};
 use noodles::sam::record::Cigar;
 use noodles::sam::record::cigar::op::{Kind, Op};
 use std::str::FromStr;
@@ -29,7 +29,7 @@ pub fn invert_cigar(cigar: &Cigar) -> Result<Cigar, Report> {
 }
 
 pub fn cigar_switch_ref_qry(cigar: &Cigar) -> Result<Cigar, Report> {
-  let switched_ops: Result<Vec<Op>, Report> = cigar
+  let switched_ops: Vec<Op> = cigar
     .iter()
     .map(|op| match op.kind() {
       Kind::Match | Kind::SequenceMatch | Kind::SequenceMismatch => Ok(*op),
@@ -37,9 +37,7 @@ pub fn cigar_switch_ref_qry(cigar: &Cigar) -> Result<Cigar, Report> {
       Kind::Deletion => Ok(Op::new(Kind::Insertion, op.len())),
       _ => make_error!("CIGAR inversion: unsupported operation kind: {:?}", op.kind()),
     })
-    .collect();
-
-  let switched_ops = switched_ops?;
+    .try_collect()?;
 
   Cigar::try_from(switched_ops).wrap_err("Failed to create switched CIGAR")
 }
@@ -232,7 +230,7 @@ mod tests {
   }
 
   #[rstest]
-  fn test_add_leading_indel() -> Result<(), Report> {
+  fn test_add_flanking_indel_leading() -> Result<(), Report> {
     // CIGAR with leading match op
     let cigar = parse_cigar_str("10M5I20M")?;
     let modified = add_flanking_indel(&cigar, Kind::Insertion, 3, &Side::Leading)?;
@@ -259,7 +257,7 @@ mod tests {
   }
 
   #[rstest]
-  fn test_add_trailing_indel() -> Result<(), Report> {
+  fn test_add_flanking_indel_trailing() -> Result<(), Report> {
     // CIGAR with trailing match op
     let cigar = parse_cigar_str("10M5D20M")?;
     let modified = add_flanking_indel(&cigar, Kind::Deletion, 4, &Side::Trailing)?;
@@ -282,7 +280,7 @@ mod tests {
   }
 
   #[rstest]
-  fn test_add_leading_indel_extend_prefix() -> Result<(), Report> {
+  fn test_add_flanking_indel_leading_extend_prefix() -> Result<(), Report> {
     // CIGAR with a prefix having multiple ops before the first match.
     // Here, the prefix is "5D,3I" before the first match, and we extend the insertion.
     let cigar = parse_cigar_str("5D3I10M")?;
@@ -298,7 +296,7 @@ mod tests {
   }
 
   #[rstest]
-  fn test_add_trailing_indel_extend_suffix() -> Result<(), Report> {
+  fn test_add_flanking_indel_trailing_extend_suffix() -> Result<(), Report> {
     // CIGAR with trailing region after the last match.
     // For "10M5I3D2I", the head is "10M" and the trailing region is "5I,3D,2I".
     // When adding a trailing deletion, we expect the first deletion op in the suffix to be extended.
@@ -315,7 +313,7 @@ mod tests {
   }
 
   #[rstest]
-  fn test_add_leading_indel_deletion_extend() -> Result<(), Report> {
+  fn test_add_flanking_indel_leading_deletion_extend() -> Result<(), Report> {
     // For CIGAR "5D10M", prefix is ["5D"]; when adding deletion type,
     // the prefix should extend to "7D" followed by "10M".
     let cigar = parse_cigar_str("5D10M")?;
@@ -326,7 +324,7 @@ mod tests {
   }
 
   #[rstest]
-  fn test_add_trailing_indel_insertion_extend() -> Result<(), Report> {
+  fn test_add_flanking_indel_trailing_insertion_extend() -> Result<(), Report> {
     // For CIGAR "10M2I", trailing region is ["2I"].
     // When adding an insertion trailing, it should extend "2I" to "5I".
     let cigar = parse_cigar_str("10M2I")?;
