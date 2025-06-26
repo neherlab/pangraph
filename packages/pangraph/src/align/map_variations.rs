@@ -4,9 +4,11 @@ use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::pangraph::edits::{Del, Edit, Ins, Sub};
 use crate::representation::seq::Seq;
 use eyre::Report;
+use getset::CopyGetters;
 use itertools::Itertools;
 
-#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy, CopyGetters)]
+#[get_copy = "pub"]
 pub struct BandParameters {
   mean_shift: i32,
   band_width: usize,
@@ -15,14 +17,6 @@ pub struct BandParameters {
 impl BandParameters {
   pub fn new(mean_shift: i32, band_width: usize) -> Self {
     Self { mean_shift, band_width }
-  }
-
-  pub fn mean_shift(&self) -> i32 {
-    self.mean_shift
-  }
-
-  pub fn band_width(&self) -> usize {
-    self.band_width
   }
 
   pub fn add(&mut self, other: &Self) {
