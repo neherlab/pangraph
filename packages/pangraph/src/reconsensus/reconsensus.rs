@@ -70,15 +70,13 @@ fn reconsensus(block: &mut PangraphBlock, args: &PangraphBuildArgs) -> Result<()
         .collect(),
       inss: ins,
     };
-    let new_consensus_shift = new_consensus_edits.aln_mean_shift(block.consensus_len()).unwrap();
-    let new_consensus_bandwidth = new_consensus_edits
-      .aln_bandwidth(block.consensus_len(), new_consensus_shift)
-      .unwrap();
+
+    let new_consensus_band_params = BandParameters::from_edits(&new_consensus_edits, block.consensus_len());
 
     // debug assert: consensus is not empty
     debug_assert!(!consensus.is_empty(), "Consensus is empty after indels");
 
-    update_block_consensus(block, &consensus, new_consensus_shift, new_consensus_bandwidth, args)?;
+    update_block_consensus(block, &consensus, new_consensus_band_params, args)?;
   }
   Ok(())
 }
@@ -210,8 +208,7 @@ fn apply_indels(cons: impl Into<Seq>, dels: &[usize], inss: &[Ins]) -> Seq {
 fn update_block_consensus(
   block: &mut PangraphBlock,
   consensus: &Seq,
-  new_consensus_shift: i32,
-  new_consensus_bandwidth: usize,
+  new_consensus_band_params: BandParameters,
   args: &PangraphBuildArgs,
 ) -> Result<(), Report> {
   // Reconstruct block sequences
@@ -221,11 +218,11 @@ fn update_block_consensus(
     .map(|(&nid, edit)| {
       let seq = edit.apply(block.consensus())?;
       let old_band_params = BandParameters::from_edits(edit, block.consensus_len());
-      let new_band_params = BandParameters::new(
-        old_band_params.mean_shift() - new_consensus_shift,
-        old_band_params.band_width() + new_consensus_bandwidth,
+      let updated_band_params = BandParameters::new(
+        old_band_params.mean_shift() - new_consensus_band_params.mean_shift(),
+        old_band_params.band_width() + new_consensus_band_params.band_width(),
       );
-      Ok((nid, (seq, new_band_params)))
+      Ok((nid, (seq, updated_band_params)))
     })
     .collect::<Result<BTreeMap<NodeId, (Seq, BandParameters)>, Report>>()?;
 
