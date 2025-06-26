@@ -84,6 +84,107 @@ mod tests {
   use rstest::rstest;
 
   #[rstest]
+  fn test_band_parameters_add() {
+    let mut band_params1 = BandParameters::new(3, 8);
+    let band_params2 = BandParameters::new(2, 4);
+
+    band_params1.add(&band_params2);
+
+    assert_eq!(band_params1.mean_shift(), 5);
+    assert_eq!(band_params1.band_width(), 12);
+  }
+
+  #[rstest]
+  fn test_band_parameters_from_edits_empty() {
+    // Test case with an empty edit (no changes)
+    let edit = Edit::empty();
+    let ref_len = 10;
+
+    let band_params = BandParameters::from_edits(&edit, ref_len);
+    let expected_band_params = BandParameters::new(0, 0);
+    assert_eq!(band_params, expected_band_params);
+  }
+
+  #[rstest]
+  fn test_band_parameters_from_edits_leading_insertion() {
+    // Test case with a leading insertion
+    let edit = Edit {
+      subs: vec![],
+      dels: vec![],
+      inss: vec![Ins::new(0, "AAA")],
+    };
+    let ref_len = 10;
+
+    let band_params = BandParameters::from_edits(&edit, ref_len);
+
+    // Should have negative mean shift due to insertion pushing query to the right
+    let expected_band_params = BandParameters::new(-3, 0);
+    assert_eq!(band_params, expected_band_params);
+  }
+
+  #[rstest]
+  fn test_band_parameters_from_edits_leading_deletion() {
+    // Test case with a leading deletion
+    let edit = Edit {
+      subs: vec![],
+      dels: vec![Del::new(0, 2)],
+      inss: vec![],
+    };
+    let ref_len = 10;
+
+    let band_params = BandParameters::from_edits(&edit, ref_len);
+    let expected_band_params = BandParameters::new(2, 0); // Mean shift of 2 due to deletion
+    assert_eq!(band_params, expected_band_params);
+  }
+
+  #[rstest]
+  fn test_band_parameters_from_mid_insertion() {
+    // Test case with a mid-sequence insertion
+    let edit = Edit {
+      subs: vec![],
+      dels: vec![],
+      inss: vec![Ins::new(9, "C")],
+    };
+    let ref_len = 10;
+
+    let band_params = BandParameters::from_edits(&edit, ref_len);
+    // this insertion does not affect shift, but increases bandwidth
+    let expected_band_params = BandParameters::new(0, 1);
+    assert_eq!(band_params, expected_band_params);
+  }
+
+  #[rstest]
+  fn test_band_parameters_from_indel() {
+    // Test case with a deletion and insertion that overlap
+    let edit = Edit {
+      subs: vec![],
+      dels: vec![Del::new(2, 3)],
+      inss: vec![Ins::new(2, "CCC")],
+    };
+    let ref_len = 25;
+
+    let band_params = BandParameters::from_edits(&edit, ref_len);
+    // Shift is unaffected, but bandwidth is increased by the in/del size
+    let expected_band_params = BandParameters::new(0, 3);
+    assert_eq!(band_params, expected_band_params);
+  }
+
+  #[rstest]
+  fn test_band_parameters_from_complex_edits() {
+    // Test case with mixed insertions, deletions, and substitutions
+    let edit = Edit {
+      subs: vec![Sub::new(5, 'A'), Sub::new(10, 'T')],
+      dels: vec![Del::new(2, 3), Del::new(15, 2)],
+      inss: vec![Ins::new(8, "CCC"), Ins::new(20, "GG")],
+    };
+    let ref_len = 25;
+
+    let band_params = BandParameters::from_edits(&edit, ref_len);
+    let expected_band_params = BandParameters::new(1, 2);
+    assert_eq!(band_params, expected_band_params);
+  }
+
+  #[rstest]
   fn test_map_variations_simple_case() {
     // example alignment
     //        0            1         2         3
