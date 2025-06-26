@@ -1,6 +1,6 @@
 use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
 use crate::align::bam::cigar::{Side, add_flanking_indel, cigar_switch_ref_qry, invert_cigar};
-use crate::align::map_variations::map_variations;
+use crate::align::map_variations::{BandParameters, map_variations};
 use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_error;
@@ -44,10 +44,7 @@ impl MergePromise {
     // between the anchor and append blocks sequences (from the cigar string)
     // this is the same for all sequences in the append block
     let cigar_edits = Edit::from_cigar(&self.cigar);
-    let cigar_mean_shift = cigar_edits.aln_mean_shift(self.anchor_block.consensus().len()).unwrap();
-    let cigar_bandwidth = cigar_edits
-      .aln_bandwidth(self.anchor_block.consensus().len(), cigar_mean_shift)
-      .unwrap();
+    let cigar_band_params = BandParameters::from_edits(&cigar_edits, self.anchor_block.consensus().len());
 
     self
       .append_block
@@ -70,22 +67,19 @@ impl MergePromise {
 
           // calculate the mean shift and bandwidth of the alignment due to the displacement
           // of each sequence in the append block relative to the append block consensus
-          let edits_mean_shift = edits.aln_mean_shift(self.append_block.consensus().len()).unwrap();
-          let edits_bandwidth = edits
-            .aln_bandwidth(self.append_block.consensus().len(), edits_mean_shift)
-            .unwrap();
+          let mut band_params = BandParameters::from_edits(edits, self.append_block.consensus().len());
 
           // sum the two contributions
-          let mean_shift = cigar_mean_shift + edits_mean_shift;
-          let bandwidth = cigar_bandwidth + edits_bandwidth;
+          band_params.add(&cigar_band_params);
 
-            map_variations(self.anchor_block.consensus(), &seq, mean_shift, bandwidth, args)
-            .wrap_err_with(|| {
-              format!(
-              "during map variation:\ncigar mean shift: {}\ncigar bandwidth: {}\nedits mean shift: {}\nedits bandwidth: {}\ncigar: {:?}\nedits: {:?}",
-              cigar_mean_shift, cigar_bandwidth, edits_mean_shift, edits_bandwidth, self.cigar, edits
-              )
-            })?
+          // let band_params = BandParameters::new(mean_shift, band_width);
+
+          map_variations(self.anchor_block.consensus(), &seq, band_params, args).wrap_err_with(|| {
+            format!(
+              "during map variation:\ncigar band: {:?}\nfinal band: {:?}\ncigar: {:?}\nedits: {:?}",
+              cigar_band_params, band_params, self.cigar, edits
+            )
+          })?
         };
 
         #[cfg(any(test, debug_assertions))]

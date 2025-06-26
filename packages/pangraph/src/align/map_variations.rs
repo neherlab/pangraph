@@ -6,11 +6,41 @@ use crate::representation::seq::Seq;
 use eyre::Report;
 use itertools::Itertools;
 
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
+pub struct BandParameters {
+  mean_shift: i32,
+  band_width: usize,
+}
+
+impl BandParameters {
+  pub fn new(mean_shift: i32, band_width: usize) -> Self {
+    Self { mean_shift, band_width }
+  }
+
+  pub fn mean_shift(&self) -> i32 {
+    self.mean_shift
+  }
+
+  pub fn band_width(&self) -> usize {
+    self.band_width
+  }
+
+  pub fn add(&mut self, other: &Self) {
+    self.mean_shift += other.mean_shift;
+    self.band_width += other.band_width;
+  }
+
+  pub fn from_edits(edit: &Edit, ref_len: usize) -> Self {
+    let mean_shift = edit.aln_mean_shift(ref_len).unwrap();
+    let band_width = edit.aln_bandwidth(ref_len, mean_shift).unwrap();
+    Self { mean_shift, band_width }
+  }
+}
+
 pub fn map_variations(
   ref_seq: &Seq,
   qry_seq: &Seq,
-  mean_shift: i32,
-  mut bandwidth: usize,
+  band_params: BandParameters,
   args: &PangraphBuildArgs,
 ) -> Result<Edit, Report> {
   let params = NextalignParams {
@@ -19,6 +49,7 @@ pub fn map_variations(
     ..NextalignParams::default()
   };
 
+  let mut bandwidth = band_params.band_width;
   bandwidth += args.extra_band_width;
 
   let AlignWithNextcladeOutput {
@@ -26,7 +57,13 @@ pub fn map_variations(
     deletions,
     insertions,
     ..
-  } = align_with_nextclade(ref_seq.as_str(), qry_seq.as_str(), mean_shift, bandwidth, &params)?;
+  } = align_with_nextclade(
+    ref_seq.as_str(),
+    qry_seq.as_str(),
+    band_params.mean_shift,
+    bandwidth,
+    &params,
+  )?;
 
   let subs = substitutions
     .iter()
@@ -70,8 +107,10 @@ mod tests {
     let actual = map_variations(
       &Seq::from(r),
       &Seq::from(q),
-      mean_shift,
-      bandwidth,
+      BandParameters {
+        mean_shift,
+        band_width: bandwidth,
+      },
       &PangraphBuildArgs::default(),
     )
     .unwrap();
@@ -113,8 +152,10 @@ mod tests {
     let actual = map_variations(
       &Seq::from(r),
       &Seq::from(q),
-      mean_shift,
-      bandwidth,
+      BandParameters {
+        mean_shift,
+        band_width: bandwidth,
+      },
       &PangraphBuildArgs::default(),
     )
     .unwrap();
@@ -156,8 +197,10 @@ mod tests {
     let actual = map_variations(
       &Seq::from(r),
       &Seq::from(q),
-      mean_shift,
-      bandwidth,
+      BandParameters {
+        mean_shift,
+        band_width: bandwidth,
+      },
       &PangraphBuildArgs::default(),
     )
     .unwrap();
@@ -198,8 +241,10 @@ mod tests {
     let actual = map_variations(
       &Seq::from(r),
       &Seq::from(q),
-      mean_shift,
-      bandwidth,
+      BandParameters {
+        mean_shift,
+        band_width: bandwidth,
+      },
       &PangraphBuildArgs::default(),
     )
     .unwrap();
