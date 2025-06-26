@@ -1,7 +1,7 @@
 use crate::align::nextclade::align_with_nextclade::{AlignWithNextcladeOutput, NextalignParams, align_with_nextclade};
 use crate::align::nextclade::alphabet::nuc::{from_nuc, from_nuc_seq};
 use crate::commands::build::build_args::PangraphBuildArgs;
-use crate::make_report;
+use crate::make_internal_report;
 use crate::pangraph::edits::{Del, Edit, Ins, Sub};
 use crate::representation::seq::Seq;
 use eyre::Report;
@@ -26,12 +26,12 @@ impl BandParameters {
   }
 
   pub fn from_edits(edit: &Edit, ref_len: usize) -> Result<Self, Report> {
-    let mean_shift = edit
-      .aln_mean_shift(ref_len)
-      .ok_or_else(|| make_report!("Edit is expected to be non-empty, but found {edit:?}"))?;
-    let band_width = edit
-      .aln_bandwidth(ref_len, mean_shift)
-      .ok_or_else(|| make_report!("Edit is expected to be non-empty, but found {edit:?}"))?;
+    let mean_shift = edit.aln_mean_shift(ref_len).ok_or_else(|| {
+      make_internal_report!("Edit is expected to contain a valid alignment, but found {edit:?} (ref_len = {ref_len})")
+    })?;
+    let band_width = edit.aln_bandwidth(ref_len, mean_shift).ok_or_else(|| {
+      make_internal_report!("Edit is expected to contain a valid alignment, but found {edit:?} (ref_len = {ref_len}, mean_shift = {mean_shift})")
+    })?;
     Ok(Self { mean_shift, band_width })
   }
 }
