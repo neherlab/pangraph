@@ -72,8 +72,6 @@ impl MergePromise {
           // sum the two contributions
           band_params.add(&cigar_band_params);
 
-          // let band_params = BandParameters::new(mean_shift, band_width);
-
           map_variations(self.anchor_block.consensus(), &seq, band_params, args).wrap_err_with(|| {
             format!(
               "during map variation:\ncigar band: {:?}\nfinal band: {:?}\ncigar: {:?}\nedits: {:?}",
