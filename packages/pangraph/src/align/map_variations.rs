@@ -1,6 +1,7 @@
 use crate::align::nextclade::align_with_nextclade::{AlignWithNextcladeOutput, NextalignParams, align_with_nextclade};
 use crate::align::nextclade::alphabet::nuc::{from_nuc, from_nuc_seq};
 use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::make_report;
 use crate::pangraph::edits::{Del, Edit, Ins, Sub};
 use crate::representation::seq::Seq;
 use eyre::Report;
@@ -24,10 +25,14 @@ impl BandParameters {
     self.band_width += other.band_width;
   }
 
-  pub fn from_edits(edit: &Edit, ref_len: usize) -> Self {
-    let mean_shift = edit.aln_mean_shift(ref_len).unwrap();
-    let band_width = edit.aln_bandwidth(ref_len, mean_shift).unwrap();
-    Self { mean_shift, band_width }
+  pub fn from_edits(edit: &Edit, ref_len: usize) -> Result<Self, Report> {
+    let mean_shift = edit
+      .aln_mean_shift(ref_len)
+      .ok_or_else(|| make_report!("Edit is expected to be non-empty, but found {edit:?}"))?;
+    let band_width = edit
+      .aln_bandwidth(ref_len, mean_shift)
+      .ok_or_else(|| make_report!("Edit is expected to be non-empty, but found {edit:?}"))?;
+    Ok(Self { mean_shift, band_width })
   }
 }
 
@@ -94,7 +99,7 @@ mod tests {
     let edit = Edit::empty();
     let ref_len = 10;
 
-    let band_params = BandParameters::from_edits(&edit, ref_len);
+    let band_params = BandParameters::from_edits(&edit, ref_len).unwrap();
     let expected_band_params = BandParameters::new(0, 0);
     assert_eq!(band_params, expected_band_params);
   }
@@ -109,7 +114,7 @@ mod tests {
     };
     let ref_len = 10;
 
-    let band_params = BandParameters::from_edits(&edit, ref_len);
+    let band_params = BandParameters::from_edits(&edit, ref_len).unwrap();
 
     // Should have negative mean shift due to insertion pushing query to the right
     let expected_band_params = BandParameters::new(-3, 0);
@@ -126,7 +131,7 @@ mod tests {
     };
     let ref_len = 10;
 
-    let band_params = BandParameters::from_edits(&edit, ref_len);
+    let band_params = BandParameters::from_edits(&edit, ref_len).unwrap();
     let expected_band_params = BandParameters::new(2, 0); // Mean shift of 2 due to deletion
     assert_eq!(band_params, expected_band_params);
   }
@@ -141,7 +146,7 @@ mod tests {
     };
     let ref_len = 10;
 
-    let band_params = BandParameters::from_edits(&edit, ref_len);
+    let band_params = BandParameters::from_edits(&edit, ref_len).unwrap();
     // this insertion does not affect shift, but increases bandwidth
     let expected_band_params = BandParameters::new(0, 1);
     assert_eq!(band_params, expected_band_params);
@@ -157,7 +162,7 @@ mod tests {
     };
     let ref_len = 25;
 
-    let band_params = BandParameters::from_edits(&edit, ref_len);
+    let band_params = BandParameters::from_edits(&edit, ref_len).unwrap();
     // Shift is unaffected, but bandwidth is increased by the in/del size
     let expected_band_params = BandParameters::new(0, 3);
     assert_eq!(band_params, expected_band_params);
@@ -173,7 +178,7 @@ mod tests {
     };
     let ref_len = 25;
 
-    let band_params = BandParameters::from_edits(&edit, ref_len);
+    let band_params = BandParameters::from_edits(&edit, ref_len).unwrap();
     let expected_band_params = BandParameters::new(1, 2);
     assert_eq!(band_params, expected_band_params);
   }

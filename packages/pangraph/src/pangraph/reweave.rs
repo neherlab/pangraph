@@ -44,7 +44,7 @@ impl MergePromise {
     // between the anchor and append blocks sequences (from the cigar string)
     // this is the same for all sequences in the append block
     let cigar_edits = Edit::from_cigar(&self.cigar);
-    let cigar_band_params = BandParameters::from_edits(&cigar_edits, self.anchor_block.consensus().len());
+    let cigar_band_params = BandParameters::from_edits(&cigar_edits, self.anchor_block.consensus().len())?;
 
     self
       .append_block
@@ -67,7 +67,7 @@ impl MergePromise {
 
           // calculate the mean shift and bandwidth of the alignment due to the displacement
           // of each sequence in the append block relative to the append block consensus
-          let mut band_params = BandParameters::from_edits(edits, self.append_block.consensus().len());
+          let mut band_params = BandParameters::from_edits(edits, self.append_block.consensus().len())?;
 
           // sum the two contributions
           band_params.add(&cigar_band_params);

@@ -71,7 +71,7 @@ fn reconsensus(block: &mut PangraphBlock, args: &PangraphBuildArgs) -> Result<()
       inss: ins,
     };
 
-    let new_consensus_band_params = BandParameters::from_edits(&new_consensus_edits, block.consensus_len());
+    let new_consensus_band_params = BandParameters::from_edits(&new_consensus_edits, block.consensus_len())?;
 
     // debug assert: consensus is not empty
     debug_assert!(!consensus.is_empty(), "Consensus is empty after indels");
@@ -217,7 +217,7 @@ fn update_block_consensus(
     .iter()
     .map(|(&nid, edit)| {
       let seq = edit.apply(block.consensus())?;
-      let old_band_params = BandParameters::from_edits(edit, block.consensus_len());
+      let old_band_params = BandParameters::from_edits(edit, block.consensus_len())?;
       let updated_band_params = BandParameters::new(
         old_band_params.mean_shift() - new_consensus_band_params.mean_shift(),
         old_band_params.band_width() + new_consensus_band_params.band_width(),
