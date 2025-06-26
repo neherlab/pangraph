@@ -71,13 +71,14 @@ pub struct PangraphBuildArgs {
   #[clap(long)]
   pub no_progress_bar: bool,
 
-  /// Excess bandwidth for internal stripes.
+  /// For within-block alignment: excess bandwidth for internal stripes.
+  /// Can be increased to improve block alignment quality, at the cost of computation time and memory usage.
   #[default = 5]
   #[clap(long, default_value_t = PangraphBuildArgs::default().extra_band_width)]
   #[clap(value_hint = ValueHint::Other)]
   pub extra_band_width: usize,
 
-  /// Number of times Nextclade will retry alignment with more relaxed results if alignment band boundaries are hit
+  /// For within-block alignment: number of times Nextclade will retry alignment with more relaxed results if alignment band boundaries are hit.
   #[default = 4]
   #[clap(long, default_value_t = PangraphBuildArgs::default().max_alignment_attempts)]
   #[clap(value_hint = ValueHint::Other)]
