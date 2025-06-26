@@ -1,21 +1,30 @@
 use crate::align::nextclade::align_with_nextclade::{AlignWithNextcladeOutput, NextalignParams, align_with_nextclade};
 use crate::align::nextclade::alphabet::nuc::{from_nuc, from_nuc_seq};
+use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::pangraph::edits::{Del, Edit, Ins, Sub};
 use crate::representation::seq::Seq;
 use eyre::Report;
 use itertools::Itertools;
 
-pub fn map_variations(ref_seq: &Seq, qry_seq: &Seq, mean_shift: i32, bandwidth: usize) -> Result<Edit, Report> {
+pub fn map_variations(
+  ref_seq: &Seq,
+  qry_seq: &Seq,
+  mean_shift: i32,
+  mut bandwidth: usize,
+  args: &PangraphBuildArgs,
+) -> Result<Edit, Report> {
   let params = NextalignParams {
     min_length: 1,
+    max_alignment_attempts: args.max_alignment_attempts,
     ..NextalignParams::default()
   };
+
+  bandwidth += args.extra_band_width;
 
   let AlignWithNextcladeOutput {
     substitutions,
     deletions,
     insertions,
-    // hit_boundary,
     ..
   } = align_with_nextclade(ref_seq.as_str(), qry_seq.as_str(), mean_shift, bandwidth, &params)?;
 
@@ -58,7 +67,14 @@ mod tests {
 
     let mean_shift = -2;
     let bandwidth = 3;
-    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift, bandwidth).unwrap();
+    let actual = map_variations(
+      &Seq::from(r),
+      &Seq::from(q),
+      mean_shift,
+      bandwidth,
+      &PangraphBuildArgs::default(),
+    )
+    .unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(6, 'A')],
@@ -94,7 +110,14 @@ mod tests {
     let q = "CTGATTTAGTCCCTTAGGGGTTACTCTACACTGTAG";
     let mean_shift = 2;
     let bandwidth = 2;
-    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift, bandwidth).unwrap();
+    let actual = map_variations(
+      &Seq::from(r),
+      &Seq::from(q),
+      mean_shift,
+      bandwidth,
+      &PangraphBuildArgs::default(),
+    )
+    .unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(10, 'A')],
@@ -130,7 +153,14 @@ mod tests {
     let q = "CCTGACACTGATTTAGTCCTAGGGGTTACTCTACACCGTAGCCTAGCCGCCG";
     let mean_shift = -4;
     let bandwidth = 2;
-    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift, bandwidth).unwrap();
+    let actual = map_variations(
+      &Seq::from(r),
+      &Seq::from(q),
+      mean_shift,
+      bandwidth,
+      &PangraphBuildArgs::default(),
+    )
+    .unwrap();
 
     let expected = Edit {
       subs: vec![Sub::new(10, 'A'), Sub::new(31, 'C')],
@@ -165,7 +195,14 @@ mod tests {
     let q = "CGCCCTACTACAAGAGGGAACGGGGGGGGGGGGGAAGTATAGCCACAATAGCTGG";
     let mean_shift = -2;
     let bandwidth = 11;
-    let actual = map_variations(&Seq::from(r), &Seq::from(q), mean_shift, bandwidth).unwrap();
+    let actual = map_variations(
+      &Seq::from(r),
+      &Seq::from(q),
+      mean_shift,
+      bandwidth,
+      &PangraphBuildArgs::default(),
+    )
+    .unwrap();
 
     let expected = Edit {
       subs: vec![],

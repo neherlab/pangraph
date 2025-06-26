@@ -129,6 +129,12 @@ Align genomes into a multiple sequence alignment graph
 
 * `-f`, `--verify` — Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise
 * `--no-progress-bar` — Toggle to disable progress bar. Notice that the progress bar is only displayed if the output is specified via the `-o` argument
+* `--extra-band-width <EXTRA_BAND_WIDTH>` — For within-block alignment: excess bandwidth for internal stripes. Can be increased to improve block alignment quality, at the cost of computation time and memory usage
+
+  Default value: `5`
+* `--max-alignment-attempts <MAX_ALIGNMENT_ATTEMPTS>` — For within-block alignment: number of times Nextclade will retry alignment with more relaxed results if alignment band boundaries are hit
+
+  Default value: `4`
 
 
 

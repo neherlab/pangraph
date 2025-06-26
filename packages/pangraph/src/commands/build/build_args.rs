@@ -19,7 +19,7 @@ pub enum AlignmentBackend {
 }
 
 /// Align genomes into a pangenome graph
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, SmartDefault)]
 pub struct PangraphBuildArgs {
   /// Path(s) to zero, one or multiple FASTA files with input sequences. Multiple records within one file are treated as separate genomes.
   ///
@@ -59,7 +59,7 @@ pub struct PangraphBuildArgs {
   ///
   /// Nb: `mmseqs` is more sensitive to highly-diverged sequences, but slower and requires more memory.
   /// It is not provided with Pangraph, so you need to install it separately (see: https://github.com/soedinglab/MMseqs2)
-  #[clap(long, short = 'k',  default_value_t = AlignmentBackend::default())]
+  #[clap(long, short = 'k',  default_value_t = PangraphBuildArgs::default().alignment_kernel)]
   #[clap(value_hint = ValueHint::Other)]
   pub alignment_kernel: AlignmentBackend,
 
@@ -70,4 +70,17 @@ pub struct PangraphBuildArgs {
   /// Toggle to disable progress bar. Notice that the progress bar is only displayed if the output is specified via the `-o` argument.
   #[clap(long)]
   pub no_progress_bar: bool,
+
+  /// For within-block alignment: excess bandwidth for internal stripes.
+  /// Can be increased to improve block alignment quality, at the cost of computation time and memory usage.
+  #[default = 5]
+  #[clap(long, default_value_t = PangraphBuildArgs::default().extra_band_width)]
+  #[clap(value_hint = ValueHint::Other)]
+  pub extra_band_width: usize,
+
+  /// For within-block alignment: number of times Nextclade will retry alignment with more relaxed results if alignment band boundaries are hit.
+  #[default = 4]
+  #[clap(long, default_value_t = PangraphBuildArgs::default().max_alignment_attempts)]
+  #[clap(value_hint = ValueHint::Other)]
+  pub max_alignment_attempts: usize,
 }

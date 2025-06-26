@@ -145,7 +145,7 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
     .into_par_iter()
     .map(|mut merge_promise| {
       merge_promise
-        .solve_promise()
+        .solve_promise(args)
         .wrap_err_with(|| format!("When solving merge promise: {merge_promise:#?}"))
     })
     .collect::<Result<Vec<_>, _>>()?;
@@ -166,7 +166,7 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
 
   // update consensus and alignment of merged blocks.
   let merge_block_ids = new_blocks_dict.keys().copied().collect_vec();
-  reconsensus_graph(&mut graph, merge_block_ids).wrap_err("During reconsensus")?;
+  reconsensus_graph(&mut graph, merge_block_ids, args).wrap_err("During reconsensus")?;
 
   Ok((graph, true))
 }
