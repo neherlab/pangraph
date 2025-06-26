@@ -1,6 +1,7 @@
 use clap::{Parser, ValueHint};
 use ctor::ctor;
 use eyre::Report;
+use pangraph::align::map_variations::BandParameters;
 use pangraph::align::nextclade::align_with_nextclade::{NextalignParams, align_with_nextclade};
 use pangraph::io::fasta::{read_many_fasta, read_one_fasta};
 use pangraph::utils::global_init::{global_init, setup_logger};
@@ -41,10 +42,11 @@ fn main() -> Result<(), Report> {
     max_alignment_attempts: 1,
     ..Default::default()
   };
+  let band_params = BandParameters::new(mean_shift, bandwidth);
 
   let qry_records = read_many_fasta(&input_query_fastas)?;
   for qry_record in qry_records {
-    let result = align_with_nextclade(&ref_record.seq, &qry_record.seq, mean_shift, bandwidth, &params)?;
+    let result = align_with_nextclade(&ref_record.seq, &qry_record.seq, band_params, &params)?;
     println!("{:#?}", &result);
   }
 

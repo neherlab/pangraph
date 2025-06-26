@@ -1,4 +1,4 @@
-use crate::align::map_variations::map_variations;
+use crate::align::map_variations::{BandParameters, map_variations};
 use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::make_error;
 use crate::pangraph::edits::{Del, Edit};
@@ -70,15 +70,13 @@ fn reconsensus(block: &mut PangraphBlock, args: &PangraphBuildArgs) -> Result<()
         .collect(),
       inss: ins,
     };
-    let new_consensus_shift = new_consensus_edits.aln_mean_shift(block.consensus_len()).unwrap();
-    let new_consensus_bandwidth = new_consensus_edits
-      .aln_bandwidth(block.consensus_len(), new_consensus_shift)
-      .unwrap();
+
+    let new_consensus_band_params = BandParameters::from_edits(&new_consensus_edits, block.consensus_len())?;
 
     // debug assert: consensus is not empty
     debug_assert!(!consensus.is_empty(), "Consensus is empty after indels");
 
-    update_block_consensus(block, &consensus, new_consensus_shift, new_consensus_bandwidth, args)?;
+    update_block_consensus(block, &consensus, new_consensus_band_params, args)?;
   }
   Ok(())
 }
@@ -210,8 +208,7 @@ fn apply_indels(cons: impl Into<Seq>, dels: &[usize], inss: &[Ins]) -> Seq {
 fn update_block_consensus(
   block: &mut PangraphBlock,
   consensus: &Seq,
-  new_consensus_shift: i32,
-  new_consensus_bandwidth: usize,
+  new_consensus_band_params: BandParameters,
   args: &PangraphBuildArgs,
 ) -> Result<(), Report> {
   // Reconstruct block sequences
@@ -220,18 +217,19 @@ fn update_block_consensus(
     .iter()
     .map(|(&nid, edit)| {
       let seq = edit.apply(block.consensus())?;
-      let old_shift = edit.aln_mean_shift(block.consensus_len()).unwrap();
-      let new_shift = old_shift - new_consensus_shift;
-      let old_bandwidth = edit.aln_bandwidth(block.consensus_len(), old_shift).unwrap();
-      let new_bandwidth = old_bandwidth + new_consensus_bandwidth;
-      Ok((nid, (seq, new_shift, new_bandwidth)))
+      let old_band_params = BandParameters::from_edits(edit, block.consensus_len())?;
+      let updated_band_params = BandParameters::new(
+        old_band_params.mean_shift() - new_consensus_band_params.mean_shift(),
+        old_band_params.band_width() + new_consensus_band_params.band_width(),
+      );
+      Ok((nid, (seq, updated_band_params)))
     })
-    .collect::<Result<BTreeMap<NodeId, (Seq, i32, usize)>, Report>>()?;
+    .collect::<Result<BTreeMap<NodeId, (Seq, BandParameters)>, Report>>()?;
 
   // debug assets: all sequences are non-empty
   #[cfg(any(debug_assertions, test))]
   {
-    for (nid, (seq, _d, _b)) in &seqs {
+    for (nid, (seq, _bp)) in &seqs {
       if seq.is_empty() {
         return make_error!(
           "node is empty!\nblock: {}\nnode: {}\nedits: {:?}\nconsensus: {}",
@@ -247,7 +245,7 @@ fn update_block_consensus(
   // Re-align sequences
   let alignments = seqs
     .into_par_iter()
-    .map(|(nid, (seq, shift, bw))| Ok((nid, map_variations(consensus, &seq, shift, bw, args)?)))
+    .map(|(nid, (seq, band_params))| Ok((nid, map_variations(consensus, &seq, band_params, args)?)))
     .collect::<Result<_, Report>>()?;
 
   *block = PangraphBlock::new(block.id(), consensus, alignments);
