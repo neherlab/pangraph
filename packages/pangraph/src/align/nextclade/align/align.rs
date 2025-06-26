@@ -1,3 +1,4 @@
+use crate::align::map_variations::BandParameters;
 use crate::align::nextclade::align::backtrace::{AlignmentOutput, backtrace};
 use crate::align::nextclade::align::band_2d::Stripe;
 use crate::align::nextclade::align::band_2d::{full_matrix, simple_stripes};
@@ -32,8 +33,7 @@ pub fn align_nuc_simplestripe(
   qry_seq: &[Nuc],
   ref_seq: &[Nuc],
   gap_open_close: &[i32],
-  mean_shift: i32,
-  initial_bandwidth: usize,
+  band_params: BandParameters,
   params: &NextalignParams,
 ) -> Result<AlignmentOutput<Nuc>, Report> {
   let qry_len = qry_seq.len();
@@ -45,7 +45,8 @@ pub fn align_nuc_simplestripe(
     );
   }
 
-  let mut band_width = initial_bandwidth;
+  let mut band_width = band_params.band_width();
+  let mean_shift = band_params.mean_shift();
   let mut stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
 
   let mut attempt = 1;
@@ -205,43 +206,16 @@ mod tests {
     };
     let gap_open_close = get_gap_open_close_scores_flat(&ref_seq, &params);
 
-    let mean_shift = -30;
-    let initial_bandwidth = 1;
-    let alignment = align_nuc_simplestripe(
-      &qry_seq,
-      &ref_seq,
-      &gap_open_close,
-      mean_shift,
-      initial_bandwidth,
-      &params,
-    )
-    .unwrap();
+    let band_params = BandParameters::new(-30, 1);
+    let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, band_params, &params).unwrap();
     assert!(!alignment.hit_boundary);
 
-    let mean_shift = 0;
-    let initial_bandwidth = 31;
-    let alignment = align_nuc_simplestripe(
-      &qry_seq,
-      &ref_seq,
-      &gap_open_close,
-      mean_shift,
-      initial_bandwidth,
-      &params,
-    )
-    .unwrap();
+    let band_params = BandParameters::new(0, 31);
+    let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, band_params, &params).unwrap();
     assert!(!alignment.hit_boundary);
 
-    let mean_shift = 0;
-    let initial_bandwidth = 30;
-    let alignment = align_nuc_simplestripe(
-      &qry_seq,
-      &ref_seq,
-      &gap_open_close,
-      mean_shift,
-      initial_bandwidth,
-      &params,
-    )
-    .unwrap();
+    let band_params = BandParameters::new(0, 30);
+    let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, band_params, &params).unwrap();
     assert!(alignment.hit_boundary);
   }
 
@@ -262,17 +236,8 @@ mod tests {
       ..Default::default()
     };
     let gap_open_close = get_gap_open_close_scores_flat(&ref_seq, &params);
-    let mean_shift = 70;
-    let initial_bandwidth = 0;
-    let alignment = align_nuc_simplestripe(
-      &qry_seq,
-      &ref_seq,
-      &gap_open_close,
-      mean_shift,
-      initial_bandwidth,
-      &params,
-    )
-    .unwrap();
+    let band_params = BandParameters::new(70, 0);
+    let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, band_params, &params).unwrap();
 
     let expected = AlignmentOutput {
       qry_seq: aln_qry,

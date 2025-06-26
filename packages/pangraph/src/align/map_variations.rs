@@ -40,7 +40,7 @@ impl BandParameters {
 pub fn map_variations(
   ref_seq: &Seq,
   qry_seq: &Seq,
-  band_params: BandParameters,
+  mut band_params: BandParameters,
   args: &PangraphBuildArgs,
 ) -> Result<Edit, Report> {
   let params = NextalignParams {
@@ -49,21 +49,14 @@ pub fn map_variations(
     ..NextalignParams::default()
   };
 
-  let mut bandwidth = band_params.band_width;
-  bandwidth += args.extra_band_width;
+  band_params.band_width += args.extra_band_width;
 
   let AlignWithNextcladeOutput {
     substitutions,
     deletions,
     insertions,
     ..
-  } = align_with_nextclade(
-    ref_seq.as_str(),
-    qry_seq.as_str(),
-    band_params.mean_shift,
-    bandwidth,
-    &params,
-  )?;
+  } = align_with_nextclade(ref_seq.as_str(), qry_seq.as_str(), band_params, &params)?;
 
   let subs = substitutions
     .iter()
