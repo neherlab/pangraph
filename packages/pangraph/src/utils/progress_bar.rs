@@ -23,7 +23,8 @@ impl ProgressBar {
       .map_err(|e| eyre::eyre!("Failed to create progress bar template: {}", e))?
       .progress_chars("#>-");
       pb.set_style(style);
-      let indicatif = INDICATIF.get()
+      let indicatif = INDICATIF
+        .get()
         .ok_or_else(|| eyre::eyre!("Failed to get INDICATIF instance"))?;
       Some(indicatif.add(pb))
     } else {
