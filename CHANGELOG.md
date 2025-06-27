@@ -1,15 +1,29 @@
-## 1.2.0
+## Unreleased
 
-- **improved within-block alignments**: now cigar strings from minimap or mmseqs2 are used to inform within-block banded alignments when merging two blocks. The cigar string, together with alignments of the two merge candidates, are used to determine mean shift and bandwidth of the banded alignment. This results in more accurate alignments.
-  - this improvement comes with two extra options for the `pangraph build` command, that can be incremented to improve the quality of the block alignments at the cost of computation time and memory usage:
-    - `--extra-band-width`: this option allows to increase the extra bandwidth of within-block banded alignments.
-    - `--max-alignment-attempts`: this option allows to increase the number of attempts to align two blocks, each attempt having increased bandwidth.
-- **dealing with unaligned nodes**: occasionally merging of two blocks could generate nodes whose alignment consists only of insertions or deletions, and no nucleotides aligned to the consensus. These problematic nodes are now detected, extracted from the block and stored in a separate singleton block, that can be further processed during graph construction.
-- **bug fixes**:
-  - fix in Nexclade aligner that would trigger a "band hit" warining whenever trailing indels were present. This caused performance loss.
-  - fix in in-dels tracking: in previous versions of the code leading in-dels were misplaced in the cigar string for matches with reverse orientation.
-- **improved error reporting**: now errors that occur during postorder traversal of the guide tree are reported immediately, without waiting for the whole tree to be traversed.
+### Improve within-block alignments
 
+Cigar strings from minimap or mmseqs2 are now used to inform within-block banded alignments when merging two blocks. The cigar string, together with alignments of the two merge candidates, are used to determine mean shift and bandwidth of the banded alignment. This results in more accurate alignments.
+
+We added two extra options for the `pangraph build` command, which can be used to improve the quality of the block alignments at the cost of computation time and memory usage:
+
+- `--extra-band-width`: this option allows to increase the extra bandwidth of within-block banded alignments.
+- `--max-alignment-attempts`: this option allows to increase the number of attempts to align two blocks, each attempt having increased bandwidth.
+
+### Fix handling of unaligned nodes
+
+Occasionally, merging of two blocks could generate nodes whose alignment consists only of insertions or deletions, and no nucleotides aligned to the consensus. These problematic nodes are now detected, extracted from the block and stored in a separate singleton block, that can be further processed during graph construction.
+
+### Fix band hit warnings in Nextclade aligner
+
+Nextclade would trigger a "band hit" warning whenever trailing indels were present. This caused performance loss.
+
+### Fix in in-dels tracking
+
+Leading in-dels were misplaced in the cigar string for matches with reverse orientation
+
+### Improve error reporting
+
+Errors that occur during postorder traversal of the guide tree are reported immediately, without waiting for the whole tree to be traversed.
 
 ## 1.1.0
 
@@ -17,11 +31,9 @@
 
 `pangraph build` command now displays only essential information when in "info" verbosity mode (with a single `-v`). To display a more verbose log, add multiple occurences of `-v`: e.g. `-vv`, `-vvv` etc.
 
-
 ### Add progress bar
 
 `pangraph build` command now displays a progress bar which helps to estimate the time required to complete the operation. Add `--no-progress-bar` if you want to hide it.
-
 
 ## 1.0.0
 
@@ -49,7 +61,6 @@ This release introduces several significant updates, including a complete rewrit
   - The `marginalize` command has been renamed to `simplify`.
   - A new `reconstruct` command has been added to rebuild the input sequences from the graph.
   - The `polish` and `generate` commands have been removed.
-
 
 ## v0.6.0
 
@@ -85,9 +96,10 @@ This release introduces several significant updates, including a complete rewrit
 ## v0.3.0
 
 Added command line options:
+
 - Build: `-u` => force sequences to uppercase letters
 - Polish: `-c` => preserve case (uses MAFFT command line flag)
-Additionally, removed bug associated with sequences mapping as empty intervals to blocks.
+  Additionally, removed bug associated with sequences mapping as empty intervals to blocks.
 
 Lastly, large improvement to the algorithm's multicore usage by balancing the initial guide tree.
 
