@@ -59,7 +59,7 @@ impl MergePromise {
           let (seq, edits) = if !self.orientation.is_forward() {
             (
               reverse_complement(&seq)?,
-              &edits.reverse_complement(self.append_block.consensus().len()).unwrap(),
+              &edits.reverse_complement(self.append_block.consensus().len())?,
             )
           } else {
             (seq, edits)
