@@ -1,3 +1,4 @@
+use crate::align::map_variations::BandParameters;
 use crate::align::nextclade::align::backtrace::{AlignmentOutput, backtrace};
 use crate::align::nextclade::align::band_2d::Stripe;
 use crate::align::nextclade::align::band_2d::{full_matrix, simple_stripes};
@@ -32,6 +33,7 @@ pub fn align_nuc_simplestripe(
   qry_seq: &[Nuc],
   ref_seq: &[Nuc],
   gap_open_close: &[i32],
+  band_params: BandParameters,
   params: &NextalignParams,
 ) -> Result<AlignmentOutput<Nuc>, Report> {
   let qry_len = qry_seq.len();
@@ -43,23 +45,16 @@ pub fn align_nuc_simplestripe(
     );
   }
 
-  // mean shift equal to half difference between ref and query lengths
-  let mean_shift = (ref_len as i32 - qry_len as i32) / 2;
-  // band width equal to 2 times absolute difference + 10
-  let mut band_width = (mean_shift.abs() * 4 + 10) as usize;
+  let mut band_width = band_params.band_width();
+  let mean_shift = band_params.mean_shift();
   let mut stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
 
-  let mut attempt = 0;
+  let mut attempt = 1;
   let mut alignment = align_pairwise(qry_seq, ref_seq, gap_open_close, params, &stripes);
 
   while alignment.hit_boundary && attempt < params.max_alignment_attempts {
-    debug!(
-      "In nucleotide alignment: Band boundary is hit on attempt {}. Retrying with relaxed parameters. Alignment score was: {}",
-      attempt + 1,
-      alignment.alignment_score
-    );
     // double bandwidth parameters or increase to one if 0
-    band_width = max(2 * band_width, 1);
+    band_width = max(2 * band_width, max(1, mean_shift.unsigned_abs() as usize));
     stripes = simple_stripes(mean_shift, band_width, ref_len, qry_len);
     // realign
     attempt += 1;
@@ -69,14 +64,8 @@ pub fn align_nuc_simplestripe(
   // report success/failure of broadening of band width
   if alignment.hit_boundary {
     warn!(
-      "In nucleotide alignment: Attempted to relax band parameters {attempt} times, but still hitting the band boundary. Returning last attempt with score: {}",
-      alignment.alignment_score
-    );
-  } else if attempt > 0 {
-    debug!(
-      "In nucleotide alignment: Succeeded without hitting band boundary on attempt {}. Alignment score was: {}",
-      attempt + 1,
-      alignment.alignment_score
+      "In nucleotide alignment (qry len: {qry_len}, ref len: {ref_len}, shift: {mean_shift}, bandwidth: {band_width}): still hitting the band boundary after {} attempts. Returning last attempt with score: {}",
+      attempt, alignment.alignment_score
     );
   }
   Ok(alignment)
@@ -191,4 +180,72 @@ pub fn align_nuc(
   }
   alignment.is_reverse_complement = is_reverse_complement;
   Ok(Some(alignment))
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::align::nextclade::align::gap_open::get_gap_open_close_scores_flat;
+  use crate::align::nextclade::align::params::NextalignParams;
+  use crate::align::nextclade::alphabet::nuc::to_nuc_seq;
+
+  #[test]
+  fn test_align_nuc_simplestripe_trigger_band_hit() {
+    let ref_str = "------------------------------TTGGCCCCGGTGCTGTCCGTCAACACGTCGTCGTCCGGCGACCTACCTGGTCTCAAAGGAGGTTTTGTTAAATGAATTAGATGGGTAAGGTTACCACGTCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+    let qry_str = "GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGTTGGCCCCGGTGCTGTCCGTCAACACGTCGTCGTCCGGCGACCTACCTGGTCTCAAAGGAGGTTTTGTTAAATGAATTAGATGGGTAAGGTTACCACGTCA------------------------------";
+
+    let qry_str = qry_str.replace('-', "");
+    let ref_str = ref_str.replace('-', "");
+
+    let qry_seq = to_nuc_seq(&qry_str).unwrap();
+    let ref_seq = to_nuc_seq(&ref_str).unwrap();
+
+    let params = NextalignParams {
+      max_alignment_attempts: 1,
+      ..Default::default()
+    };
+    let gap_open_close = get_gap_open_close_scores_flat(&ref_seq, &params);
+
+    let band_params = BandParameters::new(-30, 1);
+    let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, band_params, &params).unwrap();
+    assert!(!alignment.hit_boundary);
+
+    let band_params = BandParameters::new(0, 31);
+    let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, band_params, &params).unwrap();
+    assert!(!alignment.hit_boundary);
+
+    let band_params = BandParameters::new(0, 30);
+    let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, band_params, &params).unwrap();
+    assert!(alignment.hit_boundary);
+  }
+
+  #[test]
+  fn test_align_nuc_simplestripe_unaligned() {
+    let aln_ref = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA------------------";
+    let aln_qry = "-------------------------------------GGGGGGGGGGGGGGGGGG";
+    let qry_str = aln_qry.replace('-', "");
+    let ref_str = aln_ref.replace('-', "");
+    let qry_seq = to_nuc_seq(&qry_str).unwrap();
+    let ref_seq = to_nuc_seq(&ref_str).unwrap();
+    let aln_ref = to_nuc_seq(aln_ref).unwrap();
+    let aln_qry = to_nuc_seq(aln_qry).unwrap();
+
+    let params = NextalignParams {
+      max_alignment_attempts: 1,
+      min_length: 3,
+      ..Default::default()
+    };
+    let gap_open_close = get_gap_open_close_scores_flat(&ref_seq, &params);
+    let band_params = BandParameters::new(70, 0);
+    let alignment = align_nuc_simplestripe(&qry_seq, &ref_seq, &gap_open_close, band_params, &params).unwrap();
+
+    let expected = AlignmentOutput {
+      qry_seq: aln_qry,
+      ref_seq: aln_ref,
+      alignment_score: 0,
+      hit_boundary: false,
+      is_reverse_complement: false,
+    };
+    assert_eq!(alignment, expected);
+  }
 }

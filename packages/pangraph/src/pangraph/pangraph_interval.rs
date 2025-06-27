@@ -5,17 +5,23 @@ use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
 use crate::utils::interval::Interval;
 use color_eyre::{Section, SectionExt};
-use eyre::{Report, WrapErr};
+use eyre::Report;
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
+use noodles::sam::record::Cigar;
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg(any(debug_assertions, test))]
+use eyre::WrapErr;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PangraphInterval {
-  pub interval: Interval,
-  pub aligned: bool,
-  pub new_block_id: BlockId,
-  pub is_anchor: Option<bool>,
-  pub orientation: Option<Strand>,
+  pub interval: Interval,          // coordinates of the interval on the block
+  pub aligned: bool,               // whether the interval is aligned
+  pub new_block_id: BlockId,       // for aligned intervals, id of the new block
+  pub is_anchor: Option<bool>,     // for aligned intervals, whether the block is the anchor
+  pub orientation: Option<Strand>, // for aligned intervals, the orientation of the alignment
+  pub cigar: Option<Cigar>,        // cigar of the alignment, only initialized for the reference
+  pub extend_left: Option<usize>,  // keep track of optional extensions to the left, for later cigar update
+  pub extend_right: Option<usize>, // keep track of optional extensions to the right, for later cigar update
 }
 
 impl PangraphInterval {
@@ -47,6 +53,7 @@ pub fn have_no_overlap(intervals: &[PangraphInterval], candidate: &PangraphInter
 }
 
 #[allow(clippy::missing_asserts_for_indexing)]
+#[cfg(any(debug_assertions, test))]
 fn intervals_sanity_checks(intervals: &[PangraphInterval], block_length: usize) -> Result<(), Report> {
   if intervals.is_empty() {
     return make_internal_error!("Intervals array cannot be empty.");
@@ -98,6 +105,9 @@ fn unaligned_interval(interval: Interval, block_id: BlockId) -> PangraphInterval
     new_block_id,
     is_anchor: None,
     orientation: None,
+    cigar: None,
+    extend_left: None,
+    extend_right: None,
   }
 }
 
@@ -110,6 +120,9 @@ fn aligned_interval(h: &ExtractedHit) -> PangraphInterval {
     new_block_id: h.new_block_id,
     is_anchor: Some(h.is_anchor),
     orientation: Some(h.orientation),
+    cigar: h.cigar.clone(),
+    extend_left: None,
+    extend_right: None,
   }
 }
 
@@ -118,6 +131,7 @@ fn calculate_hash(block_id: BlockId, interval: &Interval) -> BlockId {
   BlockId(id((block_id, interval)))
 }
 
+/// Given a list of hits on a block, partitions the block into a list of aligned and unaligned intervals.
 fn create_intervals(hits: &[ExtractedHit], block_length: usize) -> Vec<PangraphInterval> {
   let mut intervals = vec![];
   let mut cursor = 0;
@@ -183,6 +197,10 @@ fn check_interval_conditions(
   Ok(())
 }
 
+/// Given a partition of a block into intervals, merges intervals shorter than a threshold length
+/// with the longest flanking interval.
+/// Keeps track of the added length in the extend_left and extend_right fields,
+/// for late update of the cigar string.
 fn refine_intervals(intervals: &mut Vec<PangraphInterval>, thr_len: usize) -> Result<(), Report> {
   let mut mergers = vec![];
 
@@ -204,15 +222,22 @@ fn refine_intervals(intervals: &mut Vec<PangraphInterval>, thr_len: usize) -> Re
   for (n_from, n_to) in mergers.iter().rev() {
     if n_from < n_to {
       intervals[*n_to].interval.start = intervals[*n_from].interval.start;
+      intervals[*n_to].extend_left = Some(intervals[*n_to].extend_left.unwrap_or(0) + intervals[*n_from].len());
     } else {
       intervals[*n_to].interval.end = intervals[*n_from].interval.end;
+      intervals[*n_to].extend_right = Some(intervals[*n_to].extend_right.unwrap_or(0) + intervals[*n_from].len());
     }
+
     intervals.remove(*n_from);
   }
 
   Ok(())
 }
 
+/// given a list of hits on a block, split the block into a list of intervals,
+/// based on the matched regions.
+/// Each interval is either aligned to a new block or unaligned.
+/// The intervals are refined by merging unaligned intervals shorter than a threshold length.
 pub fn extract_intervals(
   hits: &[ExtractedHit],
   block_length: usize,
@@ -220,9 +245,12 @@ pub fn extract_intervals(
 ) -> Result<Vec<PangraphInterval>, Report> {
   let mut intervals = create_intervals(hits, block_length);
   refine_intervals(&mut intervals, thr_len)?;
+
+  #[cfg(any(debug_assertions, test))]
   intervals_sanity_checks(&intervals, block_length)
     .wrap_err("When performing interval sanity checks")
     .with_section(|| format!("{intervals:#?}").header("Intervals:"))?;
+
   Ok(intervals)
 }
 
@@ -247,6 +275,7 @@ mod tests {
           interval,
           length: 0,
         },
+        cigar: None,
       }
     };
 
@@ -260,6 +289,25 @@ mod tests {
     (hits, block_length, bid)
   }
 
+  fn create_pg_interval(
+    interval: Interval,
+    aligned: bool,
+    new_block_id: BlockId,
+    is_anchor: Option<bool>,
+    orientation: Option<Strand>,
+  ) -> PangraphInterval {
+    PangraphInterval {
+      interval,
+      aligned,
+      new_block_id,
+      is_anchor,
+      orientation,
+      cigar: None,
+      extend_left: None,
+      extend_right: None,
+    }
+  }
+
   #[test]
   fn test_create_intervals() {
     let (hits, block_length, bid) = example();
@@ -268,69 +316,45 @@ mod tests {
     assert_eq!(
       intervals,
       vec![
-        PangraphInterval {
-          interval: Interval::new(0, 10),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(0, 10)),
-          is_anchor: None,
-          orientation: None
-        },
-        PangraphInterval {
-          interval: Interval::new(10, 100),
-          aligned: true,
-          new_block_id: BlockId(1),
-          is_anchor: Some(true),
-          orientation: Some(Forward)
-        },
-        PangraphInterval {
-          interval: Interval::new(100, 200),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(100, 200)),
-          is_anchor: None,
-          orientation: None
-        },
-        PangraphInterval {
-          interval: Interval::new(200, 300),
-          aligned: true,
-          new_block_id: BlockId(2),
-          is_anchor: Some(false),
-          orientation: Some(Forward)
-        },
-        PangraphInterval {
-          interval: Interval::new(300, 310),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(300, 310)),
-          is_anchor: None,
-          orientation: None
-        },
-        PangraphInterval {
-          interval: Interval::new(310, 500),
-          aligned: true,
-          new_block_id: BlockId(3),
-          is_anchor: Some(true),
-          orientation: Some(Forward)
-        },
-        PangraphInterval {
-          interval: Interval::new(500, 600),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(500, 600)),
-          is_anchor: None,
-          orientation: None
-        },
-        PangraphInterval {
-          interval: Interval::new(600, 900),
-          aligned: true,
-          new_block_id: BlockId(4),
-          is_anchor: Some(false),
-          orientation: Some(Forward)
-        },
-        PangraphInterval {
-          interval: Interval::new(900, 1000),
-          aligned: false,
-          new_block_id: calculate_hash(bid, &Interval::new(900, 1000)),
-          is_anchor: None,
-          orientation: None
-        },
+        create_pg_interval(
+          Interval::new(0, 10),
+          false,
+          calculate_hash(bid, &Interval::new(0, 10)),
+          None,
+          None
+        ),
+        create_pg_interval(Interval::new(10, 100), true, BlockId(1), Some(true), Some(Forward)),
+        create_pg_interval(
+          Interval::new(100, 200),
+          false,
+          calculate_hash(bid, &Interval::new(100, 200)),
+          None,
+          None
+        ),
+        create_pg_interval(Interval::new(200, 300), true, BlockId(2), Some(false), Some(Forward)),
+        create_pg_interval(
+          Interval::new(300, 310),
+          false,
+          calculate_hash(bid, &Interval::new(300, 310)),
+          None,
+          None
+        ),
+        create_pg_interval(Interval::new(310, 500), true, BlockId(3), Some(true), Some(Forward)),
+        create_pg_interval(
+          Interval::new(500, 600),
+          false,
+          calculate_hash(bid, &Interval::new(500, 600)),
+          None,
+          None
+        ),
+        create_pg_interval(Interval::new(600, 900), true, BlockId(4), Some(false), Some(Forward)),
+        create_pg_interval(
+          Interval::new(900, 1000),
+          false,
+          calculate_hash(bid, &Interval::new(900, 1000)),
+          None,
+          None
+        ),
       ]
     );
   }
@@ -349,49 +373,70 @@ mod tests {
           aligned: true,
           new_block_id: BlockId(1),
           is_anchor: Some(true),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None,
+          extend_left: Some(10),
+          extend_right: None,
         },
         PangraphInterval {
           interval: Interval::new(100, 200),
           aligned: false,
           new_block_id: calculate_hash(bid, &Interval::new(100, 200)),
           is_anchor: None,
-          orientation: None
+          orientation: None,
+          cigar: None,
+          extend_left: None,
+          extend_right: None,
         },
         PangraphInterval {
           interval: Interval::new(200, 300),
           aligned: true,
           new_block_id: BlockId(2),
           is_anchor: Some(false),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None,
+          extend_left: None,
+          extend_right: None,
         },
         PangraphInterval {
           interval: Interval::new(300, 500),
           aligned: true,
           new_block_id: BlockId(3),
           is_anchor: Some(true),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None,
+          extend_left: Some(10),
+          extend_right: None,
         },
         PangraphInterval {
           interval: Interval::new(500, 600),
           aligned: false,
           new_block_id: calculate_hash(bid, &Interval::new(500, 600)),
           is_anchor: None,
-          orientation: None
+          orientation: None,
+          cigar: None,
+          extend_left: None,
+          extend_right: None,
         },
         PangraphInterval {
           interval: Interval::new(600, 900),
           aligned: true,
           new_block_id: BlockId(4),
           is_anchor: Some(false),
-          orientation: Some(Forward)
+          orientation: Some(Forward),
+          cigar: None,
+          extend_left: None,
+          extend_right: None,
         },
         PangraphInterval {
           interval: Interval::new(900, 1000),
           aligned: false,
           new_block_id: calculate_hash(bid, &Interval::new(900, 1000)),
           is_anchor: None,
-          orientation: None
+          orientation: None,
+          cigar: None,
+          extend_left: None,
+          extend_right: None,
         },
       ]
     );

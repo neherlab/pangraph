@@ -71,26 +71,28 @@ impl<T: WithName> Clade<T> {
   }
 }
 
-pub fn postorder<T, D, F>(clade: &Lock<Clade<D>>, f: F) -> Vec<T>
+pub fn postorder<T, D, E, F>(clade: &Lock<Clade<D>>, f: F) -> Result<Vec<T>, E>
 where
-  F: Fn(&mut Clade<D>) -> T,
+  F: Fn(&mut Clade<D>) -> Result<T, E>,
 {
-  fn recurse<T, D, F>(clade: &Lock<Clade<D>>, result: &mut Vec<T>, f: &F) -> ()
+  fn recurse<T, D, E, F>(clade: &Lock<Clade<D>>, result: &mut Vec<T>, f: &F) -> Result<(), E>
   where
-    F: Fn(&mut Clade<D>) -> T,
+    F: Fn(&mut Clade<D>) -> Result<T, E>,
   {
     if let Some(left) = &clade.read().left {
-      recurse(left, result, f);
+      recurse(left, result, f)?;
     }
     if let Some(right) = &clade.read().right {
-      recurse(right, result, f);
+      recurse(right, result, f)?;
     }
-    result.push(f(&mut clade.write()));
+    let item = f(&mut clade.write())?;
+    result.push(item);
+    Ok(())
   }
 
   let mut result = vec![];
-  recurse(clade, &mut result, &f);
-  result
+  recurse(clade, &mut result, &f)?;
+  Ok(result)
 }
 
 #[cfg(test)]
@@ -98,6 +100,7 @@ mod tests {
   #![allow(clippy::many_single_char_names)]
 
   use super::*;
+  use eyre::Report;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 
@@ -140,7 +143,7 @@ mod tests {
     let nwk = root.read().to_newick();
     assert_eq!(nwk, "(((A,B),(C,D)),(G,H));");
 
-    let result: Vec<String> = postorder(&root, |clade| clade.data.0.clone());
+    let result: Vec<String> = postorder(&root, |clade| Ok::<_, Report>(clade.data.0.clone())).unwrap();
     assert_eq!(result, vec!["A", "B", "", "C", "D", "", "", "G", "H", "", ""]);
   }
 }

@@ -39,9 +39,6 @@ pub fn score_matrix<T: Letter<T>>(
 
   let mut paths = Band2d::<i8>::new(stripes);
   let mut scores = Band2d::<i32>::new(stripes);
-  let band_size = paths.data_len();
-
-  trace!("Score matrix: allocated alignment band of size={band_size}");
 
   // The variable left_align changes the < effectively into <= in the conditions where it's used,
   // in order to select preferred alignment where there's two equally good possibilities.
@@ -128,7 +125,7 @@ pub fn score_matrix<T: Letter<T>>(
             scores[(ri - 1, qpos - 1)] - params.penalty_mismatch
           };
           origin = MATCH;
-        } else {
+        } else if (ri < ref_len) && (qpos < query_size) {
           tmp_path = tmp_path | BOUNDARY; // mark boundary when possible moves are restricted. here: can't move up or left-up
         }
 
@@ -160,7 +157,7 @@ pub fn score_matrix<T: Letter<T>>(
             score = tmp_score;
             origin = REF_GAP_MATRIX;
           }
-        } else if ri < n_rows - 1 {
+        } else if (ri < n_rows - 1) && (qpos < query_size) {
           tmp_path = tmp_path | BOUNDARY; // mark boundary if no ref gap allowed due to stripes: can't move left
         }
 
@@ -188,7 +185,7 @@ pub fn score_matrix<T: Letter<T>>(
             score = tmp_score;
             origin = QRY_GAP_MATRIX;
           }
-        } else if qpos < n_cols - 1 {
+        } else if (qpos < n_cols - 1) && (ri < ref_len) {
           qry_gaps[qpos] = NO_ALIGN;
           tmp_path = tmp_path | BOUNDARY; // mark boundary if no ref gap allowed due to stripes: can't move up.
         }

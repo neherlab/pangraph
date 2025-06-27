@@ -1,5 +1,7 @@
 use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
-use crate::align::map_variations::map_variations;
+use crate::align::bam::cigar::{Side, add_flanking_indel, cigar_switch_ref_qry, invert_cigar};
+use crate::align::map_variations::{BandParameters, map_variations};
+use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_error;
 use crate::pangraph::edits::Edit;
@@ -12,6 +14,8 @@ use crate::utils::id::id;
 use color_eyre::{Section, SectionExt};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
+use noodles::sam::record::Cigar;
+use noodles::sam::record::cigar::op::Kind;
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 
@@ -20,33 +24,60 @@ pub struct MergePromise {
   anchor_block: PangraphBlock,
   append_block: PangraphBlock,
   orientation: Strand,
+  cigar: Cigar,
 }
 
 impl MergePromise {
-  pub fn new(anchor_block: PangraphBlock, append_block: PangraphBlock, orientation: Strand) -> Self {
+  pub fn new(anchor_block: PangraphBlock, append_block: PangraphBlock, orientation: Strand, cigar: Cigar) -> Self {
     Self {
       anchor_block,
       append_block,
       orientation,
+      cigar,
     }
   }
 
-  pub fn solve_promise(&mut self) -> Result<PangraphBlock, Report> {
+  pub fn solve_promise(&mut self, args: &PangraphBuildArgs) -> Result<PangraphBlock, Report> {
+    // TODO: avoid re-aligning if cigar is only a single match (no indels)
+
+    // calculate the mean shift and bandwidth of the alignment due to the displacement
+    // between the anchor and append blocks sequences (from the cigar string)
+    // this is the same for all sequences in the append block
+    let cigar_edits = Edit::from_cigar(&self.cigar);
+    let cigar_band_params = BandParameters::from_edits(&cigar_edits, self.anchor_block.consensus().len())?;
+
     self
       .append_block
       .alignments()
       .par_iter()
       .map(|(node_id, edits)| {
-        let mut seq = edits.apply(self.append_block.consensus())?;
-
-        if !self.orientation.is_forward() {
-          seq = reverse_complement(&seq)?;
-        };
+        let seq = edits.apply(self.append_block.consensus())?;
 
         let edits = if seq.is_empty() {
           Edit::deleted(self.anchor_block.consensus().len())
         } else {
-          map_variations(self.anchor_block.consensus(), &seq)?
+          let (seq, edits) = if !self.orientation.is_forward() {
+            (
+              reverse_complement(&seq)?,
+              &edits.reverse_complement(self.append_block.consensus().len()).unwrap(),
+            )
+          } else {
+            (seq, edits)
+          };
+
+          // calculate the mean shift and bandwidth of the alignment due to the displacement
+          // of each sequence in the append block relative to the append block consensus
+          let mut band_params = BandParameters::from_edits(edits, self.append_block.consensus().len())?;
+
+          // sum the two contributions
+          band_params.add(&cigar_band_params);
+
+          map_variations(self.anchor_block.consensus(), &seq, band_params, args).wrap_err_with(|| {
+            format!(
+              "during map variation:\ncigar band: {:?}\nfinal band: {:?}\ncigar: {:?}\nedits: {:?}",
+              cigar_band_params, band_params, self.cigar, edits
+            )
+          })?
         };
 
         #[cfg(any(test, debug_assertions))]
@@ -63,20 +94,33 @@ impl MergePromise {
   }
 }
 
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Extension {
+  pub left: Option<usize>,
+  pub right: Option<usize>,
+}
+
 #[derive(Debug)]
 struct ToMerge {
-  pub block: PangraphBlock,
-  pub is_anchor: bool,
-  pub orientation: Strand,
+  pub block: PangraphBlock, // block to be merged
+  pub is_anchor: bool,      // is this the anchor block in the merge?
+  pub orientation: Strand,  // is the alignment on the forward or reverse strand?
+  pub cigar: Option<Cigar>, // cigar string of the alignment, only for anchor block
+  pub extension: Extension, // optional flanking extensions of the alignment interval, for cigar update
 }
 
 impl ToMerge {
   #[allow(dead_code)]
-  pub fn new(block: PangraphBlock, is_anchor: bool, orientation: Strand) -> Self {
+  pub fn new(block: PangraphBlock, is_anchor: bool, orientation: Strand, cigar: Option<Cigar>) -> Self {
     Self {
       block,
       is_anchor,
       orientation,
+      cigar,
+      extension: Extension {
+        left: None,
+        right: None,
+      },
     }
   }
 
@@ -95,6 +139,8 @@ fn assign_new_block_ids(mergers: &mut [Alignment]) {
   }
 }
 
+/// Assigns the anchor block for each merger
+/// based on the depth of the reference and query blocks.
 fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
   for m in mergers.iter_mut() {
     let ref_block = &graph.blocks[&m.reff.name];
@@ -107,6 +153,9 @@ fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
   }
 }
 
+/// Given a list of alignments, returns a dictionary of BlockId -> Vec<Alignment>.
+/// Since each alignment is between two blocks, it will be present twice
+/// in the dictionary.
 fn target_blocks(mergers: &[Alignment]) -> BTreeMap<BlockId, Vec<Alignment>> {
   let mut target_blocks = BTreeMap::new();
 
@@ -125,32 +174,59 @@ fn target_blocks(mergers: &[Alignment]) -> BTreeMap<BlockId, Vec<Alignment>> {
   target_blocks
 }
 
-fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Vec<ExtractedHit> {
+/// Given a block id and a list of its alignments,
+/// returns a list of ExtractedHit objects.
+/// Each ExtractedHit object contains information on the alignment
+/// relative to the considered block. This is useful for later splitting
+/// the block in separate slices.
+/// If the block is the anchor block in the alignment, they also contain
+/// the cigar string of the alignment.
+fn extract_hits(bid: BlockId, mergers: &[Alignment]) -> Result<Vec<ExtractedHit>, Report> {
   let mut hits = Vec::with_capacity(mergers.len() * 2);
 
   for m in mergers {
     if m.reff.name == bid {
+      let is_anchor = m.anchor_block.unwrap() == AnchorBlock::Ref;
+      // add cigar if the block is the anchor block
+      let cigar = is_anchor.then(|| m.cigar.clone());
       hits.push(ExtractedHit {
-        hit: m.reff.clone(),                                    // TODO: avoid copy
+        hit: m.reff.clone(),                   // TODO: avoid copy
         new_block_id: m.new_block_id.unwrap(), // FIXME: "partially initialized object" anti-pattern shoots back
-        is_anchor: m.anchor_block.unwrap() == AnchorBlock::Ref, // FIXME: "partially initialized object" anti-pattern shoots back
+        is_anchor,                             // FIXME: "partially initialized object" anti-pattern shoots back
         orientation: m.orientation,
+        cigar,
       });
     }
 
     if m.qry.name == bid {
+      let is_anchor = m.anchor_block.unwrap() == AnchorBlock::Qry;
+      // add the cigar if the block is the anchor block
+      // here we need to switch the cigar from refernce-based to query-based
+      // i.e. switch I <-> D
+      // if the match is on the reverse strand, the cigar also needs to be reverse-complemented
+      let cigar = is_anchor
+        .then(|| -> Result<Cigar, Report> {
+          let in_cg = if m.orientation.is_forward() {
+            &m.cigar
+          } else {
+            &invert_cigar(&m.cigar)?
+          };
+          cigar_switch_ref_qry(in_cg)
+        })
+        .transpose()?;
       hits.push(ExtractedHit {
         hit: m.qry.clone(),
         new_block_id: m.new_block_id.unwrap(),
-        is_anchor: m.anchor_block.unwrap() == AnchorBlock::Qry,
+        is_anchor,
         orientation: m.orientation,
+        cigar,
       });
     }
   }
 
   hits.shrink_to_fit();
 
-  hits
+  Ok(hits)
 }
 
 #[allow(clippy::missing_asserts_for_indexing)]
@@ -171,6 +247,44 @@ fn validate_blocks(bs: &[&ToMerge]) -> Result<(), Report> {
   Ok(())
 }
 
+/// Function to update a cigar string with flanking indels when the alignment is extended.
+/// Extensions are relative to block coordinates, while the cigar string is relative to
+/// the alignment with anchor block == reference and append block == query.
+fn update_cigar(
+  cigar: &Cigar,
+  anchor_extension: &Extension,
+  append_extension: &Extension,
+  orientation: Strand,
+) -> Cigar {
+  let mut new_cigar = cigar.clone();
+
+  // anchor extension - more reference is a deletion
+  if let Some(left) = anchor_extension.left {
+    new_cigar = add_flanking_indel(&new_cigar, Kind::Deletion, left, &Side::Leading).unwrap();
+  };
+  if let Some(right) = anchor_extension.right {
+    new_cigar = add_flanking_indel(&new_cigar, Kind::Deletion, right, &Side::Trailing).unwrap();
+  };
+
+  // append extension - more query is an insertion
+  if let Some(left) = append_extension.left {
+    let side = match orientation {
+      Strand::Forward => Side::Leading,
+      Strand::Reverse => Side::Trailing,
+    };
+    new_cigar = add_flanking_indel(&new_cigar, Kind::Insertion, left, &side).unwrap();
+  };
+  if let Some(right) = append_extension.right {
+    let side = match orientation {
+      Strand::Forward => Side::Trailing,
+      Strand::Reverse => Side::Leading,
+    };
+    new_cigar = add_flanking_indel(&new_cigar, Kind::Insertion, right, &side).unwrap();
+  };
+
+  new_cigar
+}
+
 fn group_promises(h: &[ToMerge]) -> Result<Vec<MergePromise>, Report> {
   let mut promises = Vec::new();
 
@@ -185,13 +299,23 @@ fn group_promises(h: &[ToMerge]) -> Result<Vec<MergePromise>, Report> {
   for (_, bs) in groups {
     validate_blocks(&bs)?;
 
-    let (b1, b2) = (&bs[0], &bs[1]);
-    let anchor_block = if b1.is_anchor { &b1.block } else { &b2.block };
-    let append_block = if b1.is_anchor { &b2.block } else { &b1.block };
+    let (b_anch, b_app) = if bs[0].is_anchor {
+      (bs[0], bs[1])
+    } else {
+      (bs[1], bs[0])
+    };
+
+    let anchor_block = b_anch.block.clone(); // TODO: avoid clone
+    let append_block = b_app.block.clone(); // TODO: avoid clone
+    let orientation = b_anch.orientation;
+    let cigar = b_anch.cigar.clone().unwrap();
+    let cigar = update_cigar(&cigar, &b_anch.extension, &b_app.extension, orientation);
+
     promises.push(MergePromise {
-      anchor_block: anchor_block.clone(), // TODO: avoid cloning
-      append_block: append_block.clone(), // TODO: avoid cloning
-      orientation: b1.orientation,
+      anchor_block,
+      append_block,
+      orientation,
+      cigar,
     });
   }
   Ok(promises)
@@ -203,8 +327,13 @@ fn split_block(
   graph: &Pangraph,
   thr_len: usize,
 ) -> Result<(GraphUpdate, Vec<ToMerge>), Report> {
-  let extracted_hits = extract_hits(bid, mergers);
+  // go from alignments to ExtractedHit objects, i.e. alignments relative to the block
+  let extracted_hits = extract_hits(bid, mergers)?;
   let consensus_len = graph.blocks[&bid].consensus_len();
+
+  // using information on the hits, calculate intervals along which to split the block.
+  // these could be either aligned or not.
+  // the cigar string can be changed in the process if an interval is extended with a short overhang.
   let intervals = extract_intervals(&extracted_hits, consensus_len, thr_len)
     .wrap_err_with(|| format!("When extracting intervals for block {bid}"))
     .with_section(|| format!("{extracted_hits:#?}").header("Extracted hits:"))?;
@@ -234,6 +363,11 @@ fn split_block(
         block: b_slice,
         is_anchor: interval.is_anchor.unwrap(), // FIXME: this field should never be uninitialized
         orientation: interval.orientation.unwrap(), // FIXME: this field should never be uninitialized
+        cigar: interval.cigar,
+        extension: Extension {
+          left: interval.extend_left,
+          right: interval.extend_right,
+        },
       });
     } else {
       u.b_new.push(b_slice);
@@ -249,26 +383,49 @@ fn split_block(
   Ok((u, h))
 }
 
+/// One of the most important functions used during graph building.
+/// Given a set of (already pre-filtered) alignments between different blocks in the graph,
+/// it re-structures the graph by splitting and merging blocks. It does not directly compute
+/// the merged alignments, but returns merge promises, to be later resolved in parallel.
 pub fn reweave(
   mergers: &mut [Alignment],
   mut graph: Pangraph,
   thr_len: usize,
 ) -> Result<(Pangraph, Vec<MergePromise>), Report> {
+  // for each merger, assign a new block id (hash of original block ids and alignment intervals)
   assign_new_block_ids(mergers);
+  // and decide which block is the anchor, based on depth (ref block if equal depth)
   assign_anchor_block(mergers, &graph);
 
+  // dictionary of BlockId -> alignments. Nb: each alignment is present twice.
+  // this is done to quickly access all alignments for a given block
   let tb = target_blocks(mergers);
+
+  // containers for updates and promises
   let mut u = vec![];
   let mut h = vec![];
 
   for (bid, m) in tb {
+    // split the block in separate slices
+    // each slice is either unaligned (new block to be appended to the graph)
+    // or aligned (two blocks to be merged)
     let (graph_update, to_merge) =
       split_block(bid, &m, &graph, thr_len).wrap_err_with(|| format!("When splitting block {bid}"))?;
+
+    // graph updates are mappings between old block ids and old nodes to new block ids and new nodes
     u.push(graph_update);
+    // ToMerge blocks are "half" of a merge promise: the part of the mergers that come from a single block
     h.extend(to_merge);
   }
 
+  // here two ToMerge objects are grouped in a MergePromise.
+  // a MergePromise, once solved, returns a new block to be added to the graph.
+  // they can be later all solved in parallel.
   let merge_promises = group_promises(&h).wrap_err("When grouping promises")?;
+
+  // apply graph updates to the graph:
+  // replace old blocks with new blocks, with updated nodes.
+  // also replace old nodes with new nodes in paths.
   for graph_update in u {
     graph.update(&graph_update);
   }
@@ -285,18 +442,22 @@ mod tests {
     clippy::many_single_char_names
   )]
 
+  use std::str::FromStr;
+
   use super::*;
   use crate::align::alignment::Hit;
   use crate::io::seq::generate_random_nuc_sequence;
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
   use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
   use crate::pangraph::pangraph_path::{PangraphPath, PathId};
+  use crate::pangraph::strand::Strand;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use crate::representation::seq::Seq;
   use crate::utils::interval::Interval;
   use crate::utils::random::get_random_number_generator;
   use maplit::{btreemap, btreeset};
   use noodles::sam::record::Cigar;
+  use noodles::sam::record::cigar::op::{Kind, Op};
   use pretty_assertions::assert_eq;
 
   #[test]
@@ -309,12 +470,13 @@ mod tests {
       }
     }
 
-    fn create_hit(new_bid: BlockId, is_anchor: bool, strand: Strand, hit: Hit) -> ExtractedHit {
+    fn create_hit(new_bid: BlockId, is_anchor: bool, strand: Strand, hit: Hit, cigar: Option<Cigar>) -> ExtractedHit {
       ExtractedHit {
         new_block_id: new_bid,
         is_anchor,
         orientation: strand,
         hit,
+        cigar,
       }
     }
 
@@ -330,7 +492,7 @@ mod tests {
         matches: 0,
         length: 0,
         quality: 0,
-        cigar: Cigar::default(),
+        cigar: Cigar::from_str("10M").unwrap(),
         divergence: None,
         align: None,
       }
@@ -351,17 +513,17 @@ mod tests {
     let a3 = new_aln(BlockId(5), &h2_f, &h1_d, Reverse, AnchorBlock::Ref);
     let a4 = new_aln(BlockId(6), &h2_g, &h2_h, Reverse, AnchorBlock::Qry);
 
-    let hits = extract_hits(BlockId(1), &[a1, a2, a3, a4]);
+    let hits = extract_hits(BlockId(1), &[a1, a2, a3, a4]).unwrap();
 
-    assert_eq!(
-      hits,
+    assert_eq!(hits, {
+      let cg = Cigar::from_str("10M").unwrap();
       vec![
-        create_hit(BlockId(3), true, Forward, h1_a),
-        create_hit(BlockId(3), false, Forward, h1_b),
-        create_hit(BlockId(4), false, Forward, h1_c),
-        create_hit(BlockId(5), false, Reverse, h1_d),
+        create_hit(BlockId(3), true, Forward, h1_a, Some(cg)),
+        create_hit(BlockId(3), false, Forward, h1_b, None),
+        create_hit(BlockId(4), false, Forward, h1_c, None),
+        create_hit(BlockId(5), false, Reverse, h1_d, None),
       ]
-    );
+    });
   }
 
   #[rustfmt::skip]
@@ -374,22 +536,26 @@ mod tests {
     let b3_anchor = PangraphBlock::new(BlockId(3), "E", btreemap! {} /* {11: None, 12: None} */);
     let b3_append = PangraphBlock::new(BlockId(3), "F", btreemap! {} /* {13: None} */);
 
+    let cigar1 = Cigar::from_str("100M")?;
+    let cigar2 = Cigar::from_str("200M")?;
+    let cigar3 = Cigar::from_str("300M")?;
+
     let h = &[
-      ToMerge::new(b1_anchor.clone(), true, Forward),
-      ToMerge::new(b1_append.clone(), false, Forward),
-      ToMerge::new(b3_anchor.clone(), true, Reverse),
-      ToMerge::new(b2_append.clone(), false, Forward),
-      ToMerge::new(b2_anchor.clone(), true, Forward),
-      ToMerge::new(b3_append.clone(), false, Reverse),
+      ToMerge::new(b1_anchor.clone(), true, Forward, Some(cigar1.clone())),
+      ToMerge::new(b1_append.clone(), false, Forward, None),
+      ToMerge::new(b3_anchor.clone(), true, Reverse, Some(cigar2.clone())),
+      ToMerge::new(b2_append.clone(), false, Forward, None),
+      ToMerge::new(b2_anchor.clone(), true, Forward, Some(cigar3.clone())),
+      ToMerge::new(b3_append.clone(), false, Reverse, None),
     ];
 
     let promises = group_promises(h)?;
     assert_eq!(
       promises,
       vec![
-        MergePromise::new(b1_anchor, b1_append, Forward),
-        MergePromise::new(b2_anchor, b2_append, Forward),
-        MergePromise::new(b3_anchor, b3_append, Reverse),
+      MergePromise::new(b1_anchor, b1_append, Forward, cigar1),
+      MergePromise::new(b2_anchor, b2_append, Forward, cigar3),
+      MergePromise::new(b3_anchor, b3_append, Reverse, cigar2),
       ]
     );
 
@@ -556,13 +722,20 @@ mod tests {
       fn h(name: usize, start: usize, stop: usize) -> Hit {
         Hit {
           name: BlockId(name),
-          length: 0, // FIXME
+          length: 0,
           interval: Interval::new(start, stop),
         }
       }
 
       #[allow(clippy::items_after_statements)]
-      fn a(qry: Hit, reff: Hit, strand: Strand, new_block_id: usize, anchor_block: AnchorBlock) -> Alignment {
+      fn a(
+        qry: Hit,
+        reff: Hit,
+        strand: Strand,
+        new_block_id: usize,
+        anchor_block: AnchorBlock,
+        cigar: Cigar,
+      ) -> Alignment {
         Alignment {
           qry,
           reff,
@@ -570,19 +743,32 @@ mod tests {
           new_block_id: Some(BlockId(new_block_id)),
           anchor_block: Some(anchor_block),
 
-          // FIXME: these were all unset in Python version
           matches: 0,
           length: 0,
           quality: 0,
-          cigar: Cigar::default(),
+          cigar,
           divergence: None,
           align: None,
         }
       }
 
       let m = vec![
-        a(h(1, 10, 50), h(2, 100, 150), Forward, 42, AnchorBlock::Qry),
-        a(h(3, 1000, 1050), h(1, 80, 130), Reverse, 43, AnchorBlock::Qry),
+        a(
+          h(1, 10, 50),
+          h(2, 100, 150),
+          Forward,
+          42,
+          AnchorBlock::Qry,
+          Cigar::from_str("10D10M10I40M").unwrap(),
+        ),
+        a(
+          h(3, 1000, 1050),
+          h(1, 80, 130),
+          Reverse,
+          43,
+          AnchorBlock::Qry,
+          Cigar::from_str("50M").unwrap(),
+        ),
       ];
 
       (G, m, bid)
@@ -648,9 +834,11 @@ mod tests {
     assert_eq!(h[0].block.id(), BlockId(42));
     assert_eq!(h[0].is_anchor, true);
     assert_eq!(h[0].orientation, Forward);
+    assert_eq!(h[0].cigar, Some(Cigar::from_str("10I10M10D40M").unwrap()));
     assert_eq!(h[1].block.id(), BlockId(43));
     assert_eq!(h[1].is_anchor, false);
     assert_eq!(h[1].orientation, Reverse);
+    assert_eq!(h[1].cigar, None);
 
     assert_eq!(h[0].block.consensus(), &G.blocks[&bid].consensus()[0..50]);
     assert_eq!(h[1].block.consensus(), &G.blocks[&bid].consensus()[80..130]);
@@ -746,7 +934,7 @@ mod tests {
       }
 
       #[allow(clippy::items_after_statements)]
-      fn a(qry: Hit, reff: Hit, strand: Strand) -> Alignment {
+      fn a(qry: Hit, reff: Hit, strand: Strand, cigar: Cigar) -> Alignment {
         Alignment {
           qry,
           reff,
@@ -758,17 +946,37 @@ mod tests {
           matches: 0,
           length: 0,
           quality: 0,
-          cigar: Cigar::default(),
+          cigar,
           divergence: None,
           align: None,
         }
       }
 
       let M = vec![
-        a(h(10, 200, 10, 200), h(40, 500, 10, 200), Forward),
-        a(h(20, 400, 0, 200), h(40, 500, 300, 500), Reverse),
-        a(h(20, 400, 300, 400), h(50, 250, 0, 100), Forward),
-        a(h(30, 100, 0, 100), h(50, 250, 150, 250), Forward),
+        a(
+          h(10, 200, 10, 200),
+          h(40, 500, 10, 200),
+          Forward,
+          Cigar::from_str("10I170M10D10M").unwrap(),
+        ),
+        a(
+          h(20, 400, 0, 200),
+          h(40, 500, 300, 500),
+          Reverse,
+          Cigar::from_str("200M").unwrap(),
+        ),
+        a(
+          h(20, 400, 300, 400),
+          h(50, 250, 0, 100),
+          Forward,
+          Cigar::from_str("100M").unwrap(),
+        ),
+        a(
+          h(30, 100, 0, 100),
+          h(50, 250, 150, 250),
+          Forward,
+          Cigar::from_str("80M10I10M10D").unwrap(),
+        ),
       ];
 
       (G, M)
@@ -862,6 +1070,8 @@ mod tests {
     assert_eq!(p1.anchor_block.consensus(), O.blocks[&BlockId(10)].consensus());
     assert_eq!(p1.append_block.consensus(), &O.blocks[&BlockId(40)].consensus()[0..200]);
     assert_eq!(p1.append_block.id(), G.nodes[&nid_300_1].block_id());
+    // CIGAR modified by left 10 bp overhands in ref and qry
+    assert_eq!(p1.cigar, Cigar::from_str("10I20D170M10I10M").unwrap());
 
     let bid40_3 = G.nodes[&nid_300_3].block_id();
     let p2 = &p_dict[&bid40_3];
@@ -872,7 +1082,104 @@ mod tests {
     );
     assert_eq!(p2.append_block.id(), G.nodes[&nid_200_4].block_id());
     assert_eq!(p2.append_block.consensus(), &O.blocks[&BlockId(20)].consensus()[0..200]);
+    assert_eq!(p2.cigar, Cigar::from_str("200M").unwrap());
 
+    let bid50_1 = G.nodes[&nid_200_2].block_id();
+    let p3 = &p_dict[&bid50_1];
+    assert_eq!(p3.orientation, Forward);
+    assert_eq!(p3.anchor_block.id(), G.nodes[&nid_300_4].block_id());
+    assert_eq!(p3.anchor_block.consensus(), &O.blocks[&BlockId(50)].consensus()[0..150]);
+    assert_eq!(p3.append_block.id(), G.nodes[&nid_200_2].block_id());
+    assert_eq!(
+      p3.append_block.consensus(),
+      &O.blocks[&BlockId(20)].consensus()[300..400]
+    );
+    // CIGAR modified by right 50 bp overhang in ref
+    assert_eq!(p3.cigar, Cigar::from_str("100M50D").unwrap());
+
+    let bid50_2 = G.nodes[&nid_100_2].block_id();
+    let p4 = &p_dict[&bid50_2];
+    assert_eq!(p4.orientation, Forward);
+    assert_eq!(p4.anchor_block.id(), bid50_2);
+    assert_eq!(
+      p4.anchor_block.consensus(),
+      &O.blocks[&BlockId(50)].consensus()[150..250]
+    );
+    assert_eq!(p4.append_block.id(), G.nodes[&nid_300_5].block_id());
+    assert_eq!(p4.append_block.consensus(), &O.blocks[&BlockId(30)].consensus()[0..100]);
+    assert_eq!(p4.cigar, Cigar::from_str("80M10I10M10D").unwrap());
+
+    // assert_eq!(p1.append_block.id(), p1.anchor_block.id());
+    // assert_eq!(p2.append_block.id(), p2.anchor_block.id());
+    // assert_eq!(p3.append_block.id(), p3.anchor_block.id());
+    // assert_eq!(p4.append_block.id(), p4.anchor_block.id());
     Ok(())
+  }
+
+  #[test]
+  fn test_update_cigar_no_extensions() {
+    let base = Cigar::from_str("10M20D100M10I").unwrap();
+    // no extensions provided: should return the same CIGAR
+    let anchor_ext = Extension {
+      left: None,
+      right: None,
+    };
+    let append_ext = Extension {
+      left: None,
+      right: None,
+    };
+    let updated = update_cigar(&base, &anchor_ext, &append_ext, Forward);
+    assert_eq!(updated, base);
+  }
+
+  #[test]
+  fn test_update_cigar_forward() {
+    let base = Cigar::from_str("10I100M10D10M10D").unwrap();
+    // Set anchor extension to add insertions and append extension to add deletions
+    let anchor_ext = Extension {
+      left: Some(5),
+      right: Some(10),
+    };
+    let append_ext = Extension {
+      left: Some(3),
+      right: None,
+    };
+    let updated = update_cigar(&base, &anchor_ext, &append_ext, Forward);
+    let expected = Cigar::try_from(vec![
+      Op::new(Kind::Deletion, 5),
+      Op::new(Kind::Insertion, 13),
+      Op::new(Kind::Match, 100),
+      Op::new(Kind::Deletion, 10),
+      Op::new(Kind::Match, 10),
+      Op::new(Kind::Deletion, 20),
+    ])
+    .unwrap();
+    assert_eq!(updated, expected);
+  }
+
+  #[test]
+  fn test_update_cigar_reverse() {
+    let base = Cigar::from_str("10I100M10D10M10D").unwrap();
+    // Use same extension values but with reverse orientation
+    let anchor_ext = Extension {
+      left: Some(5),
+      right: Some(10),
+    };
+    let append_ext = Extension {
+      left: Some(3),
+      right: None,
+    };
+    let updated = update_cigar(&base, &anchor_ext, &append_ext, Reverse);
+    let expected = Cigar::try_from(vec![
+      Op::new(Kind::Deletion, 5),
+      Op::new(Kind::Insertion, 10),
+      Op::new(Kind::Match, 100),
+      Op::new(Kind::Deletion, 10),
+      Op::new(Kind::Match, 10),
+      Op::new(Kind::Deletion, 20),
+      Op::new(Kind::Insertion, 3),
+    ])
+    .unwrap();
+    assert_eq!(updated, expected);
   }
 }

@@ -33,6 +33,35 @@ pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Repo
   Ok(())
 }
 
+pub fn reconstruct_and_compare_graph_seqs(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(), Report> {
+  // Reconstruct sequences from the given graph.
+  let mut results = reconstruct(graph);
+
+  // Check that the reconstructed sequences match the original FASTA records.
+  results.try_for_each(|actual| -> Result<(), Report> {
+    let actual = actual?;
+    let expected = &fastas[actual.index];
+    compare_sequences(expected, &actual)?;
+    Ok(())
+  })?;
+
+  Ok(())
+}
+
+pub fn graph_sanity_checks(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(), Report> {
+  // check that graph internal structure (blocks, paths, nodes, edits...) is valid
+  #[cfg(debug_assertions)]
+  graph
+    .sanity_check()
+    .wrap_err("When performing sanity check on the pangraph")?;
+
+  // Reconstruct sequences from the graph and compare them with the original FASTA records.
+  reconstruct_and_compare_graph_seqs(graph, fastas)
+    .wrap_err("When comparing reconstructed sequences with original FASTA records")?;
+
+  Ok(())
+}
+
 pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   let input_fastas = &args.input_fastas;
 
@@ -43,28 +72,18 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
 
   build_cmd_preliminary_checks(args).wrap_err("When performing preliminary checks before building the pangraph.")?;
 
-  let pangraph = if args.verify {
-    let pangraph = build(fastas.clone(), args)?;
-    {
-      let mut results = reconstruct(&pangraph);
-      results.try_for_each(|actual| -> Result<(), Report> {
-        let actual = actual?;
-        let expected = &fastas[actual.index];
-        compare_sequences(expected, &actual);
-        Ok(())
-      })?;
-    }
-    Ok(pangraph)
-  } else {
-    build(fastas, args)
-  }?;
+  let pangraph = build(fastas, args, args.verify)?;
 
   json_write_file(&args.output_json, &pangraph, JsonPretty(true))?;
 
   Ok(())
 }
 
-pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangraph, Report> {
+pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -> Result<Pangraph, Report> {
+  // If verification is requested, we need to keep a copy of the original FASTA records
+  // to compare them with the sequences reconstructed from the graph.
+  let fasta_copy = verify.then(|| fastas.clone());
+
   // Build singleton graphs from input sequences
   // TODO: initial graphs can potentially be constructed when initializing tree clades. This could avoid a lot of boilerplate code.
   let n_paths = fastas.len();
@@ -110,13 +129,15 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
               clade.data.as_ref().unwrap().paths.len()
             );
 
+            // perform checks only in debug mode and if requested
             #[cfg(debug_assertions)]
-            clade
-              .data
-              .as_ref()
-              .unwrap()
-              .sanity_check()
-              .wrap_err("failed sanity check after merging graphs.")?;
+            {
+              if verify {
+                // verify the graph if requested
+                graph_sanity_checks(clade.data.as_ref().unwrap(), fasta_copy.as_ref().unwrap())
+                  .wrap_err("When performing sanity checks on the merged graph")?;
+              }
+            }
 
             Ok(())
           },
@@ -131,8 +152,6 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
       },
     }
   })
-  .into_iter()
-  .collect::<Result<Vec<_>, Report>>()
   .wrap_err("When traversing guide tree")?;
 
   // Finish progress bar
@@ -143,6 +162,12 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs) -> Result<Pangr
     .data
     .take()
     .ok_or_else(|| make_internal_report!("Root clade of the guide tree contains no graph after graph alignment"))?;
+
+  // verify the final graph if requested
+  if verify {
+    graph_sanity_checks(&graph, fasta_copy.as_ref().unwrap())
+      .wrap_err("When performing sanity checks on the final pangraph")?;
+  }
 
   Ok(graph)
 }

@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::Range;
@@ -54,6 +55,34 @@ impl Interval {
 
 pub fn have_no_overlap(intervals: &[Interval], candidate: &Interval) -> bool {
   !intervals.iter().any(|interval| interval.has_overlap_with(candidate))
+}
+
+pub fn positions_to_intervals(positions: &[usize]) -> Vec<Interval> {
+  if positions.is_empty() {
+    return vec![];
+  }
+
+  positions
+  .iter()
+  .sorted_unstable()
+  .dedup()
+  .enumerate()
+  // Consecutive positions:
+  //   [1,2,3,5,6,9]
+  // when paired with their indices:
+  //   [(0,1),(1,2),(2,3),(3,5),(4,6),(5,9)]
+  // will have the same `(pos - index)` value for consecutive groups:
+  //   [1,1,1,2,2,4]
+  // This allows ``.chunk_by()` to efficiently group consecutive positions without manual iteration
+  .chunk_by(|(index, pos)| *pos - index)
+  .into_iter()
+  .map(|(_, group)| {
+    let mut positions = group.map(|(_, pos)| *pos);
+    let start = positions.next().expect("group cannot be empty");
+    let end = positions.last().unwrap_or(start) + 1;
+    Interval::new(start, end)
+  })
+  .collect_vec()
 }
 
 #[cfg(test)]
@@ -113,5 +142,122 @@ mod tests {
       &[Interval::new(100, 200), Interval::new(300, 400)],
       &Interval::new(210, 390)
     ));
+  }
+
+  #[test]
+  fn test_positions_to_intervals_list_empty() {
+    let intervals = positions_to_intervals(&[]);
+    assert!(intervals.is_empty());
+  }
+
+  #[test]
+  fn test_positions_to_intervals_list_single() {
+    let intervals = positions_to_intervals(&[5]);
+    assert_eq!(intervals, vec![Interval::new(5, 6)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_single_position_at_zero() {
+    let intervals = positions_to_intervals(&[0]);
+    assert_eq!(intervals, vec![Interval::new(0, 1)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_two_contiguous() {
+    let intervals = positions_to_intervals(&[7, 8]);
+    assert_eq!(intervals, vec![Interval::new(7, 9)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_two_non_contiguous() {
+    let intervals = positions_to_intervals(&[5, 10]);
+    assert_eq!(intervals, vec![Interval::new(5, 6), Interval::new(10, 11)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_list_contiguous() {
+    let intervals = positions_to_intervals(&[1, 2, 3, 4, 5]);
+    assert_eq!(intervals, vec![Interval::new(1, 6)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_starting_from_zero() {
+    let intervals = positions_to_intervals(&[0, 1, 2, 3]);
+    assert_eq!(intervals, vec![Interval::new(0, 4)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_large_gaps() {
+    let intervals = positions_to_intervals(&[1, 100, 1000]);
+    assert_eq!(
+      intervals,
+      vec![Interval::new(1, 2), Interval::new(100, 101), Interval::new(1000, 1001)]
+    );
+  }
+
+  #[test]
+  fn test_positions_to_intervals_list_non_contiguous() {
+    let intervals = positions_to_intervals(&[1, 3, 5, 7]);
+    assert_eq!(
+      intervals,
+      vec![
+        Interval::new(1, 2),
+        Interval::new(3, 4),
+        Interval::new(5, 6),
+        Interval::new(7, 8)
+      ]
+    );
+  }
+
+  #[test]
+  fn test_positions_to_intervals_list_unsorted() {
+    let intervals = positions_to_intervals(&[10, 21, 1, 2, 3, 20]);
+    assert_eq!(
+      intervals,
+      vec![
+        Interval::new(1, 4),   // from 1 to 3 -> [1,4)
+        Interval::new(10, 11), // singleton [10,11)
+        Interval::new(20, 22)  // 20 and 21 merge into [20,22)
+      ]
+    );
+  }
+
+  #[test]
+  fn test_positions_to_intervals_list_duplicates() {
+    let intervals = positions_to_intervals(&[5, 5, 5, 6, 7, 7, 8]);
+    // Duplicates should be merged into a single contiguous interval.
+    assert_eq!(intervals, vec![Interval::new(5, 9)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_mixed_contiguous_and_gaps() {
+    let intervals = positions_to_intervals(&[1, 2, 3, 10, 11, 20]);
+    assert_eq!(
+      intervals,
+      vec![
+        Interval::new(1, 4),   // 1,2,3 -> [1,4)
+        Interval::new(10, 12), // 10,11 -> [10,12)
+        Interval::new(20, 21)  // 20 -> [20,21)
+      ]
+    );
+  }
+
+  #[test]
+  fn test_positions_to_intervals_all_duplicates() {
+    let intervals = positions_to_intervals(&[42, 42, 42, 42]);
+    assert_eq!(intervals, vec![Interval::new(42, 43)]);
+  }
+
+  #[test]
+  fn test_positions_to_intervals_complex_duplicates_with_gaps() {
+    let intervals = positions_to_intervals(&[1, 1, 3, 3, 3, 7, 8, 8, 9]);
+    assert_eq!(
+      intervals,
+      vec![
+        Interval::new(1, 2),  // 1,1 -> [1,2)
+        Interval::new(3, 4),  // 3,3,3 -> [3,4)
+        Interval::new(7, 10)  // 7,8,8,9 -> [7,10)
+      ]
+    );
   }
 }

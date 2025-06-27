@@ -1,3 +1,16 @@
+## 1.2.0
+
+- **improved within-block alignments**: now cigar strings from minimap or mmseqs2 are used to inform within-block banded alignments when merging two blocks. The cigar string, together with alignments of the two merge candidates, are used to determine mean shift and bandwidth of the banded alignment. This results in more accurate alignments.
+  - this improvement comes with two extra options for the `pangraph build` command, that can be incremented to improve the quality of the block alignments at the cost of computation time and memory usage:
+    - `--extra-band-width`: this option allows to increase the extra bandwidth of within-block banded alignments.
+    - `--max-alignment-attempts`: this option allows to increase the number of attempts to align two blocks, each attempt having increased bandwidth.
+- **dealing with unaligned nodes**: occasionally merging of two blocks could generate nodes whose alignment consists only of insertions or deletions, and no nucleotides aligned to the consensus. These problematic nodes are now detected, extracted from the block and stored in a separate singleton block, that can be further processed during graph construction.
+- **bug fixes**:
+  - fix in Nexclade aligner that would trigger a "band hit" warining whenever trailing indels were present. This caused performance loss.
+  - fix in in-dels tracking: in previous versions of the code leading in-dels were misplaced in the cigar string for matches with reverse orientation.
+- **improved error reporting**: now errors that occur during postorder traversal of the guide tree are reported immediately, without waiting for the whole tree to be traversed.
+
+
 ## 1.1.0
 
 ### Make Pangraph CLI logs less verbose
