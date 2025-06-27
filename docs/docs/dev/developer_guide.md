@@ -7,7 +7,6 @@ sidebar_position: 1
 This guide describes how to setup developer environment, how to build Pangraph, contribute to the codebase and maintain
 the project.
 
-
 ## Setup developer environment
 
 This guide assumes Ubuntu 24.04 operating system, but will likely work similarly to any other Linux and Unix-like
@@ -102,7 +101,6 @@ will automatically install Rust version required by the project. This may cause 
 
 ### Testing
 
-
 #### Install requirements
 
 We run tests using `cargo-nextest` (https://nexte.st/). You can install it from [GitHub Releases](https://github.com/nextest-rs/nextest/releases) or build and install from source with
@@ -135,11 +133,11 @@ cargo -q nextest run --success-output=immediate --workspace --cargo-quiet --no-f
 
 Arguments of `cargo test` (and by extension `cargo nextest`) are somewhat confusing, so you could setup some personal shell scripts or aliases to simplify routine work on Rust projects.
 
-See also: 
- 
- - [cargo-test docs](https://doc.rust-lang.org/cargo/commands/cargo-test.html)
- - [cargo-nextest docs](https://nexte.st/)
- - Read more about different test types in [The Rust Book](https://doc.rust-lang.org/book/Rch11-03-test-organization.html) as well as in [Rust by Example](https://doc.rust-lang.org/rust-by-example/testing.html).
+See also:
+
+- [cargo-test docs](https://doc.rust-lang.org/cargo/commands/cargo-test.html)
+- [cargo-nextest docs](https://nexte.st/)
+- Read more about different test types in [The Rust Book](https://doc.rust-lang.org/book/Rch11-03-test-organization.html) as well as in [Rust by Example](https://doc.rust-lang.org/rust-by-example/testing.html).
 
 #### Unit tests
 
@@ -159,7 +157,6 @@ cargo nextest run --test='*'
 cargo nextest run --test='*' foo
 cargo nextest run --test='foo'
 ```
-
 
 ### Linting (static analysis)
 
@@ -188,7 +185,7 @@ Rustfmt is configured in `rustfmt.toml`.
 Rust version is defined in `rust-toolchain.toml`. When using `cargo`, the version defined in this file gets installed
 automatically.
 
-### Upgrading Rust
+### Upgrading Rust dependencies
 
 Dependencies for subprojects are defined in  `packages/**/Cargo.toml` and in `Cargo.lock`. They are periodically
 upgraded by a dedicated maintainer, manually using `cargo-upgrade`
@@ -198,19 +195,78 @@ from [cargo-edit](https://github.com/killercup/cargo-edit) package.
 cargo upgrade --workspace
 ```
 
+or, for a more radical upgrade:
+
+```bash
+cargo upgrade --pinned --incompatible --verbose --recursive
+```
+
+Then remove `Cargo.lock` and rebuild the project to apply the upgrades across dependency tree.
+
 ### Documentation
 
 End-user and developer documentation is in `docs/` subdirectory. For details, see `README.md` file there.
 
+### Versioning and releases
 
-### Versioning
+There are multiple release targets and they are published by updating where the corresponding git branch is pointing, which triggers a corresponding CI workflow.
 
-TODO
+| Branch               | CI workflow                                                                                         | Target                                                                                                                                                |
+|----------------------|-----------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `release`            | [cli.yml](https://github.com/neherlab/pangraph/blob/master/.github/workflows/cli.yml)               | Releases Pangraph CLI to [GitHub Releases](https://github.com/neherlab/pangraph/releases) and [DockerHub](https://hub.docker.com/r/neherlab/pangraph) |
+| `release-pypangraph` | [pypangraph.yml](https://github.com/neherlab/pangraph/blob/master/.github/workflows/pypangraph.yml) | Releases PyPangraph to [PyPI](https://pypi.org/project/pypangraph/)                                                                                   |
+| `release-docs`       | [docs.yml](https://github.com/neherlab/pangraph/blob/master/.github/workflows/docs.yml)             | Releases documentation website to [https://docs.pangraph.org](https://docs.pangraph.org)                                                              |
 
-### Releases
+#### Releasing Pangraph CLI
 
-TODO
+1. Check out `master` branch. Make sure that all the changes and no other changes that you want to release are on `master` branch. Make sure that the last [GitHub Action](https://github.com/neherlab/pangraph/actions) on master branch succeeded (use branch filter dropdown). If not, make sure to fix the failures before trying to release.
 
-### Continuous integration (CI), packaging and distribution
+2. Prepare changelog document for the release: open `CHANGELOG.md` in the root directory of the project, add `## Unreleased` section at the top of the file, spelled exactly like this - important for automation. Unred this section, describe all changes in the coming release. This is a user-facing document, so use simple words, avoid internal and dev jargon. If `## Unreleased` section already exists, then extend it - do not add multiple of these sections.
 
-TODO
+3. Perform pre-release checks, bump versions, commit using the helper `./dev/release` script.
+
+   Read comments in the script on how to install currently required dependencies.
+
+   This step is local to your working copy of the project, it does not push or otherwise publishes anything yet.
+
+   ```bash
+   ./dev/release cli ${bump_type}
+   ```
+
+   most likely you want "bump type" to be one of :
+
+   * `patch` - for bug fix releases, e.g. `1.1.0` -> `1.1.1`
+   * `minor` - for new feature releases, e.g. `1.1.0` -> `1.2.0`
+   * `major` - for releases with breaking changes, e.g. `1.1.0` -> `2.0.0`
+
+   Having hard times to decide? Read [Semantic Versioning](https://semver.org/).
+
+4. Follow instructions printed by the script. Resolve errors, if any. If finished successfully, follow instructions on how to fast-forward and push the changes to the `release` branch.
+
+5. Optionally, you can combine the releases of CLI, docs and PyPangraph. Just add more commits to `master` branch and then fast-forward push them all together.
+
+6. The push to `release-pypangraph` triggers a GitHub Action. This is non-reversible step. Do the push. Watch for any malfunctions in GitHub Action.
+
+7. If GitHub Action succeeds, double check that PyPI release is up.
+
+#### Releasing PyPangraph
+
+TODO: automate this
+
+1. Check out `master` branch. Make sure that all the changes and no other changes that you want to release are on `master` branch.
+
+2. Prepare changelog for the release: open `packages/pypangraph/CHANGELOG.md` and add `## ${version_number}` section, describing released changes.
+
+3. Bump version to the same version number in `packages/pypangraph/pyproject.toml`
+
+4. Commit to `master` with message: `chore: release pypangraph ${version_number}` and push
+
+5. Fast forward `release-pypangraph` branch to `master`:
+
+6. The push to branch `release-pypangraph` triggers a GitHub Action. This is non-reversible step. Do the push. Watch for any malfunctions in GitHub Action.
+
+7. If GitHub Action succeeds, double check that PyPI release is up.
+
+#### Releasing user documentation
+
+See [README.md](../../README.md) in the `docs/` directory.

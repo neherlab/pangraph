@@ -46,8 +46,6 @@ bun prod:serve
 
 The `build` command will produce the directory with HTML, CSS and JS files ready to be deployed to a web hosting. The `serve` command will serve these files on port `5000`.
 
-
-
 ## Generate command-line reference documentation
 
 The `docs/docs/reference.md` file is generated using script `generate-reference-docs`:
@@ -59,7 +57,6 @@ cd docs
 ```
 
 > ⚠️ Do not edit the generated file manually! All manual changes will be overwritten by automation.
-
 
 ## Deployment
 
@@ -73,6 +70,6 @@ git merge --ff-only origin/master
 git push origin release-docs
 ```
 
-You can combine it with the software release as well.
+You can combine it with the software release as well (see [docs/dev/developer_guide.md](./docs/dev/developer_guide.md)).
 
 > ️⚠️ Make sure your local branches are up-to-date with the remote repo and that they don't have incompatible changes on them. Otherwise the fast-forward merge will fail. When manipulating `release-*` branches, consider using a git GUI application (e.g. GitKraken) to visually check that you do what you think you do. 
