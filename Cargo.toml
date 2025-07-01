@@ -10,7 +10,7 @@ members = [
 
 [workspace.package]
 description = "A bioinformatic toolkit to align genome assemblies into pangenome graphs"
-version = "1.1.0"
+version = "1.2.0"
 documentation = "https://docs.pangraph.org"
 homepage = "https://github.com/neherlab/pangraph"
 repository = "https://github.com/neherlab/pangraph"
