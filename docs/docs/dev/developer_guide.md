@@ -219,9 +219,9 @@ There are multiple release targets and they are published by updating where the 
 
 #### Releasing Pangraph CLI
 
-1. Check out `master` branch. Make sure that all the changes and no other changes that you want to release are on `master` branch. Make sure that the last [GitHub Action](https://github.com/neherlab/pangraph/actions) on master branch succeeded (use branch filter dropdown). If not, make sure to fix the failures before trying to release.
+1. Check out `master` branch. Make sure that all the changes that you want to release are on `master` branch. Make sure that the last [GitHub Action](https://github.com/neherlab/pangraph/actions) on master branch succeeded (use branch filter dropdown). If not, make sure to fix the failures before trying to release.
 
-2. Prepare changelog document for the release: open `CHANGELOG.md` in the root directory of the project, add `## Unreleased` section at the top of the file, spelled exactly like this - important for automation. Unred this section, describe all changes in the coming release. This is a user-facing document, so use simple words, avoid internal and dev jargon. If `## Unreleased` section already exists, then extend it - do not add multiple of these sections.
+2. Prepare changelog document for the release: open `CHANGELOG.md` in the root directory of the project, add `## Unreleased` section at the top of the file, spelled exactly like this - important for automation. Under this section, describe all changes in the coming release. This is a user-facing document, so use simple words, avoid internal and dev jargon. If `## Unreleased` section already exists, then extend it - do not add multiple of these sections.
 
 3. Perform pre-release checks, bump versions, commit using the helper `./dev/release` script.
 
