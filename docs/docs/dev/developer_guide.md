@@ -243,11 +243,11 @@ There are multiple release targets and they are published by updating where the 
 
 4. Follow instructions printed by the script. Resolve errors, if any. If finished successfully, follow instructions on how to fast-forward and push the changes to the `release` branch.
 
-5. Optionally, you can combine the releases of CLI, docs and PyPangraph. Just add more commits to `master` branch and then fast-forward push them all together.
+5. Optionally, you can combine the releases of CLI, docs and PyPangraph. Just add more commits to `master` branch and then fast-forward and push them to corresponding branches all together.
 
-6. The push to `release-pypangraph` triggers a GitHub Action. This is non-reversible step. Do the push. Watch for any malfunctions in GitHub Action.
+6. The push to `release-cli` triggers a GitHub Action. This is non-reversible step. Do the push. Watch for any malfunctions in [GitHub Actions](https://github.com/neherlab/pangraph/actions).
 
-7. If GitHub Action succeeds, double check that PyPI release is up.
+7. If GitHub Action succeeds, double check that release is up on [GitHub Releases](https://github.com/neherlab/pangraph/releases) and [Docker Hub](https://hub.docker.com/r/neherlab/pangraph).
 
 #### Releasing PyPangraph
 
@@ -263,9 +263,9 @@ TODO: automate this
 
 5. Fast forward `release-pypangraph` branch to `master`:
 
-6. The push to branch `release-pypangraph` triggers a GitHub Action. This is non-reversible step. Do the push. Watch for any malfunctions in GitHub Action.
+6. The push to branch `release-pypangraph` triggers a GitHub Action. This is non-reversible step. Do the push. Watch for any malfunctions in [GitHub Actions](https://github.com/neherlab/pangraph/actions).
 
-7. If GitHub Action succeeds, double check that PyPI release is up.
+7. If GitHub Action succeeds, double check that [PyPI](https://pypi.org/project/pypangraph) release is up.
 
 #### Releasing user documentation
 
