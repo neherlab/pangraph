@@ -137,7 +137,7 @@ See also:
 
 - [cargo-test docs](https://doc.rust-lang.org/cargo/commands/cargo-test.html)
 - [cargo-nextest docs](https://nexte.st/)
-- Read more about different test types in [The Rust Book](https://doc.rust-lang.org/book/Rch11-03-test-organization.html) as well as in [Rust by Example](https://doc.rust-lang.org/rust-by-example/testing.html).
+- Read more about different test types in [The Rust Book](https://doc.rust-lang.org/book/ch11-03-test-organization.html) as well as in [Rust by Example](https://doc.rust-lang.org/rust-by-example/testing.html).
 
 #### Unit tests
 
