@@ -269,4 +269,4 @@ TODO: automate this
 
 #### Releasing user documentation
 
-See [README.md](../../README.md) in the `docs/` directory.
+See `README.md` in the `docs/` directory.
