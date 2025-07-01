@@ -230,7 +230,7 @@ There are multiple release targets and they are published by updating where the 
    This step is local to your working copy of the project, it does not push or otherwise publishes anything yet.
 
    ```bash
-   ./dev/release cli ${bump_type}
+   ./dev/release ${bump_type}
    ```
 
    most likely you want "bump type" to be one of :
