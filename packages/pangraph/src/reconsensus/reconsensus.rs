@@ -528,11 +528,11 @@ mod tests {
 
     // Create paths
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 49, false, Some("path1".to_string()), None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(2)], 49, false, Some("path2".to_string()), None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(3)], 49, false, Some("path3".to_string()), None),
-      PathId(4) => PangraphPath::new(Some(PathId(4)), [NodeId(4)], 49, false, Some("path4".to_string()), None),
-      PathId(5) => PangraphPath::new(Some(PathId(5)), [NodeId(5)], 49, false, Some("path5".to_string()), None),
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 49, false, None, None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(2)], 49, false, None, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(3)], 49, false, None, None),
+      PathId(4) => PangraphPath::new(Some(PathId(4)), [NodeId(4)], 49, false, None, None),
+      PathId(5) => PangraphPath::new(Some(PathId(5)), [NodeId(5)], 49, false, None, None),
     };
 
     // Create blocks map
@@ -547,11 +547,11 @@ mod tests {
     let result = reconsensus_graph(&mut graph, vec![initial_block.id()], &PangraphBuildArgs::default());
 
     // Check that the operation succeeded
-    assert!(result.is_ok());
+    result.unwrap();
 
     // Get the two created blocks, the modified and the singleton
-    let final_block = graph.blocks.get(&initial_block.id()).unwrap();
-    let singleton_block = graph.blocks.get(&singleton_block_exp.id()).unwrap();
+    let final_block = &graph.blocks[&initial_block.id()];
+    let singleton_block = &graph.blocks[&singleton_block_exp.id()];
 
     // Direct comparison with expected result
     assert_eq!(final_block.consensus(), expected_block.consensus());
@@ -562,7 +562,7 @@ mod tests {
     assert_eq!(singleton_block.alignments(), singleton_block_exp.alignments());
 
     // check that the node was updated correctly, flipping the strandedness
-    let new_node1 = graph.nodes.get(&NodeId(1)).unwrap();
+    let new_node1 = &graph.nodes[&NodeId(1)];
     let expected_node1 = PangraphNode::new(Some(NodeId(1)), singleton_block_exp.id(), PathId(1), Forward, (0, 10));
     assert_eq!(new_node1, &expected_node1);
   }
