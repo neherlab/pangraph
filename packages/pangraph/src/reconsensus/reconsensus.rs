@@ -515,8 +515,9 @@ mod tests {
     // Create a block that will be modified by reconsensus
     let initial_block = block_for_graph_test();
     let expected_block = block_for_graph_test_expected();
+    let singleton_block_exp = signleton_block_expected();
 
-    // Create nodes for the block with lengths reflecting actual sequence lengths after deletions
+    // Create nodes for the block with lengths reflecting actual sequence lengths
     let nodes = btreemap! {
       NodeId(1) => PangraphNode::new(Some(NodeId(1)), initial_block.id(), PathId(1), Reverse, (0, 10)),   // 50 - 40 = 9 (deletes positions 0-39)
       NodeId(2) => PangraphNode::new(Some(NodeId(2)), initial_block.id(), PathId(2), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
@@ -550,19 +551,17 @@ mod tests {
 
     // Get the two created blocks, the modified and the singleton
     let final_block = graph.blocks.get(&initial_block.id()).unwrap();
+    let singleton_block = graph.blocks.get(&singleton_block_exp.id()).unwrap();
 
     // Direct comparison with expected result
     assert_eq!(final_block.consensus(), expected_block.consensus());
     assert_eq!(final_block.alignments(), expected_block.alignments());
 
     // Check that the empty node was detached and a new singleton block was created
-    let singleton_block_exp = signleton_block_expected();
-    assert!(graph.blocks.contains_key(&singleton_block_exp.id()));
-    let singleton_block = graph.blocks.get(&singleton_block_exp.id()).unwrap();
     assert_eq!(singleton_block.consensus(), singleton_block_exp.consensus());
     assert_eq!(singleton_block.alignments(), singleton_block_exp.alignments());
 
-    // check that the node was updated correctly
+    // check that the node was updated correctly, flipping the strandedness
     let new_node1 = graph.nodes.get(&NodeId(1)).unwrap();
     let expected_node1 = PangraphNode::new(Some(NodeId(1)), singleton_block_exp.id(), PathId(1), Forward, (0, 10));
     assert_eq!(new_node1, &expected_node1);
