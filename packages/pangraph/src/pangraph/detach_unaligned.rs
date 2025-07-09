@@ -8,6 +8,12 @@ use eyre::Report;
 use log::debug;
 use std::collections::BTreeMap;
 
+#[derive(Debug, Clone, PartialEq)]
+struct OrphanedNode {
+  node_id: NodeId,
+  sequence: Seq,
+}
+
 /// removes unaligned nodes from the graph. These are nodes whose alignments consist only of indels.
 /// takes as input a list of recently-merged blocks and the nodes dictionary.
 /// 1. looks for unaligned nodes
@@ -22,7 +28,7 @@ pub fn detach_unaligned_nodes(
   // Identify unaligned nodes and remove them from their blocks
   let unaligned_nodes = extract_unaligned_nodes(blocks)?;
 
-  for (node_id, sequence) in unaligned_nodes {
+  for OrphanedNode { node_id, sequence } in unaligned_nodes {
     // removes the old node from the nodes dictionary
     let old_node = nodes_dict
       .remove(&node_id)
@@ -41,8 +47,8 @@ pub fn detach_unaligned_nodes(
 
 /// Identify nodes that are unaligned, i.e. only consist of indels
 /// removes them from their blocks
-/// returns a list of node ids and their sequences
-fn extract_unaligned_nodes(blocks: &mut [PangraphBlock]) -> Result<Vec<(NodeId, Seq)>, Report> {
+/// returns a list of orphaned nodes
+fn extract_unaligned_nodes(blocks: &mut [PangraphBlock]) -> Result<Vec<OrphanedNode>, Report> {
   let mut unaligned_nodes = Vec::new();
 
   for block in blocks.iter_mut() {
@@ -60,7 +66,7 @@ fn extract_unaligned_nodes(blocks: &mut [PangraphBlock]) -> Result<Vec<(NodeId, 
     for node_id in removed {
       let edit = block.alignment_remove(node_id);
       let seq = edit.apply(block.consensus())?;
-      unaligned_nodes.push((node_id, seq));
+      unaligned_nodes.push(OrphanedNode { node_id, sequence: seq });
     }
   }
   Ok(unaligned_nodes)
@@ -165,7 +171,13 @@ mod tests {
     let unaligned = extract_unaligned_nodes(blocks.as_mut_slice())?;
 
     // check that node_2 was extracted
-    assert_eq!(unaligned, vec![(NodeId(2), Seq::from_str("CCCCCCCC"))]);
+    assert_eq!(
+      unaligned,
+      vec![OrphanedNode {
+        node_id: NodeId(2),
+        sequence: Seq::from_str("CCCCCCCC")
+      }]
+    );
     // check that the node was removed from the block alignment
     assert_eq!(blocks.len(), 1);
     let expected_bl = PangraphBlock::new(
