@@ -1,6 +1,7 @@
 use crate::align::map_variations::{BandParameters, map_variations};
 use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::make_error;
+use crate::pangraph::detach_unaligned::detach_unaligned_nodes;
 use crate::pangraph::edits::{Del, Edit};
 use crate::pangraph::edits::{Ins, Sub};
 use crate::pangraph::pangraph::Pangraph;
@@ -34,29 +35,56 @@ pub fn reconsensus_graph(
   ids_updated_blocks: Vec<BlockId>,
   args: &PangraphBuildArgs,
 ) -> Result<(), Report> {
-  // // remove selected nodes from graph
-  // remove_emtpy_nodes(graph, &ids_updated_blocks);
+  // there should be no empty nodes in the graph
   debug_assert!(
     find_empty_nodes(graph, &ids_updated_blocks).is_empty(),
     "Empty nodes found in the graph"
   );
 
+  // reconsensus each block
+  // cor
+  let mut realigned_block_ids = Vec::new();
   for block_id in ids_updated_blocks {
     let block = graph.blocks.get_mut(&block_id).unwrap();
-    reconsensus(block, args)?;
+    let realigned = reconsensus(block, args)?;
+    if realigned {
+      realigned_block_ids.push(block_id);
+    }
+  }
+
+  // For realigned blocks, pop them from graph.blocks, apply detach_unaligned_nodes, and re-add them
+  if !realigned_block_ids.is_empty() {
+    let mut realigned_blocks = Vec::new();
+
+    // Pop the realigned blocks from graph.blocks
+    for block_id in &realigned_block_ids {
+      if let Some(block) = graph.blocks.remove(block_id) {
+        realigned_blocks.push(block);
+      }
+    }
+
+    // Apply detach_unaligned_nodes
+    detach_unaligned_nodes(&mut realigned_blocks, &mut graph.nodes)?;
+
+    // Re-add the blocks to graph.blocks
+    for block in realigned_blocks {
+      graph.blocks.insert(block.id(), block);
+    }
   }
 
   Ok(())
 }
 
 /// Performs the reconsensus operation inplace on a block.
+/// Returns true or false, depending on whether sequences were re-aligned or not.
 /// - if a position is mutated in > N/2 sites, it adds the mutation to the consensus and updates the alignment.
 /// - if an in/del is present in > N/2 sites, it adds it to the consensus and re-aligns the sequences to the updated consensus.
-fn reconsensus(block: &mut PangraphBlock, args: &PangraphBuildArgs) -> Result<(), Report> {
+fn reconsensus(block: &mut PangraphBlock, args: &PangraphBuildArgs) -> Result<bool, Report> {
   reconsensus_mutations(block)?;
   let ins = majority_insertions(block);
   let dels = majority_deletions(block);
-  if !ins.is_empty() || !dels.is_empty() {
+  let re_align = !ins.is_empty() || !dels.is_empty();
+  if re_align {
     let consensus = block.consensus();
     let consensus = apply_indels(consensus, &dels, &ins);
     // average shift of the new consensus with respect to the old one
@@ -78,7 +106,7 @@ fn reconsensus(block: &mut PangraphBlock, args: &PangraphBuildArgs) -> Result<()
 
     update_block_consensus(block, &consensus, new_consensus_band_params, args)?;
   }
-  Ok(())
+  Ok(re_align)
 }
 
 /// Re-computes the consensus for a block if a position is mutated in > N/2 sites.
@@ -379,7 +407,8 @@ mod tests {
   fn test_reconsensus() {
     let mut block = block_3();
     let expected_block = block_3_reconsensus();
-    reconsensus(&mut block, &PangraphBuildArgs::default()).unwrap();
+    let re_aligned = reconsensus(&mut block, &PangraphBuildArgs::default()).unwrap();
+    assert!(re_aligned);
     assert_eq!(block.consensus(), expected_block.consensus());
     assert_eq!(block.alignments(), expected_block.alignments());
   }
