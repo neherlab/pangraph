@@ -286,8 +286,13 @@ fn update_block_consensus(
 mod tests {
   use super::*;
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
-  use crate::pangraph::pangraph_block::PangraphBlock;
+  use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
   use crate::pangraph::pangraph_node::NodeId;
+  use crate::pangraph::pangraph_node::PangraphNode;
+  use crate::pangraph::pangraph_path::{PangraphPath, PathId};
+  use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use crate::utils::id::id;
+
   use maplit::btreemap;
   use pretty_assertions::assert_eq;
 
@@ -467,5 +472,99 @@ mod tests {
     // But consensus should be updated and mutations healed
     assert_eq!(block.consensus(), expected_block.consensus());
     assert_eq!(block.alignments(), expected_block.alignments());
+  }
+
+  fn block_for_graph_test() -> PangraphBlock {
+    let consensus = "GCCTCTTCCCGACCACGCGTTACAACATGGGACAGGCCTGCGCTTGAGGC";
+    //               0         1         2         3         4
+    //               01234567890123456789012345678901234567890123456789
+    let aln = btreemap! {
+        NodeId(1) => Edit::new(vec![],  vec![Del::new(0, 40)],   vec![]),  // deletion from position 0 to 40
+        NodeId(2) => Edit::new(vec![],  vec![Del::new(35, 15)],  vec![]),  // deletion from position 35 to end (50-35=15)
+        NodeId(3) => Edit::new(vec![],  vec![Del::new(35, 15)],  vec![]),  // deletion from position 35 to end
+        NodeId(4) => Edit::new(vec![],  vec![Del::new(35, 15)],  vec![]),  // deletion from position 35 to end
+        NodeId(5) => Edit::new(vec![],  vec![],                  vec![])   // no deletions
+    };
+    PangraphBlock::new(BlockId(20), consensus, aln)
+  }
+
+  fn block_for_graph_test_expected() -> PangraphBlock {
+    // After reconsensus, the majority deletions (positions 35-49) should be applied
+    // Original consensus: "GCCTCTTCCCGACCACGCGTTACAACATGGGACAGGCCTGCGCTTGAGGC" (50 chars)
+    // Expected consensus: "GCCTCTTCCCGACCACGCGTTACAACATGGGACAG" (35 chars)
+    let consensus = "GCCTCTTCCCGACCACGCGTTACAACATGGGACAG";
+    let aln = btreemap! {
+        NodeId(2) => Edit::new(vec![],                           vec![],                  vec![]),       // no edits (was majority deletion)
+        NodeId(3) => Edit::new(vec![],                           vec![],                  vec![]),       // no edits (was majority deletion)
+        NodeId(4) => Edit::new(vec![],                           vec![],                  vec![]),       // no edits (was majority deletion)
+        NodeId(5) => Edit::new(vec![Ins::new(35, "GCCTGCGCTTGAGGC")], vec![],                  vec![])        // insertion to represent chars that were deleted from consensus
+    };
+    // NodeId(1) was detached because it was empty after deletions
+    PangraphBlock::new(BlockId(20), consensus, aln)
+  }
+
+  fn signleton_block_expected() -> PangraphBlock {
+    // This is the singleton block that should be created for NodeId(1) after reconsensus
+    // this should be the reverse-complement of CGCTTGAGGC, because NodeId(1) was in Reverse strand
+    let consensus = Seq::from("GCCTCAAGCG");
+    PangraphBlock::from_consensus(consensus.clone(), BlockId(id((NodeId(1), &consensus))), NodeId(1))
+  }
+
+  #[test]
+  fn test_reconsensus_graph() {
+    // Create a block that will be modified by reconsensus
+    let initial_block = block_for_graph_test();
+    let expected_block = block_for_graph_test_expected();
+
+    // Create nodes for the block with lengths reflecting actual sequence lengths after deletions
+    let nodes = btreemap! {
+      NodeId(1) => PangraphNode::new(Some(NodeId(1)), initial_block.id(), PathId(1), Reverse, (0, 10)),   // 50 - 40 = 9 (deletes positions 0-39)
+      NodeId(2) => PangraphNode::new(Some(NodeId(2)), initial_block.id(), PathId(2), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(3) => PangraphNode::new(Some(NodeId(3)), initial_block.id(), PathId(3), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(4) => PangraphNode::new(Some(NodeId(4)), initial_block.id(), PathId(4), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(5) => PangraphNode::new(Some(NodeId(5)), initial_block.id(), PathId(5), Forward, (0, 49)),  // no deletions
+    };
+
+    // Create paths
+    let paths = btreemap! {
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 49, false, Some("path1".to_string()), None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(2)], 49, false, Some("path2".to_string()), None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(3)], 49, false, Some("path3".to_string()), None),
+      PathId(4) => PangraphPath::new(Some(PathId(4)), [NodeId(4)], 49, false, Some("path4".to_string()), None),
+      PathId(5) => PangraphPath::new(Some(PathId(5)), [NodeId(5)], 49, false, Some("path5".to_string()), None),
+    };
+
+    // Create blocks map
+    let blocks = btreemap! {
+      initial_block.id() => initial_block.clone()
+    };
+
+    // Create the graph
+    let mut graph = Pangraph { paths, blocks, nodes };
+
+    // Apply reconsensus_graph
+    let result = reconsensus_graph(&mut graph, vec![initial_block.id()], &PangraphBuildArgs::default());
+
+    // Check that the operation succeeded
+    assert!(result.is_ok());
+
+    // Get the two created blocks, the modified and the singleton
+    let final_block = graph.blocks.get(&initial_block.id()).unwrap();
+
+    // Direct comparison with expected result
+    assert_eq!(final_block.consensus(), expected_block.consensus());
+    assert_eq!(final_block.alignments(), expected_block.alignments());
+
+    // Check that the empty node was detached and a new singleton block was created
+    let singleton_block_exp = signleton_block_expected();
+    assert!(graph.blocks.contains_key(&singleton_block_exp.id()));
+    let singleton_block = graph.blocks.get(&singleton_block_exp.id()).unwrap();
+    assert_eq!(singleton_block.consensus(), singleton_block_exp.consensus());
+    assert_eq!(singleton_block.alignments(), singleton_block_exp.alignments());
+
+    // check that the node was updated correctly
+    let new_node1 = graph.nodes.get(&NodeId(1)).unwrap();
+    let expected_node1 = PangraphNode::new(Some(NodeId(1)), singleton_block_exp.id(), PathId(1), Forward, (0, 10));
+    assert_eq!(new_node1, &expected_node1);
   }
 }
