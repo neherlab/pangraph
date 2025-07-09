@@ -42,7 +42,8 @@ pub fn reconsensus_graph(
   );
 
   // reconsensus each block
-  // cor
+  // i.e. update the consensus with majority variants
+  // ids of blocks that undergo re-alignment are collected in realigned_block_ids
   let mut realigned_block_ids = Vec::new();
   for block_id in ids_updated_blocks {
     let block = graph.blocks.get_mut(&block_id).unwrap();
@@ -52,7 +53,7 @@ pub fn reconsensus_graph(
     }
   }
 
-  // For realigned blocks, pop them from graph.blocks, apply detach_unaligned_nodes, and re-add them
+  // For realigned blocks, pop them from graph.blocks, apply detach_unaligned_nodes to the list, and re-add them
   if !realigned_block_ids.is_empty() {
     let mut realigned_blocks = Vec::new();
 
@@ -63,10 +64,10 @@ pub fn reconsensus_graph(
       }
     }
 
-    // Apply detach_unaligned_nodes
+    // Apply detach_unaligned_nodes. This removes unaligned nodes and re-adds them to the list as new blocks.
     detach_unaligned_nodes(&mut realigned_blocks, &mut graph.nodes)?;
 
-    // Re-add the blocks to graph.blocks
+    // Re-add all the blocks (including potentially new singleton blocks) to graph.blocks
     for block in realigned_blocks {
       graph.blocks.insert(block.id(), block);
     }
