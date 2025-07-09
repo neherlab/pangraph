@@ -375,6 +375,47 @@ mod tests {
     PangraphBlock::new(BlockId(3), consensus, aln)
   }
 
+  fn block_mutations_only() -> PangraphBlock {
+    let consensus = "ATGCGATCGATCGA";
+    //               01234567890123
+    //    node 1)    .C............  (mutation at pos 1: T->C)
+    //    node 2)    .C............  (mutation at pos 1: T->C)
+    //    node 3)    .C............  (mutation at pos 1: T->C)
+    //    node 4)    ..........G...  (mutation at pos 10: C->G)
+    //    node 5)    ..........G...  (mutation at pos 10: C->G)
+    //     L = 14, N = 5
+    // Position 1: T->C appears in 3/5 sequences (majority)
+    // Position 10: C->G appears in 2/5 sequences (not majority)
+    let aln = btreemap! {
+      NodeId(1) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
+      NodeId(2) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
+      NodeId(3) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
+      NodeId(4) => Edit::new(vec![], vec![], vec![Sub::new(10, 'G')]),
+      NodeId(5) => Edit::new(vec![], vec![], vec![Sub::new(10, 'G')]),
+    };
+    PangraphBlock::new(BlockId(10), consensus, aln)
+  }
+
+  fn block_mutations_only_after_reconsensus() -> PangraphBlock {
+    let consensus = "ACGCGATCGATCGA";
+    //               01234567890123
+    //    node 1)    ..............  (no mutations after consensus update)
+    //    node 2)    ..............  (no mutations after consensus update)
+    //    node 3)    ..............  (no mutations after consensus update)
+    //    node 4)    .T........G...  (gets T at pos 1, keeps G at pos 10)
+    //    node 5)    .T........G...  (gets T at pos 1, keeps G at pos 10)
+    //     L = 14, N = 5
+    // After reconsensus: consensus[1] = 'C' (majority), original T becomes mutation in nodes 4,5
+    let aln = btreemap! {
+      NodeId(1) => Edit::new(vec![], vec![], vec![]),
+      NodeId(2) => Edit::new(vec![], vec![], vec![]),
+      NodeId(3) => Edit::new(vec![], vec![], vec![]),
+      NodeId(4) => Edit::new(vec![], vec![], vec![Sub::new(1, 'T'), Sub::new(10, 'G')]),
+      NodeId(5) => Edit::new(vec![], vec![], vec![Sub::new(1, 'T'), Sub::new(10, 'G')]),
+    };
+    PangraphBlock::new(BlockId(10), consensus, aln)
+  }
+
   #[test]
   fn test_reconsensus_mutations() {
     let mut block = block_1();
@@ -410,6 +451,20 @@ mod tests {
     let expected_block = block_3_reconsensus();
     let re_aligned = reconsensus(&mut block, &PangraphBuildArgs::default()).unwrap();
     assert!(re_aligned);
+    assert_eq!(block.consensus(), expected_block.consensus());
+    assert_eq!(block.alignments(), expected_block.alignments());
+  }
+
+  #[test]
+  fn test_reconsensus_mutations_only_no_realignment() {
+    let mut block = block_mutations_only();
+    let expected_block = block_mutations_only_after_reconsensus();
+    let re_aligned = reconsensus(&mut block, &PangraphBuildArgs::default()).unwrap();
+
+    // Should return false because no indels require re-alignment
+    assert!(!re_aligned);
+
+    // But consensus should be updated and mutations healed
     assert_eq!(block.consensus(), expected_block.consensus());
     assert_eq!(block.alignments(), expected_block.alignments());
   }
