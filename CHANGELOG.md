@@ -1,3 +1,7 @@
+## Unreleased
+
+- Fix an edge-case bug: when updating the consensus of a block with a majority deletion, very rarely an unaligned node could be created. This is now fixed by extracting such nodes into a separate singleton block.
+
 ## 1.2.0
 
 ### Improve within-block alignments
