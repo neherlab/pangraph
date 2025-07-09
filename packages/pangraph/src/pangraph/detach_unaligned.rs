@@ -4,7 +4,7 @@ use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::strand::Strand::Forward;
 use crate::representation::seq::Seq;
 use crate::utils::id::id;
-use eyre::Report;
+use eyre::{Context, Report};
 use log::debug;
 use std::collections::BTreeMap;
 
@@ -26,7 +26,11 @@ pub fn detach_unaligned_nodes(
   nodes_dict: &mut BTreeMap<NodeId, PangraphNode>,
 ) -> Result<(), Report> {
   // Identify unaligned nodes and remove them from their blocks
-  let unaligned_nodes = extract_unaligned_nodes(blocks)?;
+  let mut unaligned_nodes = Vec::new();
+  for block in blocks.iter_mut() {
+    let block_unaligned = extract_unaligned_nodes(block).wrap_err("Failed to extract unaligned nodes from block")?;
+    unaligned_nodes.extend(block_unaligned);
+  }
 
   for OrphanedNode { node_id, sequence } in unaligned_nodes {
     // removes the old node from the nodes dictionary
@@ -46,28 +50,25 @@ pub fn detach_unaligned_nodes(
 }
 
 /// Identify nodes that are unaligned, i.e. only consist of indels
-/// removes them from their blocks
-/// returns a list of orphaned nodes
-fn extract_unaligned_nodes(blocks: &mut [PangraphBlock]) -> Result<Vec<OrphanedNode>, Report> {
+/// removes them from the block
+/// returns a list of orphaned nodes from this block
+fn extract_unaligned_nodes(block: &mut PangraphBlock) -> Result<Vec<OrphanedNode>, Report> {
   let mut unaligned_nodes = Vec::new();
+  let cons_len = block.consensus_len();
 
-  for block in blocks.iter_mut() {
-    let cons_len = block.consensus_len();
-
-    // Find nodes that are unaligned (only consist of indels)
-    let mut removed = Vec::new();
-    for (&node_id, edit) in block.alignments() {
-      if edit.aligned_count(cons_len) == 0 {
-        debug!("Found unaligned node {} in block {}", node_id, block.id());
-        removed.push(node_id);
-      }
+  // Find nodes that are unaligned (only consist of indels)
+  let mut removed = Vec::new();
+  for (&node_id, edit) in block.alignments() {
+    if edit.aligned_count(cons_len) == 0 {
+      debug!("Found unaligned node {} in block {}", node_id, block.id());
+      removed.push(node_id);
     }
-    // Remove unaligned nodes from the block and collect them
-    for node_id in removed {
-      let edit = block.alignment_remove(node_id);
-      let seq = edit.apply(block.consensus())?;
-      unaligned_nodes.push(OrphanedNode { node_id, sequence: seq });
-    }
+  }
+  // Remove unaligned nodes from the block and collect them
+  for node_id in removed {
+    let edit = block.alignment_remove(node_id);
+    let seq = edit.apply(block.consensus())?;
+    unaligned_nodes.push(OrphanedNode { node_id, sequence: seq });
   }
   Ok(unaligned_nodes)
 }
@@ -165,10 +166,9 @@ mod tests {
       NodeId(1) => Edit::new(vec![],                    vec![],                vec![Sub::new(3, 'G')]),
       NodeId(2) => Edit::new(vec![Ins::new(16, "CCCCCCCC")],   vec![Del::new(0, 16)], vec![]),
     };
-    let block = PangraphBlock::new(block_id, block_cons.clone(), aln);
+    let mut block = PangraphBlock::new(block_id, block_cons.clone(), aln);
 
-    let mut blocks = vec![block];
-    let unaligned = extract_unaligned_nodes(blocks.as_mut_slice())?;
+    let unaligned = extract_unaligned_nodes(&mut block)?;
 
     // check that node_2 was extracted
     assert_eq!(
@@ -179,13 +179,12 @@ mod tests {
       }]
     );
     // check that the node was removed from the block alignment
-    assert_eq!(blocks.len(), 1);
     let expected_bl = PangraphBlock::new(
       block_id,
       block_cons,
       btreemap! {NodeId(1) => Edit::new(vec![], vec![], vec![Sub::new(3, 'G')])},
     );
-    assert_eq!(blocks[0], expected_bl);
+    assert_eq!(block, expected_bl);
 
     Ok(())
   }
