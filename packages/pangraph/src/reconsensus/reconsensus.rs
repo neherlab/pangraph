@@ -503,7 +503,7 @@ mod tests {
     PangraphBlock::new(BlockId(20), consensus, aln)
   }
 
-  fn signleton_block_expected() -> PangraphBlock {
+  fn singleton_block_expected() -> PangraphBlock {
     // This is the singleton block that should be created for NodeId(1) after reconsensus
     // this should be the reverse-complement of CGCTTGAGGC, because NodeId(1) was in Reverse strand
     let consensus = Seq::from("GCCTCAAGCG");
@@ -515,7 +515,7 @@ mod tests {
     // Create a block that will be modified by reconsensus
     let initial_block = block_for_graph_test();
     let expected_block = block_for_graph_test_expected();
-    let singleton_block_exp = signleton_block_expected();
+    let singleton_block_exp = singleton_block_expected();
 
     // Create nodes for the block with lengths reflecting actual sequence lengths
     let nodes = btreemap! {
