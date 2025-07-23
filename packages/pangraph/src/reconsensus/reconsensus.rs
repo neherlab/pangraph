@@ -12,7 +12,7 @@ use crate::reconsensus::remove_nodes::find_empty_nodes;
 use crate::representation::seq::Seq;
 use crate::representation::seq_char::AsciiChar;
 use eyre::Report;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 
@@ -86,7 +86,7 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> (V
 
       if majority_edits.has_indels() {
         Some(Either::Right(block_id))
-      } else if !majority_edits.subs.is_empty() {
+      } else if majority_edits.has_subs() {
         Some(Either::Left(block_id))
       } else {
         None // Blocks with no variants are skipped
@@ -160,7 +160,7 @@ fn apply_full_reconsensus(
   apply_mutation_reconsensus(block, &majority_edits.subs)?;
 
   // Then apply indels and realign if present
-  if !majority_edits.dels.is_empty() || !majority_edits.inss.is_empty() {
+  if majority_edits.has_indels() {
     let consensus = block.consensus();
     let new_consensus = majority_edits.apply(consensus)?;
 
@@ -406,7 +406,7 @@ mod tests {
     apply_mutation_reconsensus(&mut block, &majority_edits.subs).unwrap();
 
     // Apply indels if present
-    let has_indels = !majority_edits.dels.is_empty() || !majority_edits.inss.is_empty();
+    let has_indels = majority_edits.has_indels();
     if has_indels {
       let consensus = block.consensus();
       let new_consensus = majority_edits.apply(consensus).unwrap();
@@ -430,7 +430,7 @@ mod tests {
     apply_mutation_reconsensus(&mut block, &majority_edits.subs).unwrap();
 
     // Check that no indels require re-alignment
-    let has_indels = !majority_edits.dels.is_empty() || !majority_edits.inss.is_empty();
+    let has_indels = majority_edits.has_indels();
     assert!(!has_indels); // Should return false because no indels require re-alignment
 
     // But consensus should be updated and mutations healed

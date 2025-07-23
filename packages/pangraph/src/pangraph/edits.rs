@@ -127,6 +127,26 @@ impl Edit {
     self.subs.is_empty() && self.dels.is_empty() && self.inss.is_empty()
   }
 
+  /// Returns true if this edit contains any insertions or deletions (indels)
+  pub fn has_indels(&self) -> bool {
+    !self.dels.is_empty() || !self.inss.is_empty()
+  }
+
+  /// Returns true if this edit contains any deletions
+  pub fn has_dels(&self) -> bool {
+    !self.dels.is_empty()
+  }
+
+  /// Returns true if this edit contains any insertions
+  pub fn has_inss(&self) -> bool {
+    !self.inss.is_empty()
+  }
+
+  /// Returns true if this edit contains any substitutions
+  pub fn has_subs(&self) -> bool {
+    !self.subs.is_empty()
+  }
+
   /// Construct edit which consists of a deletion of length `len`
   pub fn deleted(len: usize) -> Self {
     Self {
@@ -1044,5 +1064,73 @@ mod tests {
     let bandwidth = edit.aln_bandwidth(cons_len, mean_shift);
     assert_eq!(mean_shift, 3);
     assert_eq!(bandwidth, Some(4));
+  }
+
+  #[test]
+  fn test_has_indels() {
+    // Edit with no indels (only substitutions)
+    let edit_no_indels = Edit::new(vec![], vec![], vec![Sub::new(1, 'A')]);
+    assert!(!edit_no_indels.has_indels());
+
+    // Edit with deletions
+    let edit_with_dels = Edit::new(vec![], vec![Del::new(5, 2)], vec![]);
+    assert!(edit_with_dels.has_indels());
+
+    // Edit with insertions
+    let edit_with_inss = Edit::new(vec![Ins::new(10, "ATG")], vec![], vec![]);
+    assert!(edit_with_inss.has_indels());
+
+    // Edit with both insertions and deletions
+    let edit_with_both = Edit::new(vec![Ins::new(10, "ATG")], vec![Del::new(5, 2)], vec![Sub::new(1, 'A')]);
+    assert!(edit_with_both.has_indels());
+
+    // Empty edit
+    let edit_empty = Edit::empty();
+    assert!(!edit_empty.has_indels());
+  }
+
+  #[test]
+  fn test_has_dels() {
+    // Edit with no deletions
+    let edit_no_dels = Edit::new(vec![Ins::new(10, "ATG")], vec![], vec![Sub::new(1, 'A')]);
+    assert!(!edit_no_dels.has_dels());
+
+    // Edit with deletions
+    let edit_with_dels = Edit::new(vec![], vec![Del::new(5, 2)], vec![]);
+    assert!(edit_with_dels.has_dels());
+
+    // Empty edit
+    let edit_empty = Edit::empty();
+    assert!(!edit_empty.has_dels());
+  }
+
+  #[test]
+  fn test_has_inss() {
+    // Edit with no insertions
+    let edit_no_inss = Edit::new(vec![], vec![Del::new(5, 2)], vec![Sub::new(1, 'A')]);
+    assert!(!edit_no_inss.has_inss());
+
+    // Edit with insertions
+    let edit_with_inss = Edit::new(vec![Ins::new(10, "ATG")], vec![], vec![]);
+    assert!(edit_with_inss.has_inss());
+
+    // Empty edit
+    let edit_empty = Edit::empty();
+    assert!(!edit_empty.has_inss());
+  }
+
+  #[test]
+  fn test_has_subs() {
+    // Edit with no substitutions
+    let edit_no_subs = Edit::new(vec![Ins::new(10, "ATG")], vec![Del::new(5, 2)], vec![]);
+    assert!(!edit_no_subs.has_subs());
+
+    // Edit with substitutions
+    let edit_with_subs = Edit::new(vec![], vec![], vec![Sub::new(1, 'A')]);
+    assert!(edit_with_subs.has_subs());
+
+    // Empty edit
+    let edit_empty = Edit::empty();
+    assert!(!edit_empty.has_subs());
   }
 }
