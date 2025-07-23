@@ -78,15 +78,13 @@ pub fn reconsensus_graph(
 
 /// Analyzes blocks to determine which need realignment vs. mutation-only reconsensus
 fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> (Vec<BlockId>, Vec<BlockId>) {
-  use itertools::Either;
-
   let (mutations_only, need_realignment): (Vec<_>, Vec<_>) = block_ids
     .iter()
     .filter_map(|&block_id| {
       let block = &graph.blocks[&block_id];
       let majority_edits = block.find_majority_edits();
 
-      if !majority_edits.dels.is_empty() || !majority_edits.inss.is_empty() {
+      if majority_edits.has_indels() {
         Some(Either::Right(block_id))
       } else if !majority_edits.subs.is_empty() {
         Some(Either::Left(block_id))
