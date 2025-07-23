@@ -55,22 +55,19 @@ pub fn reconsensus_graph(
 
   // For realigned blocks, pop them from graph.blocks, apply detach_unaligned_nodes to the list, and re-add them
   if !realigned_block_ids.is_empty() {
-    let mut realigned_blocks = Vec::new();
-
     // Pop the realigned blocks from graph.blocks
-    for block_id in &realigned_block_ids {
-      if let Some(block) = graph.blocks.remove(block_id) {
-        realigned_blocks.push(block);
-      }
-    }
+    let mut realigned_blocks = realigned_block_ids
+      .iter()
+      .filter_map(|block_id| graph.blocks.remove(block_id))
+      .collect_vec();
 
     // Apply detach_unaligned_nodes. This removes unaligned nodes and re-adds them to the list as new blocks.
     detach_unaligned_nodes(&mut realigned_blocks, &mut graph.nodes)?;
 
     // Re-add all the blocks (including potentially new singleton blocks) to graph.blocks
-    for block in realigned_blocks {
-      graph.blocks.insert(block.id(), block);
-    }
+    graph
+      .blocks
+      .extend(realigned_blocks.into_iter().map(|block| (block.id(), block)));
   }
 
   Ok(())
