@@ -129,7 +129,7 @@ impl Edit {
 
   /// Returns true if this edit contains any insertions or deletions (indels)
   pub fn has_indels(&self) -> bool {
-    !self.dels.is_empty() || !self.inss.is_empty()
+    self.has_dels() || self.has_inss()
   }
 
   /// Returns true if this edit contains any deletions
