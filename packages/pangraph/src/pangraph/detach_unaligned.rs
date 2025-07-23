@@ -28,7 +28,14 @@ pub fn detach_unaligned_nodes(
   // Identify unaligned nodes and remove them from their blocks
   let mut unaligned_nodes = Vec::new();
   for block in blocks.iter_mut() {
-    let block_unaligned = extract_unaligned_nodes(block).wrap_err("Failed to extract unaligned nodes from block")?;
+    let block_unaligned = extract_unaligned_nodes(block).wrap_err_with(|| {
+      format!(
+        "Failed to extract unaligned nodes from block {} (consensus_len={}, node_count={})",
+        block.id(),
+        block.consensus_len(),
+        block.alignments().len()
+      )
+    })?;
     unaligned_nodes.extend(block_unaligned);
   }
 
