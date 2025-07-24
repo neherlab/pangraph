@@ -1,6 +1,5 @@
 use crate::align::map_variations::{BandParameters, map_variations};
 use crate::commands::build::build_args::PangraphBuildArgs;
-use crate::make_error;
 use crate::pangraph::detach_unaligned::detach_unaligned_nodes;
 use crate::pangraph::edits::{Del, Edit};
 use crate::pangraph::edits::{Ins, Sub};
@@ -8,6 +7,7 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::NodeId;
 use crate::utils::interval::positions_to_intervals;
+use crate::{make_error, make_report};
 // use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
 use crate::reconsensus::remove_nodes::find_empty_nodes;
 use crate::representation::seq::Seq;
@@ -46,7 +46,10 @@ pub fn reconsensus_graph(
   // ids of blocks that undergo re-alignment are collected in realigned_block_ids
   let mut realigned_block_ids = Vec::new();
   for block_id in ids_updated_blocks {
-    let block = graph.blocks.get_mut(&block_id).unwrap();
+    let block = graph
+      .blocks
+      .get_mut(&block_id)
+      .ok_or_else(|| make_report!("Block {} not found in graph during reconsensus", block_id))?;
     let realigned = reconsensus(block, args)?;
     if realigned {
       realigned_block_ids.push(block_id);
