@@ -10,7 +10,7 @@ use crate::pangraph::pangraph_node::NodeId;
 // use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
 use crate::reconsensus::remove_nodes::find_empty_nodes;
 use crate::representation::seq::Seq;
-use eyre::Report;
+use eyre::{Context, Report};
 use itertools::{Either, Itertools};
 use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -56,6 +56,7 @@ pub fn reconsensus_graph(
     let block = graph.blocks.get_mut(&block_id).unwrap();
     let majority_edits = block.find_majority_edits();
     apply_mutation_reconsensus(block, &majority_edits.subs)
+      .wrap_err_with(|| format!("When processing block {}", block.id()))
   })?;
 
   // Handle blocks requiring realignment
@@ -71,6 +72,7 @@ pub fn reconsensus_graph(
     realigned_blocks.iter_mut().try_for_each(|block| {
       let majority_edits = block.find_majority_edits();
       apply_full_reconsensus(block, &majority_edits, args)
+        .wrap_err_with(|| format!("When processing block {}", block.id()))
     })?;
 
     // Apply detach_unaligned_nodes. This removes unaligned nodes and re-adds them to the list as new blocks.
