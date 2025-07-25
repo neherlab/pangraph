@@ -1,12 +1,12 @@
 use crate::align::map_variations::{BandParameters, map_variations};
 use crate::commands::build::build_args::PangraphBuildArgs;
-use crate::make_error;
 use crate::pangraph::detach_unaligned::detach_unaligned_nodes;
 use crate::pangraph::edits::Edit;
 use crate::pangraph::edits::Sub;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::NodeId;
+use crate::{make_error, make_report};
 // use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
 use crate::reconsensus::remove_nodes::find_empty_nodes;
 use crate::representation::seq::Seq;
@@ -53,7 +53,10 @@ pub fn reconsensus_graph(
 
   // Apply mutation-only reconsensus (no realignment needed)
   analysis.mutations_only.into_iter().try_for_each(|block_id| {
-    let block = graph.blocks.get_mut(&block_id).unwrap();
+    let block = graph
+      .blocks
+      .get_mut(&block_id)
+      .ok_or_else(|| make_report!("Block {} not found in graph", block_id))?;
     let majority_edits = block.find_majority_edits();
     apply_mutation_reconsensus(block, &majority_edits.subs)
       .wrap_err_with(|| format!("When processing block {}", block.id()))
