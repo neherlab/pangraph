@@ -87,7 +87,7 @@ pub fn reconsensus_graph(
 
 /// Analyzes blocks to determine which need realignment vs. mutation-only reconsensus
 fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> BlockAnalysis {
-  let (blocks_requiring_mutations_only, blocks_requiring_full_realignment): (Vec<_>, Vec<_>) = block_ids
+  let (mutations_only, need_realignment): (Vec<_>, Vec<_>) = block_ids
     .iter()
     .filter_map(|&block_id| {
       let block = &graph.blocks[&block_id];
@@ -104,8 +104,8 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> Bl
     .partition_map(|either| either);
 
   BlockAnalysis {
-    mutations_only: blocks_requiring_mutations_only,
-    need_realignment: blocks_requiring_full_realignment,
+    mutations_only,
+    need_realignment,
   }
 }
 
