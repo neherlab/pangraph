@@ -14,7 +14,17 @@ use crate::representation::seq_char::AsciiChar;
 use eyre::Report;
 use itertools::{Either, Itertools};
 use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+
+/// Result of analyzing blocks for reconsensus operation
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct BlockAnalysis {
+  /// Blocks that need only mutation-based reconsensus (no realignment)
+  mutations_only: Vec<BlockId>,
+  /// Blocks that need full reconsensus with realignment due to indels
+  need_realignment: Vec<BlockId>,
+}
 
 /// Applies the reconsensus operation to each updated block in the graph:
 /// - updates the block consensus following a merge
@@ -40,20 +50,20 @@ pub fn reconsensus_graph(
   );
 
   // Analyze blocks and determine which need realignment
-  let (blocks_with_mutations_only, blocks_needing_realignment) =
-    analyze_blocks_for_reconsensus(graph, ids_updated_blocks);
+  let analysis = analyze_blocks_for_reconsensus(graph, ids_updated_blocks);
 
   // Apply mutation-only reconsensus (no realignment needed)
-  blocks_with_mutations_only.into_iter().try_for_each(|block_id| {
+  analysis.mutations_only.into_iter().try_for_each(|block_id| {
     let block = graph.blocks.get_mut(&block_id).unwrap();
     let majority_edits = block.find_majority_edits();
     apply_mutation_reconsensus(block, &majority_edits.subs)
   })?;
 
   // Handle blocks requiring realignment
-  if !blocks_needing_realignment.is_empty() {
+  if !analysis.need_realignment.is_empty() {
     // Pop the realigned blocks from graph.blocks
-    let mut realigned_blocks: Vec<_> = blocks_needing_realignment
+    let mut realigned_blocks: Vec<_> = analysis
+      .need_realignment
       .iter()
       .filter_map(|block_id| graph.blocks.remove(block_id))
       .collect();
@@ -77,7 +87,7 @@ pub fn reconsensus_graph(
 }
 
 /// Analyzes blocks to determine which need realignment vs. mutation-only reconsensus
-fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> (Vec<BlockId>, Vec<BlockId>) {
+fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> BlockAnalysis {
   let (mutations_only, need_realignment): (Vec<_>, Vec<_>) = block_ids
     .iter()
     .filter_map(|&block_id| {
@@ -94,7 +104,10 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> (V
     })
     .partition_map(|either| either);
 
-  (mutations_only, need_realignment)
+  BlockAnalysis {
+    mutations_only,
+    need_realignment,
+  }
 }
 
 /// Updates alignment for a single mutation
@@ -467,7 +480,7 @@ mod tests {
     PangraphBlock::new(BlockId(20), consensus, aln)
   }
 
-  fn singleton_block_expected() -> PangraphBlock {
+  fn signleton_block_expected() -> PangraphBlock {
     // This is the singleton block that should be created for NodeId(1) after reconsensus
     // this should be the reverse-complement of CGCTTGAGGC, because NodeId(1) was in Reverse strand
     let consensus = Seq::from("GCCTCAAGCG");
@@ -479,7 +492,7 @@ mod tests {
     // Create a block that will be modified by reconsensus
     let initial_block = block_for_graph_test();
     let expected_block = block_for_graph_test_expected();
-    let singleton_block_exp = singleton_block_expected();
+    let singleton_block_exp = signleton_block_expected();
 
     // Create nodes for the block with lengths reflecting actual sequence lengths
     let nodes = btreemap! {
