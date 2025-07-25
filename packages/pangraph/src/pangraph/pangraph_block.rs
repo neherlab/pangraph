@@ -208,7 +208,8 @@ impl PangraphBlock {
   }
 
   /// Helper method to check if a count represents a majority
-  fn is_majority(&self, count: usize) -> bool {
+  #[inline]
+  pub fn is_majority(&self, count: usize) -> bool {
     count > self.depth() / 2
   }
 

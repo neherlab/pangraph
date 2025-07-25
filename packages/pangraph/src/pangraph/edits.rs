@@ -128,21 +128,25 @@ impl Edit {
   }
 
   /// Returns true if this edit contains any insertions or deletions (indels)
+  #[inline]
   pub fn has_indels(&self) -> bool {
     self.has_dels() || self.has_inss()
   }
 
   /// Returns true if this edit contains any deletions
+  #[inline]
   pub fn has_dels(&self) -> bool {
     !self.dels.is_empty()
   }
 
   /// Returns true if this edit contains any insertions
+  #[inline]
   pub fn has_inss(&self) -> bool {
     !self.inss.is_empty()
   }
 
   /// Returns true if this edit contains any substitutions
+  #[inline]
   pub fn has_subs(&self) -> bool {
     !self.subs.is_empty()
   }
