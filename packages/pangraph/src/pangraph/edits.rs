@@ -178,7 +178,7 @@ impl Edit {
   }
 
   /// Returns all substitutions at a specific position
-  fn substitutions_at_position(&self, pos: usize) -> Vec<Sub> {
+  fn subs_at_position(&self, pos: usize) -> Vec<Sub> {
     self.subs.iter().filter(|s| s.pos == pos).cloned().collect()
   }
 
@@ -200,7 +200,7 @@ impl Edit {
       1 => self.remove_matching_substitution(substitution),
       // If genome has conflicting mutations: returns error for inconsistent state
       _ => {
-        let subs_at_pos = self.substitutions_at_position(substitution.pos);
+        let subs_at_pos = self.subs_at_position(substitution.pos);
         return make_error!(
           "At position {}: sequence states disagree: {:}",
           substitution.pos,
