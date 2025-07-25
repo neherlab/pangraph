@@ -121,7 +121,7 @@ fn apply_mutation_reconsensus(block: &mut PangraphBlock, subs: &[Sub]) -> Result
     block
       .alignments_mut()
       .values_mut()
-      .try_for_each(|edit| edit.update_alignment_for_mutation(sub, original))
+      .try_for_each(|edit| edit.reconcile_substitution_with_consensus(sub, original))
   })
 }
 

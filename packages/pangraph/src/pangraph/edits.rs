@@ -182,13 +182,19 @@ impl Edit {
     self.subs.iter().filter(|s| s.pos == pos).cloned().collect()
   }
 
-  /// Updates alignment for a single mutation during reconsensus
-  pub fn update_alignment_for_mutation(&mut self, substitution: &Sub, original: AsciiChar) -> Result<(), Report> {
+  /// Reconciles genome alignment when consensus changes due to a substitution.
+  ///
+  /// During reconsensus, when a position in the consensus sequence is updated with a new
+  /// character, this method adjusts the genome's edit to maintain correct alignment.
+  pub fn reconcile_substitution_with_consensus(&mut self, substitution: &Sub, original: AsciiChar) -> Result<(), Report> {
     let subs_at_pos = self.substitutions_at_position(substitution.pos);
 
     match subs_at_pos.len() {
+      // If genome has no mutation at this position: adds reversion to original character
       0 => self.add_reversion_if_not_deleted(substitution.pos, original),
+      // If genome has matching mutation: removes it (now matches new consensus)
       1 => self.remove_matching_substitution(substitution),
+      // If genome has conflicting mutations: returns error for inconsistent state
       _ => {
         return make_error!(
           "At position {}: sequence states disagree: {:}",
