@@ -177,14 +177,14 @@ impl Edit {
     }
   }
 
+  /// Returns all substitutions at a specific position
+  fn substitutions_at_position(&self, pos: usize) -> Vec<Sub> {
+    self.subs.iter().filter(|s| s.pos == pos).cloned().collect()
+  }
+
   /// Updates alignment for a single mutation during reconsensus
   pub fn update_alignment_for_mutation(&mut self, substitution: &Sub, original: AsciiChar) -> Result<(), Report> {
-    let subs_at_pos: Vec<_> = self
-      .subs
-      .iter()
-      .filter(|s| s.pos == substitution.pos)
-      .cloned()
-      .collect();
+    let subs_at_pos = self.substitutions_at_position(substitution.pos);
 
     match subs_at_pos.len() {
       0 => self.add_reversion_if_not_deleted(substitution.pos, original),
