@@ -88,7 +88,7 @@ pub fn reconsensus_graph(
 
 /// Analyzes blocks to determine which need realignment vs. mutation-only reconsensus
 fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> BlockAnalysis {
-  let (mutations_only, need_realignment): (Vec<_>, Vec<_>) = block_ids
+  let (blocks_requiring_mutations_only, blocks_requiring_full_realignment): (Vec<_>, Vec<_>) = block_ids
     .iter()
     .filter_map(|&block_id| {
       let block = &graph.blocks[&block_id];
@@ -105,37 +105,27 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> Bl
     .partition_map(|either| either);
 
   BlockAnalysis {
-    mutations_only,
-    need_realignment,
+    mutations_only: blocks_requiring_mutations_only,
+    need_realignment: blocks_requiring_full_realignment,
   }
 }
 
 /// Updates alignment for a single mutation
-fn update_alignment_for_mutation(
-  edit: &mut Edit,
-  pos: usize,
-  alt: AsciiChar,
-  original: AsciiChar,
-) -> Result<(), Report> {
-  let subs_at_pos: Vec<_> = edit.subs.iter().filter(|s| s.pos == pos).cloned().collect();
+fn update_alignment_for_mutation(edit: &mut Edit, substitution: &Sub, original: AsciiChar) -> Result<(), Report> {
+  let subs_at_pos: Vec<_> = edit
+    .subs
+    .iter()
+    .filter(|s| s.pos == substitution.pos)
+    .cloned()
+    .collect();
 
   match subs_at_pos.len() {
-    0 => {
-      // if the position is not in a deletion, append the mutation
-      if !edit.dels.iter().any(|d| d.contains(pos)) {
-        edit.subs.push(Sub::new(pos, original));
-        edit.subs.sort_by_key(|s| s.pos);
-      }
-    },
-    1 => {
-      let s = &subs_at_pos[0];
-      if s.alt == alt {
-        edit.subs.retain(|sub| !(sub.pos == pos && sub.alt == alt));
-      }
-    },
+    0 => edit.add_reversion_if_not_deleted(substitution.pos, original),
+    1 => edit.remove_matching_substitution(substitution),
     _ => {
       return make_error!(
-        "At position {pos}: sequence states disagree: {:}",
+        "At position {}: sequence states disagree: {:}",
+        substitution.pos,
         subs_at_pos
           .iter()
           .map(|sub| sub.alt.to_string())
@@ -159,7 +149,7 @@ fn apply_mutation_reconsensus(block: &mut PangraphBlock, subs: &[Sub]) -> Result
     block
       .alignments_mut()
       .values_mut()
-      .try_for_each(|edit| update_alignment_for_mutation(edit, sub.pos, sub.alt, original))
+      .try_for_each(|edit| update_alignment_for_mutation(edit, sub, original))
   })
 }
 

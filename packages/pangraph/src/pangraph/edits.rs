@@ -151,6 +151,31 @@ impl Edit {
     !self.subs.is_empty()
   }
 
+  /// Checks if a position is deleted in this edit
+  #[inline]
+  pub fn is_position_deleted(&self, pos: usize) -> bool {
+    self.dels.iter().any(|d| d.contains(pos))
+  }
+
+  /// Adds reversion mutation when no substitutions exist at a position
+  pub fn add_reversion_if_not_deleted(&mut self, pos: usize, original: AsciiChar) {
+    if !self.is_position_deleted(pos) {
+      self.subs.push(Sub::new(pos, original));
+      self.subs.sort_by_key(|s| s.pos);
+    }
+  }
+
+  /// Removes substitution if it matches the new consensus character
+  pub fn remove_matching_substitution(&mut self, substitution: &Sub) {
+    if let Some(existing_sub) = self.subs.iter().find(|s| s.pos == substitution.pos) {
+      if existing_sub.alt == substitution.alt {
+        self
+          .subs
+          .retain(|sub| !(sub.pos == substitution.pos && sub.alt == substitution.alt));
+      }
+    }
+  }
+
   /// Construct edit which consists of a deletion of length `len`
   pub fn deleted(len: usize) -> Self {
     Self {
