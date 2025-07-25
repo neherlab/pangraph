@@ -1,16 +1,18 @@
 use crate::io::fasta::FastaRecord;
 use crate::io::json::{JsonPretty, json_write_str};
 use crate::io::seq::reverse_complement;
-use crate::pangraph::edits::Edit;
+use crate::pangraph::edits::{Del, Edit, Ins, Sub};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::pangraph_path::PathId;
 use crate::representation::seq::Seq;
 use crate::representation::seq_char::AsciiChar;
 use crate::utils::collections::has_duplicates;
+use crate::utils::interval::positions_to_intervals;
 use derive_more::{Display, From};
 use eyre::{Report, WrapErr};
 use getset::{CopyGetters, Getters};
+use itertools::Itertools;
 use maplit::btreemap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -194,6 +196,72 @@ impl PangraphBlock {
         index: 0,
       })
     })
+  }
+
+  /// Finds all majority edits (substitutions, deletions, insertions) in this block
+  pub fn find_majority_edits(&self) -> Edit {
+    Edit::new(
+      self.find_majority_insertions(),
+      self.find_majority_deletions(),
+      self.find_majority_substitutions(),
+    )
+  }
+
+  /// Helper method to check if a count represents a majority
+  fn is_majority(&self, count: usize) -> bool {
+    count > self.depth() / 2
+  }
+
+  /// Finds majority substitutions in this block
+  pub fn find_majority_substitutions(&self) -> Vec<Sub> {
+    let mut substitutions: Vec<_> = self
+      .alignments()
+      .values()
+      .flat_map(|edit| &edit.subs)
+      .map(|sub| (sub.pos, sub.alt))
+      .into_group_map()
+      .into_iter()
+      .filter_map(|(pos, alts)| {
+        let (alt, count) = alts.into_iter().counts().into_iter().max_by_key(|(_, count)| *count)?;
+        self.is_majority(count).then_some(Sub::new(pos, alt))
+      })
+      .collect();
+
+    substitutions.sort_by_key(|sub| sub.pos);
+    substitutions
+  }
+
+  /// Finds majority deletions in this block
+  pub fn find_majority_deletions(&self) -> Vec<Del> {
+    let majority_positions: Vec<usize> = self
+      .alignments()
+      .values()
+      .flat_map(|edit| edit.dels.iter().flat_map(|del| del.range()))
+      .counts()
+      .into_iter()
+      .filter_map(|(pos, count)| self.is_majority(count).then_some(pos))
+      .collect();
+
+    positions_to_intervals(&majority_positions)
+      .into_iter()
+      .map(|interval| Del::new(interval.start, interval.len()))
+      .collect()
+  }
+
+  /// Finds majority insertions in this block
+  pub fn find_majority_insertions(&self) -> Vec<Ins> {
+    let mut insertions: Vec<_> = self
+      .alignments()
+      .values()
+      .flat_map(|edit| &edit.inss)
+      .map(|insertion| (insertion.pos, insertion.seq.clone()))
+      .counts()
+      .into_iter()
+      .filter_map(|((pos, seq), count)| self.is_majority(count).then_some(Ins::new(pos, seq)))
+      .collect();
+
+    insertions.sort_by_key(|ins| ins.pos);
+    insertions
   }
 }
 

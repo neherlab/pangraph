@@ -1,20 +1,18 @@
 use crate::align::map_variations::{BandParameters, map_variations};
 use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::make_error;
 use crate::pangraph::detach_unaligned::detach_unaligned_nodes;
-use crate::pangraph::edits::{Del, Edit};
-use crate::pangraph::edits::{Ins, Sub};
+use crate::pangraph::edits::Edit;
+use crate::pangraph::edits::Sub;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::NodeId;
-use crate::utils::interval::positions_to_intervals;
-use crate::{make_error, make_report};
 // use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
 use crate::reconsensus::remove_nodes::find_empty_nodes;
 use crate::representation::seq::Seq;
 use crate::representation::seq_char::AsciiChar;
 use eyre::Report;
-use itertools::Itertools;
-use maplit::btreemap;
+use itertools::{Either, Itertools};
 use rayon::prelude::*;
 use std::collections::BTreeMap;
 
@@ -32,205 +30,148 @@ use std::collections::BTreeMap;
 ///   - if the consensus has updated indels, then re-aligns all the sequences to the new consensus
 pub fn reconsensus_graph(
   graph: &mut Pangraph,
-  ids_updated_blocks: Vec<BlockId>,
+  ids_updated_blocks: &[BlockId],
   args: &PangraphBuildArgs,
 ) -> Result<(), Report> {
   // there should be no empty nodes in the graph
   debug_assert!(
-    find_empty_nodes(graph, &ids_updated_blocks).is_empty(),
+    find_empty_nodes(graph, ids_updated_blocks).is_empty(),
     "Empty nodes found in the graph"
   );
 
-  // reconsensus each block
-  // i.e. update the consensus with majority variants
-  // ids of blocks that undergo re-alignment are collected in realigned_block_ids
-  let mut realigned_block_ids = Vec::new();
-  for block_id in ids_updated_blocks {
-    let block = graph
-      .blocks
-      .get_mut(&block_id)
-      .ok_or_else(|| make_report!("Block {} not found in graph during reconsensus", block_id))?;
-    let realigned = reconsensus(block, args)?;
-    if realigned {
-      realigned_block_ids.push(block_id);
-    }
-  }
+  // Analyze blocks and determine which need realignment
+  let (blocks_with_mutations_only, blocks_needing_realignment) =
+    analyze_blocks_for_reconsensus(graph, ids_updated_blocks);
 
-  // For realigned blocks, pop them from graph.blocks, apply detach_unaligned_nodes to the list, and re-add them
-  if !realigned_block_ids.is_empty() {
+  // Apply mutation-only reconsensus (no realignment needed)
+  blocks_with_mutations_only.into_iter().try_for_each(|block_id| {
+    let block = graph.blocks.get_mut(&block_id).unwrap();
+    let majority_edits = block.find_majority_edits();
+    apply_mutation_reconsensus(block, &majority_edits.subs)
+  })?;
+
+  // Handle blocks requiring realignment
+  if !blocks_needing_realignment.is_empty() {
     // Pop the realigned blocks from graph.blocks
-    let mut realigned_blocks = realigned_block_ids
+    let mut realigned_blocks: Vec<_> = blocks_needing_realignment
       .iter()
       .filter_map(|block_id| graph.blocks.remove(block_id))
-      .collect_vec();
+      .collect();
+
+    // Apply full reconsensus with realignment
+    realigned_blocks.iter_mut().try_for_each(|block| {
+      let majority_edits = block.find_majority_edits();
+      apply_full_reconsensus(block, &majority_edits, args)
+    })?;
 
     // Apply detach_unaligned_nodes. This removes unaligned nodes and re-adds them to the list as new blocks.
     detach_unaligned_nodes(&mut realigned_blocks, &mut graph.nodes)?;
 
     // Re-add all the blocks (including potentially new singleton blocks) to graph.blocks
-    graph
-      .blocks
-      .extend(realigned_blocks.into_iter().map(|block| (block.id(), block)));
+    realigned_blocks.into_iter().for_each(|block| {
+      graph.blocks.insert(block.id(), block);
+    });
   }
 
   Ok(())
 }
 
-/// Performs the reconsensus operation inplace on a block.
-/// Returns true or false, depending on whether sequences were re-aligned or not.
-/// - if a position is mutated in > N/2 sites, it adds the mutation to the consensus and updates the alignment.
-/// - if an in/del is present in > N/2 sites, it adds it to the consensus and re-aligns the sequences to the updated consensus.
-fn reconsensus(block: &mut PangraphBlock, args: &PangraphBuildArgs) -> Result<bool, Report> {
-  reconsensus_mutations(block)?;
-  let ins = majority_insertions(block);
-  let dels = majority_deletions(block);
-  let re_align = !ins.is_empty() || !dels.is_empty();
-  if re_align {
+/// Analyzes blocks to determine which need realignment vs. mutation-only reconsensus
+fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> (Vec<BlockId>, Vec<BlockId>) {
+  let (mutations_only, need_realignment): (Vec<_>, Vec<_>) = block_ids
+    .iter()
+    .filter_map(|&block_id| {
+      let block = &graph.blocks[&block_id];
+      let majority_edits = block.find_majority_edits();
+
+      if majority_edits.has_indels() {
+        Some(Either::Right(block_id))
+      } else if majority_edits.has_subs() {
+        Some(Either::Left(block_id))
+      } else {
+        None // Blocks with no variants are skipped
+      }
+    })
+    .partition_map(|either| either);
+
+  (mutations_only, need_realignment)
+}
+
+/// Updates alignment for a single mutation
+fn update_alignment_for_mutation(
+  edit: &mut Edit,
+  pos: usize,
+  alt: AsciiChar,
+  original: AsciiChar,
+) -> Result<(), Report> {
+  let subs_at_pos: Vec<_> = edit.subs.iter().filter(|s| s.pos == pos).cloned().collect();
+
+  match subs_at_pos.len() {
+    0 => {
+      // if the position is not in a deletion, append the mutation
+      if !edit.dels.iter().any(|d| d.contains(pos)) {
+        edit.subs.push(Sub::new(pos, original));
+        edit.subs.sort_by_key(|s| s.pos);
+      }
+    },
+    1 => {
+      let s = &subs_at_pos[0];
+      if s.alt == alt {
+        edit.subs.retain(|sub| !(sub.pos == pos && sub.alt == alt));
+      }
+    },
+    _ => {
+      return make_error!(
+        "At position {pos}: sequence states disagree: {:}",
+        subs_at_pos
+          .iter()
+          .map(|sub| sub.alt.to_string())
+          .collect_vec()
+          .join(", ")
+      );
+    },
+  }
+  Ok(())
+}
+
+/// Applies only mutation reconsensus without realignment
+fn apply_mutation_reconsensus(block: &mut PangraphBlock, subs: &[Sub]) -> Result<(), Report> {
+  subs.iter().try_for_each(|sub| {
+    let original = block.consensus()[sub.pos];
+
+    // Update consensus
+    block.set_consensus_char(sub.pos, sub.alt);
+
+    // Update alignments
+    block
+      .alignments_mut()
+      .values_mut()
+      .try_for_each(|edit| update_alignment_for_mutation(edit, sub.pos, sub.alt, original))
+  })
+}
+
+/// Applies full reconsensus including indels and realignment
+fn apply_full_reconsensus(
+  block: &mut PangraphBlock,
+  majority_edits: &Edit,
+  args: &PangraphBuildArgs,
+) -> Result<(), Report> {
+  // First apply mutations
+  apply_mutation_reconsensus(block, &majority_edits.subs)?;
+
+  // Then apply indels and realign if present
+  if majority_edits.has_indels() {
     let consensus = block.consensus();
-    let consensus = apply_indels(consensus, &dels, &ins);
-    // average shift of the new consensus with respect to the old one
-    // once the indels are applied
-    // used to help re-align the sequences
-    let new_consensus_edits = Edit {
-      subs: vec![],
-      dels: positions_to_intervals(&dels)
-        .iter()
-        .map(|d| Del::new(d.start, d.len()))
-        .collect(),
-      inss: ins,
-    };
+    let new_consensus = majority_edits.apply(consensus)?;
 
-    let new_consensus_band_params = BandParameters::from_edits(&new_consensus_edits, block.consensus_len())?;
+    let band_params = BandParameters::from_edits(majority_edits, block.consensus_len())?;
 
-    // debug assert: consensus is not empty
-    debug_assert!(!consensus.is_empty(), "Consensus is empty after indels");
+    debug_assert!(!new_consensus.is_empty(), "Consensus is empty after indels");
 
-    update_block_consensus(block, &consensus, new_consensus_band_params, args)?;
-  }
-  Ok(re_align)
-}
-
-/// Re-computes the consensus for a block if a position is mutated in > N/2 sites.
-fn reconsensus_mutations(block: &mut PangraphBlock) -> Result<(), Report> {
-  let n = block.depth();
-  let mut muts = btreemap! {};
-
-  // count mutations
-  for edit in block.alignments().values() {
-    for s in &edit.subs {
-      *muts
-        .entry(s.pos)
-        .or_insert_with(BTreeMap::new)
-        .entry(s.alt)
-        .or_insert(0) += 1;
-    }
-  }
-
-  // change positions that are different in more than N/2 sites.
-  let mut changes = Vec::new();
-  for (pos, ct) in muts {
-    let (alt, count) = ct.iter().max_by_key(|&(_, v)| v).unwrap();
-    if *count > n / 2 {
-      changes.push((pos, *alt));
-    }
-  }
-
-  // apply change
-  for (pos, alt) in changes {
-    let original = block.consensus()[pos];
-
-    // update consensus
-    block.set_consensus_char(pos, alt);
-
-    // change mutations
-    for edit in &mut block.alignments_mut().values_mut() {
-      let subs_at_pos: Vec<_> = edit.subs.iter().filter(|s| s.pos == pos).cloned().collect();
-      match subs_at_pos.len() {
-        0 => {
-          // if the position is not in a deletion, append the mutation
-          if !edit.dels.iter().any(|d| d.contains(pos)) {
-            edit.subs.push(Sub::new(pos, original));
-            edit.subs.sort_by_key(|s| s.pos);
-          }
-        },
-        1 => {
-          let s = &subs_at_pos[0];
-          if s.alt == alt {
-            edit.subs.retain(|sub| !(sub.pos == pos && sub.alt == alt));
-          }
-        },
-        _ => {
-          return make_error!(
-            "At block {}: at position {pos}: sequence states disagree: {:}",
-            block.id(),
-            subs_at_pos
-              .iter()
-              .map(|sub| sub.alt.to_string())
-              .collect_vec()
-              .join(", ")
-          );
-        },
-      }
-    }
+    update_block_consensus(block, &new_consensus, band_params, args)?;
   }
 
   Ok(())
-}
-
-/// Returns a list of positions to be removed from the consensus, because they are deleted in > N/2 sites.
-fn majority_deletions(block: &PangraphBlock) -> Vec<usize> {
-  let n = block.depth();
-  let mut n_dels = btreemap! {};
-  // for each deleted position, increment the counter
-  for edit in block.alignments().values() {
-    for d in &edit.dels {
-      for pos in d.range() {
-        *n_dels.entry(pos).or_insert(0) += 1;
-      }
-    }
-  }
-  // return the positions that are deleted in more than N/2 sites
-  n_dels
-    .into_iter()
-    .filter(|&(_, count)| count > n / 2)
-    .map(|(pos, _)| pos)
-    .collect()
-}
-
-/// Returns a list of insertions to be added to the consensus, because they are inserted in > N/2 sites.
-fn majority_insertions(block: &PangraphBlock) -> Vec<Ins> {
-  let n = block.depth();
-  let mut n_ins = btreemap! {};
-  for edit in block.alignments().values() {
-    for i in &edit.inss {
-      *n_ins.entry((i.pos, i.seq.clone())).or_insert(0) += 1;
-    }
-  }
-
-  // return the positions that are inserted in more than N/2 sites
-  n_ins
-    .into_iter()
-    .filter(|&(_, count)| count > n / 2)
-    .map(|((pos, ins), _)| Ins::new(pos, ins))
-    .collect()
-}
-
-/// Updates the consensus sequence with the deletions and insertions.
-fn apply_indels(cons: impl Into<Seq>, dels: &[usize], inss: &[Ins]) -> Seq {
-  let mut cons = cons.into();
-
-  for &pos in dels {
-    cons[pos] = AsciiChar(b'\0'); // Using '\0' to temporarily denote deleted positions
-  }
-
-  // Reverse to maintain correct insertion indexes after each insert
-  for Ins { pos, seq } in inss.iter().rev() {
-    cons.insert_seq(*pos, seq);
-  }
-
-  cons.retain(|&c| c != AsciiChar(b'\0'));
-
-  cons
 }
 
 /// Updates the consensus sequence of the block and re-aligns the sequences to the new consensus.
@@ -258,16 +199,14 @@ fn update_block_consensus(
   // debug assets: all sequences are non-empty
   #[cfg(any(debug_assertions, test))]
   {
-    for (nid, (seq, _bp)) in &seqs {
-      if seq.is_empty() {
-        return make_error!(
-          "node is empty!\nblock: {}\nnode: {}\nedits: {:?}\nconsensus: {}",
-          block.id(),
-          nid,
-          block.alignments().get(nid),
-          block.consensus()
-        );
-      }
+    if let Some((nid, (_seq, _))) = seqs.iter().find(|(_, (seq, _))| seq.is_empty()) {
+      return make_error!(
+        "node is empty!\nblock: {}\nnode: {}\nedits: {:?}\nconsensus: {}",
+        block.id(),
+        nid,
+        block.alignments().get(nid),
+        block.consensus()
+      );
     }
   }
 
@@ -425,28 +364,34 @@ mod tests {
   fn test_reconsensus_mutations() {
     let mut block = block_1();
     let expected_block = block_1_mut_reconsensus();
-    reconsensus_mutations(&mut block).unwrap();
+    let subs = block.find_majority_substitutions();
+    apply_mutation_reconsensus(&mut block, &subs).unwrap();
     assert_eq!(block, expected_block);
   }
 
   #[test]
   fn test_majority_deletions() {
-    let dels = majority_deletions(&block_2());
+    let dels: Vec<usize> = block_2()
+      .find_majority_deletions()
+      .iter()
+      .flat_map(|d| d.range())
+      .collect();
     assert_eq!(dels, vec![5, 6, 20]);
   }
 
   #[test]
   fn test_majority_insertions() {
-    let ins = majority_insertions(&block_2());
+    let ins = block_2().find_majority_insertions();
     assert_eq!(ins, vec![Ins::new(0, "G"), Ins::new(13, "AA"), Ins::new(23, "TT")]);
   }
 
   #[test]
-  fn test_apply_indels() {
+  fn test_apply_edits() {
     let consensus = "AGGACTTCGATCTATTCGGAGAA";
-    let dels = vec![5, 6, 20];
+    let dels = vec![Del::new(5, 2), Del::new(20, 1)];
     let ins = vec![Ins::new(0, "G"), Ins::new(13, "AA"), Ins::new(23, "TT")];
-    let cons = apply_indels(consensus, &dels, &ins);
+    let edit = Edit::new(ins, dels, vec![]);
+    let cons = edit.apply(consensus).unwrap();
     assert_eq!(cons, "GAGGACCGATCTAAATTCGGAAATT");
   }
 
@@ -454,8 +399,22 @@ mod tests {
   fn test_reconsensus() {
     let mut block = block_3();
     let expected_block = block_3_reconsensus();
-    let re_aligned = reconsensus(&mut block, &PangraphBuildArgs::default()).unwrap();
-    assert!(re_aligned);
+
+    let majority_edits = block.find_majority_edits();
+
+    // Apply mutations
+    apply_mutation_reconsensus(&mut block, &majority_edits.subs).unwrap();
+
+    // Apply indels if present
+    let has_indels = majority_edits.has_indels();
+    if has_indels {
+      let consensus = block.consensus();
+      let new_consensus = majority_edits.apply(consensus).unwrap();
+      let band_params = BandParameters::from_edits(&majority_edits, block.consensus_len()).unwrap();
+      update_block_consensus(&mut block, &new_consensus, band_params, &PangraphBuildArgs::default()).unwrap();
+    }
+
+    assert!(has_indels); // This test expects realignment to have occurred
     assert_eq!(block.consensus(), expected_block.consensus());
     assert_eq!(block.alignments(), expected_block.alignments());
   }
@@ -464,10 +423,15 @@ mod tests {
   fn test_reconsensus_mutations_only_no_realignment() {
     let mut block = block_mutations_only();
     let expected_block = block_mutations_only_after_reconsensus();
-    let re_aligned = reconsensus(&mut block, &PangraphBuildArgs::default()).unwrap();
 
-    // Should return false because no indels require re-alignment
-    assert!(!re_aligned);
+    let majority_edits = block.find_majority_edits();
+
+    // Apply mutations
+    apply_mutation_reconsensus(&mut block, &majority_edits.subs).unwrap();
+
+    // Check that no indels require re-alignment
+    let has_indels = majority_edits.has_indels();
+    assert!(!has_indels); // Should return false because no indels require re-alignment
 
     // But consensus should be updated and mutations healed
     assert_eq!(block.consensus(), expected_block.consensus());
@@ -544,7 +508,7 @@ mod tests {
     let mut graph = Pangraph { paths, blocks, nodes };
 
     // Apply reconsensus_graph
-    let result = reconsensus_graph(&mut graph, vec![initial_block.id()], &PangraphBuildArgs::default());
+    let result = reconsensus_graph(&mut graph, &[initial_block.id()], &PangraphBuildArgs::default());
 
     // Check that the operation succeeded
     result.unwrap();
