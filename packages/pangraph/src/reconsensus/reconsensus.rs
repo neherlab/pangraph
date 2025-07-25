@@ -10,7 +10,6 @@ use crate::pangraph::pangraph_node::NodeId;
 // use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
 use crate::reconsensus::remove_nodes::find_empty_nodes;
 use crate::representation::seq::Seq;
-use crate::representation::seq_char::AsciiChar;
 use eyre::Report;
 use itertools::{Either, Itertools};
 use rayon::prelude::*;
@@ -110,33 +109,6 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> Bl
   }
 }
 
-/// Updates alignment for a single mutation
-fn update_alignment_for_mutation(edit: &mut Edit, substitution: &Sub, original: AsciiChar) -> Result<(), Report> {
-  let subs_at_pos: Vec<_> = edit
-    .subs
-    .iter()
-    .filter(|s| s.pos == substitution.pos)
-    .cloned()
-    .collect();
-
-  match subs_at_pos.len() {
-    0 => edit.add_reversion_if_not_deleted(substitution.pos, original),
-    1 => edit.remove_matching_substitution(substitution),
-    _ => {
-      return make_error!(
-        "At position {}: sequence states disagree: {:}",
-        substitution.pos,
-        subs_at_pos
-          .iter()
-          .map(|sub| sub.alt.to_string())
-          .collect_vec()
-          .join(", ")
-      );
-    },
-  }
-  Ok(())
-}
-
 /// Applies only mutation reconsensus without realignment
 fn apply_mutation_reconsensus(block: &mut PangraphBlock, subs: &[Sub]) -> Result<(), Report> {
   subs.iter().try_for_each(|sub| {
@@ -149,7 +121,7 @@ fn apply_mutation_reconsensus(block: &mut PangraphBlock, subs: &[Sub]) -> Result
     block
       .alignments_mut()
       .values_mut()
-      .try_for_each(|edit| update_alignment_for_mutation(edit, sub, original))
+      .try_for_each(|edit| edit.update_alignment_for_mutation(sub, original))
   })
 }
 

@@ -1,4 +1,5 @@
 use crate::io::seq::{complement, reverse_complement};
+use crate::make_error;
 use crate::representation::seq::Seq;
 use crate::representation::seq_char::AsciiChar;
 use crate::utils::interval::Interval;
@@ -174,6 +175,33 @@ impl Edit {
           .retain(|sub| !(sub.pos == substitution.pos && sub.alt == substitution.alt));
       }
     }
+  }
+
+  /// Updates alignment for a single mutation during reconsensus
+  pub fn update_alignment_for_mutation(&mut self, substitution: &Sub, original: AsciiChar) -> Result<(), Report> {
+    let subs_at_pos: Vec<_> = self
+      .subs
+      .iter()
+      .filter(|s| s.pos == substitution.pos)
+      .cloned()
+      .collect();
+
+    match subs_at_pos.len() {
+      0 => self.add_reversion_if_not_deleted(substitution.pos, original),
+      1 => self.remove_matching_substitution(substitution),
+      _ => {
+        return make_error!(
+          "At position {}: sequence states disagree: {:}",
+          substitution.pos,
+          subs_at_pos
+            .iter()
+            .map(|sub| sub.alt.to_string())
+            .collect_vec()
+            .join(", ")
+        );
+      },
+    }
+    Ok(())
   }
 
   /// Construct edit which consists of a deletion of length `len`
