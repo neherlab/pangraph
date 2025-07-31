@@ -272,3 +272,329 @@ pub enum RecordNaming {
   Node,
   Path,
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use crate::pangraph::edits::{Del, Edit, Ins, Sub};
+  use crate::pangraph::pangraph_node::NodeId;
+  use maplit::btreemap;
+  use pretty_assertions::assert_eq;
+
+  fn s(pos: usize, alt: char) -> Sub {
+    Sub::new(pos, alt)
+  }
+
+  fn e_subs(subs: Vec<Sub>) -> Edit {
+    Edit::new(vec![], vec![], subs)
+  }
+
+  fn d(pos: usize, len: usize) -> Del {
+    Del::new(pos, len)
+  }
+
+  fn e_dels(dels: Vec<Del>) -> Edit {
+    Edit::new(vec![], dels, vec![])
+  }
+
+  fn i(pos: usize, seq: &str) -> Ins {
+    Ins::new(pos, seq)
+  }
+
+  fn e_inss(inss: Vec<Ins>) -> Edit {
+    Edit::new(inss, vec![], vec![])
+  }
+
+  #[test]
+  fn test_find_majority_substitutions_single_node() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => e_subs(vec![s(0, 'G'), s(2, 'A')])
+      },
+    );
+    let result = block.find_majority_substitutions();
+    // Single node is always majority (1 > 0)
+    assert_eq!(result, vec![s(0, 'G'), s(2, 'A')]);
+  }
+
+  #[test]
+  fn test_find_majority_substitutions_no_majority() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => e_subs(vec![s(0, 'G')]),
+        NodeId(2) => e_subs(vec![s(0, 'C')]),
+        NodeId(3) => e_subs(vec![s(0, 'T')]),
+      },
+    );
+    let result = block.find_majority_substitutions();
+    // No substitution has majority (1 is not > 3/2 = 1)
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn test_find_majority_substitutions_clear_majority() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => e_subs(vec![s(0, 'G'), s(2, 'A')]),
+        NodeId(2) => e_subs(vec![s(0, 'G'), s(3, 'A')]),
+        NodeId(3) => e_subs(vec![s(0, 'C'), s(2, 'A')]),
+      },
+    );
+    let result = block.find_majority_substitutions();
+    assert_eq!(result, vec![s(0, 'G'), s(2, 'A')]);
+  }
+
+  #[test]
+  fn test_find_majority_substitutions_tie_no_majority() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => e_subs(vec![]),
+        NodeId(2) => e_subs(vec![]),
+        NodeId(3) => e_subs(vec![s(0, 'C')]),
+        NodeId(4) => e_subs(vec![s(0, 'C')]),
+      },
+    );
+    let result = block.find_majority_substitutions();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn test_find_majority_deletions_single_node() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCGAA",
+      btreemap! {
+        NodeId(1) => e_dels(vec![d(1, 2), d(4, 1)])
+      },
+    );
+    let result = block.find_majority_deletions();
+    // Single node is always majority (1 > 0)
+    assert_eq!(result, vec![d(1, 2), d(4, 1)]);
+  }
+
+  #[test]
+  fn test_find_majority_deletions_no_majority() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCGAA",
+      btreemap! {
+        NodeId(1) => e_dels(vec![d(0, 1)]),
+        NodeId(2) => e_dels(vec![d(1, 1)]),
+        NodeId(3) => e_dels(vec![d(2, 1)]),
+      },
+    );
+    let result = block.find_majority_deletions();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn test_find_majority_deletions_clear_majority() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCGAA",
+      btreemap! {
+        NodeId(1) => e_dels(vec![d(1, 2), d(4, 1)]),
+        NodeId(2) => e_dels(vec![d(1, 2), d(5, 1)]),
+        NodeId(3) => e_dels(vec![d(0, 1), d(4, 1)]),
+      },
+    );
+    let result = block.find_majority_deletions();
+    assert_eq!(result, vec![d(1, 2), d(4, 1)]);
+  }
+
+  #[test]
+  fn test_find_majority_deletions_overlapping_intervals() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCGAATT",
+      btreemap! {
+        NodeId(1) => e_dels(vec![d(1, 3)]),    // deletes positions 1,2,3
+        NodeId(2) => e_dels(vec![d(2, 3)]),    // deletes positions 2,3,4
+        NodeId(3) => e_dels(vec![d(3, 2)]),    // deletes positions 3,4
+        NodeId(4) => e_dels(vec![d(6, 1)]),    // deletes position 6
+        NodeId(5) => e_dels(vec![d(6, 2)]),    // deletes positions 6,7
+      },
+    );
+    let result = block.find_majority_deletions();
+    assert_eq!(result, vec![d(3, 1)]);
+  }
+
+  #[test]
+  fn test_find_majority_deletions_contiguous_intervals() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCGAATT",
+      btreemap! {
+        NodeId(1) => e_dels(vec![d(1, 1), d(2, 1), d(3, 1)]),  // deletes 1,2,3 separately
+        NodeId(2) => e_dels(vec![d(1, 3)]),                     // deletes 1,2,3 as one interval
+        NodeId(3) => e_dels(vec![d(1, 1), d(2, 2)]),           // deletes 1, then 2,3
+        NodeId(4) => e_dels(vec![d(5, 1)]),                     // deletes 5
+        NodeId(5) => e_dels(vec![d(5, 1), d(6, 1)]),           // deletes 5,6 separately
+      },
+    );
+    let result = block.find_majority_deletions();
+    assert_eq!(result, vec![d(1, 3)]);
+  }
+
+  #[test]
+  fn test_find_majority_insertions_empty_block() {
+    let block = PangraphBlock::new(BlockId(1), "ATCG", btreemap! {});
+    let result = block.find_majority_insertions();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn test_find_majority_insertions_single_node() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => e_inss(vec![i(1, "GG"), i(3, "AA")])
+      },
+    );
+    let result = block.find_majority_insertions();
+    // Single node is always majority (1 > 0)
+    assert_eq!(result, vec![i(1, "GG"), i(3, "AA")]);
+  }
+
+  #[test]
+  fn test_find_majority_insertions_no_majority() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => e_inss(vec![i(1, "A")]),
+        NodeId(2) => e_inss(vec![i(1, "T")]),
+        NodeId(3) => e_inss(vec![i(1, "G")]),
+      },
+    );
+    let result = block.find_majority_insertions();
+    // No insertion has majority (1 is not > 3/2 = 1)
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn test_find_majority_insertions_clear_majority() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => e_inss(vec![i(1, "GGG"), i(3, "A")]),
+        NodeId(2) => e_inss(vec![i(1, "GGG"), i(2, "TT")]),
+        NodeId(3) => e_inss(vec![i(1, "CC"), i(3, "A")]),
+      },
+    );
+    let result = block.find_majority_insertions();
+    assert_eq!(result, vec![i(1, "GGG"), i(3, "A")]);
+  }
+
+  #[test]
+  fn test_find_majority_insertions_exact_sequence_match() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => e_inss(vec![i(1, "ATG")]),
+        NodeId(2) => e_inss(vec![i(1, "ATG")]),
+        NodeId(3) => e_inss(vec![i(1, "ATG")]),
+        NodeId(4) => e_inss(vec![i(1, "GTA")]),
+        NodeId(5) => e_inss(vec![i(1, "GTA")]),
+      },
+    );
+    let result = block.find_majority_insertions();
+    assert_eq!(result, vec![i(1, "ATG")]);
+  }
+
+  #[test]
+  fn test_find_majority_insertions_different_positions() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCGAA",
+      btreemap! {
+        NodeId(1) => e_inss(vec![i(0, "G"), i(2, "T"), i(4, "C")]),
+        NodeId(2) => e_inss(vec![i(0, "G"), i(3, "A"), i(5, "T")]),
+        NodeId(3) => e_inss(vec![i(1, "A"), i(2, "T"), i(4, "C")]),
+        NodeId(4) => e_inss(vec![i(0, "C"), i(2, "T"), i(6, "G")]),
+        NodeId(5) => e_inss(vec![i(0, "G"), i(3, "A"), i(4, "C")]),
+      },
+    );
+    let result = block.find_majority_insertions();
+    assert_eq!(result, vec![i(0, "G"), i(2, "T"), i(4, "C")]);
+  }
+
+  #[test]
+  fn test_find_majority_insertions_tie_no_majority() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => e_inss(vec![]),
+        NodeId(2) => e_inss(vec![]),
+        NodeId(3) => e_inss(vec![i(1, "AA")]),
+        NodeId(4) => e_inss(vec![i(1, "AA")]),
+      },
+    );
+    let result = block.find_majority_insertions();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn test_find_majority_edits() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => Edit::empty(),
+        NodeId(2) => Edit::empty(),
+        NodeId(3) => Edit::empty(),
+      },
+    );
+    let result = block.find_majority_edits();
+    assert!(result.is_empty());
+  }
+
+  #[test]
+  fn test_find_majority_edits_comprehensive() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCGAATT",
+      btreemap! {
+        NodeId(1) => Edit::new(vec![i(1, "GG"), i(4, "C")], vec![d(2, 1), d(6, 1)], vec![s(0, 'G'), s(5, 'C')]),
+        NodeId(2) => Edit::new(vec![i(1, "GG"), i(3, "A")], vec![d(2, 1), d(7, 1)], vec![s(0, 'G'), s(5, 'T')]),
+        NodeId(3) => Edit::new(vec![i(1, "AA"), i(4, "C")], vec![d(2, 1), d(6, 1)], vec![s(0, 'C'), s(5, 'C')]),
+        NodeId(4) => Edit::new(vec![i(1, "GG"), i(4, "C")], vec![d(1, 1), d(6, 1)], vec![s(0, 'G'), s(4, 'A')]),
+        NodeId(5) => Edit::new(vec![i(1, "GG"), i(4, "C")], vec![d(2, 1), d(5, 1)], vec![s(0, 'G'), s(5, 'C')]),
+      },
+    );
+    let result = block.find_majority_edits();
+
+    // Depth = 5, majority threshold = 5/2 = 2, so need > 2 = at least 3
+
+    // Insertions:
+    // Position 1: GG appears 4 times (majority), AA appears 1 time
+    // Position 4: C appears 4 times (majority)
+    // Position 3: A appears 1 time (not majority)
+
+    // Deletions:
+    // Position 2: deleted by 4 nodes (majority)
+    // Position 6: deleted by 4 nodes (majority)
+    // Position 1,5,7: deleted by 1 node each (not majority)
+
+    // Substitutions:
+    // Position 0: G appears 4 times (majority), C appears 1 time
+    // Position 5: C appears 3 times (majority), T appears 1 time
+    // Position 4: A appears 1 time (not majority)
+
+    assert_eq!(result.inss, vec![i(1, "GG"), i(4, "C")]);
+    assert_eq!(result.dels, vec![d(2, 1), d(6, 1)]);
+    assert_eq!(result.subs, vec![s(0, 'G'), s(5, 'C')]);
+  }
+}
