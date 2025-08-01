@@ -20,9 +20,9 @@ use std::collections::BTreeMap;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct BlockAnalysis {
   /// Blocks that need only mutation-based reconsensus (no realignment)
-  mutations_only: Vec<BlockId>,
+  mutations_only: Vec<(BlockId, Edit)>,
   /// Blocks that need full reconsensus with realignment due to indels
-  need_realignment: Vec<BlockId>,
+  need_realignment: Vec<(BlockId, Edit)>,
 }
 
 /// Applies the reconsensus operation to each updated block in the graph:
@@ -52,33 +52,37 @@ pub fn reconsensus_graph(
   let analysis = analyze_blocks_for_reconsensus(graph, ids_updated_blocks);
 
   // Apply mutation-only reconsensus (no realignment needed)
-  analysis.mutations_only.into_iter().try_for_each(|block_id| {
+  analysis.mutations_only.into_iter().try_for_each(|(block_id, edits)| {
     let block = graph
       .blocks
       .get_mut(&block_id)
       .ok_or_else(|| make_report!("Block {} not found in graph", block_id))?;
-    let majority_edits = block.find_majority_edits();
-    apply_mutation_reconsensus(block, &majority_edits.subs)
-      .wrap_err_with(|| format!("When processing block {}", block.id()))
+    apply_mutation_reconsensus(block, &edits.subs).wrap_err_with(|| format!("When processing block {}", block.id()))
   })?;
 
   // Handle blocks requiring realignment
   if !analysis.need_realignment.is_empty() {
-    // Pop the realigned blocks from graph.blocks
-    let mut realigned_blocks: Vec<_> = analysis
+    let mut realigned_blocks: Vec<PangraphBlock> = analysis
       .need_realignment
-      .iter()
-      .filter_map(|block_id| graph.blocks.remove(block_id))
-      .collect();
+      .into_iter()
+      .map(|(block_id, edits)| {
+        // Pop the realigned blocks from graph.blocks
+        let mut block = graph
+          .blocks
+          .remove(&block_id)
+          .ok_or_else(|| make_report!("Block {} not found in graph", block_id))?;
 
-    // Apply full reconsensus with realignment
-    realigned_blocks.iter_mut().try_for_each(|block| {
-      let majority_edits = block.find_majority_edits();
-      apply_full_reconsensus(block, &majority_edits, args)
-        .wrap_err_with(|| format!("When processing block {}", block.id()))
-    })?;
+        // Apply full reconsensus with realignment
+        apply_full_reconsensus(&mut block, &edits, args)
+          .wrap_err_with(|| format!("When processing block {}", block.id()))?;
+        // Return the realigned block if successful
+        Ok::<PangraphBlock, Report>(block)
+      })
+      .collect::<Result<Vec<_>, _>>()?;
 
-    // Apply detach_unaligned_nodes. This removes unaligned nodes and re-adds them to the list as new blocks.
+    // Apply detach_unaligned_nodes. This removes unaligned nodes and re-adds them to
+    // the `realigned_blocks` list as new blocks.
+    // it also modifies the nodes dictionary accordingly.
     detach_unaligned_nodes(&mut realigned_blocks, &mut graph.nodes)?;
 
     // Re-add all the blocks (including potentially new singleton blocks) to graph.blocks
@@ -99,9 +103,9 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> Bl
       let majority_edits = block.find_majority_edits();
 
       if majority_edits.has_indels() {
-        Some(Either::Right(block_id))
+        Some(Either::Right((block_id, majority_edits)))
       } else if majority_edits.has_subs() {
-        Some(Either::Left(block_id))
+        Some(Either::Left((block_id, majority_edits)))
       } else {
         None // Blocks with no variants are skipped
       }
