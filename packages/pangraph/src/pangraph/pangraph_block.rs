@@ -1,6 +1,7 @@
 use crate::io::fasta::FastaRecord;
 use crate::io::json::{JsonPretty, json_write_str};
 use crate::io::seq::reverse_complement;
+use crate::make_internal_error;
 use crate::pangraph::edits::{Del, Edit, Ins, Sub};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_node::NodeId;
@@ -78,18 +79,6 @@ impl PangraphBlock {
 
   pub fn consensus(&self) -> &Seq {
     &self.consensus
-  }
-
-  pub fn consensus_mut(&mut self) -> &mut Seq {
-    &mut self.consensus
-  }
-
-  pub fn set_consensus(&mut self, consensus: Seq) {
-    self.consensus = consensus;
-  }
-
-  pub fn set_consensus_char(&mut self, pos: usize, c: AsciiChar) {
-    self.consensus[pos] = c;
   }
 
   pub fn consensus_len(&self) -> usize {
@@ -263,6 +252,38 @@ impl PangraphBlock {
 
     insertions.sort_by_key(|ins| ins.pos);
     insertions
+  }
+
+  /// Change a nucleotide in the consensus sequence at a specific position
+  /// and update the alignments accordingly, without changing the block sequences.
+  pub fn change_consensus_nucleotide_at_pos(&mut self, pos: usize, c: AsciiChar) -> Result<(), Report> {
+    if pos >= self.consensus_len() {
+      return make_internal_error!(
+        "Position {pos} is out of bounds for consensus of length {}",
+        self.consensus_len()
+      );
+    }
+
+    // get the original character
+    let original_char = self.consensus[pos];
+    // check: the two must be different
+    if original_char == c {
+      return make_internal_error!(
+        "Cannot change consensus character at position {pos} to '{c}' because it is already '{original_char}'"
+      );
+    }
+
+    // update the consensus
+    self.consensus[pos] = c;
+
+    // Update the alignments
+    self.alignments_mut().values_mut().try_for_each(|edit| {
+      edit
+        .reconcile_substitution_with_consensus(&Sub::new(pos, c), original_char)
+        .wrap_err_with(|| format!("When reconciling substitution at position {pos} with character '{c}'"))
+    })?;
+
+    Ok(())
   }
 }
 
@@ -596,5 +617,92 @@ mod tests {
     assert_eq!(result.inss, vec![i(1, "GG"), i(4, "C")]);
     assert_eq!(result.dels, vec![d(2, 1), d(6, 1)]);
     assert_eq!(result.subs, vec![s(0, 'G'), s(5, 'C')]);
+  }
+
+  #[test]
+  fn test_change_consensus_nucleotide_at_pos_basic() {
+    let mut block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => Edit::empty(),
+        NodeId(2) => e_subs(vec![s(1, 'G'), s(2, 'C')]),
+        NodeId(3) => e_subs(vec![s(1, 'A')]),
+      },
+    );
+
+    let expected_block = PangraphBlock::new(
+      BlockId(1),
+      "AGCG",
+      btreemap! {
+        NodeId(1) => e_subs(vec![s(1, 'T')]),
+        NodeId(2) => e_subs(vec![s(2, 'C')]),
+        NodeId(3) => e_subs(vec![s(1, 'A')]),
+      },
+    );
+
+    // Change position 1 from T to G
+    block.change_consensus_nucleotide_at_pos(1, 'G'.into()).unwrap();
+    assert_eq!(block, expected_block);
+  }
+
+  #[test]
+  fn test_change_consensus_nucleotide_at_pos_with_deletion() {
+    let mut block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => e_dels(vec![d(1, 2)]), // Node 1 deletes positions 1-2 (TC)
+        NodeId(2) => Edit::empty(),
+        NodeId(3) => e_subs(vec![s(1, 'A')]),
+        NodeId(4) => e_subs(vec![s(1, 'G')]),
+      },
+    );
+
+    let expected_block = PangraphBlock::new(
+      BlockId(1),
+      "AGCG",
+      btreemap! {
+        NodeId(1) => e_dels(vec![d(1, 2)]),
+        NodeId(2) => e_subs(vec![s(1, 'T')]), // Node 2 should get a reversion substitution T at position 1
+        NodeId(3) => e_subs(vec![s(1, 'A')]), // Node 3's substitution remains unchanged
+        NodeId(4) => Edit::empty(), // Node 4's substitution is removed (now matches consensus)
+      },
+    );
+
+    // Change position 1 from T to G
+    block.change_consensus_nucleotide_at_pos(1, 'G'.into()).unwrap();
+    assert_eq!(block, expected_block);
+  }
+
+  #[test]
+  fn test_change_consensus_nucleotide_at_pos_out_of_bounds() {
+    let mut block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => Edit::empty(),
+      },
+    );
+
+    // Try to change position 4 (out of bounds for length 4)
+    let result = block.change_consensus_nucleotide_at_pos(4, 'A'.into());
+    assert!(result.is_err());
+  }
+
+  #[test]
+  fn test_change_consensus_nucleotide_at_pos_same_character() {
+    let mut block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => Edit::empty(),
+      },
+    );
+
+    // Try to change position 1 to the same character (T)
+    let result = block.change_consensus_nucleotide_at_pos(1, 'T'.into());
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("already"));
   }
 }
