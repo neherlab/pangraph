@@ -1201,4 +1201,47 @@ mod tests {
     let edit_empty = Edit::empty();
     assert!(!edit_empty.has_subs());
   }
+
+  #[test]
+  fn test_is_position_deleted() {
+    // Edit with no deletions
+    let edit_no_dels = Edit::new(vec![Ins::new(10, "ATG")], vec![], vec![Sub::new(1, 'A')]);
+    assert!(!edit_no_dels.is_position_deleted(0));
+    assert!(!edit_no_dels.is_position_deleted(5));
+    assert!(!edit_no_dels.is_position_deleted(10));
+
+    // Edit with single deletion at positions 5-7 (length 3)
+    let edit_single_del = Edit::new(vec![], vec![Del::new(5, 3)], vec![]);
+    assert!(!edit_single_del.is_position_deleted(4)); // position before deletion
+    assert!(edit_single_del.is_position_deleted(5)); // first position of deletion
+    assert!(edit_single_del.is_position_deleted(6)); // middle position of deletion
+    assert!(edit_single_del.is_position_deleted(7)); // last position of deletion
+    assert!(!edit_single_del.is_position_deleted(8)); // position after deletion
+
+    // Edit with multiple deletions
+    let edit_multiple_dels = Edit::new(
+      vec![],
+      vec![Del::new(2, 2), Del::new(8, 2)], // deletions at 2-3 and 8-9
+      vec![],
+    );
+    assert!(!edit_multiple_dels.is_position_deleted(1)); // before first deletion
+    assert!(edit_multiple_dels.is_position_deleted(2)); // in first deletion
+    assert!(edit_multiple_dels.is_position_deleted(3)); // in first deletion
+    assert!(!edit_multiple_dels.is_position_deleted(4)); // between deletions
+    assert!(!edit_multiple_dels.is_position_deleted(7)); // between deletions
+    assert!(edit_multiple_dels.is_position_deleted(8)); // in second deletion
+    assert!(edit_multiple_dels.is_position_deleted(9)); // in second deletion
+    assert!(!edit_multiple_dels.is_position_deleted(10)); // after last deletion
+
+    // Edit with single-position deletion
+    let edit_single_pos_del = Edit::new(vec![], vec![Del::new(10, 1)], vec![]);
+    assert!(!edit_single_pos_del.is_position_deleted(9)); // position before
+    assert!(edit_single_pos_del.is_position_deleted(10)); // deleted position
+    assert!(!edit_single_pos_del.is_position_deleted(11)); // position after
+
+    // Empty edit
+    let edit_empty = Edit::empty();
+    assert!(!edit_empty.is_position_deleted(0));
+    assert!(!edit_empty.is_position_deleted(100));
+  }
 }
