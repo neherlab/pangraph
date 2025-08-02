@@ -57,7 +57,8 @@ pub fn reconsensus_graph(
       .blocks
       .get_mut(&block_id)
       .ok_or_else(|| make_report!("Block {} not found in graph", block_id))?;
-    apply_mutation_reconsensus(block, &edits.subs).wrap_err_with(|| format!("When processing block {}", block.id()))
+    block_reconsensus_via_substitutions(block, &edits.subs)
+      .wrap_err_with(|| format!("When processing block {} for reconsensus via substitutions", block.id()))
   })?;
 
   // Handle blocks requiring realignment
@@ -73,8 +74,8 @@ pub fn reconsensus_graph(
           .ok_or_else(|| make_report!("Block {} not found in graph", block_id))?;
 
         // Apply full reconsensus with realignment
-        apply_full_reconsensus(&mut block, &edits, args)
-          .wrap_err_with(|| format!("When processing block {}", block.id()))?;
+        block_reconsensus_via_realignment(&mut block, &edits, args)
+          .wrap_err_with(|| format!("When processing block {} for reconsensus via realignment", block.id()))?;
         // Return the realigned block if successful
         Ok::<PangraphBlock, Report>(block)
       })
@@ -118,48 +119,38 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> Bl
   }
 }
 
-/// Applies only mutation reconsensus without realignment
-fn apply_mutation_reconsensus(block: &mut PangraphBlock, subs: &[Sub]) -> Result<(), Report> {
+/// Applies a set of substitutions to the block's consensus sequence.
+/// Does not re-align the sequences.
+fn block_reconsensus_via_substitutions(block: &mut PangraphBlock, subs: &[Sub]) -> Result<(), Report> {
   subs.iter().try_for_each(|sub| {
-    let original = block.consensus()[sub.pos];
-
-    // Update consensus
-    block.set_consensus_char(sub.pos, sub.alt);
-
-    // Update alignments
     block
-      .alignments_mut()
-      .values_mut()
-      .try_for_each(|edit| edit.reconcile_substitution_with_consensus(sub, original))
+      .change_consensus_nucleotide_at_pos(sub.pos, sub.alt)
+      .wrap_err_with(|| format!("Failed to apply mutation at pos {}: {}", sub.pos, sub.alt))
   })
 }
 
-/// Applies full reconsensus including indels and realignment
-fn apply_full_reconsensus(
+/// Applies full set of edits (substitutions and indels)
+/// to the block's consensus sequence, and then re-aligns the sequences
+/// to the new consensus.
+fn block_reconsensus_via_realignment(
   block: &mut PangraphBlock,
   majority_edits: &Edit,
   args: &PangraphBuildArgs,
 ) -> Result<(), Report> {
-  // First apply mutations
-  apply_mutation_reconsensus(block, &majority_edits.subs)?;
+  // original consensus
+  let consensus = block.consensus();
+  // apply edits to the consensus
+  let new_consensus = majority_edits.apply(consensus)?;
 
-  // Then apply indels and realign if present
-  if majority_edits.has_indels() {
-    let consensus = block.consensus();
-    let new_consensus = majority_edits.apply(consensus)?;
+  let band_params = BandParameters::from_edits(majority_edits, block.consensus_len())?;
+  debug_assert!(!new_consensus.is_empty(), "Consensus is empty after indels");
 
-    let band_params = BandParameters::from_edits(majority_edits, block.consensus_len())?;
-
-    debug_assert!(!new_consensus.is_empty(), "Consensus is empty after indels");
-
-    update_block_consensus(block, &new_consensus, band_params, args)?;
-  }
-
+  update_block_alignments_to_new_consensus(block, &new_consensus, band_params, args)?;
   Ok(())
 }
 
 /// Updates the consensus sequence of the block and re-aligns the sequences to the new consensus.
-fn update_block_consensus(
+fn update_block_alignments_to_new_consensus(
   block: &mut PangraphBlock,
   consensus: &Seq,
   new_consensus_band_params: BandParameters,
@@ -349,7 +340,7 @@ mod tests {
     let mut block = block_1();
     let expected_block = block_1_mut_reconsensus();
     let subs = block.find_majority_substitutions();
-    apply_mutation_reconsensus(&mut block, &subs).unwrap();
+    block_reconsensus_via_substitutions(&mut block, &subs).unwrap();
     assert_eq!(block, expected_block);
   }
 
@@ -387,7 +378,7 @@ mod tests {
     let majority_edits = block.find_majority_edits();
 
     // Apply mutations
-    apply_mutation_reconsensus(&mut block, &majority_edits.subs).unwrap();
+    block_reconsensus_via_substitutions(&mut block, &majority_edits.subs).unwrap();
 
     // Apply indels if present
     let has_indels = majority_edits.has_indels();
@@ -395,7 +386,8 @@ mod tests {
       let consensus = block.consensus();
       let new_consensus = majority_edits.apply(consensus).unwrap();
       let band_params = BandParameters::from_edits(&majority_edits, block.consensus_len()).unwrap();
-      update_block_consensus(&mut block, &new_consensus, band_params, &PangraphBuildArgs::default()).unwrap();
+      update_block_alignments_to_new_consensus(&mut block, &new_consensus, band_params, &PangraphBuildArgs::default())
+        .unwrap();
     }
 
     assert!(has_indels); // This test expects realignment to have occurred
@@ -411,7 +403,7 @@ mod tests {
     let majority_edits = block.find_majority_edits();
 
     // Apply mutations
-    apply_mutation_reconsensus(&mut block, &majority_edits.subs).unwrap();
+    block_reconsensus_via_substitutions(&mut block, &majority_edits.subs).unwrap();
 
     // Check that no indels require re-alignment
     let has_indels = majority_edits.has_indels();
