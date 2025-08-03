@@ -1,3 +1,5 @@
+use crate::align::map_variations::{BandParameters, map_variations};
+use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::io::fasta::FastaRecord;
 use crate::io::json::{JsonPretty, json_write_str};
 use crate::io::seq::reverse_complement;
@@ -284,6 +286,41 @@ impl PangraphBlock {
     })?;
 
     Ok(())
+  }
+
+  /// Applies a set of edits to the block's consensus sequence and re-aligns the sequences
+  /// to the new consensus. Returns a new `PangraphBlock` object with the same BlockId.
+  pub fn edit_consensus_and_realign(self, edits: &Edit, args: &PangraphBuildArgs) -> Result<Self, Report> {
+    // apply the edits to the consensus
+    let new_consensus = edits.apply(&self.consensus)?;
+    debug_assert!(!new_consensus.is_empty(), "Consensus cannot be empty");
+
+    // calculate alignment band parameters
+    let band_params = BandParameters::from_edits(edits, self.consensus_len())?;
+
+    // realign the block sequences to the new consensus
+    let new_alignments = self
+      .alignments()
+      .iter()
+      .map(|(&nid, edit)| {
+        let seq = edit.apply(&self.consensus)?;
+        debug_assert!(!seq.is_empty(), "Aligned sequence cannot be empty");
+        let old_band_params = BandParameters::from_edits(edit, self.consensus_len())?;
+        let updated_band_params = BandParameters::new(
+          old_band_params.mean_shift() - band_params.mean_shift(),
+          old_band_params.band_width() + band_params.band_width(),
+        );
+        let new_edits = map_variations(&new_consensus, &seq, updated_band_params, args)?;
+        Ok((nid, new_edits))
+      })
+      .collect::<Result<BTreeMap<NodeId, Edit>, Report>>()?;
+
+    // create a new block with the updated alignments
+    Ok(PangraphBlock {
+      id: self.id(),
+      consensus: new_consensus,
+      alignments: new_alignments,
+    })
   }
 }
 

@@ -1,20 +1,14 @@
-use crate::align::map_variations::{BandParameters, map_variations};
 use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::make_report;
 use crate::pangraph::detach_unaligned::detach_unaligned_nodes;
 use crate::pangraph::edits::Edit;
 use crate::pangraph::edits::Sub;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
-use crate::pangraph::pangraph_node::NodeId;
-use crate::{make_error, make_report};
-// use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
 use crate::reconsensus::remove_nodes::find_empty_nodes;
-use crate::representation::seq::Seq;
 use eyre::{Context, Report};
 use itertools::{Either, Itertools};
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 /// Result of analyzing blocks for reconsensus operation
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -68,16 +62,18 @@ pub fn reconsensus_graph(
       .into_iter()
       .map(|(block_id, edits)| {
         // Pop the realigned blocks from graph.blocks
-        let mut block = graph
+        let block = graph
           .blocks
           .remove(&block_id)
           .ok_or_else(|| make_report!("Block {} not found in graph", block_id))?;
 
         // Apply full reconsensus with realignment
-        block_reconsensus_via_realignment(&mut block, &edits, args)
-          .wrap_err_with(|| format!("When processing block {} for reconsensus via realignment", block.id()))?;
+        // block_reconsensus_via_realignment(&mut block, &edits, args)
+        let new_block = block
+          .edit_consensus_and_realign(&edits, args)
+          .wrap_err_with(|| "When processing block for reconsensus via realignment")?;
         // Return the realigned block if successful
-        Ok::<PangraphBlock, Report>(block)
+        Ok::<PangraphBlock, Report>(new_block)
       })
       .collect::<Result<Vec<_>, _>>()?;
 
@@ -129,73 +125,6 @@ fn block_reconsensus_via_substitutions(block: &mut PangraphBlock, subs: &[Sub]) 
   })
 }
 
-/// Applies full set of edits (substitutions and indels)
-/// to the block's consensus sequence, and then re-aligns the sequences
-/// to the new consensus.
-fn block_reconsensus_via_realignment(
-  block: &mut PangraphBlock,
-  majority_edits: &Edit,
-  args: &PangraphBuildArgs,
-) -> Result<(), Report> {
-  // original consensus
-  let consensus = block.consensus();
-  // apply edits to the consensus
-  let new_consensus = majority_edits.apply(consensus)?;
-
-  let band_params = BandParameters::from_edits(majority_edits, block.consensus_len())?;
-  debug_assert!(!new_consensus.is_empty(), "Consensus is empty after indels");
-
-  update_block_alignments_to_new_consensus(block, &new_consensus, band_params, args)?;
-  Ok(())
-}
-
-/// Updates the consensus sequence of the block and re-aligns the sequences to the new consensus.
-fn update_block_alignments_to_new_consensus(
-  block: &mut PangraphBlock,
-  consensus: &Seq,
-  new_consensus_band_params: BandParameters,
-  args: &PangraphBuildArgs,
-) -> Result<(), Report> {
-  // Reconstruct block sequences
-  let seqs = block
-    .alignments()
-    .iter()
-    .map(|(&nid, edit)| {
-      let seq = edit.apply(block.consensus())?;
-      let old_band_params = BandParameters::from_edits(edit, block.consensus_len())?;
-      let updated_band_params = BandParameters::new(
-        old_band_params.mean_shift() - new_consensus_band_params.mean_shift(),
-        old_band_params.band_width() + new_consensus_band_params.band_width(),
-      );
-      Ok((nid, (seq, updated_band_params)))
-    })
-    .collect::<Result<BTreeMap<NodeId, (Seq, BandParameters)>, Report>>()?;
-
-  // debug assets: all sequences are non-empty
-  #[cfg(any(debug_assertions, test))]
-  {
-    if let Some((nid, (_seq, _))) = seqs.iter().find(|(_, (seq, _))| seq.is_empty()) {
-      return make_error!(
-        "node is empty!\nblock: {}\nnode: {}\nedits: {:?}\nconsensus: {}",
-        block.id(),
-        nid,
-        block.alignments().get(nid),
-        block.consensus()
-      );
-    }
-  }
-
-  // Re-align sequences
-  let alignments = seqs
-    .into_par_iter()
-    .map(|(nid, (seq, band_params))| Ok((nid, map_variations(consensus, &seq, band_params, args)?)))
-    .collect::<Result<_, Report>>()?;
-
-  *block = PangraphBlock::new(block.id(), consensus, alignments);
-
-  Ok(())
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -205,6 +134,7 @@ mod tests {
   use crate::pangraph::pangraph_node::PangraphNode;
   use crate::pangraph::pangraph_path::{PangraphPath, PathId};
   use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use crate::representation::seq::Seq;
   use crate::utils::id::id;
 
   use maplit::btreemap;
@@ -372,25 +302,16 @@ mod tests {
 
   #[test]
   fn test_reconsensus() {
-    let mut block = block_3();
+    let block = block_3();
     let expected_block = block_3_reconsensus();
 
     let majority_edits = block.find_majority_edits();
 
-    // Apply mutations
-    block_reconsensus_via_substitutions(&mut block, &majority_edits.subs).unwrap();
+    let block = block
+      .edit_consensus_and_realign(&majority_edits, &PangraphBuildArgs::default())
+      .unwrap();
 
-    // Apply indels if present
-    let has_indels = majority_edits.has_indels();
-    if has_indels {
-      let consensus = block.consensus();
-      let new_consensus = majority_edits.apply(consensus).unwrap();
-      let band_params = BandParameters::from_edits(&majority_edits, block.consensus_len()).unwrap();
-      update_block_alignments_to_new_consensus(&mut block, &new_consensus, band_params, &PangraphBuildArgs::default())
-        .unwrap();
-    }
-
-    assert!(has_indels); // This test expects realignment to have occurred
+    assert!(majority_edits.has_indels()); // This test expects realignment to have occurred
     assert_eq!(block.consensus(), expected_block.consensus());
     assert_eq!(block.alignments(), expected_block.alignments());
   }
