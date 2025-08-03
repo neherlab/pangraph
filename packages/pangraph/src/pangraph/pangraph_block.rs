@@ -307,7 +307,7 @@ impl PangraphBlock {
         let seq = edit.apply(&self.consensus)?;
         debug_assert!(!seq.is_empty(), "Aligned sequence cannot be empty");
 
-        // calculate the alignment band parameters from the orgiginal alignment plus the displacement
+        // calculate the alignment band parameters from the original alignment plus the displacement
         // given by the edits applied to the original consensus
         let old_band_params = BandParameters::from_edits(edit, self.consensus_len())?;
         let updated_band_params = BandParameters::new(
@@ -340,6 +340,7 @@ pub enum RecordNaming {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::commands::build::build_args::PangraphBuildArgs;
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
   use crate::pangraph::pangraph_node::NodeId;
   use maplit::btreemap;
@@ -773,5 +774,50 @@ mod tests {
 
     let rev_block = block.reverse_complement().unwrap();
     assert_eq!(rev_block, expected_block);
+  }
+
+  #[test]
+  fn test_edit_consensus_and_realign() {
+    // Create a simple block with consensus "ATCG" and some alignments
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCGGCGATG",
+      btreemap! {
+        NodeId(1) => Edit::empty(),
+        NodeId(2) => Edit::new(vec![i(10, "AAA")], vec![], vec![s(0, 'G')]),
+        NodeId(2) => Edit::new(vec![], vec![d(6,2)], vec![s(2, 'G')]),
+      },
+    );
+    // Apply a substitution edit to change consensus position 0 from A to G
+    let edits = Edit::new(vec![i(10, "AAA")], vec![d(6, 2)], vec![s(0, 'G')]);
+
+    let expected_block = PangraphBlock::new(
+      BlockId(1),
+      "GTCGGCTGAAA",
+      btreemap! {
+        NodeId(1) => Edit::new(
+          vec![i(6, "GA")],
+          vec![d(8, 3)],
+          vec![s(0, 'A')]
+        ),
+        NodeId(2) => Edit::new(
+          vec![i(6, "GA")],
+          vec![],
+          vec![]
+        ),
+        NodeId(2) => Edit::new(
+          vec![],
+          vec![d(8, 3)],
+          vec![s(0, 'A'), s(2, 'G')]
+        ),
+      },
+    );
+
+    // Create build args with default values for testing
+    let args = PangraphBuildArgs::default();
+    // Apply the edits and realign
+    let result_block = block.edit_consensus_and_realign(&edits, &args).unwrap();
+
+    assert_eq!(result_block, expected_block);
   }
 }
