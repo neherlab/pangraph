@@ -303,13 +303,19 @@ impl PangraphBlock {
       .alignments()
       .iter()
       .map(|(&nid, edit)| {
+        // reconstruct the alignment sequence
         let seq = edit.apply(&self.consensus)?;
         debug_assert!(!seq.is_empty(), "Aligned sequence cannot be empty");
+
+        // calculate the alignment band parameters from the orgiginal alignment plus the displacement
+        // given by the edits applied to the original consensus
         let old_band_params = BandParameters::from_edits(edit, self.consensus_len())?;
         let updated_band_params = BandParameters::new(
           old_band_params.mean_shift() - band_params.mean_shift(),
           old_band_params.band_width() + band_params.band_width(),
         );
+
+        // re-align the sequence and returns the new set of edits
         let new_edits = map_variations(&new_consensus, &seq, updated_band_params, args)?;
         Ok((nid, new_edits))
       })
