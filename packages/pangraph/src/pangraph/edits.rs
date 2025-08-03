@@ -233,19 +233,22 @@ impl Edit {
   }
 
   pub fn reverse_complement(&self, len: usize) -> Result<Self, Report> {
-    let subs = self
+    let mut subs = self
       .subs
       .iter()
       .map(|s| s.reverse_complement(len))
       .collect::<Result<Vec<_>, Report>>()?;
+    subs.sort_by_key(|s| s.pos);
 
-    let dels = self.dels.iter().map(|d| d.reverse_complement(len)).collect_vec();
+    let mut dels = self.dels.iter().map(|d| d.reverse_complement(len)).collect_vec();
+    dels.sort_by_key(|d| d.pos);
 
-    let inss = self
+    let mut inss = self
       .inss
       .iter()
       .map(|i| i.reverse_complement(len))
       .collect::<Result<Vec<_>, Report>>()?;
+    inss.sort_by_key(|i| i.pos);
 
     Ok(Self { subs, dels, inss })
   }
