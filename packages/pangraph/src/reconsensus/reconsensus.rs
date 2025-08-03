@@ -24,13 +24,11 @@ struct BlockAnalysis {
 /// - removes potentially empty nodes
 ///
 /// Reconsensus function:
-///   - for blocks that:
-///     - originate from a new merger
-///     - have depth > 2
-///   - goes through each block and re-defines the consensus
-///     - for mutations, changes any mutated position. Also update the alignment (this is straightforward)
-///     - for any in/del present in > M/2 sites, appends it to the consensus
-///   - if the consensus has updated indels, then re-aligns all the sequences to the new consensus
+/// for blocks that originate from a new merger:
+///   - check whether blocks have majority substitutions, deletions, or insertions
+///   - for blocks with only majority substitutions, updates the consensus
+///     and transfers the substitutions to the alignment
+///   - for blocks with majority indels, updates the consensus and realigns the sequences.
 pub fn reconsensus_graph(
   graph: &mut Pangraph,
   ids_updated_blocks: &[BlockId],
@@ -42,16 +40,18 @@ pub fn reconsensus_graph(
     "Empty nodes found in the graph"
   );
 
-  // Analyze blocks and determine which need realignment
+  // Analyze blocks, find majority edits and determine which need realignment
   let analysis = analyze_blocks_for_reconsensus(graph, ids_updated_blocks);
 
   // Apply mutation-only reconsensus (no realignment needed)
   analysis.mutations_only.into_iter().try_for_each(|(block_id, edits)| {
+    // get mutable block
     let block = graph
       .blocks
       .get_mut(&block_id)
       .ok_or_else(|| make_report!("Block {} not found in graph", block_id))?;
-    block_reconsensus_via_substitutions(block, &edits.subs)
+    // apply the substitions to the block consensus and alignment
+    apply_substitutions_to_block(block, &edits.subs)
       .wrap_err_with(|| format!("When processing block {} for reconsensus via substitutions", block.id()))
   })?;
 
@@ -67,8 +67,8 @@ pub fn reconsensus_graph(
           .remove(&block_id)
           .ok_or_else(|| make_report!("Block {} not found in graph", block_id))?;
 
-        // Apply full reconsensus with realignment
-        // block_reconsensus_via_realignment(&mut block, &edits, args)
+        // apply edits to the block consensus and re-align sequences
+        // returns a new block
         let new_block = block
           .edit_consensus_and_realign(&edits, args)
           .wrap_err_with(|| "When processing block for reconsensus via realignment")?;
@@ -80,6 +80,8 @@ pub fn reconsensus_graph(
     // Apply detach_unaligned_nodes. This removes unaligned nodes and re-adds them to
     // the `realigned_blocks` list as new blocks.
     // it also modifies the nodes dictionary accordingly.
+    // Nb: This is done to handle the edge-case when re-alignment could generate
+    // nodes that are not empty, but have zero aligned nucleotides to the consensus
     detach_unaligned_nodes(&mut realigned_blocks, &mut graph.nodes)?;
 
     // Re-add all the blocks (including potentially new singleton blocks) to graph.blocks
@@ -100,8 +102,10 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> Bl
       let majority_edits = block.find_majority_edits();
 
       if majority_edits.has_indels() {
+        // the block needs full realignment
         Some(Either::Right((block_id, majority_edits)))
       } else if majority_edits.has_subs() {
+        // no re-alignment needed, substitutions are sufficient
         Some(Either::Left((block_id, majority_edits)))
       } else {
         None // Blocks with no variants are skipped
@@ -115,9 +119,9 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> Bl
   }
 }
 
-/// Applies a set of substitutions to the block's consensus sequence.
+/// Applies a set of substitutions to the block's consensus sequence and alignment.
 /// Does not re-align the sequences.
-fn block_reconsensus_via_substitutions(block: &mut PangraphBlock, subs: &[Sub]) -> Result<(), Report> {
+fn apply_substitutions_to_block(block: &mut PangraphBlock, subs: &[Sub]) -> Result<(), Report> {
   subs.iter().try_for_each(|sub| {
     block
       .change_consensus_nucleotide_at_pos(sub.pos, sub.alt)
@@ -270,7 +274,7 @@ mod tests {
     let mut block = block_1();
     let expected_block = block_1_mut_reconsensus();
     let subs = block.find_majority_substitutions();
-    block_reconsensus_via_substitutions(&mut block, &subs).unwrap();
+    apply_substitutions_to_block(&mut block, &subs).unwrap();
     assert_eq!(block, expected_block);
   }
 
@@ -324,7 +328,7 @@ mod tests {
     let majority_edits = block.find_majority_edits();
 
     // Apply mutations
-    block_reconsensus_via_substitutions(&mut block, &majority_edits.subs).unwrap();
+    apply_substitutions_to_block(&mut block, &majority_edits.subs).unwrap();
 
     // Check that no indels require re-alignment
     let has_indels = majority_edits.has_indels();
