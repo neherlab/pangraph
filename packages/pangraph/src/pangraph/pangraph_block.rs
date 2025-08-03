@@ -748,4 +748,30 @@ mod tests {
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("already"));
   }
+
+  #[test]
+  fn test_reverse_complement() {
+    let block = PangraphBlock::new(
+      BlockId(1),
+      "ATCG",
+      btreemap! {
+        NodeId(1) => Edit::new(vec![i(1, "AA")], vec![d(2, 1)], vec![s(0, 'G')]),
+        NodeId(2) => Edit::new(vec![], vec![], vec![s(1, 'G'), s(3, 'A')]),
+        NodeId(3) => Edit::empty(),
+      },
+    );
+
+    let expected_block = PangraphBlock::new(
+      BlockId(1),
+      "CGAT",
+      btreemap! {
+        NodeId(1) => Edit::new(vec![i(3, "TT")], vec![d(1, 1)], vec![s(3, 'C')]),
+        NodeId(2) => Edit::new(vec![], vec![], vec![s(0, 'T'), s(2, 'C')]),
+        NodeId(3) => Edit::empty(),
+      },
+    );
+
+    let rev_block = block.reverse_complement().unwrap();
+    assert_eq!(rev_block, expected_block);
+  }
 }
