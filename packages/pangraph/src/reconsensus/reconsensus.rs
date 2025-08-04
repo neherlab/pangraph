@@ -124,7 +124,7 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> Bl
 fn apply_substitutions_to_block(block: &mut PangraphBlock, subs: &[Sub]) -> Result<(), Report> {
   subs.iter().try_for_each(|sub| {
     block
-      .change_consensus_nucleotide_at_pos(sub.pos, sub.alt)
+      .change_consensus_nucleotide_at_pos(sub)
       .wrap_err_with(|| format!("Failed to apply mutation at pos {}: {}", sub.pos, sub.alt))
   })
 }

@@ -9,7 +9,6 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_node::NodeId;
 use crate::pangraph::pangraph_path::PathId;
 use crate::representation::seq::Seq;
-use crate::representation::seq_char::AsciiChar;
 use crate::utils::collections::has_duplicates;
 use crate::utils::interval::positions_to_intervals;
 use derive_more::{Display, From};
@@ -256,33 +255,36 @@ impl PangraphBlock {
     insertions
   }
 
-  /// Change a nucleotide in the consensus sequence at a specific position
-  /// and update the alignments accordingly, without changing the block sequences.
-  pub fn change_consensus_nucleotide_at_pos(&mut self, pos: usize, c: AsciiChar) -> Result<(), Report> {
-    if pos >= self.consensus_len() {
+  /// Change a nucleotide in the consensus sequence at a specific position by applying a substitution.
+  /// Updates the alignment substitutions accordingly, without changing the underlying sequences.
+  pub fn change_consensus_nucleotide_at_pos(&mut self, s: &Sub) -> Result<(), Report> {
+    if s.pos >= self.consensus_len() {
       return make_internal_error!(
-        "Position {pos} is out of bounds for consensus of length {}",
+        "Position {} is out of bounds for consensus of length {}",
+        s.pos,
         self.consensus_len()
       );
     }
 
     // get the original character
-    let original_char = self.consensus[pos];
+    let original_char = self.consensus[s.pos];
     // check: the two must be different
-    if original_char == c {
+    if original_char == s.alt {
       return make_internal_error!(
-        "Cannot change consensus character at position {pos} to '{c}' because it is already '{original_char}'"
+        "Cannot change consensus character at position {} to '{}' because it is already '{original_char}'",
+        s.pos,
+        s.alt
       );
     }
 
     // update the consensus
-    self.consensus[pos] = c;
+    self.consensus[s.pos] = s.alt;
 
     // Update the alignments
     self.alignments_mut().values_mut().try_for_each(|edit| {
       edit
-        .reconcile_substitution_with_consensus(&Sub::new(pos, c), original_char)
-        .wrap_err_with(|| format!("When reconciling substitution at position {pos} with character '{c}'"))
+        .reconcile_substitution_with_consensus(s, original_char)
+        .wrap_err_with(|| format!("When reconciling substitution {s:?} with original character '{original_char}'"))
     })?;
 
     Ok(())
@@ -686,7 +688,8 @@ mod tests {
     );
 
     // Change position 1 from T to G
-    block.change_consensus_nucleotide_at_pos(1, 'G'.into()).unwrap();
+    let sub = s(1, 'G');
+    block.change_consensus_nucleotide_at_pos(&sub).unwrap();
     assert_eq!(block, expected_block);
   }
 
@@ -715,7 +718,8 @@ mod tests {
     );
 
     // Change position 1 from T to G
-    block.change_consensus_nucleotide_at_pos(1, 'G'.into()).unwrap();
+    let sub = s(1, 'G');
+    block.change_consensus_nucleotide_at_pos(&sub).unwrap();
     assert_eq!(block, expected_block);
   }
 
@@ -730,7 +734,8 @@ mod tests {
     );
 
     // Try to change position 4 (out of bounds for length 4)
-    let result = block.change_consensus_nucleotide_at_pos(4, 'A'.into());
+    let sub = s(4, 'A');
+    let result = block.change_consensus_nucleotide_at_pos(&sub);
     assert!(result.is_err());
   }
 
@@ -745,7 +750,8 @@ mod tests {
     );
 
     // Try to change position 1 to the same character (T)
-    let result = block.change_consensus_nucleotide_at_pos(1, 'T'.into());
+    let sub = s(1, 'T');
+    let result = block.change_consensus_nucleotide_at_pos(&sub);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("already"));
   }
