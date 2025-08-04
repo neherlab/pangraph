@@ -1,12 +1,13 @@
 use crate::align::map_variations::{BandParameters, map_variations};
 use crate::commands::build::build_args::PangraphBuildArgs;
-use crate::make_error;
+use crate::pangraph::detach_unaligned::detach_unaligned_nodes;
 use crate::pangraph::edits::{Del, Edit};
 use crate::pangraph::edits::{Ins, Sub};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::NodeId;
 use crate::utils::interval::positions_to_intervals;
+use crate::{make_error, make_report};
 // use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
 use crate::reconsensus::remove_nodes::find_empty_nodes;
 use crate::representation::seq::Seq;
@@ -34,29 +35,57 @@ pub fn reconsensus_graph(
   ids_updated_blocks: Vec<BlockId>,
   args: &PangraphBuildArgs,
 ) -> Result<(), Report> {
-  // // remove selected nodes from graph
-  // remove_emtpy_nodes(graph, &ids_updated_blocks);
+  // there should be no empty nodes in the graph
   debug_assert!(
     find_empty_nodes(graph, &ids_updated_blocks).is_empty(),
     "Empty nodes found in the graph"
   );
 
+  // reconsensus each block
+  // i.e. update the consensus with majority variants
+  // ids of blocks that undergo re-alignment are collected in realigned_block_ids
+  let mut realigned_block_ids = Vec::new();
   for block_id in ids_updated_blocks {
-    let block = graph.blocks.get_mut(&block_id).unwrap();
-    reconsensus(block, args)?;
+    let block = graph
+      .blocks
+      .get_mut(&block_id)
+      .ok_or_else(|| make_report!("Block {} not found in graph during reconsensus", block_id))?;
+    let realigned = reconsensus(block, args)?;
+    if realigned {
+      realigned_block_ids.push(block_id);
+    }
+  }
+
+  // For realigned blocks, pop them from graph.blocks, apply detach_unaligned_nodes to the list, and re-add them
+  if !realigned_block_ids.is_empty() {
+    // Pop the realigned blocks from graph.blocks
+    let mut realigned_blocks = realigned_block_ids
+      .iter()
+      .filter_map(|block_id| graph.blocks.remove(block_id))
+      .collect_vec();
+
+    // Apply detach_unaligned_nodes. This removes unaligned nodes and re-adds them to the list as new blocks.
+    detach_unaligned_nodes(&mut realigned_blocks, &mut graph.nodes)?;
+
+    // Re-add all the blocks (including potentially new singleton blocks) to graph.blocks
+    graph
+      .blocks
+      .extend(realigned_blocks.into_iter().map(|block| (block.id(), block)));
   }
 
   Ok(())
 }
 
 /// Performs the reconsensus operation inplace on a block.
+/// Returns true or false, depending on whether sequences were re-aligned or not.
 /// - if a position is mutated in > N/2 sites, it adds the mutation to the consensus and updates the alignment.
 /// - if an in/del is present in > N/2 sites, it adds it to the consensus and re-aligns the sequences to the updated consensus.
-fn reconsensus(block: &mut PangraphBlock, args: &PangraphBuildArgs) -> Result<(), Report> {
+fn reconsensus(block: &mut PangraphBlock, args: &PangraphBuildArgs) -> Result<bool, Report> {
   reconsensus_mutations(block)?;
   let ins = majority_insertions(block);
   let dels = majority_deletions(block);
-  if !ins.is_empty() || !dels.is_empty() {
+  let re_align = !ins.is_empty() || !dels.is_empty();
+  if re_align {
     let consensus = block.consensus();
     let consensus = apply_indels(consensus, &dels, &ins);
     // average shift of the new consensus with respect to the old one
@@ -78,7 +107,7 @@ fn reconsensus(block: &mut PangraphBlock, args: &PangraphBuildArgs) -> Result<()
 
     update_block_consensus(block, &consensus, new_consensus_band_params, args)?;
   }
-  Ok(())
+  Ok(re_align)
 }
 
 /// Re-computes the consensus for a block if a position is mutated in > N/2 sites.
@@ -257,8 +286,13 @@ fn update_block_consensus(
 mod tests {
   use super::*;
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
-  use crate::pangraph::pangraph_block::PangraphBlock;
+  use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
   use crate::pangraph::pangraph_node::NodeId;
+  use crate::pangraph::pangraph_node::PangraphNode;
+  use crate::pangraph::pangraph_path::{PangraphPath, PathId};
+  use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use crate::utils::id::id;
+
   use maplit::btreemap;
   use pretty_assertions::assert_eq;
 
@@ -346,6 +380,47 @@ mod tests {
     PangraphBlock::new(BlockId(3), consensus, aln)
   }
 
+  fn block_mutations_only() -> PangraphBlock {
+    let consensus = "ATGCGATCGATCGA";
+    //               01234567890123
+    //    node 1)    .C............  (mutation at pos 1: T->C)
+    //    node 2)    .C............  (mutation at pos 1: T->C)
+    //    node 3)    .C............  (mutation at pos 1: T->C)
+    //    node 4)    ..........G...  (mutation at pos 10: C->G)
+    //    node 5)    ..........G...  (mutation at pos 10: C->G)
+    //     L = 14, N = 5
+    // Position 1: T->C appears in 3/5 sequences (majority)
+    // Position 10: C->G appears in 2/5 sequences (not majority)
+    let aln = btreemap! {
+      NodeId(1) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
+      NodeId(2) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
+      NodeId(3) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
+      NodeId(4) => Edit::new(vec![], vec![], vec![Sub::new(10, 'G')]),
+      NodeId(5) => Edit::new(vec![], vec![], vec![Sub::new(10, 'G')]),
+    };
+    PangraphBlock::new(BlockId(10), consensus, aln)
+  }
+
+  fn block_mutations_only_after_reconsensus() -> PangraphBlock {
+    let consensus = "ACGCGATCGATCGA";
+    //               01234567890123
+    //    node 1)    ..............  (no mutations after consensus update)
+    //    node 2)    ..............  (no mutations after consensus update)
+    //    node 3)    ..............  (no mutations after consensus update)
+    //    node 4)    .T........G...  (gets T at pos 1, keeps G at pos 10)
+    //    node 5)    .T........G...  (gets T at pos 1, keeps G at pos 10)
+    //     L = 14, N = 5
+    // After reconsensus: consensus[1] = 'C' (majority), original T becomes mutation in nodes 4,5
+    let aln = btreemap! {
+      NodeId(1) => Edit::new(vec![], vec![], vec![]),
+      NodeId(2) => Edit::new(vec![], vec![], vec![]),
+      NodeId(3) => Edit::new(vec![], vec![], vec![]),
+      NodeId(4) => Edit::new(vec![], vec![], vec![Sub::new(1, 'T'), Sub::new(10, 'G')]),
+      NodeId(5) => Edit::new(vec![], vec![], vec![Sub::new(1, 'T'), Sub::new(10, 'G')]),
+    };
+    PangraphBlock::new(BlockId(10), consensus, aln)
+  }
+
   #[test]
   fn test_reconsensus_mutations() {
     let mut block = block_1();
@@ -379,8 +454,116 @@ mod tests {
   fn test_reconsensus() {
     let mut block = block_3();
     let expected_block = block_3_reconsensus();
-    reconsensus(&mut block, &PangraphBuildArgs::default()).unwrap();
+    let re_aligned = reconsensus(&mut block, &PangraphBuildArgs::default()).unwrap();
+    assert!(re_aligned);
     assert_eq!(block.consensus(), expected_block.consensus());
     assert_eq!(block.alignments(), expected_block.alignments());
+  }
+
+  #[test]
+  fn test_reconsensus_mutations_only_no_realignment() {
+    let mut block = block_mutations_only();
+    let expected_block = block_mutations_only_after_reconsensus();
+    let re_aligned = reconsensus(&mut block, &PangraphBuildArgs::default()).unwrap();
+
+    // Should return false because no indels require re-alignment
+    assert!(!re_aligned);
+
+    // But consensus should be updated and mutations healed
+    assert_eq!(block.consensus(), expected_block.consensus());
+    assert_eq!(block.alignments(), expected_block.alignments());
+  }
+
+  fn block_for_graph_test() -> PangraphBlock {
+    let consensus = "GCCTCTTCCCGACCACGCGTTACAACATGGGACAGGCCTGCGCTTGAGGC";
+    //               0         1         2         3         4
+    //               01234567890123456789012345678901234567890123456789
+    let aln = btreemap! {
+        NodeId(1) => Edit::new(vec![],  vec![Del::new(0, 40)],   vec![]),  // deletion from position 0 to 40
+        NodeId(2) => Edit::new(vec![],  vec![Del::new(35, 15)],  vec![]),  // deletion from position 35 to end (50-35=15)
+        NodeId(3) => Edit::new(vec![],  vec![Del::new(35, 15)],  vec![]),  // deletion from position 35 to end
+        NodeId(4) => Edit::new(vec![],  vec![Del::new(35, 15)],  vec![]),  // deletion from position 35 to end
+        NodeId(5) => Edit::new(vec![],  vec![],                  vec![])   // no deletions
+    };
+    PangraphBlock::new(BlockId(20), consensus, aln)
+  }
+
+  fn block_for_graph_test_expected() -> PangraphBlock {
+    // After reconsensus, the majority deletions (positions 35-49) should be applied
+    // Original consensus: "GCCTCTTCCCGACCACGCGTTACAACATGGGACAGGCCTGCGCTTGAGGC" (50 chars)
+    // Expected consensus: "GCCTCTTCCCGACCACGCGTTACAACATGGGACAG" (35 chars)
+    let consensus = "GCCTCTTCCCGACCACGCGTTACAACATGGGACAG";
+    let aln = btreemap! {
+        NodeId(2) => Edit::new(vec![],                           vec![],                  vec![]),       // no edits (was majority deletion)
+        NodeId(3) => Edit::new(vec![],                           vec![],                  vec![]),       // no edits (was majority deletion)
+        NodeId(4) => Edit::new(vec![],                           vec![],                  vec![]),       // no edits (was majority deletion)
+        NodeId(5) => Edit::new(vec![Ins::new(35, "GCCTGCGCTTGAGGC")], vec![],                  vec![])        // insertion to represent chars that were deleted from consensus
+    };
+    // NodeId(1) was detached because it was empty after deletions
+    PangraphBlock::new(BlockId(20), consensus, aln)
+  }
+
+  fn singleton_block_expected() -> PangraphBlock {
+    // This is the singleton block that should be created for NodeId(1) after reconsensus
+    // this should be the reverse-complement of CGCTTGAGGC, because NodeId(1) was in Reverse strand
+    let consensus = Seq::from("GCCTCAAGCG");
+    PangraphBlock::from_consensus(consensus.clone(), BlockId(id((NodeId(1), &consensus))), NodeId(1))
+  }
+
+  #[test]
+  fn test_reconsensus_graph() {
+    // Create a block that will be modified by reconsensus
+    let initial_block = block_for_graph_test();
+    let expected_block = block_for_graph_test_expected();
+    let singleton_block_exp = singleton_block_expected();
+
+    // Create nodes for the block with lengths reflecting actual sequence lengths
+    let nodes = btreemap! {
+      NodeId(1) => PangraphNode::new(Some(NodeId(1)), initial_block.id(), PathId(1), Reverse, (0, 10)),   // 50 - 40 = 9 (deletes positions 0-39)
+      NodeId(2) => PangraphNode::new(Some(NodeId(2)), initial_block.id(), PathId(2), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(3) => PangraphNode::new(Some(NodeId(3)), initial_block.id(), PathId(3), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(4) => PangraphNode::new(Some(NodeId(4)), initial_block.id(), PathId(4), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(5) => PangraphNode::new(Some(NodeId(5)), initial_block.id(), PathId(5), Forward, (0, 49)),  // no deletions
+    };
+
+    // Create paths
+    let paths = btreemap! {
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 49, false, None, None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(2)], 49, false, None, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(3)], 49, false, None, None),
+      PathId(4) => PangraphPath::new(Some(PathId(4)), [NodeId(4)], 49, false, None, None),
+      PathId(5) => PangraphPath::new(Some(PathId(5)), [NodeId(5)], 49, false, None, None),
+    };
+
+    // Create blocks map
+    let blocks = btreemap! {
+      initial_block.id() => initial_block.clone()
+    };
+
+    // Create the graph
+    let mut graph = Pangraph { paths, blocks, nodes };
+
+    // Apply reconsensus_graph
+    let result = reconsensus_graph(&mut graph, vec![initial_block.id()], &PangraphBuildArgs::default());
+
+    // Check that the operation succeeded
+    result.unwrap();
+
+    // Get the two created blocks, the modified and the singleton
+    let final_block = &graph.blocks[&initial_block.id()];
+    let singleton_block = &graph.blocks[&singleton_block_exp.id()];
+
+    // Direct comparison with expected result
+    assert_eq!(final_block.consensus(), expected_block.consensus());
+    assert_eq!(final_block.alignments(), expected_block.alignments());
+
+    // Check that the empty node was detached and a new singleton block was created
+    assert_eq!(singleton_block.consensus(), singleton_block_exp.consensus());
+    assert_eq!(singleton_block.alignments(), singleton_block_exp.alignments());
+
+    // check that the node was updated correctly, flipping the strandedness
+    let new_node1 = &graph.nodes[&NodeId(1)];
+    let expected_node1 = PangraphNode::new(Some(NodeId(1)), singleton_block_exp.id(), PathId(1), Forward, (0, 10));
+    assert_eq!(new_node1, &expected_node1);
   }
 }
