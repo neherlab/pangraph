@@ -1,28 +1,22 @@
-use crate::align::map_variations::{BandParameters, map_variations};
 use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::make_report;
 use crate::pangraph::detach_unaligned::detach_unaligned_nodes;
 use crate::pangraph::edits::Edit;
 use crate::pangraph::edits::Sub;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
-use crate::pangraph::pangraph_node::NodeId;
-use crate::{make_error, make_report};
-// use crate::reconsensus::remove_nodes::remove_emtpy_nodes;
 use crate::reconsensus::remove_nodes::find_empty_nodes;
-use crate::representation::seq::Seq;
 use eyre::{Context, Report};
 use itertools::{Either, Itertools};
-use rayon::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 
 /// Result of analyzing blocks for reconsensus operation
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct BlockAnalysis {
   /// Blocks that need only mutation-based reconsensus (no realignment)
-  mutations_only: Vec<BlockId>,
+  mutations_only: Vec<(BlockId, Edit)>,
   /// Blocks that need full reconsensus with realignment due to indels
-  need_realignment: Vec<BlockId>,
+  need_realignment: Vec<(BlockId, Edit)>,
 }
 
 /// Applies the reconsensus operation to each updated block in the graph:
@@ -30,13 +24,11 @@ struct BlockAnalysis {
 /// - removes potentially empty nodes
 ///
 /// Reconsensus function:
-///   - for blocks that:
-///     - originate from a new merger
-///     - have depth > 2
-///   - goes through each block and re-defines the consensus
-///     - for mutations, changes any mutated position. Also update the alignment (this is straightforward)
-///     - for any in/del present in > M/2 sites, appends it to the consensus
-///   - if the consensus has updated indels, then re-aligns all the sequences to the new consensus
+/// for blocks that originate from a new merger:
+///   - check whether blocks have majority substitutions, deletions, or insertions
+///   - for blocks with only majority substitutions, updates the consensus
+///     and transfers the substitutions to the alignment
+///   - for blocks with majority indels, updates the consensus and realigns the sequences.
 pub fn reconsensus_graph(
   graph: &mut Pangraph,
   ids_updated_blocks: &[BlockId],
@@ -48,37 +40,48 @@ pub fn reconsensus_graph(
     "Empty nodes found in the graph"
   );
 
-  // Analyze blocks and determine which need realignment
+  // Analyze blocks, find majority edits and determine which need realignment
   let analysis = analyze_blocks_for_reconsensus(graph, ids_updated_blocks);
 
   // Apply mutation-only reconsensus (no realignment needed)
-  analysis.mutations_only.into_iter().try_for_each(|block_id| {
+  analysis.mutations_only.into_iter().try_for_each(|(block_id, edits)| {
+    // get mutable block
     let block = graph
       .blocks
       .get_mut(&block_id)
       .ok_or_else(|| make_report!("Block {} not found in graph", block_id))?;
-    let majority_edits = block.find_majority_edits();
-    apply_mutation_reconsensus(block, &majority_edits.subs)
-      .wrap_err_with(|| format!("When processing block {}", block.id()))
+    // apply the substitions to the block consensus and alignment
+    apply_substitutions_to_block(block, &edits.subs)
+      .wrap_err_with(|| format!("When processing block {} for reconsensus via substitutions", block.id()))
   })?;
 
   // Handle blocks requiring realignment
   if !analysis.need_realignment.is_empty() {
-    // Pop the realigned blocks from graph.blocks
-    let mut realigned_blocks: Vec<_> = analysis
+    let mut realigned_blocks: Vec<PangraphBlock> = analysis
       .need_realignment
-      .iter()
-      .filter_map(|block_id| graph.blocks.remove(block_id))
-      .collect();
+      .into_iter()
+      .map(|(block_id, edits)| {
+        // Pop the realigned blocks from graph.blocks
+        let block = graph
+          .blocks
+          .remove(&block_id)
+          .ok_or_else(|| make_report!("Block {} not found in graph", block_id))?;
 
-    // Apply full reconsensus with realignment
-    realigned_blocks.iter_mut().try_for_each(|block| {
-      let majority_edits = block.find_majority_edits();
-      apply_full_reconsensus(block, &majority_edits, args)
-        .wrap_err_with(|| format!("When processing block {}", block.id()))
-    })?;
+        // apply edits to the block consensus and re-align sequences
+        // returns a new block
+        let new_block = block
+          .edit_consensus_and_realign(&edits, args)
+          .wrap_err_with(|| "When processing block for reconsensus via realignment")?;
+        // Return the realigned block if successful
+        Ok::<PangraphBlock, Report>(new_block)
+      })
+      .collect::<Result<Vec<_>, _>>()?;
 
-    // Apply detach_unaligned_nodes. This removes unaligned nodes and re-adds them to the list as new blocks.
+    // Apply detach_unaligned_nodes. This removes unaligned nodes and re-adds them to
+    // the `realigned_blocks` list as new blocks.
+    // it also modifies the nodes dictionary accordingly.
+    // Nb: This is done to handle the edge-case when re-alignment could generate
+    // nodes that are not empty, but have zero aligned nucleotides to the consensus
     detach_unaligned_nodes(&mut realigned_blocks, &mut graph.nodes)?;
 
     // Re-add all the blocks (including potentially new singleton blocks) to graph.blocks
@@ -99,9 +102,11 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> Bl
       let majority_edits = block.find_majority_edits();
 
       if majority_edits.has_indels() {
-        Some(Either::Right(block_id))
+        // the block needs full realignment
+        Some(Either::Right((block_id, majority_edits)))
       } else if majority_edits.has_subs() {
-        Some(Either::Left(block_id))
+        // no re-alignment needed, substitutions are sufficient
+        Some(Either::Left((block_id, majority_edits)))
       } else {
         None // Blocks with no variants are skipped
       }
@@ -114,91 +119,14 @@ fn analyze_blocks_for_reconsensus(graph: &Pangraph, block_ids: &[BlockId]) -> Bl
   }
 }
 
-/// Applies only mutation reconsensus without realignment
-fn apply_mutation_reconsensus(block: &mut PangraphBlock, subs: &[Sub]) -> Result<(), Report> {
+/// Applies a set of substitutions to the block's consensus sequence and alignment.
+/// Does not re-align the sequences.
+fn apply_substitutions_to_block(block: &mut PangraphBlock, subs: &[Sub]) -> Result<(), Report> {
   subs.iter().try_for_each(|sub| {
-    let original = block.consensus()[sub.pos];
-
-    // Update consensus
-    block.set_consensus_char(sub.pos, sub.alt);
-
-    // Update alignments
     block
-      .alignments_mut()
-      .values_mut()
-      .try_for_each(|edit| edit.reconcile_substitution_with_consensus(sub, original))
+      .change_consensus_nucleotide_at_pos(sub)
+      .wrap_err_with(|| format!("Failed to apply mutation at pos {}: {}", sub.pos, sub.alt))
   })
-}
-
-/// Applies full reconsensus including indels and realignment
-fn apply_full_reconsensus(
-  block: &mut PangraphBlock,
-  majority_edits: &Edit,
-  args: &PangraphBuildArgs,
-) -> Result<(), Report> {
-  // First apply mutations
-  apply_mutation_reconsensus(block, &majority_edits.subs)?;
-
-  // Then apply indels and realign if present
-  if majority_edits.has_indels() {
-    let consensus = block.consensus();
-    let new_consensus = majority_edits.apply(consensus)?;
-
-    let band_params = BandParameters::from_edits(majority_edits, block.consensus_len())?;
-
-    debug_assert!(!new_consensus.is_empty(), "Consensus is empty after indels");
-
-    update_block_consensus(block, &new_consensus, band_params, args)?;
-  }
-
-  Ok(())
-}
-
-/// Updates the consensus sequence of the block and re-aligns the sequences to the new consensus.
-fn update_block_consensus(
-  block: &mut PangraphBlock,
-  consensus: &Seq,
-  new_consensus_band_params: BandParameters,
-  args: &PangraphBuildArgs,
-) -> Result<(), Report> {
-  // Reconstruct block sequences
-  let seqs = block
-    .alignments()
-    .iter()
-    .map(|(&nid, edit)| {
-      let seq = edit.apply(block.consensus())?;
-      let old_band_params = BandParameters::from_edits(edit, block.consensus_len())?;
-      let updated_band_params = BandParameters::new(
-        old_band_params.mean_shift() - new_consensus_band_params.mean_shift(),
-        old_band_params.band_width() + new_consensus_band_params.band_width(),
-      );
-      Ok((nid, (seq, updated_band_params)))
-    })
-    .collect::<Result<BTreeMap<NodeId, (Seq, BandParameters)>, Report>>()?;
-
-  // debug assets: all sequences are non-empty
-  #[cfg(any(debug_assertions, test))]
-  {
-    if let Some((nid, (_seq, _))) = seqs.iter().find(|(_, (seq, _))| seq.is_empty()) {
-      return make_error!(
-        "node is empty!\nblock: {}\nnode: {}\nedits: {:?}\nconsensus: {}",
-        block.id(),
-        nid,
-        block.alignments().get(nid),
-        block.consensus()
-      );
-    }
-  }
-
-  // Re-align sequences
-  let alignments = seqs
-    .into_par_iter()
-    .map(|(nid, (seq, band_params))| Ok((nid, map_variations(consensus, &seq, band_params, args)?)))
-    .collect::<Result<_, Report>>()?;
-
-  *block = PangraphBlock::new(block.id(), consensus, alignments);
-
-  Ok(())
 }
 
 #[cfg(test)]
@@ -210,49 +138,111 @@ mod tests {
   use crate::pangraph::pangraph_node::PangraphNode;
   use crate::pangraph::pangraph_path::{PangraphPath, PathId};
   use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use crate::representation::seq::Seq;
   use crate::utils::id::id;
 
   use maplit::btreemap;
   use pretty_assertions::assert_eq;
 
+  fn block_0() -> PangraphBlock {
+    let consensus = "ATGCGATCGATCGA";
+    //               01234567890123
+    //    node 1)    .C............  (mutation at pos 1: T->C)
+    //    node 2)    .C............  (mutation at pos 1: T->C)
+    //    node 3)    .C............  (mutation at pos 1: T->C)
+    //    node 4)    ..........G...  (mutation at pos 10: C->G)
+    //    node 5)    ..........G...  (mutation at pos 10: C->G)
+    //     L = 14, N = 5
+    // Position 1: T->C appears in 3/5 sequences (majority)
+    // Position 10: C->G appears in 2/5 sequences (not majority)
+    let aln = btreemap! {
+      NodeId(1) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
+      NodeId(2) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
+      NodeId(3) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
+      NodeId(4) => Edit::new(vec![], vec![], vec![Sub::new(10, 'G')]),
+      NodeId(5) => Edit::new(vec![], vec![], vec![Sub::new(10, 'G')]),
+    };
+    PangraphBlock::new(BlockId(0), consensus, aln)
+  }
+
+  fn block_0_reconsensus() -> PangraphBlock {
+    let consensus = "ACGCGATCGATCGA";
+    //               01234567890123
+    //    node 1)    ..............  (no mutations after consensus update)
+    //    node 2)    ..............  (no mutations after consensus update)
+    //    node 3)    ..............  (no mutations after consensus update)
+    //    node 4)    .T........G...  (gets T at pos 1, keeps G at pos 10)
+    //    node 5)    .T........G...  (gets T at pos 1, keeps G at pos 10)
+    //     L = 14, N = 5
+    // After reconsensus: consensus[1] = 'C' (majority), original T becomes mutation in nodes 4,5
+    let aln = btreemap! {
+      NodeId(1) => Edit::new(vec![], vec![], vec![]),
+      NodeId(2) => Edit::new(vec![], vec![], vec![]),
+      NodeId(3) => Edit::new(vec![], vec![], vec![]),
+      NodeId(4) => Edit::new(vec![], vec![], vec![Sub::new(1, 'T'), Sub::new(10, 'G')]),
+      NodeId(5) => Edit::new(vec![], vec![], vec![Sub::new(1, 'T'), Sub::new(10, 'G')]),
+    };
+    PangraphBlock::new(BlockId(0), consensus, aln)
+  }
+
   fn block_1() -> PangraphBlock {
     let consensus = "AGGACTTCGATCTATTCGGAGAA";
     //               0         1         2
     //               01234567890123456789012
-    //    node 1)    .T...--..........A.....
-    //    node 2)    .T...--...C......|.....
+    //    node 1)    .T...--.........|A.....
+    //    node 2)    .T...--...C............
     //    node 3)    .T...--...C.....--.....
     //    node 4)    .C.......---.....A.....
-    //    node 5)    .....|...........A.....
+    //    node 5)    .....|-..........A.....
     //     L = 23, N = 5
     let aln = btreemap! {
-      NodeId(1) => Edit::new(vec![],                      vec![Del::new(5, 2)],     vec![Sub::new(1, 'T'), Sub::new(17, 'A')]),
-      NodeId(2) => Edit::new(vec![Ins::new(17, "CAAT")],  vec![Del::new(5, 2)],     vec![Sub::new(1, 'T'), Sub::new(10, 'C')]),
-      NodeId(3) => Edit::new(vec![],                      vec![Del::new(5, 2), Del::new(16,2)],     vec![Sub::new(1, 'T'), Sub::new(10, 'C')]),
-      NodeId(4) => Edit::new(vec![],                      vec![Del::new(9, 3)],     vec![Sub::new(1, 'C'), Sub::new(17, 'A')]),
-      NodeId(5) => Edit::new(vec![],                      vec![Del::new(5, 2)],     vec![Sub::new(17, 'A')]),
+      NodeId(1) => Edit::new(vec![Ins::new(17, "TTTT")],  vec![Del::new(5, 2)],                   vec![Sub::new(1, 'T'), Sub::new(17, 'A')]),
+      NodeId(2) => Edit::new(vec![],                      vec![Del::new(5, 2)],                   vec![Sub::new(1, 'T'), Sub::new(10, 'C')]),
+      NodeId(3) => Edit::new(vec![],                      vec![Del::new(5, 2), Del::new(16,2)],   vec![Sub::new(1, 'T'), Sub::new(10, 'C')]),
+      NodeId(4) => Edit::new(vec![],                      vec![Del::new(9, 3)],                   vec![Sub::new(1, 'C'), Sub::new(17, 'A')]),
+      NodeId(5) => Edit::new(vec![Ins::new(5, "AA")],     vec![Del::new(5, 2)],                   vec![Sub::new(17, 'A')]),
     };
-    PangraphBlock::new(BlockId(0), consensus, aln)
+    PangraphBlock::new(BlockId(1), consensus, aln)
   }
 
   fn block_1_mut_reconsensus() -> PangraphBlock {
     let consensus = "ATGACTTCGATCTATTCAGAGAA";
     //               0         1         2
     //               01234567890123456789012
-    //    node 1)    .....--................
-    //    node 2)    .....--...C......G|....
+    //    node 1)    .....--..........|.....
+    //    node 2)    .....--...C......G.....
     //    node 3)    .....--...C.....--.....
     //    node 4)    .C.......---...........
-    //    node 5)    .G...|.................
+    //    node 5)    .G...|-................
     //     L = 23, N = 5
     let aln = btreemap! {
-      NodeId(1) => Edit::new(vec![],                      vec![Del::new(5, 2)],     vec![]),
-      NodeId(2) => Edit::new(vec![Ins::new(17, "CAAT")],  vec![Del::new(5, 2)],     vec![Sub::new(10, 'C'), Sub::new(17, 'G')]),
-      NodeId(3) => Edit::new(vec![],                      vec![Del::new(5, 2), Del::new(16,2)],     vec![Sub::new(10, 'C')]),
-      NodeId(4) => Edit::new(vec![],                      vec![Del::new(9, 3)],     vec![Sub::new(1, 'C')]),
-      NodeId(5) => Edit::new(vec![],                      vec![Del::new(5, 2)],     vec![Sub::new(1, 'G')]),
+      NodeId(1) => Edit::new(vec![Ins::new(17, "TTTT")],  vec![Del::new(5, 2)],                  vec![]),
+      NodeId(2) => Edit::new(vec![],                      vec![Del::new(5, 2)],                  vec![Sub::new(10, 'C'), Sub::new(17, 'G')]),
+      NodeId(3) => Edit::new(vec![],                      vec![Del::new(5, 2), Del::new(16,2)],  vec![Sub::new(10, 'C')]),
+      NodeId(4) => Edit::new(vec![],                      vec![Del::new(9, 3)],                  vec![Sub::new(1, 'C')]),
+      NodeId(5) => Edit::new(vec![Ins::new(5, "AA")],     vec![Del::new(5, 2)],                  vec![Sub::new(1, 'G')]),
     };
-    PangraphBlock::new(BlockId(0), consensus, aln)
+    PangraphBlock::new(BlockId(1), consensus, aln)
+  }
+
+  fn block_1_reconsensus() -> PangraphBlock {
+    let consensus = "ATGACCGATCTATTCAGAGAA";
+    //               0         1         2
+    //               012345678901234567890
+    //    node 1)    .....|.........|.....
+    //    node 2)    .....|..C......G.....
+    //    node 3)    .....|..C.....--.....
+    //    node 4)    .C...|.---...........
+    //    node 5)    .G...|...............
+    //     L = 21, N = 5
+    let aln = btreemap! {
+      NodeId(1) => Edit::new(vec![Ins::new(15, "TTTT")],  vec![],                   vec![]),
+      NodeId(2) => Edit::new(vec![],                      vec![],                   vec![Sub::new(8, 'C'), Sub::new(15, 'G')]),
+      NodeId(3) => Edit::new(vec![],                      vec![Del::new(14,2)],     vec![Sub::new(8, 'C')]),
+      NodeId(4) => Edit::new(vec![Ins::new(5, "TT")],     vec![Del::new(7, 3)],     vec![Sub::new(1, 'C')]),
+      NodeId(5) => Edit::new(vec![Ins::new(5, "AA")],     vec![],                   vec![Sub::new(1, 'G')]),
+    };
+    PangraphBlock::new(BlockId(1), consensus, aln)
   }
 
   fn block_2() -> PangraphBlock {
@@ -272,11 +262,19 @@ mod tests {
       NodeId(4) => Edit::new(vec![Ins::new(3, "C"), Ins::new(23, "TT")],                      vec![Del::new(9, 3)],                   vec![Sub::new(1, 'C'), Sub::new(17, 'A')]),
       NodeId(5) => Edit::new(vec![Ins::new(0, "G"), Ins::new(3, "C"), Ins::new(13, "AA")],    vec![Del::new(19, 2)],                  vec![Sub::new(17, 'A')])
     };
-    PangraphBlock::new(BlockId(0), consensus, aln)
+    PangraphBlock::new(BlockId(2), consensus, aln)
   }
 
   fn block_3() -> PangraphBlock {
     let consensus = "GCCTCTTCCCGACCACGCGTTACAACATGGGACAGGCCTGCGCTTGAGGC";
+    //               0         1         2         3         4
+    //               01234567890123456789012345678901234567890123456789
+    //    node 1)    .....A.............----...........................
+    //    node 2)    .....A..............---.....................|....|
+    //    node 3)    ..............G............G......................
+    //    node 4)    .....A..............---..........................|
+    //    node 5)    .................................................|
+    //    L = 50, N = 5
     let aln = btreemap! {
         NodeId(1) => Edit::new(vec![],                                        vec![Del::new(19, 4)],  vec![Sub::new(5, 'A')]),
         NodeId(2) => Edit::new(vec![Ins::new(35, "AA"), Ins::new(50, "TT")],  vec![Del::new(20, 3)],  vec![Sub::new(5, 'A')]),
@@ -289,6 +287,14 @@ mod tests {
 
   fn block_3_reconsensus() -> PangraphBlock {
     let consensus = "GCCTCATCCCGACCACGCGTAACATGGGACAGGCCTGCGCTTGAGGCTT";
+    //               0         1         2         3         4
+    //               0123456789012345678901234567890123456789012345678
+    //    node 1)    ...................-...........................--
+    //    node 2)    ................................|................
+    //    node 3)    .....T........G.....|..G.......................--
+    //    node 4)    .................................................
+    //    node 5)    .....T..............|............................
+    //     L = 49, N = 5
     let aln = btreemap! {
         NodeId(1) => Edit::new(vec![],                    vec![Del::new(19, 1), Del::new(47, 2)],   vec![]),
         NodeId(2) => Edit::new(vec![Ins::new(32, "AA")],  vec![],                                   vec![]),
@@ -299,70 +305,59 @@ mod tests {
     PangraphBlock::new(BlockId(3), consensus, aln)
   }
 
-  fn block_mutations_only() -> PangraphBlock {
-    let consensus = "ATGCGATCGATCGA";
-    //               01234567890123
-    //    node 1)    .C............  (mutation at pos 1: T->C)
-    //    node 2)    .C............  (mutation at pos 1: T->C)
-    //    node 3)    .C............  (mutation at pos 1: T->C)
-    //    node 4)    ..........G...  (mutation at pos 10: C->G)
-    //    node 5)    ..........G...  (mutation at pos 10: C->G)
-    //     L = 14, N = 5
-    // Position 1: T->C appears in 3/5 sequences (majority)
-    // Position 10: C->G appears in 2/5 sequences (not majority)
-    let aln = btreemap! {
-      NodeId(1) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
-      NodeId(2) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
-      NodeId(3) => Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]),
-      NodeId(4) => Edit::new(vec![], vec![], vec![Sub::new(10, 'G')]),
-      NodeId(5) => Edit::new(vec![], vec![], vec![Sub::new(10, 'G')]),
+  #[test]
+  fn test_analyze_block_reconsensus() {
+    let graph = Pangraph {
+      blocks: btreemap! (
+        BlockId(0) => block_0(),
+        BlockId(1) => block_1(),
+        BlockId(2) => block_2(),
+        BlockId(3) => block_3(),
+      ),
+      paths: btreemap! {},
+      nodes: btreemap! {},
     };
-    PangraphBlock::new(BlockId(10), consensus, aln)
-  }
 
-  fn block_mutations_only_after_reconsensus() -> PangraphBlock {
-    let consensus = "ACGCGATCGATCGA";
-    //               01234567890123
-    //    node 1)    ..............  (no mutations after consensus update)
-    //    node 2)    ..............  (no mutations after consensus update)
-    //    node 3)    ..............  (no mutations after consensus update)
-    //    node 4)    .T........G...  (gets T at pos 1, keeps G at pos 10)
-    //    node 5)    .T........G...  (gets T at pos 1, keeps G at pos 10)
-    //     L = 14, N = 5
-    // After reconsensus: consensus[1] = 'C' (majority), original T becomes mutation in nodes 4,5
-    let aln = btreemap! {
-      NodeId(1) => Edit::new(vec![], vec![], vec![]),
-      NodeId(2) => Edit::new(vec![], vec![], vec![]),
-      NodeId(3) => Edit::new(vec![], vec![], vec![]),
-      NodeId(4) => Edit::new(vec![], vec![], vec![Sub::new(1, 'T'), Sub::new(10, 'G')]),
-      NodeId(5) => Edit::new(vec![], vec![], vec![Sub::new(1, 'T'), Sub::new(10, 'G')]),
-    };
-    PangraphBlock::new(BlockId(10), consensus, aln)
+    let block_ids = vec![BlockId(0), BlockId(1), BlockId(2), BlockId(3)];
+    let results = analyze_blocks_for_reconsensus(&graph, &block_ids);
+
+    let subs_blockids: Vec<BlockId> = results.mutations_only.iter().map(|(bid, _)| *bid).collect();
+    let realign_blockids: Vec<BlockId> = results.need_realignment.iter().map(|(bid, _)| *bid).collect();
+
+    assert_eq!(subs_blockids, vec![BlockId(0)]);
+    assert_eq!(realign_blockids, vec![BlockId(1), BlockId(2), BlockId(3)]);
   }
 
   #[test]
-  fn test_reconsensus_mutations() {
-    let mut block = block_1();
-    let expected_block = block_1_mut_reconsensus();
-    let subs = block.find_majority_substitutions();
-    apply_mutation_reconsensus(&mut block, &subs).unwrap();
-    assert_eq!(block, expected_block);
+  fn test_find_majority_edits_block0() {
+    let edits = block_0().find_majority_edits();
+    let expected_edits = Edit::new(vec![], vec![], vec![Sub::new(1, 'C')]);
+    assert_eq!(edits, expected_edits);
   }
 
   #[test]
-  fn test_majority_deletions() {
-    let dels: Vec<usize> = block_2()
-      .find_majority_deletions()
-      .iter()
-      .flat_map(|d| d.range())
-      .collect();
-    assert_eq!(dels, vec![5, 6, 20]);
+  fn test_find_majority_edits_block1() {
+    let edits = block_1().find_majority_edits();
+    let expected_edits = Edit::new(vec![], vec![Del::new(5, 2)], vec![Sub::new(1, 'T'), Sub::new(17, 'A')]);
+    assert_eq!(edits, expected_edits);
   }
 
   #[test]
-  fn test_majority_insertions() {
-    let ins = block_2().find_majority_insertions();
-    assert_eq!(ins, vec![Ins::new(0, "G"), Ins::new(13, "AA"), Ins::new(23, "TT")]);
+  fn test_find_majority_edits_block2() {
+    let edits = block_2().find_majority_edits();
+    let expected_edits = Edit::new(
+      vec![Ins::new(0, "G"), Ins::new(13, "AA"), Ins::new(23, "TT")],
+      vec![Del::new(5, 2), Del::new(20, 1)],
+      vec![Sub::new(1, 'T'), Sub::new(17, 'A')],
+    );
+    assert_eq!(edits, expected_edits);
+  }
+
+  #[test]
+  fn test_find_majority_edits_block3() {
+    let edits = block_3().find_majority_edits();
+    let expected_edits = Edit::new(vec![Ins::new(50, "TT")], vec![Del::new(20, 3)], vec![Sub::new(5, 'A')]);
+    assert_eq!(edits, expected_edits);
   }
 
   #[test]
@@ -376,49 +371,99 @@ mod tests {
   }
 
   #[test]
-  fn test_reconsensus() {
-    let mut block = block_3();
-    let expected_block = block_3_reconsensus();
-
-    let majority_edits = block.find_majority_edits();
+  fn test_mutations_only_reconsensus_block0() {
+    let mut block = block_0();
+    let expected_block = block_0_reconsensus();
 
     // Apply mutations
-    apply_mutation_reconsensus(&mut block, &majority_edits.subs).unwrap();
+    let majority_edits = block.find_majority_edits();
+    assert!(!majority_edits.has_indels()); // This block has no indels requiring re-alignment
+    apply_substitutions_to_block(&mut block, &majority_edits.subs).unwrap();
 
-    // Apply indels if present
-    let has_indels = majority_edits.has_indels();
-    if has_indels {
-      let consensus = block.consensus();
-      let new_consensus = majority_edits.apply(consensus).unwrap();
-      let band_params = BandParameters::from_edits(&majority_edits, block.consensus_len()).unwrap();
-      update_block_consensus(&mut block, &new_consensus, band_params, &PangraphBuildArgs::default()).unwrap();
-    }
-
-    assert!(has_indels); // This test expects realignment to have occurred
-    assert_eq!(block.consensus(), expected_block.consensus());
-    assert_eq!(block.alignments(), expected_block.alignments());
+    // But consensus should be updated and mutations healed
+    assert_eq!(block, expected_block);
   }
 
   #[test]
-  fn test_reconsensus_mutations_only_no_realignment() {
-    let mut block = block_mutations_only();
-    let expected_block = block_mutations_only_after_reconsensus();
-
-    let majority_edits = block.find_majority_edits();
+  fn test_mutations_only_reconsensus_block1() {
+    let mut block = block_1();
+    let expected_block = block_1_mut_reconsensus();
 
     // Apply mutations
-    apply_mutation_reconsensus(&mut block, &majority_edits.subs).unwrap();
-
-    // Check that no indels require re-alignment
-    let has_indels = majority_edits.has_indels();
-    assert!(!has_indels); // Should return false because no indels require re-alignment
+    let majority_edits = block.find_majority_edits();
+    apply_substitutions_to_block(&mut block, &majority_edits.subs).unwrap();
 
     // But consensus should be updated and mutations healed
-    assert_eq!(block.consensus(), expected_block.consensus());
-    assert_eq!(block.alignments(), expected_block.alignments());
+    assert_eq!(block, expected_block);
   }
 
-  fn block_for_graph_test() -> PangraphBlock {
+  #[test]
+  fn test_realign_reconsensus_block1() {
+    let block = block_1();
+    let expected_block = block_1_reconsensus();
+
+    // Apply majority edits
+    let majority_edits = block.find_majority_edits();
+    assert!(majority_edits.has_indels()); // This block has indels requiring re-alignment
+    let block = block
+      .edit_consensus_and_realign(&majority_edits, &PangraphBuildArgs::default())
+      .unwrap();
+
+    // Check that the re-alignment produced the expected result
+    assert_eq!(block, expected_block);
+  }
+
+  #[test]
+  fn test_realign_reconsensus_block3() {
+    let block = block_3();
+    let expected_block = block_3_reconsensus();
+
+    // Apply majority edits
+    let majority_edits = block.find_majority_edits();
+    assert!(majority_edits.has_indels()); // This block has indels requiring re-alignment
+    let block = block
+      .edit_consensus_and_realign(&majority_edits, &PangraphBuildArgs::default())
+      .unwrap();
+
+    // Check that the re-alignment produced the expected result
+    assert_eq!(block, expected_block);
+  }
+
+  #[test]
+  fn reconsensus_test() {
+    let block = block_1();
+    let block_id = block.id();
+    let expected_block = block_1_reconsensus();
+
+    let nodes = btreemap! {
+      NodeId(1) => PangraphNode::new(Some(NodeId(1)), block.id(), PathId(1), Forward, (0, 23)),
+      NodeId(2) => PangraphNode::new(Some(NodeId(2)), block.id(), PathId(2), Forward, (0, 23)),
+      NodeId(3) => PangraphNode::new(Some(NodeId(3)), block.id(), PathId(3), Forward, (0, 23)),
+      NodeId(4) => PangraphNode::new(Some(NodeId(4)), block.id(), PathId(4), Forward, (0, 23)),
+      NodeId(5) => PangraphNode::new(Some(NodeId(5)), block.id(), PathId(5), Forward, (0, 23)),
+    };
+    let paths = btreemap! {
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 23, false, None, None),
+      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(2)], 23, false, None, None),
+      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(3)], 23, false, None, None),
+      PathId(4) => PangraphPath::new(Some(PathId(4)), [NodeId(4)], 23, false, None, None),
+      PathId(5) => PangraphPath::new(Some(PathId(5)), [NodeId(5)], 23, false, None, None),
+    };
+    let mut graph = Pangraph {
+      blocks: btreemap! {
+        block_id => block,
+      },
+      nodes,
+      paths,
+    };
+
+    let result = reconsensus_graph(&mut graph, &[block_id], &PangraphBuildArgs::default());
+    result.unwrap();
+
+    assert_eq!(graph.blocks[&block_id], expected_block);
+  }
+
+  fn block_for_edge_case_test() -> PangraphBlock {
     let consensus = "GCCTCTTCCCGACCACGCGTTACAACATGGGACAGGCCTGCGCTTGAGGC";
     //               0         1         2         3         4
     //               01234567890123456789012345678901234567890123456789
@@ -432,7 +477,7 @@ mod tests {
     PangraphBlock::new(BlockId(20), consensus, aln)
   }
 
-  fn block_for_graph_test_expected() -> PangraphBlock {
+  fn block_for_edge_case_test_expected() -> PangraphBlock {
     // After reconsensus, the majority deletions (positions 35-49) should be applied
     // Original consensus: "GCCTCTTCCCGACCACGCGTTACAACATGGGACAGGCCTGCGCTTGAGGC" (50 chars)
     // Expected consensus: "GCCTCTTCCCGACCACGCGTTACAACATGGGACAG" (35 chars)
@@ -455,10 +500,12 @@ mod tests {
   }
 
   #[test]
-  fn test_reconsensus_graph() {
+  fn test_edge_case_reconsensus_graph() {
+    // test the edge case in which a node needs to be detached and separated in a new block
+
     // Create a block that will be modified by reconsensus
-    let initial_block = block_for_graph_test();
-    let expected_block = block_for_graph_test_expected();
+    let initial_block = block_for_edge_case_test();
+    let expected_block = block_for_edge_case_test_expected();
     let singleton_block_exp = signleton_block_expected();
 
     // Create nodes for the block with lengths reflecting actual sequence lengths
