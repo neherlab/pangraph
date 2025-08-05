@@ -166,7 +166,7 @@ Rust code is linted by running [Clippy](https://github.com/rust-lang/rust-clippy
 cargo clippy --all-targets --all
 ```
 
-Clippy is configured in `clippy.toml` and `.cargo/config.toml`.
+Clippy is configured in `.cargo/config.toml`.
 
 ### Formatting (code style)
 
@@ -177,6 +177,82 @@ cargo fmt --all
 ```
 
 Rustfmt is configured in `rustfmt.toml`.
+
+### Development scripts (optional)
+
+The project includes a development scripts at `./dev/docker/run` and `./dev/dev` which provide shortcuts for common development tasks. All commands run inside a Docker container:
+
+```bash
+# Build in debug mode
+./dev/docker/run ./dev/dev b
+
+# Build in release mode  
+./dev/docker/run ./dev/dev br
+
+# Run in debug mode
+./dev/docker/run ./dev/dev r pangraph -- build --help
+
+# Run in release mode
+./dev/docker/run ./dev/dev rr pangraph -- build --help
+
+# Run tests
+./dev/docker/run ./dev/dev t
+
+# Run unit tests only
+./dev/docker/run ./dev/dev tu
+
+# Run integration tests only
+./dev/docker/run ./dev/dev ti
+
+# Run linter
+./dev/docker/run ./dev/dev l
+
+# Run linter with auto-fixes
+./dev/docker/run ./dev/dev lf
+
+# Format code
+./dev/docker/run ./dev/dev f
+
+# Run arbitrary command in the container
+./dev/docker/run your command here
+```
+
+The same docker commands and the same container is used in CI. This setup ensures a consistent, isolated, reproducible environment on local machines and on remotes.
+
+Independently, there are some shortcuts defined in `.cargo/config.toml`. They can used directly with `cargo`:
+
+```toml
+[alias]
+lint = "-q clippy -q --all-targets --all"
+lint-fix = "lint --fix --allow-staged"
+test-all = "-q nextest run --success-output=immediate --workspace --cargo-quiet --no-fail-fast --hide-progress-bar --color=always"
+test-integration = "test-all --test='*'"
+test-unit = "test-all --lib"
+upgrade-deps = "-q upgrade --pinned --incompatible --verbose --recursive" # cargo install cargo-edit
+
+b = "build"
+br = "build --release"
+l = "lint"
+lf = "lint-fix"
+r = "run --bin"
+rr = "run --release --bin"
+t = "test-all"
+ti = "test-integration"
+tu = "test-unit"
+u = "upgrade-deps"
+
+```
+
+for example:
+
+```bash
+cargo run br # same as cargo run build --release
+
+cargo run lf # same as cargo -q clippy -q --all-targets --all --fix --allow-staged
+```
+
+None of that is required, and you can use the canonical `cargo` commands as usual, if you prefer. Feel free to add more shortcuts if you use them!
+
 
 ## Maintenance
 
@@ -213,7 +289,7 @@ There are multiple release targets and they are published by updating where the 
 
 | Branch               | CI workflow                                                                                         | Target                                                                                                                                                |
 |----------------------|-----------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `release`            | [cli.yml](https://github.com/neherlab/pangraph/blob/master/.github/workflows/cli.yml)               | Releases Pangraph CLI to [GitHub Releases](https://github.com/neherlab/pangraph/releases) and [DockerHub](https://hub.docker.com/r/neherlab/pangraph) |
+| `release-cli`        | [cli.yml](https://github.com/neherlab/pangraph/blob/master/.github/workflows/cli.yml)               | Releases Pangraph CLI to [GitHub Releases](https://github.com/neherlab/pangraph/releases) and [DockerHub](https://hub.docker.com/r/neherlab/pangraph) |
 | `release-pypangraph` | [pypangraph.yml](https://github.com/neherlab/pangraph/blob/master/.github/workflows/pypangraph.yml) | Releases PyPangraph to [PyPI](https://pypi.org/project/pypangraph/)                                                                                   |
 | `release-docs`       | [docs.yml](https://github.com/neherlab/pangraph/blob/master/.github/workflows/docs.yml)             | Releases documentation website to [https://docs.pangraph.org](https://docs.pangraph.org)                                                              |
 
@@ -241,7 +317,7 @@ There are multiple release targets and they are published by updating where the 
 
    Having hard times to decide? Read [Semantic Versioning](https://semver.org/).
 
-4. Follow instructions printed by the script. Resolve errors, if any. If finished successfully, follow instructions on how to fast-forward and push the changes to the `release` branch.
+4. Follow instructions printed by the script. Resolve errors, if any. If finished successfully, follow instructions on how to fast-forward and push the changes to the `release-cli` branch.
 
 5. Optionally, you can combine the releases of CLI, docs and PyPangraph. Just add more commits to `master` branch and then fast-forward and push them to corresponding branches all together.
 
