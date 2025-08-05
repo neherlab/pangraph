@@ -1,4 +1,5 @@
 use crate::io::seq::{complement, reverse_complement};
+use crate::make_error;
 use crate::representation::seq::Seq;
 use crate::representation::seq_char::AsciiChar;
 use crate::utils::interval::Interval;
@@ -127,6 +128,115 @@ impl Edit {
     self.subs.is_empty() && self.dels.is_empty() && self.inss.is_empty()
   }
 
+  /// Returns true if this edit contains any insertions or deletions (indels)
+  #[inline]
+  pub fn has_indels(&self) -> bool {
+    self.has_dels() || self.has_inss()
+  }
+
+  /// Returns true if this edit contains any deletions
+  #[inline]
+  pub fn has_dels(&self) -> bool {
+    !self.dels.is_empty()
+  }
+
+  /// Returns true if this edit contains any insertions
+  #[inline]
+  pub fn has_inss(&self) -> bool {
+    !self.inss.is_empty()
+  }
+
+  /// Returns true if this edit contains any substitutions
+  #[inline]
+  pub fn has_subs(&self) -> bool {
+    !self.subs.is_empty()
+  }
+
+  /// Checks if a position is deleted in this edit
+  #[inline]
+  pub fn is_position_deleted(&self, pos: usize) -> bool {
+    self.dels.iter().any(|d| d.contains(pos))
+  }
+
+  /// Adds a substitution if a position is not deleted.
+  fn add_substitution_if_not_deleted(&mut self, sub: Sub) {
+    if !self.is_position_deleted(sub.pos) {
+      self.subs.push(sub);
+      self.subs.sort_by_key(|s| s.pos);
+    }
+  }
+
+  /// Removes an existing substitution if it exactly matches the given substitution.
+  fn remove_substitution_if_matching(&mut self, substitution: &Sub) {
+    if let Some(existing_sub) = self.subs.iter().find(|s| s.pos == substitution.pos) {
+      if existing_sub.alt == substitution.alt {
+        self
+          .subs
+          .retain(|sub| !(sub.pos == substitution.pos && sub.alt == substitution.alt));
+      }
+    }
+  }
+
+  /// Returns all substitutions at a specific position
+  fn subs_at_position(&self, pos: usize) -> Vec<Sub> {
+    self.subs.iter().filter(|s| s.pos == pos).cloned().collect()
+  }
+
+  /// Reconciles genome alignment when consensus changes due to a substitution.
+  /// Takes as argument the substitution and the original nucleotide.
+  ///
+  /// During reconsensus, when a position in the consensus sequence is updated with a new
+  /// character, this method adjusts the genome's edit to maintain correct alignment.
+  /// - if the position already has a substitution:
+  ///   - removes it if matching the new consensus
+  ///   - keeps it if non-matching the new consensus
+  /// - if the position does not already have a substitution:
+  ///   - if it's not deleted, a reversion substitution is added.
+  ///   - otherwise if the position is deleted nothing is done
+  pub fn reconcile_substitution_with_consensus(
+    &mut self,
+    substitution: &Sub,
+    original: AsciiChar,
+  ) -> Result<(), Report> {
+    let subs_count = self.subs.iter().filter(|s| s.pos == substitution.pos).count();
+
+    match subs_count {
+      // If genome has no mutation at this position:
+      // adds reversion to original character if not deleted
+      0 => {
+        let reversion = Sub::new(substitution.pos, original);
+        self.add_substitution_if_not_deleted(reversion);
+      },
+      // If genome already has a mutation:
+      // - removes it if it matches the new consensus exactly (same substitution)
+      // - keeps it if non-matching the new consensus
+      1 => {
+        if self.is_position_deleted(substitution.pos) {
+          return make_error!(
+            "At position {}: sequence has both a substitution and a deletion {:?}",
+            substitution.pos,
+            self
+          );
+        }
+        self.remove_substitution_if_matching(substitution);
+      },
+      // If genome has conflicting mutations: returns error for inconsistent state
+      _ => {
+        let subs_at_pos = self.subs_at_position(substitution.pos);
+        return make_error!(
+          "At position {}: sequence states disagree: {:}",
+          substitution.pos,
+          subs_at_pos
+            .iter()
+            .map(|sub| sub.alt.to_string())
+            .collect_vec()
+            .join(", ")
+        );
+      },
+    }
+    Ok(())
+  }
+
   /// Construct edit which consists of a deletion of length `len`
   pub fn deleted(len: usize) -> Self {
     Self {
@@ -145,19 +255,22 @@ impl Edit {
   }
 
   pub fn reverse_complement(&self, len: usize) -> Result<Self, Report> {
-    let subs = self
+    let mut subs = self
       .subs
       .iter()
       .map(|s| s.reverse_complement(len))
       .collect::<Result<Vec<_>, Report>>()?;
+    subs.sort_by_key(|s| s.pos);
 
-    let dels = self.dels.iter().map(|d| d.reverse_complement(len)).collect_vec();
+    let mut dels = self.dels.iter().map(|d| d.reverse_complement(len)).collect_vec();
+    dels.sort_by_key(|d| d.pos);
 
-    let inss = self
+    let mut inss = self
       .inss
       .iter()
       .map(|i| i.reverse_complement(len))
       .collect::<Result<Vec<_>, Report>>()?;
+    inss.sort_by_key(|i| i.pos);
 
     Ok(Self { subs, dels, inss })
   }
@@ -215,6 +328,8 @@ impl Edit {
     Ok(qry)
   }
 
+  /// Apply the edits to the query sequence to obtain the aligned query
+  /// Nb: insertions are missing.
   pub fn apply_aligned(&self, reff: impl Into<Seq>) -> Result<Seq, Report> {
     let mut qry = reff.into();
 
@@ -1044,5 +1159,180 @@ mod tests {
     let bandwidth = edit.aln_bandwidth(cons_len, mean_shift);
     assert_eq!(mean_shift, 3);
     assert_eq!(bandwidth, Some(4));
+  }
+
+  #[test]
+  fn test_has_indels() {
+    // Edit with no indels (only substitutions)
+    let edit_no_indels = Edit::new(vec![], vec![], vec![Sub::new(1, 'A')]);
+    assert!(!edit_no_indels.has_indels());
+
+    // Edit with deletions
+    let edit_with_dels = Edit::new(vec![], vec![Del::new(5, 2)], vec![]);
+    assert!(edit_with_dels.has_indels());
+
+    // Edit with insertions
+    let edit_with_inss = Edit::new(vec![Ins::new(10, "ATG")], vec![], vec![]);
+    assert!(edit_with_inss.has_indels());
+
+    // Edit with both insertions and deletions
+    let edit_with_both = Edit::new(vec![Ins::new(10, "ATG")], vec![Del::new(5, 2)], vec![Sub::new(1, 'A')]);
+    assert!(edit_with_both.has_indels());
+
+    // Empty edit
+    let edit_empty = Edit::empty();
+    assert!(!edit_empty.has_indels());
+  }
+
+  #[test]
+  fn test_has_dels() {
+    // Edit with no deletions
+    let edit_no_dels = Edit::new(vec![Ins::new(10, "ATG")], vec![], vec![Sub::new(1, 'A')]);
+    assert!(!edit_no_dels.has_dels());
+
+    // Edit with deletions
+    let edit_with_dels = Edit::new(vec![], vec![Del::new(5, 2)], vec![]);
+    assert!(edit_with_dels.has_dels());
+
+    // Empty edit
+    let edit_empty = Edit::empty();
+    assert!(!edit_empty.has_dels());
+  }
+
+  #[test]
+  fn test_has_inss() {
+    // Edit with no insertions
+    let edit_no_inss = Edit::new(vec![], vec![Del::new(5, 2)], vec![Sub::new(1, 'A')]);
+    assert!(!edit_no_inss.has_inss());
+
+    // Edit with insertions
+    let edit_with_inss = Edit::new(vec![Ins::new(10, "ATG")], vec![], vec![]);
+    assert!(edit_with_inss.has_inss());
+
+    // Empty edit
+    let edit_empty = Edit::empty();
+    assert!(!edit_empty.has_inss());
+  }
+
+  #[test]
+  fn test_has_subs() {
+    // Edit with no substitutions
+    let edit_no_subs = Edit::new(vec![Ins::new(10, "ATG")], vec![Del::new(5, 2)], vec![]);
+    assert!(!edit_no_subs.has_subs());
+
+    // Edit with substitutions
+    let edit_with_subs = Edit::new(vec![], vec![], vec![Sub::new(1, 'A')]);
+    assert!(edit_with_subs.has_subs());
+
+    // Empty edit
+    let edit_empty = Edit::empty();
+    assert!(!edit_empty.has_subs());
+  }
+
+  #[test]
+  fn test_is_position_deleted() {
+    // Edit with no deletions
+    let edit_no_dels = Edit::new(vec![Ins::new(10, "ATG")], vec![], vec![Sub::new(1, 'A')]);
+    assert!(!edit_no_dels.is_position_deleted(0));
+    assert!(!edit_no_dels.is_position_deleted(5));
+    assert!(!edit_no_dels.is_position_deleted(10));
+
+    // Edit with single deletion at positions 5-7 (length 3)
+    let edit_single_del = Edit::new(vec![], vec![Del::new(5, 3)], vec![]);
+    assert!(!edit_single_del.is_position_deleted(4)); // position before deletion
+    assert!(edit_single_del.is_position_deleted(5)); // first position of deletion
+    assert!(edit_single_del.is_position_deleted(6)); // middle position of deletion
+    assert!(edit_single_del.is_position_deleted(7)); // last position of deletion
+    assert!(!edit_single_del.is_position_deleted(8)); // position after deletion
+
+    // Edit with multiple deletions
+    let edit_multiple_dels = Edit::new(
+      vec![],
+      vec![Del::new(2, 2), Del::new(8, 2)], // deletions at 2-3 and 8-9
+      vec![],
+    );
+    assert!(!edit_multiple_dels.is_position_deleted(1)); // before first deletion
+    assert!(edit_multiple_dels.is_position_deleted(2)); // in first deletion
+    assert!(edit_multiple_dels.is_position_deleted(3)); // in first deletion
+    assert!(!edit_multiple_dels.is_position_deleted(4)); // between deletions
+    assert!(!edit_multiple_dels.is_position_deleted(7)); // between deletions
+    assert!(edit_multiple_dels.is_position_deleted(8)); // in second deletion
+    assert!(edit_multiple_dels.is_position_deleted(9)); // in second deletion
+    assert!(!edit_multiple_dels.is_position_deleted(10)); // after last deletion
+
+    // Edit with single-position deletion
+    let edit_single_pos_del = Edit::new(vec![], vec![Del::new(10, 1)], vec![]);
+    assert!(!edit_single_pos_del.is_position_deleted(9)); // position before
+    assert!(edit_single_pos_del.is_position_deleted(10)); // deleted position
+    assert!(!edit_single_pos_del.is_position_deleted(11)); // position after
+
+    // Empty edit
+    let edit_empty = Edit::empty();
+    assert!(!edit_empty.is_position_deleted(0));
+    assert!(!edit_empty.is_position_deleted(100));
+  }
+
+  #[test]
+  fn test_reconcile_substitution_with_consensus_no_existing_sub_not_deleted() {
+    // Case: No existing substitution at position, position not deleted
+    // Should add reversion to original character
+    let mut edit = Edit::new(vec![], vec![], vec![Sub::new(1, 'G')]);
+    let substitution = Sub::new(5, 'T');
+    let original = AsciiChar(b'A');
+    let expected_edit = Edit::new(vec![], vec![], vec![Sub::new(1, 'G'), Sub::new(5, 'A')]);
+
+    edit
+      .reconcile_substitution_with_consensus(&substitution, original)
+      .unwrap();
+
+    assert_eq!(edit, expected_edit);
+  }
+
+  #[test]
+  fn test_reconcile_substitution_with_consensus_no_existing_sub_deleted() {
+    // Case: No existing substitution at position, position is deleted
+    // Should do nothing (no reversion added)
+    let mut edit = Edit::new(vec![], vec![Del::new(5, 3)], vec![Sub::new(1, 'G')]); // deletion covers positions 5-7
+    let substitution = Sub::new(7, 'T'); // position 6 is within deletion
+    let original = AsciiChar(b'A');
+    let expected_edit = Edit::new(vec![], vec![Del::new(5, 3)], vec![Sub::new(1, 'G')]);
+
+    edit
+      .reconcile_substitution_with_consensus(&substitution, original)
+      .unwrap();
+
+    assert_eq!(edit, expected_edit);
+  }
+
+  #[test]
+  fn test_reconcile_substitution_with_consensus_matching_existing_sub() {
+    // Case: One existing substitution that matches the new consensus
+    // Should remove the existing substitution
+    let mut edit = Edit::new(vec![], vec![], vec![Sub::new(5, 'T')]);
+    let substitution = Sub::new(5, 'T'); // matches existing substitution
+    let original = AsciiChar(b'A');
+    let expected_edit = Edit::empty();
+
+    edit
+      .reconcile_substitution_with_consensus(&substitution, original)
+      .unwrap();
+
+    assert_eq!(edit, expected_edit);
+  }
+
+  #[test]
+  fn test_reconcile_substitution_with_consensus_non_matching_existing_sub() {
+    // Case: One existing substitution that doesn't match the new consensus
+    // Should keep the existing substitution unchanged
+    let mut edit = Edit::new(vec![], vec![], vec![Sub::new(5, 'G')]);
+    let substitution = Sub::new(5, 'T'); // different from existing substitution
+    let original = AsciiChar(b'A');
+    let expected_edit = Edit::new(vec![], vec![], vec![Sub::new(5, 'G')]);
+
+    edit
+      .reconcile_substitution_with_consensus(&substitution, original)
+      .unwrap();
+
+    assert_eq!(edit, expected_edit);
   }
 }

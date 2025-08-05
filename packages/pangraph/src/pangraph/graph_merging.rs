@@ -166,7 +166,7 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
 
   // update consensus and alignment of merged blocks.
   let merge_block_ids = new_blocks_dict.keys().copied().collect_vec();
-  reconsensus_graph(&mut graph, merge_block_ids, args).wrap_err("During reconsensus")?;
+  reconsensus_graph(&mut graph, &merge_block_ids, args).wrap_err("During reconsensus")?;
 
   Ok((graph, true))
 }
