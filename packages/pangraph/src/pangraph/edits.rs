@@ -158,16 +158,16 @@ impl Edit {
     self.dels.iter().any(|d| d.contains(pos))
   }
 
-  /// Adds reversion mutation when no substitutions exist at a position
-  pub fn add_reversion_if_not_deleted(&mut self, pos: usize, original: AsciiChar) {
-    if !self.is_position_deleted(pos) {
-      self.subs.push(Sub::new(pos, original));
+  /// Adds a substitution if a position is not deleted.
+  fn add_substitution_if_not_deleted(&mut self, sub: Sub) {
+    if !self.is_position_deleted(sub.pos) {
+      self.subs.push(sub);
       self.subs.sort_by_key(|s| s.pos);
     }
   }
 
-  /// Removes substitution if it matches the new consensus character
-  pub fn remove_substitution_if_matching(&mut self, substitution: &Sub) {
+  /// Removes an existing substitution if it exactly matches the given substitution.
+  fn remove_substitution_if_matching(&mut self, substitution: &Sub) {
     if let Some(existing_sub) = self.subs.iter().find(|s| s.pos == substitution.pos) {
       if existing_sub.alt == substitution.alt {
         self
@@ -201,9 +201,15 @@ impl Edit {
     let subs_count = self.subs.iter().filter(|s| s.pos == substitution.pos).count();
 
     match subs_count {
-      // If genome has no mutation at this position: adds reversion to original character
-      0 => self.add_reversion_if_not_deleted(substitution.pos, original),
-      // If genome has matching mutation: removes it if it matches the new consensus
+      // If genome has no mutation at this position:
+      // adds reversion to original character if not deleted
+      0 => {
+        let reversion = Sub::new(substitution.pos, original);
+        self.add_substitution_if_not_deleted(reversion);
+      },
+      // If genome already has a mutation:
+      // - removes it if it matches the new consensus exactly (same substitution)
+      // - keeps it if non-matching the new consensus
       1 => {
         if self.is_position_deleted(substitution.pos) {
           return make_error!(
