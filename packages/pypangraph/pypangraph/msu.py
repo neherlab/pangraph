@@ -1,16 +1,49 @@
-from . import topology as ut
+from . import topology as tp
 from collections import defaultdict
 import numpy as np
 
 
+def find_mergers(paths):
+    """Create a dictionary source -> sinks of block-ids to be merged"""
+    edge_ct = tp.path_edge_count(paths)
+    block_ct = tp.path_block_count(paths)
+
+    mergers = {}
+    for e, ec in edge_ct.items():
+        bl, br = e.left.id, e.right.id
+        if (ec == block_ct[bl]) and (ec == block_ct[br]):
+            # merge
+            if bl in mergers:
+                if br in mergers:
+                    source = mergers[br]
+                    sink = mergers[bl]
+                    for k in mergers:
+                        if mergers[k] == source:
+                            mergers[k] = sink
+                else:
+                    mergers[br] = mergers[bl]
+            elif br in mergers:
+                mergers[bl] = mergers[br]
+            else:
+                mergers[br] = bl
+                mergers[bl] = bl
+
+    # add missing blocks that are not in a merger
+    for bid in block_ct.keys():
+        if bid not in mergers:
+            mergers[bid] = bid
+
+    return mergers
+
+
 def core_paths(pan, L_thr):
     bdf = pan.to_blockstats_df()
-    paths = ut.pangraph_to_path_dict(pan)
+    paths = tp.pangraph_to_path_dict(pan)
 
     def is_core(node_id):
         return (bdf.loc[node_id, "len"] >= L_thr) and bdf.loc[node_id, "core"]
 
-    return ut.filter_paths(paths, is_core)
+    return tp.filter_paths(paths, is_core)
 
 
 def flip_msu_to_most_common_orientation(paths):
@@ -23,14 +56,14 @@ def flip_msu_to_most_common_orientation(paths):
     # flip all the ones with orient < 0
     for iso, p in paths.items():
         nodes = [n.invert() if orient[n.id] < 0 else n for n in p.nodes]
-        paths[iso] = ut.Path(nodes, p.circular)
+        paths[iso] = tp.Path(nodes, p.circular)
 
     return paths
 
 
 def minimal_synteny_units(pan, L_thr: int, rotate: bool = True):
     c_paths = core_paths(pan, L_thr)
-    mergers = ut.find_mergers(c_paths)
+    mergers = find_mergers(c_paths)
 
     # MSU lengths
     B_len = pan.to_blockstats_df()["len"].to_dict()
@@ -42,7 +75,7 @@ def minimal_synteny_units(pan, L_thr: int, rotate: bool = True):
     MSU_order = sorted(MSU_len, key=MSU_len.get, reverse=True)
 
     # simplify paths
-    MSU_paths = ut.filter_paths(c_paths, lambda x: x in MSU_order)
+    MSU_paths = tp.filter_paths(c_paths, lambda x: x in MSU_order)
 
     # rename MSUs
     MSU_ids = {msu: f"MSU_{i}" for i, msu in enumerate(MSU_order)}
