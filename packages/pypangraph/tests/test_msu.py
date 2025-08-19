@@ -17,15 +17,15 @@ def load_graph():
 
 @pytest.fixture
 def generate_core_paths():
-    A = tp.Node("A", True)
-    B = tp.Node("B", True)
-    C = tp.Node("C", True)  # invert
-    D = tp.Node("D", True)  # invert
-    E = tp.Node("E", True)
-    F = tp.Node("F", True)
-    G = tp.Node("G", True)
-    H = tp.Node("H", True)  # invert
-    J = tp.Node("J", True)
+    A = tp.Node(1, True)
+    B = tp.Node(2, True)
+    C = tp.Node(3, True)  # invert
+    D = tp.Node(4, True)  # invert
+    E = tp.Node(5, True)
+    F = tp.Node(6, True)
+    G = tp.Node(7, True)
+    H = tp.Node(8, True)  # invert
+    J = tp.Node(9, True)
 
     p1 = tp.Path([A, B, C, D, E, F, G, H, J], circular=True)
     p2 = tp.Path([A, B, C, D, E, F, G, H, J], circular=True)
@@ -41,11 +41,11 @@ def generate_core_paths():
 class TestMSUFunctions:
     def test_find_mergers_same(self):
         # Create specific paths to test merger logic
-        A = tp.Node("A", True)
-        B = tp.Node("B", True)
-        C = tp.Node("C", True)
-        D = tp.Node("D", True)
-        E = tp.Node("E", True)
+        A = tp.Node(1, True)
+        B = tp.Node(2, True)
+        C = tp.Node(3, True)
+        D = tp.Node(4, True)
+        E = tp.Node(5, True)
 
         # Create paths where A-B and C-D should be merged
         p1 = tp.Path([A, B, C, D, E], circular=False)
@@ -56,7 +56,7 @@ class TestMSUFunctions:
 
         # Each block should map to itself or another block
         assert len(mergers) == 5
-        assert all(bid in mergers for bid in ["A", "B", "C", "D", "E"])
+        assert all(bid in mergers for bid in [1, 2, 3, 4, 5])
 
     def test_find_mergers_complex(self, generate_core_paths):
         paths, nodes = generate_core_paths
@@ -67,10 +67,10 @@ class TestMSUFunctions:
             mg_groups[sink].add(source)
         sources = list(mg_groups.values())
         assert len(sources) == 4
-        assert {"A", "B", "J"} in sources
-        assert {"C", "D"} in sources
-        assert {"E", "F", "G"} in sources
-        assert {"H"} in sources
+        assert {1, 2, 9} in sources
+        assert {3, 4} in sources
+        assert {5, 6, 7} in sources
+        assert {8} in sources
 
     def test_minimal_synteny_units(self, load_graph):
         """Test the main MSU function"""
@@ -125,9 +125,9 @@ class TestMSUFunctions:
     def test_flip_msu_to_most_common_orientation(self):
         """Test the orientation flipping function"""
         # Create test paths with different orientations
-        A = tp.Node("A", True)  # Should stay positive (majority)
-        B = tp.Node("B", False)  # Should flip to positive (minority negative)
-        C = tp.Node("C", True)  # Should stay positive
+        A = tp.Node(1, True)  # Should stay positive (majority)
+        B = tp.Node(2, False)  # Should flip to positive (minority negative)
+        C = tp.Node(3, True)  # Should stay positive
 
         # Path 1: A+, B-, C+
         p1 = tp.Path([A, B, C], circular=True)

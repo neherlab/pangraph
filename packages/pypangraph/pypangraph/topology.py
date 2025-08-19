@@ -4,7 +4,7 @@ from collections import defaultdict, Counter
 class Node:
     """Combination of block id and strandedness"""
 
-    def __init__(self, bid: str, strand: bool) -> None:
+    def __init__(self, bid: int, strand: bool) -> None:
         self.id = bid
         self.strand = strand
 
@@ -30,7 +30,7 @@ class Node:
 
     @staticmethod
     def from_str_id(t) -> "Node":
-        bid = t.split("_")[0]
+        bid = int(t.split("_")[0])
         strand = True if t.split("_")[1] == "f" else False
         return Node(bid, strand)
 
