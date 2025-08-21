@@ -15,6 +15,8 @@ class Node:
         return self.invert()
 
     def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Node):
+            return NotImplemented
         return self.id == other.id and self.strand == other.strand
 
     def __hash__(self) -> int:
@@ -38,8 +40,8 @@ class Node:
 class Path:
     """A path is a list of nodes"""
 
-    def __init__(self, nodes=[], circular=None) -> None:
-        self.nodes = nodes
+    def __init__(self, nodes=None, circular=None) -> None:
+        self.nodes = nodes if nodes is not None else []
         self.circular = circular
 
     def add_left(self, node: Node) -> None:
@@ -71,6 +73,8 @@ class Path:
         return self.invert()
 
     def __eq__(self, o: object) -> bool:
+        if not isinstance(o, Path):
+            return NotImplemented
         return self.nodes == o.nodes
 
     def __hash__(self) -> int:
@@ -92,7 +96,7 @@ class Path:
 
     @staticmethod
     def from_list(path_list: list[Node], circular: bool) -> "Path":
-        return Path([Node.from_str_id(nid) for nid in path_list])
+        return Path([Node.from_str_id(nid) for nid in path_list], circular=circular)
 
 
 class Edge:
@@ -112,6 +116,8 @@ class Edge:
         return self.left == o.left and self.right == o.right
 
     def __eq__(self, o: object) -> bool:
+        if not isinstance(o, Edge):
+            return NotImplemented
         return self.__side_eq__(o) or self.__side_eq__(o.invert())
 
     def __side_hash__(self) -> int:
