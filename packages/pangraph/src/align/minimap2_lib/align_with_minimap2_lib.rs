@@ -1,8 +1,9 @@
 use crate::align::alignment::{Alignment, Hit};
 use crate::align::alignment_args::AlignmentArgs;
+use crate::align::alignment_args::MinimapSensitivity::{Asm5, Asm10, Asm20};
+use crate::make_internal_error;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::strand::Strand;
-use crate::{make_error, make_internal_error};
 use eyre::{Report, WrapErr};
 use itertools::{Itertools, izip};
 use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset, Minimap2Result};
@@ -40,11 +41,10 @@ fn align_with_minimap2_lib_impl(
   }
 
   let preset = match params.sensitivity {
-    5 => Ok(Minimap2Preset::Asm5),
-    10 => Ok(Minimap2Preset::Asm10),
-    20 => Ok(Minimap2Preset::Asm20),
-    _ => make_error!("Unknown sensitivity preset: {}", params.sensitivity),
-  }?;
+    Asm5 => Minimap2Preset::Asm5,
+    Asm10 => Minimap2Preset::Asm10,
+    Asm20 => Minimap2Preset::Asm20,
+  };
 
   let args = Minimap2Args {
     x: Some(preset),
@@ -179,7 +179,7 @@ mod tests {
 
     let params = AlignmentArgs {
       kmer_length: Some(10),
-      sensitivity: 20,
+      sensitivity: Asm20,
       ..AlignmentArgs::default()
     };
 

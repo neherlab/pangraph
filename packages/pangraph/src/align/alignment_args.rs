@@ -1,6 +1,22 @@
-use clap::{Args, ValueHint, value_parser};
+use clap::ValueEnum;
+use clap::{Args, ValueHint};
 use serde::{Deserialize, Serialize};
 use smart_default::SmartDefault;
+use std::fmt::Debug;
+use strum_macros::Display;
+
+#[derive(
+  Copy, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum, SmartDefault, Display, Serialize, Deserialize,
+)]
+#[clap(rename_all = "kebab-case")]
+#[serde(rename_all = "kebab-case")]
+#[strum(serialize_all = "kebab-case")]
+pub enum MinimapSensitivity {
+  Asm5,
+  #[default]
+  Asm10,
+  Asm20,
+}
 
 #[derive(Clone, Debug, SmartDefault, Args, Serialize, Deserialize)]
 pub struct AlignmentArgs {
@@ -23,10 +39,9 @@ pub struct AlignmentArgs {
   pub beta: f64,
 
   /// Used to set pairwise alignment sensitivity for minimap aligner. Corresponds to option -x asm5/asm10/asm20 in minimap2
-  #[default = 10]
-  #[clap(long, short = 's', value_parser = value_parser!(usize), default_value_t = AlignmentArgs::default().sensitivity)]
+  #[clap(long, short = 's', default_value_t = AlignmentArgs::default().sensitivity)]
   #[clap(value_hint = ValueHint::Other)]
-  pub sensitivity: usize,
+  pub sensitivity: MinimapSensitivity,
 
   /// Sets kmer length for mmseqs2 aligner
   #[clap(long, short = 'K')]
