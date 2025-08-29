@@ -1,3 +1,7 @@
+## Unreleased
+
+- breaking change: make the cli `build` command option `--sensitivity` an enum, instead of an unsigned integer.
+
 ## 1.2.1
 
 - Fix an edge-case bug: when updating the consensus of a block with a majority deletion, very rarely an unaligned node could be created. This is now fixed by extracting such nodes into a separate singleton block, see #158.
