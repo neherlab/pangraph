@@ -6,9 +6,6 @@
 
 > a bioinformatic toolkit to align large sets of closely related genomes into a graph data structure
 
-> [!WARNING]
-> Pangraph is currently undergoing a major migration between v0 and v1. In this short transition period links and documentation may be inconsistent.
-
 ## Overview
 
 **pangraph** provides a command line interface to find homology amongst large collections of closely related genomes.
