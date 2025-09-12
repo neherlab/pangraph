@@ -81,6 +81,12 @@ This produces a version[^1] where we can see the different 'walks' taken through
 
 ![img](../assets/UVA01_plasmids_visualization.png)
 
+:::note
+
+To align all paths to a common _anchor_ block, the script requires that at least one _core_ block is present in all plasmids exactly once. In this example the anchor block is block _b_ (magenta).
+
+:::
+
 Note that the plasmids are circular: in the linear representation, in two cases block 'a' appears on the left rather than on the right, but the structure is identical.
 
 [^1]: your version will probably be different due to the random layout chosen by Bandage. You can always rerun the Bandage command multiple times until you get a nice result.
