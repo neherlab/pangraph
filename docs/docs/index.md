@@ -4,12 +4,6 @@ sidebar_position: 1
 
 # Introduction to Pangraph
 
-:::danger[Under construction 👷]
-
-Pangraph is currently under heavy development. Bugs and crashes are to be expected.
-
-:::
-
 **PanGraph** is a command-line tool for the analysis of bacterial genomes. It compresses multiple genome in a compact **graph representation**, that can be queried to extract information about the evolution of the genomes. It is developed and maintained by [the Neher lab](https://www.biozentrum.unibas.ch/about/administration/administration-a-z/overview/unit/research-group-richard-neher).
 
 ## Why Pangraph?
