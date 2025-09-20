@@ -69,7 +69,7 @@ impl Minimap2Options {
   }
 
   pub(crate) fn idx_opt_mut(&mut self) -> *mut mm_idxopt_t {
-    &mut self.idx_opt
+    &raw mut self.idx_opt
   }
 
   pub(crate) fn map_opt(&self) -> &mm_mapopt_t {
@@ -77,7 +77,7 @@ impl Minimap2Options {
   }
 
   pub(crate) fn map_opt_mut(&mut self) -> *mut mm_mapopt_t {
-    &mut self.map_opt
+    &raw mut self.map_opt
   }
 }
 

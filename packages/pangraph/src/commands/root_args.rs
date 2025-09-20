@@ -12,14 +12,11 @@ use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{Shell, generate};
 use clap_complete_fig::Fig;
 use eyre::{Report, eyre};
-use lazy_static::lazy_static;
 use num_cpus;
 use std::fmt::Debug;
 use std::io;
 
-lazy_static! {
-  pub static ref SHELLS: Vec<&'static str> = ["bash", "elvish", "fish", "fig", "powershell", "zsh"].to_vec();
-}
+const SHELLS: &[&str] = &["bash", "elvish", "fish", "fig", "powershell", "zsh"];
 
 fn styles() -> styling::Styles {
   styling::Styles::styled()
@@ -90,7 +87,7 @@ pub enum PangraphCommands {
   ///
   Completions {
     /// Name of the shell to generate appropriate completions
-    #[clap(value_name = "SHELL", default_value_t = String::from("bash"), value_parser = SHELLS.clone())]
+    #[clap(value_name = "SHELL", default_value_t = String::from("bash"), value_parser = SHELLS.to_vec())]
     shell: String,
   },
 

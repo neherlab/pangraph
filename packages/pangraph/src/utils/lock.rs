@@ -9,7 +9,6 @@ use std::sync::Arc;
 pub struct Lock<T>(Arc<RwLock<RawRwLock, T>>);
 
 impl<T> Clone for Lock<T> {
-  #[must_use]
   fn clone(&self) -> Self {
     Lock(Arc::clone(&self.0))
   }

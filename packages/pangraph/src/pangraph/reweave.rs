@@ -261,10 +261,10 @@ fn update_cigar(
   // anchor extension - more reference is a deletion
   if let Some(left) = anchor_extension.left {
     new_cigar = add_flanking_indel(&new_cigar, Kind::Deletion, left, &Side::Leading).unwrap();
-  };
+  }
   if let Some(right) = anchor_extension.right {
     new_cigar = add_flanking_indel(&new_cigar, Kind::Deletion, right, &Side::Trailing).unwrap();
-  };
+  }
 
   // append extension - more query is an insertion
   if let Some(left) = append_extension.left {
@@ -273,14 +273,14 @@ fn update_cigar(
       Strand::Reverse => Side::Trailing,
     };
     new_cigar = add_flanking_indel(&new_cigar, Kind::Insertion, left, &side).unwrap();
-  };
+  }
   if let Some(right) = append_extension.right {
     let side = match orientation {
       Strand::Forward => Side::Trailing,
       Strand::Reverse => Side::Leading,
     };
     new_cigar = add_flanking_indel(&new_cigar, Kind::Insertion, right, &side).unwrap();
-  };
+  }
 
   new_cigar
 }

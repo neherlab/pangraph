@@ -387,7 +387,7 @@ impl Minimap2RawRegs {
 
     // SAFETY: calling unsafe function. The `mm_map()` allocates memory for results array and the `.p` field each of
     // its elements' using `malloc()`. This memory needs to be deallocated using `free()`.
-    let regs: *mut mm_reg1_t = unsafe { mm_map(mi, l_seq, seq, &mut n_regs, buf.get_mut(), map_opt, name) };
+    let regs: *mut mm_reg1_t = unsafe { mm_map(mi, l_seq, seq, &raw mut n_regs, buf.get_mut(), map_opt, name) };
 
     Ok(Self {
       regs,
