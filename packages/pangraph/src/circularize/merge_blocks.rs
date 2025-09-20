@@ -178,14 +178,14 @@ fn check_sequence_reconstruction(
     if seq != new_seq {
       warn!("seq1: {}", e1.apply(block_1.consensus())?);
       warn!("cons1: {}", block_1.consensus());
-      warn!("e1: {:?}", e1);
+      warn!("e1: {e1:?}");
       warn!("seq2: {}", e2.apply(block_2.consensus())?);
       warn!("cons2: {}", block_2.consensus());
-      warn!("e2: {:?}", e2);
+      warn!("e2: {e2:?}");
 
-      warn!("new_seq: {}", new_seq);
+      warn!("new_seq: {new_seq}");
       warn!("new_cons: {}", new_block.consensus());
-      warn!("new_e: {:?}", new_e);
+      warn!("new_e: {new_e:?}");
     }
     debug_assert_eq!(seq, new_seq);
   }

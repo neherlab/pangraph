@@ -50,7 +50,7 @@ pub fn detach_unaligned_nodes(
     blocks.push(new_block);
     // replace the new node in the nodes dictionary
     nodes_dict.insert(node_id, new_node.clone());
-    debug!("Replaced node {} in nodes dictionary with new node", node_id);
+    debug!("Replaced node {node_id} in nodes dictionary with new node");
   }
 
   Ok(())
