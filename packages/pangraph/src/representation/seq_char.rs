@@ -127,7 +127,7 @@ impl<'de> serde::Deserialize<'de> for AsciiChar {
 }
 
 impl JsonSchema for AsciiChar {
-  fn always_inline_schema() -> bool {
+  fn inline_schema() -> bool {
     true
   }
 

@@ -550,7 +550,7 @@ impl<'de> serde::Deserialize<'de> for Seq {
 }
 
 impl JsonSchema for Seq {
-  fn always_inline_schema() -> bool {
+  fn inline_schema() -> bool {
     true
   }
 
