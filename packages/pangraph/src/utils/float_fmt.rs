@@ -1,5 +1,5 @@
-use std::sync::LazyLock;
 use pretty_dtoa::{FmtFloatConfig, dtoa};
+use std::sync::LazyLock;
 
 static FLOAT_CONFIG: LazyLock<FmtFloatConfig> = LazyLock::new(|| {
   FmtFloatConfig::default()
