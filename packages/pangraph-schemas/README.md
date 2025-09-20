@@ -26,7 +26,7 @@ cd pangraph-schemas/
 pip3 install dacite datamodel-code-generator pydantic
 
 # Generate Python classes
-datamodel-codegen --input-file-type "jsonschema" --input "Pangraph.schema.json" --output-model-type "dataclasses.dataclass" --enum-field-as-literal=all --output "python/Pangraph.py"
+datamodel-codegen --input-file-type "jsonschema" --input "Pangraph.schema.json" --output-model-type "dataclasses.dataclass" --enum-field-as-literal=all --output "python/Pangraph_model.py"
 
 # Run the example using the generated Python classes
 python3 python/example.py path/to/your/pangraph/output.json
