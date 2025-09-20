@@ -43,7 +43,6 @@ indicatif-log-bridge = { workspace = true }
 indoc = { workspace = true }
 intervallum = { workspace = true }
 itertools = { workspace = true }
-lazy_static = { workspace = true }
 log = { workspace = true }
 maplit = { workspace = true }
 minimap2 = { workspace = true }
