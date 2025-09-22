@@ -67,7 +67,7 @@ fn main() -> Result<(), Report> {
   #[cfg(debug_assertions)]
   merged.sanity_check()?;
 
-  info!("Writing merged graph to {:?}", args.build_args.output_json);
+  info!("Writing merged graph to {}", args.build_args.output_json.display());
 
   json_write_file(&args.build_args.output_json, &merged, JsonPretty(true))?;
 

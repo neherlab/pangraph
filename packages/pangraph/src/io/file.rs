@@ -66,7 +66,7 @@ pub fn create_file_or_stdout(filepath: impl AsRef<Path>) -> Result<Box<dyn Write
   let filepath = filepath.as_ref();
 
   let file: Box<dyn Write + Sync + Send> = if is_path_stdout(filepath) {
-    info!("File path is {filepath:?}. Writing to standard output.");
+    info!("File path is {}. Writing to standard output.", filepath.display());
     Box::new(BufWriter::with_capacity(DEFAULT_FILE_BUF_SIZE, stdout()))
   } else {
     ensure_dir(filepath)?;

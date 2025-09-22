@@ -25,6 +25,7 @@ function build() {
 
   local c_arch="-march=native"
   local rust_arch="-C target-cpu=native"
+  local rust_dlltool="-C dlltool=${CROSS_DLLTOOL:-x86_64-w64-mingw32-dlltool}"
   case "${target}" in
   aarch64-apple* | aarch64-darwin*)
     c_arch="-mcpu=apple-m1"
@@ -46,7 +47,7 @@ function build() {
   declare -x CARGO_TARGET_X86_64_APPLE_DARWIN_RUSTFLAGS="${rust_arch} ${rust_crt_static} ${rust_apple}"
   declare -x CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="${rust_arch}"
   declare -x CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="${rust_arch}"
-  declare -x CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUSTFLAGS="${rust_arch} ${rust_crt_static} ${rust_static} ${rust_self_contained}"
+  declare -x CARGO_TARGET_X86_64_PC_WINDOWS_GNU_RUSTFLAGS="${rust_arch} ${rust_crt_static} ${rust_static} ${rust_self_contained} ${rust_dlltool}"
   declare -x CARGO_TARGET_AARCH64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${rust_arch} ${rust_musl} ${rust_crt_static} ${rust_static} ${rust_self_contained}"
   declare -x CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS="${rust_arch} ${rust_musl} ${rust_crt_static} ${rust_static} ${rust_self_contained}"
 
