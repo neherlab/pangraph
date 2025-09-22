@@ -1,14 +1,14 @@
-use lazy_static::lazy_static;
 use pretty_dtoa::{FmtFloatConfig, dtoa};
+use std::sync::LazyLock;
 
-lazy_static! {
-  static ref FLOAT_CONFIG: FmtFloatConfig = FmtFloatConfig::default()
+static FLOAT_CONFIG: LazyLock<FmtFloatConfig> = LazyLock::new(|| {
+  FmtFloatConfig::default()
     .force_no_e_notation()
     .add_point_zero(true)
     .max_significant_digits(3)
     .radix_point('.')
-    .round();
-}
+    .round()
+});
 
 pub fn float_to_significant_digits<F: Into<f64>>(weight: F, max_significant_digits: u8) -> String {
   dtoa(

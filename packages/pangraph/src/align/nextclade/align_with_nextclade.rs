@@ -81,13 +81,11 @@ mod tests {
   use crate::commands::build::build_args::PangraphBuildArgs;
   use crate::o;
   use eyre::Report;
-  use lazy_static::lazy_static;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
+  use std::sync::LazyLock;
 
-  lazy_static! {
-    static ref EXTRA_BANDWIDTH: usize = PangraphBuildArgs::default().extra_band_width;
-  }
+  static EXTRA_BANDWIDTH: LazyLock<usize> = LazyLock::new(|| PangraphBuildArgs::default().extra_band_width);
 
   #[rstest]
   fn test_align_with_nextclade_general_case() -> Result<(), Report> {

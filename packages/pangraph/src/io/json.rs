@@ -42,7 +42,7 @@ pub struct JsonPretty(pub bool);
 pub fn json_write_file<T: Serialize>(filepath: impl AsRef<Path>, obj: &T, pretty: JsonPretty) -> Result<(), Report> {
   let filepath = filepath.as_ref();
   json_write(create_file_or_stdout(filepath)?, &obj, pretty)
-    .wrap_err_with(|| format!("When writing JSON file: {filepath:#?}"))
+    .wrap_err_with(|| format!("When writing JSON file: {}", filepath.display()))
 }
 
 pub fn json_write_str<T: Serialize>(obj: &T, pretty: JsonPretty) -> Result<String, Report> {

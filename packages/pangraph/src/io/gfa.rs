@@ -67,7 +67,7 @@ impl GfaWriteParams {
 pub fn gfa_write_file(filepath: impl AsRef<Path>, g: &Pangraph, params: &GfaWriteParams) -> Result<(), Report> {
   let filepath = filepath.as_ref();
   gfa_write(create_file_or_stdout(filepath)?, g, params)
-    .wrap_err_with(|| format!("When writing gfa file: {filepath:#?}"))
+    .wrap_err_with(|| format!("When writing gfa file: {}", filepath.display()))
 }
 
 pub fn gfa_write_str(g: &Pangraph, params: &GfaWriteParams) -> Result<String, Report> {
