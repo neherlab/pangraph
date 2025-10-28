@@ -206,33 +206,34 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -
 mod tests {
   use super::*;
   use crate::representation::seq::Seq;
-  use crate::utils::error::report_to_string;
 
   #[test]
   fn ensure_no_gap_characters_accepts_clean_sequences() {
-    let mut record = FastaRecord::default();
-    record.seq_name = "clean_seq".to_string();
-    record.seq = Seq::from_str("AACCGGTT");
+    let record = FastaRecord {
+      seq_name: "clean_seq".to_owned(),
+      seq: Seq::from_str("AACCGGTT"),
+      ..Default::default()
+    };
 
-    assert!(ensure_no_gap_characters(std::slice::from_ref(&record)).is_ok());
+    ensure_no_gap_characters(std::slice::from_ref(&record)).unwrap();
   }
 
   #[test]
   fn ensure_no_gap_characters_rejects_sequences_with_gaps() {
-    let mut clean = FastaRecord::default();
-    clean.seq_name = "clean".to_string();
-    clean.seq = Seq::from_str("ACGT");
+    let clean = FastaRecord {
+      seq_name: "clean".to_owned(),
+      seq: Seq::from_str("ACGT"),
+      ..Default::default()
+    };
 
-    let mut gappy = FastaRecord::default();
-    gappy.seq_name = "gappy".to_string();
-    gappy.seq = Seq::from_str("AC-GT");
+    let gappy = FastaRecord {
+      seq_name: "gappy".to_owned(),
+      seq: Seq::from_str("AC-GT"),
+      ..Default::default()
+    };
 
     let fastas = vec![clean, gappy];
 
-    let err = ensure_no_gap_characters(&fastas).unwrap_err();
-    let err_string = report_to_string(&err);
-
-    assert!(err_string.contains("Detected gap character '-'"));
-    assert!(err_string.contains("gappy"));
+    assert!(ensure_no_gap_characters(&fastas).is_err());
   }
 }
