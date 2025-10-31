@@ -7,17 +7,12 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-#[derive(ValueEnum, Copy, Clone, Debug, Deserialize, Serialize)]
+#[derive(ValueEnum, Copy, Clone, Debug, Deserialize, Serialize, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum GapAlignmentSide {
+  #[default]
   Left,
   Right,
-}
-
-impl Default for GapAlignmentSide {
-  fn default() -> Self {
-    Self::Left
-  }
 }
 
 #[allow(clippy::struct_excessive_bools)]

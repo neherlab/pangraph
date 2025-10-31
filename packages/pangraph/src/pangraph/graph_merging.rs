@@ -267,7 +267,7 @@ mod tests {
       orientation: Strand::Reverse,
       new_block_id: None, // FIXME
       anchor_block: None, // FIXME
-      cigar: parse_cigar_str("90M").unwrap(),
+      cigar: parse_cigar_str("90M")?,
       divergence: Some(0.05),
       align: None,
     };
@@ -293,7 +293,7 @@ mod tests {
       orientation: Strand::Reverse,
       new_block_id: None, // FIXME
       anchor_block: None, // FIXME
-      cigar: parse_cigar_str("90M").unwrap(),
+      cigar: parse_cigar_str("90M")?,
       divergence: Some(0.05),
       align: None,
     };
@@ -314,7 +314,7 @@ mod tests {
       orientation: Strand::default(),
       new_block_id: None, // FIXME
       anchor_block: None, // FIXME
-      cigar: parse_cigar_str("100M").unwrap(),
+      cigar: parse_cigar_str("100M")?,
       divergence: Some(0.05),
       align: None,
     };
@@ -328,7 +328,7 @@ mod tests {
       orientation: Strand::default(),
       new_block_id: None, // FIXME
       anchor_block: None, // FIXME
-      cigar: parse_cigar_str("100M").unwrap(),
+      cigar: parse_cigar_str("100M")?,
       divergence: Some(0.02),
       align: None,
     };
@@ -342,7 +342,7 @@ mod tests {
       orientation: Strand::default(),
       new_block_id: None, // FIXME
       anchor_block: None, // FIXME
-      cigar: parse_cigar_str("100M").unwrap(),
+      cigar: parse_cigar_str("100M")?,
       divergence: Some(0.05),
       align: None,
     };
@@ -356,7 +356,7 @@ mod tests {
       orientation: Strand::default(),
       new_block_id: None, // FIXME
       anchor_block: None, // FIXME
-      cigar: parse_cigar_str("100M").unwrap(),
+      cigar: parse_cigar_str("100M")?,
       divergence: Some(0.1),
       align: None,
     };

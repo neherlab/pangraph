@@ -196,14 +196,14 @@ pub fn side_patches(aln: &mut Alignment, args: &AlignmentArgs) -> Result<(), Rep
     let delta_l = rs;
     aln.reff.interval.start = 0;
     aln.length += delta_l;
-    ops = add_flanking_indel(&ops, Kind::Deletion, delta_l, &Side::Leading).unwrap();
+    ops = add_flanking_indel(&ops, Kind::Deletion, delta_l, &Side::Leading)?;
   }
   if (re < rL) && (rL - re < args.indel_len_threshold) {
     // Append right reference patch
     let delta_l = rL - re;
     aln.reff.interval.end = rL;
     aln.length += delta_l;
-    ops = add_flanking_indel(&ops, Kind::Deletion, delta_l, &Side::Trailing).unwrap();
+    ops = add_flanking_indel(&ops, Kind::Deletion, delta_l, &Side::Trailing)?;
   }
 
   // Check query
@@ -217,7 +217,7 @@ pub fn side_patches(aln: &mut Alignment, args: &AlignmentArgs) -> Result<(), Rep
       Strand::Forward => Side::Leading,
       Strand::Reverse => Side::Trailing,
     };
-    ops = add_flanking_indel(&ops, Kind::Insertion, delta_l, &side).unwrap();
+    ops = add_flanking_indel(&ops, Kind::Insertion, delta_l, &side)?;
   }
   if (qe < qL) && (qL - qe < args.indel_len_threshold) {
     // Append query end
@@ -228,7 +228,7 @@ pub fn side_patches(aln: &mut Alignment, args: &AlignmentArgs) -> Result<(), Rep
       Strand::Forward => Side::Trailing,
       Strand::Reverse => Side::Leading,
     };
-    ops = add_flanking_indel(&ops, Kind::Insertion, delta_l, &side).unwrap();
+    ops = add_flanking_indel(&ops, Kind::Insertion, delta_l, &side)?;
   }
 
   aln.cigar = ops;

@@ -34,6 +34,6 @@ pub fn serde_deserialize_seq<'de, D: Deserializer<'de>, L: Letter<L>>(deserializ
   let seq = L::to_seq(&seq_str)
     .wrap_err("When deserializing nucleotide sequence")
     .with_section(|| seq_str.header("Sequence:"))
-    .unwrap();
+    .map_err(serde::de::Error::custom)?;
   Ok(seq)
 }

@@ -834,7 +834,7 @@ mod tests {
     assert_eq!(h[0].block.id(), BlockId(42));
     assert_eq!(h[0].is_anchor, true);
     assert_eq!(h[0].orientation, Forward);
-    assert_eq!(h[0].cigar, Some(Cigar::from_str("10I10M10D40M").unwrap()));
+    assert_eq!(h[0].cigar, Some(Cigar::from_str("10I10M10D40M")?));
     assert_eq!(h[1].block.id(), BlockId(43));
     assert_eq!(h[1].is_anchor, false);
     assert_eq!(h[1].orientation, Reverse);
@@ -1071,7 +1071,7 @@ mod tests {
     assert_eq!(p1.append_block.consensus(), &O.blocks[&BlockId(40)].consensus()[0..200]);
     assert_eq!(p1.append_block.id(), G.nodes[&nid_300_1].block_id());
     // CIGAR modified by left 10 bp overhands in ref and qry
-    assert_eq!(p1.cigar, Cigar::from_str("10I20D170M10I10M").unwrap());
+    assert_eq!(p1.cigar, Cigar::from_str("10I20D170M10I10M")?);
 
     let bid40_3 = G.nodes[&nid_300_3].block_id();
     let p2 = &p_dict[&bid40_3];
@@ -1082,7 +1082,7 @@ mod tests {
     );
     assert_eq!(p2.append_block.id(), G.nodes[&nid_200_4].block_id());
     assert_eq!(p2.append_block.consensus(), &O.blocks[&BlockId(20)].consensus()[0..200]);
-    assert_eq!(p2.cigar, Cigar::from_str("200M").unwrap());
+    assert_eq!(p2.cigar, Cigar::from_str("200M")?);
 
     let bid50_1 = G.nodes[&nid_200_2].block_id();
     let p3 = &p_dict[&bid50_1];
@@ -1095,7 +1095,7 @@ mod tests {
       &O.blocks[&BlockId(20)].consensus()[300..400]
     );
     // CIGAR modified by right 50 bp overhang in ref
-    assert_eq!(p3.cigar, Cigar::from_str("100M50D").unwrap());
+    assert_eq!(p3.cigar, Cigar::from_str("100M50D")?);
 
     let bid50_2 = G.nodes[&nid_100_2].block_id();
     let p4 = &p_dict[&bid50_2];
@@ -1107,7 +1107,7 @@ mod tests {
     );
     assert_eq!(p4.append_block.id(), G.nodes[&nid_300_5].block_id());
     assert_eq!(p4.append_block.consensus(), &O.blocks[&BlockId(30)].consensus()[0..100]);
-    assert_eq!(p4.cigar, Cigar::from_str("80M10I10M10D").unwrap());
+    assert_eq!(p4.cigar, Cigar::from_str("80M10I10M10D")?);
 
     // assert_eq!(p1.append_block.id(), p1.anchor_block.id());
     // assert_eq!(p2.append_block.id(), p2.anchor_block.id());

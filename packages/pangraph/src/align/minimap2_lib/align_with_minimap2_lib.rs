@@ -194,7 +194,7 @@ mod tests {
       orientation: Strand::Forward,
       new_block_id: None, // FIXME
       anchor_block: None, // FIXME
-      cigar: parse_cigar_str("545M1D225M1D226M").unwrap(),
+      cigar: parse_cigar_str("545M1D225M1D226M")?,
       divergence: Some(0.029058116232464903),
       align: Some(845.0),
     }];
