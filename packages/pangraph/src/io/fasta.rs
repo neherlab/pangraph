@@ -749,4 +749,24 @@ mod tests {
     assert_eq!(expected, actual);
     Ok(())
   }
+
+  #[test]
+  fn test_fasta_reader_disallowed_gap_characters() {
+    let data = b">seq1\nACGT\n>seq2\nAC-GT\n";
+    let mut reader = FastaReader::new(Box::new(Cursor::new(data))).with_disallowed_chars(vec!['-']);
+
+    // First record should succeed (no gaps)
+    let mut record = FastaRecord::new();
+    reader.read(&mut record).unwrap();
+    assert_eq!(record.seq_name, "seq1");
+    assert_eq!(record.seq, "ACGT");
+
+    // Second record should fail (contains gap)
+    let mut record2 = FastaRecord::new();
+    let result = reader.read(&mut record2);
+    assert!(result.is_err());
+    
+    let error_message = report_to_string(&result.unwrap_err());
+    assert!(error_message.contains("character \"-\" is disallowed"));
+  }
 }
