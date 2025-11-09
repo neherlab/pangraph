@@ -765,7 +765,7 @@ mod tests {
     let mut record2 = FastaRecord::new();
     let result = reader.read(&mut record2);
     assert!(result.is_err());
-    
+
     let error_message = report_to_string(&result.unwrap_err());
     assert!(error_message.contains("character \"-\" is disallowed"));
   }
