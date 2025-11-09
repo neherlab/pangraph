@@ -1,6 +1,6 @@
 use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
 use crate::commands::reconstruct::reconstruct_run::{compare_sequences, reconstruct};
-use crate::io::fasta::{FastaRecord, read_many_fasta};
+use crate::io::fasta::{FastaRecord, read_many_fasta_with_disallowed_chars};
 use crate::io::json::{JsonPretty, json_write_file};
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
@@ -65,7 +65,13 @@ pub fn graph_sanity_checks(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(
 pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   let input_fastas = &args.input_fastas;
 
-  let fastas = read_many_fasta(input_fastas)?;
+  let fastas = read_many_fasta_with_disallowed_chars(input_fastas, &['-'])
+    .wrap_err("Gap characters ('-') are not allowed in input sequences for the build command")
+    .section(
+      "Please verify your input sequences and remove any gap characters before running `pangraph build`."
+        .color(AnsiColors::Cyan)
+        .header("Suggestion:"),
+    )?;
 
   // TODO: adjust fasta letter case if `upper_case` is set
   // TODO: check for duplicate fasta names

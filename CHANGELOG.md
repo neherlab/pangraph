@@ -1,6 +1,6 @@
 ## Unreleased
 
-- updated Rust version to 1.90 (see #168) and dependencies (see #169)
+- add more informative error message for the `build` command when input sequences contain gap characters, see #172.
 
 ## 1.2.1
 

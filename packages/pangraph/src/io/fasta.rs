@@ -56,6 +56,7 @@ pub struct FastaReader<'a> {
   n_lines: usize,
   n_chars: usize,
   index: usize,
+  disallowed_chars: Vec<char>,
 }
 
 impl<'a> FastaReader<'a> {
@@ -66,7 +67,14 @@ impl<'a> FastaReader<'a> {
       n_lines: 0,
       n_chars: 0,
       index: 0,
+      disallowed_chars: Vec::new(),
     }
+  }
+
+  #[must_use]
+  pub fn with_disallowed_chars(mut self, disallowed_chars: Vec<char>) -> Self {
+    self.disallowed_chars = disallowed_chars;
+    self
   }
 
   pub fn from_str(contents: &'a impl AsRef<str>) -> Result<Self, Report> {
@@ -162,9 +170,7 @@ impl<'a> FastaReader<'a> {
       record.seq.reserve(trimmed.len());
       for (i, c) in trimmed.chars().enumerate() {
         let c_upper = c.to_ascii_uppercase();
-        if ALPHABET.contains(&c_upper) {
-          record.seq.push(AsciiChar::from(c_upper));
-        } else {
+        if !ALPHABET.contains(&c_upper) {
           return make_error!("FASTA input is incorrect: character \"{c}\" is not in the alphabet",)
             .with_section(|| {
               str_slice_safe(trimmed, i.saturating_sub(10), i.saturating_add(10))
@@ -180,6 +186,24 @@ impl<'a> FastaReader<'a> {
             })
             .wrap_err_with(|| format!("When processing sequence #{}: \"{}\"", self.index, record.header()));
         }
+        if self.disallowed_chars.contains(&c_upper) {
+          return make_error!("FASTA input is incorrect: character \"{c}\" is disallowed",)
+            .with_section(|| {
+              str_slice_safe(trimmed, i.saturating_sub(10), i.saturating_add(10))
+                .to_owned()
+                .header("Sequence fragment:")
+            })
+            .with_section(|| {
+              self
+                .disallowed_chars
+                .iter()
+                .map(quote_single)
+                .join(", ")
+                .header("Disallowed characters: ")
+            })
+            .wrap_err_with(|| format!("When processing sequence #{}: \"{}\"", self.index, record.header()));
+        }
+        record.seq.push(AsciiChar::from(c_upper));
       }
 
       self.line.clear();
@@ -198,7 +222,21 @@ pub fn read_one_fasta(filepath: impl AsRef<Path>) -> Result<FastaRecord, Report>
 }
 
 pub fn read_many_fasta<P: AsRef<Path>>(filepaths: &[P]) -> Result<Vec<FastaRecord>, Report> {
-  let mut reader = FastaReader::from_paths(filepaths)?;
+  read_many_fasta_impl(filepaths, &[])
+}
+
+pub fn read_many_fasta_with_disallowed_chars<P: AsRef<Path>>(
+  filepaths: &[P],
+  disallowed_chars: &[char],
+) -> Result<Vec<FastaRecord>, Report> {
+  read_many_fasta_impl(filepaths, disallowed_chars)
+}
+
+fn read_many_fasta_impl<P: AsRef<Path>>(
+  filepaths: &[P],
+  disallowed_chars: &[char],
+) -> Result<Vec<FastaRecord>, Report> {
+  let mut reader = FastaReader::from_paths(filepaths)?.with_disallowed_chars(disallowed_chars.to_vec());
   let mut fasta_records = Vec::<FastaRecord>::new();
 
   loop {
@@ -710,5 +748,25 @@ mod tests {
 
     assert_eq!(expected, actual);
     Ok(())
+  }
+
+  #[test]
+  fn test_fasta_reader_disallowed_gap_characters() {
+    let data = b">seq1\nACGT\n>seq2\nAC-GT\n";
+    let mut reader = FastaReader::new(Box::new(Cursor::new(data))).with_disallowed_chars(vec!['-']);
+
+    // First record should succeed (no gaps)
+    let mut record = FastaRecord::new();
+    reader.read(&mut record).unwrap();
+    assert_eq!(record.seq_name, "seq1");
+    assert_eq!(record.seq, "ACGT");
+
+    // Second record should fail (contains gap)
+    let mut record2 = FastaRecord::new();
+    let result = reader.read(&mut record2);
+    assert!(result.is_err());
+
+    let error_message = report_to_string(&result.unwrap_err());
+    assert!(error_message.contains("character \"-\" is disallowed"));
   }
 }
