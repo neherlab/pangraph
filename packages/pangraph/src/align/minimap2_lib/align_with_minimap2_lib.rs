@@ -127,7 +127,7 @@ mod tests {
 
   use crate::align::alignment::Hit;
   use crate::align::bam::cigar::parse_cigar_str;
-  use crate::io::fasta::read_many_fasta_str;
+  use crate::io::fasta::FastaReader;
   use crate::pangraph::strand::Strand;
   use pretty_assertions::assert_eq;
 
@@ -173,7 +173,7 @@ mod tests {
       GGCGCAGATTTGATGGTGACTAAGCTGCCAAACTGAGT
       "#;
 
-    let fasta = read_many_fasta_str(fasta)?;
+    let fasta = FastaReader::from_str(&fasta)?.read_many()?;
 
     let (seqs, names): (Vec<String>, Vec<String>) = fasta.into_iter().map(|f| (f.seq.to_string(), f.seq_name)).unzip();
 

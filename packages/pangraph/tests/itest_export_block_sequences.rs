@@ -5,7 +5,7 @@ mod tests {
   use eyre::Report;
   use pangraph::commands::export::export_args::PangraphExportBlockSequencesArgs;
   use pangraph::commands::export::export_block_sequences::{ExportBlockSequencesParams, export_block_sequences};
-  use pangraph::io::fasta::read_many_fasta;
+  use pangraph::io::fasta::{Alphabet, FastaReader};
   use pangraph::pangraph::pangraph::Pangraph;
   use pangraph::pangraph::pangraph_node::NodeId;
   use pretty_assertions::assert_eq;
@@ -30,7 +30,14 @@ mod tests {
 
     for (block_id, block) in &graph.blocks {
       let block_fa = output.join(format!("block_{block_id}.fa"));
-      let records = read_many_fasta(&[block_fa])?;
+      let alphabet = if aligned {
+        Alphabet::DnaWithGap
+      } else {
+        Alphabet::DnaWithoutGap
+      };
+      let records = FastaReader::from_paths(&[block_fa])?
+        .with_alphabet(alphabet)
+        .read_many()?;
 
       assert_eq!(records.len(), block.alignments().len());
 

@@ -6,7 +6,7 @@ mod tests {
   use itertools::Itertools;
   use pangraph::commands::export::export_args::PangraphExportBlockConsensusArgs;
   use pangraph::commands::export::export_block_consensus::export_block_consensus;
-  use pangraph::io::fasta::read_many_fasta;
+  use pangraph::io::fasta::FastaReader;
   use pangraph::pangraph::pangraph::Pangraph;
   use pangraph::pangraph::pangraph_block::BlockId;
   use pretty_assertions::assert_eq;
@@ -24,7 +24,7 @@ mod tests {
       output: output.clone(),
     })?;
 
-    let records = read_many_fasta(&[output])?;
+    let records = FastaReader::from_paths(&[output])?.read_many()?;
 
     let fasta_bids = records
       .iter()
