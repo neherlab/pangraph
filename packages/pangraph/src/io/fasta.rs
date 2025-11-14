@@ -814,4 +814,157 @@ mod tests {
     assert_eq!(o!("seq1"), record.seq_name);
     assert_eq!(Seq::from("XYZ-XYZ"), record.seq);
   }
+
+  #[test]
+  fn test_fasta_record_clear() {
+    let mut record = FastaRecord {
+      seq_name: o!("test"),
+      desc: Some(o!("description"),),
+      seq: "ACGT".into(),
+      index: 5,
+    };
+
+    record.clear();
+
+    let expected = FastaRecord::new();
+    assert_eq!(expected, record);
+  }
+
+  #[test]
+  fn test_fasta_record_is_empty_true_for_default() {
+    let record = FastaRecord::default();
+    assert!(record.is_empty());
+  }
+
+  #[test]
+  fn test_fasta_writer_multiple_records() -> Result<(), Report> {
+    let buffer = Vec::new();
+    let mut writer = FastaWriter::new(Box::new(buffer));
+
+    writer.write("seq1", &None, &Seq::from("ACGT"))?;
+    writer.write("seq2", &Some(o!("desc2")), &Seq::from("GCTA"))?;
+    writer.flush()?;
+
+    Ok(())
+  }
+
+  #[test]
+  fn test_alphabet_display_dna_without_gap() {
+    let alphabet = Alphabet::DnaWithoutGap;
+    let expected = "'A', 'C', 'G', 'T', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N'";
+    let actual = alphabet.to_string();
+    assert_eq!(expected, actual);
+  }
+
+  #[test]
+  fn test_alphabet_display_dna_with_gap() {
+    let alphabet = Alphabet::DnaWithGap;
+    let expected = "'A', 'C', 'G', 'T', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N', '-'";
+    let actual = alphabet.to_string();
+    assert_eq!(expected, actual);
+  }
+
+  #[test]
+  fn test_alphabet_display_custom() {
+    let alphabet = Alphabet::Custom(vec!['X', 'Y', 'Z']);
+    let expected = "'X', 'Y', 'Z'";
+    let actual = alphabet.to_string();
+    assert_eq!(expected, actual);
+  }
+
+  #[test]
+  fn test_fasta_reader_invalid_char_at_start() {
+    let data = b">seq1\n%ACGT\n";
+    let mut reader = FastaReader::new(Box::new(Cursor::new(data)));
+    let mut record = FastaRecord::new();
+    let actual = report_to_string(&reader.read(&mut record).unwrap_err());
+    let expected =
+      r#"When processing sequence #1: ">seq1": FASTA input is incorrect: character "%" is not in the alphabet"#;
+    assert_eq!(expected, actual);
+  }
+
+  #[test]
+  fn test_fasta_reader_invalid_char_at_end() {
+    let data = b">seq1\nACGT%\n";
+    let mut reader = FastaReader::new(Box::new(Cursor::new(data)));
+    let mut record = FastaRecord::new();
+    let actual = report_to_string(&reader.read(&mut record).unwrap_err());
+    let expected =
+      r#"When processing sequence #1: ">seq1": FASTA input is incorrect: character "%" is not in the alphabet"#;
+    assert_eq!(expected, actual);
+  }
+
+  #[test]
+  fn test_fasta_reader_empty_sequence_name() {
+    let data = b">\nACGT\n";
+    let mut reader = FastaReader::new(Box::new(Cursor::new(data)));
+    let mut record = FastaRecord::new();
+    reader.read(&mut record).unwrap();
+
+    assert_eq!(o!(""), record.seq_name);
+    assert_eq!(None, record.desc);
+    assert_eq!(Seq::from("ACGT"), record.seq);
+    assert_eq!(0, record.index);
+  }
+
+  #[test]
+  fn test_fasta_reader_only_space_in_header() {
+    let data = b"> \nACGT\n";
+    let mut reader = FastaReader::new(Box::new(Cursor::new(data)));
+    let mut record = FastaRecord::new();
+    reader.read(&mut record).unwrap();
+
+    assert_eq!(o!(""), record.seq_name);
+    assert_eq!(None, record.desc);
+    assert_eq!(Seq::from("ACGT"), record.seq);
+    assert_eq!(0, record.index);
+  }
+
+  #[test]
+  fn test_fasta_reader_iupac_ambiguity_codes() {
+    let data = b">seq1\nACGTYRWSKMDVHBN\n";
+    let mut reader = FastaReader::new(Box::new(Cursor::new(data)));
+    let mut record = FastaRecord::new();
+    reader.read(&mut record).unwrap();
+
+    assert_eq!(o!("seq1"), record.seq_name);
+    assert_eq!(Seq::from("ACGTYRWSKMDVHBN"), record.seq);
+  }
+
+  #[test]
+  fn test_read_many_fasta_str_empty() -> Result<(), Report> {
+    let actual = read_many_fasta_str("")?;
+    let expected: Vec<FastaRecord> = vec![];
+    assert_eq!(expected, actual);
+    Ok(())
+  }
+
+  #[test]
+  fn test_read_many_fasta_str_general_case() -> Result<(), Report> {
+    let actual = read_many_fasta_str(">a\nACGT\n>b\nGCTA\n>c\nTGCA\n")?;
+
+    let expected = vec![
+      FastaRecord {
+        seq_name: o!("a"),
+        desc: None,
+        seq: "ACGT".into(),
+        index: 0,
+      },
+      FastaRecord {
+        seq_name: o!("b"),
+        desc: None,
+        seq: "GCTA".into(),
+        index: 1,
+      },
+      FastaRecord {
+        seq_name: o!("c"),
+        desc: None,
+        seq: "TGCA".into(),
+        index: 2,
+      },
+    ];
+
+    assert_eq!(expected, actual);
+    Ok(())
+  }
 }
