@@ -6,7 +6,7 @@ mod tests {
   use itertools::Itertools;
   use pangraph::commands::export::export_args::PangraphExportCoreAlignmentArgs;
   use pangraph::commands::export::export_core_genome::{ExportCoreAlignmentParams, export_core_genome};
-  use pangraph::io::fasta::read_many_fasta;
+  use pangraph::io::fasta::{Alphabet, FastaReader};
   use pangraph::io::json::{JsonPretty, json_write_str};
   use pangraph::o;
   use pangraph::pangraph::pangraph::Pangraph;
@@ -36,7 +36,11 @@ mod tests {
       },
     })?;
 
-    let records = read_many_fasta(&[output])?;
+    let records = if aligned {
+      FastaReader::from_paths(&[output])?.with_alphabet(Alphabet::DnaWithGap).read_many()?
+    } else {
+      FastaReader::from_paths(&[output])?.read_many()?
+    };
 
     let fasta_names = records.iter().map(|r| &r.seq_name).sorted().collect_vec();
     let path_names = graph.path_names().map(|n| n.unwrap()).sorted().collect_vec();

@@ -89,7 +89,6 @@ impl<'a> FastaReader<'a> {
     Self::from_paths(&[filepath])
   }
 
-  /// Reads multiple files sequentially given a set of paths
   pub fn from_paths<P: AsRef<Path>>(filepaths: &[P]) -> Result<Self, Report> {
     if filepaths.is_empty() {
       info!("Reading input fasta from standard input");
@@ -105,6 +104,27 @@ impl<'a> FastaReader<'a> {
     let concat_buf = BufReader::new(concat);
 
     Ok(Self::new(Box::new(concat_buf)))
+  }
+
+  pub fn read_one(mut self) -> Result<FastaRecord, Report> {
+    let mut record = FastaRecord::default();
+    self.read(&mut record)?;
+    Ok(record)
+  }
+
+  pub fn read_many(mut self) -> Result<Vec<FastaRecord>, Report> {
+    let mut fasta_records = Vec::<FastaRecord>::new();
+
+    loop {
+      let mut record = FastaRecord::default();
+      self.read(&mut record)?;
+      if record.is_empty() {
+        break;
+      }
+      fasta_records.push(record);
+    }
+
+    Ok(fasta_records)
   }
 
   #[allow(clippy::string_slice)]
@@ -199,53 +219,6 @@ impl<'a> FastaReader<'a> {
   }
 }
 
-pub fn read_one_fasta(filepath: impl AsRef<Path>) -> Result<FastaRecord, Report> {
-  let filepath = filepath.as_ref();
-  let mut reader = FastaReader::from_path(filepath)?;
-  let mut record = FastaRecord::default();
-  reader.read(&mut record)?;
-  Ok(record)
-}
-
-pub fn read_many_fasta<P: AsRef<Path>>(filepaths: &[P]) -> Result<Vec<FastaRecord>, Report> {
-  let mut reader = FastaReader::from_paths(filepaths)?;
-  let mut fasta_records = Vec::<FastaRecord>::new();
-
-  loop {
-    let mut record = FastaRecord::default();
-    reader.read(&mut record)?;
-    if record.is_empty() {
-      break;
-    }
-    fasta_records.push(record);
-  }
-
-  Ok(fasta_records)
-}
-
-pub fn read_one_fasta_str(contents: impl AsRef<str>) -> Result<FastaRecord, Report> {
-  let mut reader = FastaReader::from_str(&contents)?;
-  let mut record = FastaRecord::default();
-  reader.read(&mut record)?;
-  Ok(record)
-}
-
-pub fn read_many_fasta_str(contents: impl AsRef<str>) -> Result<Vec<FastaRecord>, Report> {
-  let mut reader = FastaReader::from_str(&contents)?;
-  let mut fasta_records = Vec::<FastaRecord>::new();
-
-  loop {
-    let mut record = FastaRecord::default();
-    reader.read(&mut record)?;
-    if record.is_empty() {
-      break;
-    }
-    fasta_records.push(record);
-  }
-
-  Ok(fasta_records)
-}
-
 // Writes sequences into given fasta file
 pub struct FastaWriter {
   writer: Box<dyn Write>,
@@ -279,16 +252,6 @@ impl FastaWriter {
     self.writer.flush()?;
     Ok(())
   }
-}
-
-pub fn write_one_fasta(
-  filepath: impl AsRef<Path>,
-  seq_name: impl AsRef<str>,
-  desc: &Option<String>,
-  seq: &Seq,
-) -> Result<(), Report> {
-  let mut writer = FastaWriter::from_path(&filepath)?;
-  writer.write(seq_name, desc, seq)
 }
 
 #[derive(Clone, Debug)]
@@ -604,14 +567,14 @@ mod tests {
 
   #[test]
   fn test_fasta_reader_name_desc() -> Result<(), Report> {
-    let actual = read_many_fasta_str(indoc! {r#"
+    let actual = FastaReader::from_str(&indoc! {r#"
       >Identifier Description
       ACGT
       >Identifier Description with spaces
       ACGT
 
 
-    "#})?;
+    "#})?.read_many()?;
 
     let expected = vec![
       FastaRecord {
@@ -819,7 +782,7 @@ mod tests {
   fn test_fasta_record_clear() {
     let mut record = FastaRecord {
       seq_name: o!("test"),
-      desc: Some(o!("description"),),
+      desc: Some(o!("description")),
       seq: "ACGT".into(),
       index: 5,
     };
@@ -933,7 +896,7 @@ mod tests {
 
   #[test]
   fn test_read_many_fasta_str_empty() -> Result<(), Report> {
-    let actual = read_many_fasta_str("")?;
+    let actual = FastaReader::from_str(&"")?.read_many()?;
     let expected: Vec<FastaRecord> = vec![];
     assert_eq!(expected, actual);
     Ok(())
@@ -941,7 +904,7 @@ mod tests {
 
   #[test]
   fn test_read_many_fasta_str_general_case() -> Result<(), Report> {
-    let actual = read_many_fasta_str(">a\nACGT\n>b\nGCTA\n>c\nTGCA\n")?;
+    let actual = FastaReader::from_str(&">a\nACGT\n>b\nGCTA\n>c\nTGCA\n")?.read_many()?;
 
     let expected = vec![
       FastaRecord {

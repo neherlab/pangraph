@@ -6,7 +6,7 @@ use ctor::ctor;
 use eyre::{Report, WrapErr};
 use itertools::{Itertools, izip};
 use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset, Minimap2Result};
-use pangraph::io::fasta::read_many_fasta;
+use pangraph::io::fasta::FastaReader;
 use pangraph::io::json::{JsonPretty, json_write_file};
 use pangraph::representation::seq::Seq;
 use pangraph::utils::global_init::global_init;
@@ -21,7 +21,7 @@ fn init() {
 fn main() -> Result<(), Report> {
   let cli = Minimap2CliArgs::parse();
 
-  let (names, seqs): (Vec<String>, Vec<Seq>) = read_many_fasta(&cli.input_fastas)?
+  let (names, seqs): (Vec<String>, Vec<Seq>) = FastaReader::from_paths(&cli.input_fastas)?.read_many()?
     .into_iter()
     .map(|f| (f.seq_name, f.seq))
     .unzip();
