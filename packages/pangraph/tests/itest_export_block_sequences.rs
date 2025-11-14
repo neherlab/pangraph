@@ -30,11 +30,8 @@ mod tests {
 
     for (block_id, block) in &graph.blocks {
       let block_fa = output.join(format!("block_{block_id}.fa"));
-      let records = if aligned {
-        FastaReader::from_paths(&[block_fa])?.with_alphabet(Alphabet::DnaWithGap).read_many()?
-      } else {
-        FastaReader::from_paths(&[block_fa])?.read_many()?
-      };
+      let alphabet = if aligned { Alphabet::DnaWithGap } else { Alphabet::DnaWithoutGap };
+      let records = FastaReader::from_paths(&[block_fa])?.with_alphabet(alphabet).read_many()?;
 
       assert_eq!(records.len(), block.alignments().len());
 
