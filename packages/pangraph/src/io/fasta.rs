@@ -10,12 +10,9 @@ use eyre::{Context, Report};
 use itertools::Itertools;
 use log::{info, warn};
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-
-const ALPHABET: &[char] = &[
-  'A', 'C', 'G', 'T', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N', '-',
-];
 
 #[derive(Clone, Default, Debug, Deserialize, Serialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -56,6 +53,7 @@ pub struct FastaReader<'a> {
   n_lines: usize,
   n_chars: usize,
   index: usize,
+  alphabet: Alphabet,
 }
 
 impl<'a> FastaReader<'a> {
@@ -66,7 +64,14 @@ impl<'a> FastaReader<'a> {
       n_lines: 0,
       n_chars: 0,
       index: 0,
+      alphabet: Alphabet::DnaWithoutGap,
     }
+  }
+
+  #[must_use]
+  pub fn with_alphabet(mut self, alphabet: Alphabet) -> Self {
+    self.alphabet = alphabet;
+    self
   }
 
   pub fn from_str(contents: &'a impl AsRef<str>) -> Result<Self, Report> {
@@ -104,6 +109,8 @@ impl<'a> FastaReader<'a> {
 
   #[allow(clippy::string_slice)]
   pub fn read(&mut self, record: &mut FastaRecord) -> Result<(), Report> {
+    let alphabet_chars = self.alphabet.chars();
+
     record.clear();
 
     if self.line.is_empty() {
@@ -162,23 +169,26 @@ impl<'a> FastaReader<'a> {
       record.seq.reserve(trimmed.len());
       for (i, c) in trimmed.chars().enumerate() {
         let c_upper = c.to_ascii_uppercase();
-        if ALPHABET.contains(&c_upper) {
+        if alphabet_chars.contains(&c_upper) {
           record.seq.push(AsciiChar::from(c_upper));
         } else {
-          return make_error!("FASTA input is incorrect: character \"{c}\" is not in the alphabet",)
+          let mut error = make_error!("FASTA input is incorrect: character \"{c}\" is not in the alphabet")
             .with_section(|| {
               str_slice_safe(trimmed, i.saturating_sub(10), i.saturating_add(10))
                 .to_owned()
                 .header("Sequence fragment:")
             })
-            .with_section(|| {
-              ALPHABET
-                .iter()
-                .map(quote_single)
-                .join(", ")
-                .header("Expected characters: ")
-            })
-            .wrap_err_with(|| format!("When processing sequence #{}: \"{}\"", self.index, record.header()));
+            .with_section(|| self.alphabet.to_string().header("Alphabet: "));
+
+          if c == '-' {
+            error = error.with_section(|| {
+              "Gap characters ('-') are not supported and must be stripped from sequences before processing."
+                .to_owned()
+                .header("Note:")
+            });
+          }
+
+          return error.wrap_err_with(|| format!("When processing sequence #{}: \"{}\"", self.index, record.header()));
         }
       }
 
@@ -279,6 +289,41 @@ pub fn write_one_fasta(
 ) -> Result<(), Report> {
   let mut writer = FastaWriter::from_path(&filepath)?;
   writer.write(seq_name, desc, seq)
+}
+
+#[derive(Clone, Debug)]
+pub enum Alphabet {
+  DnaWithoutGap,
+  DnaWithGap,
+  Custom(Vec<char>),
+}
+
+impl Alphabet {
+  fn chars(&self) -> &[char] {
+    match self {
+      Self::DnaWithoutGap => Self::dna_alphabet(),
+      Self::DnaWithGap => Self::dna_with_gap_alphabet(),
+      Self::Custom(chars) => chars,
+    }
+  }
+
+  fn dna_alphabet() -> &'static [char] {
+    &[
+      'A', 'C', 'G', 'T', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N',
+    ]
+  }
+
+  fn dna_with_gap_alphabet() -> &'static [char] {
+    &[
+      'A', 'C', 'G', 'T', 'Y', 'R', 'W', 'S', 'K', 'M', 'D', 'V', 'H', 'B', 'N', '-',
+    ]
+  }
+}
+
+impl fmt::Display for Alphabet {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    write!(f, "{}", self.chars().iter().map(quote_single).join(", "))
+  }
 }
 
 #[cfg(test)]
@@ -589,7 +634,7 @@ mod tests {
 
   #[test]
   fn test_fasta_reader_dedent_nuc() -> Result<(), Report> {
-    let actual = read_many_fasta_str(indoc! {r#"
+    let mut reader = FastaReader::from_str(&indoc! {r#"
       >FluBuster-001
       ACAGCCATGTATTG--
       >CommonCold-AB
@@ -605,7 +650,19 @@ mod tests {
       CCGGCGATGTRTTG--
         >MisindentedVirus|D-skew
         TCGGCCGTGTRTTG--
-    "#})?;
+    "#})?
+    .with_alphabet(Alphabet::DnaWithGap);
+
+    let mut fasta_records = Vec::<FastaRecord>::new();
+
+    loop {
+      let mut record = FastaRecord::default();
+      reader.read(&mut record)?;
+      if record.is_empty() {
+        break;
+      }
+      fasta_records.push(record);
+    }
 
     let expected = vec![
       FastaRecord {
@@ -652,13 +709,13 @@ mod tests {
       },
     ];
 
-    assert_eq!(expected, actual);
+    assert_eq!(expected, fasta_records);
     Ok(())
   }
 
   #[test]
   fn test_fasta_reader_multiline_and_skewed_indentation() -> Result<(), Report> {
-    let actual = read_many_fasta_str(indoc! {r#"
+    let mut reader = FastaReader::from_str(&indoc! {r#"
       >MixedCaseSeq
       aCaGcCAtGtAtTG--
       >LowercaseSeq
@@ -673,7 +730,19 @@ mod tests {
         ACAGCC
       ATGTATTG
        ATTG--
-    "#})?;
+    "#})?
+    .with_alphabet(Alphabet::DnaWithGap);
+
+    let mut fasta_records = Vec::<FastaRecord>::new();
+
+    loop {
+      let mut record = FastaRecord::default();
+      reader.read(&mut record)?;
+      if record.is_empty() {
+        break;
+      }
+      fasta_records.push(record);
+    }
 
     let expected = vec![
       FastaRecord {
@@ -708,7 +777,41 @@ mod tests {
       },
     ];
 
-    assert_eq!(expected, actual);
+    assert_eq!(expected, fasta_records);
     Ok(())
+  }
+
+  #[test]
+  fn test_fasta_reader_dna_alphabet_rejects_gap() {
+    let data = b">seq1\nACGT-ACGT\n";
+    let mut reader = FastaReader::new(Box::new(Cursor::new(data))).with_alphabet(Alphabet::DnaWithoutGap);
+    let mut record = FastaRecord::new();
+    let actual = report_to_string(&reader.read(&mut record).unwrap_err());
+    let expected =
+      r#"When processing sequence #1: ">seq1": FASTA input is incorrect: character "-" is not in the alphabet"#;
+    assert_eq!(expected, actual);
+  }
+
+  #[test]
+  fn test_fasta_reader_dna_with_gap_accepts_gap() {
+    let data = b">seq1\nACGT-ACGT\n";
+    let mut reader = FastaReader::new(Box::new(Cursor::new(data))).with_alphabet(Alphabet::DnaWithGap);
+    let mut record = FastaRecord::new();
+    reader.read(&mut record).unwrap();
+
+    assert_eq!(o!("seq1"), record.seq_name);
+    assert_eq!(Seq::from("ACGT-ACGT"), record.seq);
+  }
+
+  #[test]
+  fn test_fasta_reader_custom_alphabet() {
+    let data = b">seq1\nXYZ-xyz\n";
+    let mut reader =
+      FastaReader::new(Box::new(Cursor::new(data))).with_alphabet(Alphabet::Custom(vec!['X', 'Y', 'Z', '-']));
+    let mut record = FastaRecord::new();
+    reader.read(&mut record).unwrap();
+
+    assert_eq!(o!("seq1"), record.seq_name);
+    assert_eq!(Seq::from("XYZ-XYZ"), record.seq);
   }
 }
