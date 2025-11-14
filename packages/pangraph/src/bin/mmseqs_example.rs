@@ -30,7 +30,8 @@ fn main() -> Result<(), Report> {
     params,
   } = Args::parse();
 
-  let blocks = FastaReader::from_paths(&input_query_fastas)?.read_many()?
+  let blocks = FastaReader::from_paths(&input_query_fastas)?
+    .read_many()?
     .into_iter()
     .map(|r| r.seq)
     .enumerate()

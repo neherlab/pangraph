@@ -36,8 +36,14 @@ mod tests {
       },
     })?;
 
-    let alphabet = if aligned { Alphabet::DnaWithGap } else { Alphabet::DnaWithoutGap };
-    let records = FastaReader::from_paths(&[output])?.with_alphabet(alphabet).read_many()?;
+    let alphabet = if aligned {
+      Alphabet::DnaWithGap
+    } else {
+      Alphabet::DnaWithoutGap
+    };
+    let records = FastaReader::from_paths(&[output])?
+      .with_alphabet(alphabet)
+      .read_many()?;
 
     let fasta_names = records.iter().map(|r| &r.seq_name).sorted().collect_vec();
     let path_names = graph.path_names().map(|n| n.unwrap()).sorted().collect_vec();

@@ -574,7 +574,8 @@ mod tests {
       ACGT
 
 
-    "#})?.read_many()?;
+    "#})?
+    .read_many()?;
 
     let expected = vec![
       FastaRecord {

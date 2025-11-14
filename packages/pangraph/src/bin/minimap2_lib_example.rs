@@ -21,7 +21,8 @@ fn init() {
 fn main() -> Result<(), Report> {
   let cli = Minimap2CliArgs::parse();
 
-  let (names, seqs): (Vec<String>, Vec<Seq>) = FastaReader::from_paths(&cli.input_fastas)?.read_many()?
+  let (names, seqs): (Vec<String>, Vec<Seq>) = FastaReader::from_paths(&cli.input_fastas)?
+    .read_many()?
     .into_iter()
     .map(|f| (f.seq_name, f.seq))
     .unzip();
