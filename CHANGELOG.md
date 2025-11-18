@@ -1,6 +1,6 @@
 ## Unreleased
 
-- updated Rust version to 1.90 (see #168) and dependencies (see #169)
+- improved FASTA input file parsing and error messages for unvalid characters, see #173.
 
 ## 1.2.1
 
