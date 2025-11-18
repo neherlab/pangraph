@@ -4,7 +4,7 @@ use eyre::Report;
 use maplit::btreemap;
 use pangraph::align::alignment_args::AlignmentArgs;
 use pangraph::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
-use pangraph::io::fasta::read_many_fasta;
+use pangraph::io::fasta::FastaReader;
 use pangraph::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use pangraph::representation::seq_char::AsciiChar;
 use pangraph::utils::global_init::global_init;
@@ -30,7 +30,8 @@ fn main() -> Result<(), Report> {
     params,
   } = Args::parse();
 
-  let blocks = read_many_fasta(&input_query_fastas)?
+  let blocks = FastaReader::from_paths(&input_query_fastas)?
+    .read_many()?
     .into_iter()
     .map(|r| r.seq)
     .enumerate()
