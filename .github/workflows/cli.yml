@@ -276,10 +276,49 @@ jobs:
           chmod +x ./.out/pangraph-x86_64-unknown-linux-musl
           ./dev/test-linux-distros-musl ./.out/pangraph-x86_64-unknown-linux-musl --help
 
-  run-compat-tests-x86_64-apple-darwin:
-    name: "Compat test (x86_64-apple-darwin)"
+  run-compat-tests-macos:
+    name: "Compat test macOS (${{ matrix.name }})"
     needs: [ build-cli ]
-    runs-on: macos-13
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # x86_64 binary on Intel hardware (native) - only free Intel runner
+          - name: "x86_64 native"
+            runner: macos-15-intel
+            binary: pangraph-x86_64-apple-darwin
+            expected_arch: x86_64
+            run_with_arch: ""
+
+          # x86_64 binary on ARM hardware via Rosetta 2 (oldest free ARM)
+          - name: "x86_64 Rosetta, oldest ARM"
+            runner: macos-14
+            binary: pangraph-x86_64-apple-darwin
+            expected_arch: arm64
+            run_with_arch: "arch -x86_64"
+
+          # x86_64 binary on ARM hardware via Rosetta 2 (latest ARM)
+          - name: "x86_64 Rosetta, latest ARM"
+            runner: macos-latest
+            binary: pangraph-x86_64-apple-darwin
+            expected_arch: arm64
+            run_with_arch: "arch -x86_64"
+
+          # ARM binary on ARM hardware (oldest free ARM)
+          - name: "aarch64 native, oldest ARM"
+            runner: macos-14
+            binary: pangraph-aarch64-apple-darwin
+            expected_arch: arm64
+            run_with_arch: ""
+
+          # ARM binary on ARM hardware (latest ARM)
+          - name: "aarch64 native, latest ARM"
+            runner: macos-latest
+            binary: pangraph-aarch64-apple-darwin
+            expected_arch: arm64
+            run_with_arch: ""
 
     steps:
       - name: "Show system info"
@@ -289,11 +328,12 @@ jobs:
           sw_vers || true
           system_profiler SPSoftwareDataType SPHardwareDataType || true
 
-      - name: "Check CPU Architecture"
+      - name: "Check CPU architecture"
         run: |
           arch="$(uname -m)"
-          if [[ "$arch" != "x86_64" ]]; then
-            echo "We hope to get x86_64 macOS instance for this job, to test whether our code still runs on Intel Macs. But we got '${arch}'. There isn't much point in testing this on non-x86_64 machine. From here you could either find a way to get an x86_64 macOS runner, or delete the test."
+          expected="${{ matrix.expected_arch }}"
+          if [[ "$arch" != "$expected" ]]; then
+            echo "Expected $expected architecture, but got $arch"
             exit 1
           fi
 
@@ -304,43 +344,10 @@ jobs:
           merge-multiple: true
           path: ".out"
 
-      - name: "Run compat test (x86_64-apple-darwin, native)"
+      - name: "Run compat test"
         run: |
           chmod +x ./.out/*
-          ./.out/pangraph-x86_64-apple-darwin --help
-
-  run-compat-tests-aarch64-apple-darwin:
-    name: "Compat test (aarch64-apple-darwin)"
-    needs: [ build-cli ]
-    runs-on: macos-latest
-
-    steps:
-      - name: "Show system info"
-        run: |
-          set -x
-          uname -a || true
-          sw_vers || true
-          system_profiler SPSoftwareDataType SPHardwareDataType || true
-
-      - name: "Check CPU Architecture"
-        run: |
-          arch="$(uname -m)"
-          if [[ "$arch" != "arm64" ]]; then
-            echo "This test requires arm64 machine, but got ${arch}"
-            exit 1
-          fi
-
-      - name: "Download build artifacts"
-        uses: actions/download-artifact@v4
-        with:
-          pattern: pangraph-*
-          merge-multiple: true
-          path: ".out"
-
-      - name: "Run compat test (aarch64-apple-darwin, native)"
-        run: |
-          chmod +x ./.out/*
-          ./.out/pangraph-aarch64-apple-darwin --help
+          ${{ matrix.run_with_arch }} ./.out/${{ matrix.binary }} --help
 
 
   run-compat-tests-x86_64-pc-windows-gnu:
@@ -405,7 +412,7 @@ jobs:
 
   publish-to-github-releases:
     name: "Publish to GitHub Releases"
-    needs: [ build-cli, run-unit-tests, run-lints, run-smoke-tests, run-compat-tests-x86_64-unknown-linux-gnu, run-compat-tests-x86_64-unknown-linux-musl, run-compat-tests-x86_64-apple-darwin, run-compat-tests-aarch64-apple-darwin, run-compat-tests-x86_64-pc-windows-gnu, check-cli-docs ]
+    needs: [ build-cli, run-unit-tests, run-lints, run-smoke-tests, run-compat-tests-x86_64-unknown-linux-gnu, run-compat-tests-x86_64-unknown-linux-musl, run-compat-tests-macos, run-compat-tests-x86_64-pc-windows-gnu, check-cli-docs ]
     if: github.ref == 'refs/heads/release-cli'
     runs-on: ubuntu-24.04
 
@@ -444,7 +451,7 @@ jobs:
 
   publish-to-docker-hub:
     name: "Publish to Docker Hub"
-    needs: [ build-cli, run-unit-tests, run-lints, run-smoke-tests, run-compat-tests-x86_64-unknown-linux-gnu, run-compat-tests-x86_64-unknown-linux-musl, run-compat-tests-x86_64-apple-darwin, run-compat-tests-aarch64-apple-darwin, run-compat-tests-x86_64-pc-windows-gnu, check-cli-docs ]
+    needs: [ build-cli, run-unit-tests, run-lints, run-smoke-tests, run-compat-tests-x86_64-unknown-linux-gnu, run-compat-tests-x86_64-unknown-linux-musl, run-compat-tests-macos, run-compat-tests-x86_64-pc-windows-gnu, check-cli-docs ]
     if: github.ref == 'refs/heads/release-cli'
     runs-on: ubuntu-24.04
 
