@@ -277,7 +277,7 @@ jobs:
           ./dev/test-linux-distros-musl ./.out/pangraph-x86_64-unknown-linux-musl --help
 
   run-compat-tests-macos:
-    name: "Compat test macOS (${{ matrix.name }})"
+    name: "Compat test (${{ matrix.name }})"
     needs: [ build-cli ]
     runs-on: ${{ matrix.runner }}
 
@@ -286,35 +286,35 @@ jobs:
       matrix:
         include:
           # x86_64 binary on Intel hardware (native) - only free Intel runner
-          - name: "x86_64 native"
+          - name: "macOS, x86_64 native"
             runner: macos-15-intel
             binary: pangraph-x86_64-apple-darwin
             expected_arch: x86_64
             run_with_arch: ""
 
           # x86_64 binary on ARM hardware via Rosetta 2 (oldest free ARM)
-          - name: "x86_64 Rosetta, oldest ARM"
+          - name: "macOS, x86_64 Rosetta, oldest ARM"
             runner: macos-14
             binary: pangraph-x86_64-apple-darwin
             expected_arch: arm64
             run_with_arch: "arch -x86_64"
 
           # x86_64 binary on ARM hardware via Rosetta 2 (latest ARM)
-          - name: "x86_64 Rosetta, latest ARM"
+          - name: "macOS, x86_64 Rosetta, latest ARM"
             runner: macos-latest
             binary: pangraph-x86_64-apple-darwin
             expected_arch: arm64
             run_with_arch: "arch -x86_64"
 
           # ARM binary on ARM hardware (oldest free ARM)
-          - name: "aarch64 native, oldest ARM"
+          - name: "macOS, aarch64 native, oldest ARM"
             runner: macos-14
             binary: pangraph-aarch64-apple-darwin
             expected_arch: arm64
             run_with_arch: ""
 
           # ARM binary on ARM hardware (latest ARM)
-          - name: "aarch64 native, latest ARM"
+          - name: "macOS, aarch64 native, latest ARM"
             runner: macos-latest
             binary: pangraph-aarch64-apple-darwin
             expected_arch: arm64
