@@ -89,6 +89,18 @@ function main() {
     cargo_cmd=("build --release")
     cmd=("hyperfine")
     ;;
+  "quality" | "q")
+    "${BASH_SOURCE[0]}" lint-fix
+    "${BASH_SOURCE[0]}" format
+    "${BASH_SOURCE[0]}" test
+    exit 0
+    ;;
+  "upgrade-deps" | "U")
+    cargo_cmd=("upgrade --incompatible --pinned")
+    ;;
+  "why" | "w")
+    cargo_cmd=("tree")
+    ;;
   "p" | "py")
     bash
     ;;
