@@ -145,11 +145,21 @@ fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
   for m in mergers.iter_mut() {
     let ref_block = &graph.blocks[&m.reff.name];
     let qry_block = &graph.blocks[&m.qry.name];
-    if ref_block.depth() >= qry_block.depth() {
-      m.anchor_block = Some(AnchorBlock::Ref);
+    let anchor = if ref_block.depth() != qry_block.depth() {
+      if ref_block.depth() > qry_block.depth() {
+        AnchorBlock::Ref
+      } else {
+        AnchorBlock::Qry
+      }
     } else {
-      m.anchor_block = Some(AnchorBlock::Qry);
-    }
+      // Equal depth: prefer fewer Ns (ref wins ties via <=)
+      if ref_block.count_n() <= qry_block.count_n() {
+        AnchorBlock::Ref
+      } else {
+        AnchorBlock::Qry
+      }
+    };
+    m.anchor_block = Some(anchor);
   }
 }
 
@@ -1181,5 +1191,108 @@ mod tests {
     ])
     .unwrap();
     assert_eq!(updated, expected);
+  }
+
+  #[test]
+  fn test_assign_anchor_block_prefers_fewer_ns() {
+    fn new_hit(block_id: usize) -> Hit {
+      Hit {
+        name: BlockId(block_id),
+        length: 0,
+        interval: Interval::default(),
+      }
+    }
+
+    fn new_aln(q: usize, r: usize) -> Alignment {
+      Alignment {
+        qry: new_hit(q),
+        reff: new_hit(r),
+        matches: 0,
+        length: 0,
+        quality: 0,
+        orientation: Forward,
+        new_block_id: None,
+        anchor_block: None,
+        cigar: Cigar::default(),
+        divergence: None,
+        align: None,
+      }
+    }
+
+    fn e(nids: &[usize]) -> BTreeMap<NodeId, Edit> {
+      nids.iter().map(|nid| (NodeId(*nid), Edit::empty())).collect()
+    }
+
+    // Both blocks have depth 2, but b1 has fewer Ns
+    let b1 = PangraphBlock::new(BlockId(1), "ATCG", e(&[1, 2]));
+    let b2 = PangraphBlock::new(BlockId(2), "NNCG", e(&[3, 4]));
+
+    let pangraph = Pangraph {
+      blocks: btreemap! {
+        BlockId(1) => b1,
+        BlockId(2) => b2,
+      },
+      paths: btreemap! {},
+      nodes: btreemap! {},
+    };
+
+    // qry=2 (2 Ns), ref=1 (0 Ns) — equal depth, ref has fewer Ns → Ref
+    let mut mergers = vec![new_aln(2, 1)];
+    assign_anchor_block(&mut mergers, &pangraph);
+    assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Ref));
+
+    // qry=1 (0 Ns), ref=2 (2 Ns) — equal depth, qry has fewer Ns → Qry
+    let mut mergers = vec![new_aln(1, 2)];
+    assign_anchor_block(&mut mergers, &pangraph);
+    assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Qry));
+  }
+
+  #[test]
+  fn test_assign_anchor_block_depth_still_wins() {
+    fn new_hit(block_id: usize) -> Hit {
+      Hit {
+        name: BlockId(block_id),
+        length: 0,
+        interval: Interval::default(),
+      }
+    }
+
+    fn new_aln(q: usize, r: usize) -> Alignment {
+      Alignment {
+        qry: new_hit(q),
+        reff: new_hit(r),
+        matches: 0,
+        length: 0,
+        quality: 0,
+        orientation: Forward,
+        new_block_id: None,
+        anchor_block: None,
+        cigar: Cigar::default(),
+        divergence: None,
+        align: None,
+      }
+    }
+
+    fn e(nids: &[usize]) -> BTreeMap<NodeId, Edit> {
+      nids.iter().map(|nid| (NodeId(*nid), Edit::empty())).collect()
+    }
+
+    // b1 has depth 3 with Ns, b2 has depth 2 without Ns — deeper wins regardless of Ns
+    let b1 = PangraphBlock::new(BlockId(1), "NNCG", e(&[1, 2, 3]));
+    let b2 = PangraphBlock::new(BlockId(2), "ATCG", e(&[4, 5]));
+
+    let pangraph = Pangraph {
+      blocks: btreemap! {
+        BlockId(1) => b1,
+        BlockId(2) => b2,
+      },
+      paths: btreemap! {},
+      nodes: btreemap! {},
+    };
+
+    // qry=1 (depth 3, 2 Ns), ref=2 (depth 2, 0 Ns) — depth wins, Qry is deeper
+    let mut mergers = vec![new_aln(1, 2)];
+    assign_anchor_block(&mut mergers, &pangraph);
+    assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Qry));
   }
 }
