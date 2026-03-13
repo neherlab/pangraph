@@ -152,8 +152,16 @@ fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
         AnchorBlock::Qry
       }
     } else {
-      // Equal depth: prefer fewer Ns (ref wins ties via <=)
-      if ref_block.count_n() <= qry_block.count_n() {
+      // Equal depth: prefer fewer Ns in the aligned interval (ref wins ties via <=)
+      let ref_n = ref_block.consensus()[m.reff.interval.to_range()]
+        .iter()
+        .filter(|c| c.0 == b'N')
+        .count();
+      let qry_n = qry_block.consensus()[m.qry.interval.to_range()]
+        .iter()
+        .filter(|c| c.0 == b'N')
+        .count();
+      if ref_n <= qry_n {
         AnchorBlock::Ref
       } else {
         AnchorBlock::Qry
@@ -1195,18 +1203,18 @@ mod tests {
 
   #[test]
   fn test_assign_anchor_block_prefers_fewer_ns() {
-    fn new_hit(block_id: usize) -> Hit {
+    fn new_hit(block_id: usize, len: usize) -> Hit {
       Hit {
         name: BlockId(block_id),
-        length: 0,
-        interval: Interval::default(),
+        length: len,
+        interval: Interval::new(0, len),
       }
     }
 
-    fn new_aln(q: usize, r: usize) -> Alignment {
+    fn new_aln(q: usize, q_len: usize, r: usize, r_len: usize) -> Alignment {
       Alignment {
-        qry: new_hit(q),
-        reff: new_hit(r),
+        qry: new_hit(q, q_len),
+        reff: new_hit(r, r_len),
         matches: 0,
         length: 0,
         quality: 0,
@@ -1237,12 +1245,12 @@ mod tests {
     };
 
     // qry=2 (2 Ns), ref=1 (0 Ns) — equal depth, ref has fewer Ns → Ref
-    let mut mergers = vec![new_aln(2, 1)];
+    let mut mergers = vec![new_aln(2, 4, 1, 4)];
     assign_anchor_block(&mut mergers, &pangraph);
     assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Ref));
 
     // qry=1 (0 Ns), ref=2 (2 Ns) — equal depth, qry has fewer Ns → Qry
-    let mut mergers = vec![new_aln(1, 2)];
+    let mut mergers = vec![new_aln(1, 4, 2, 4)];
     assign_anchor_block(&mut mergers, &pangraph);
     assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Qry));
   }

@@ -86,9 +86,6 @@ impl PangraphBlock {
     self.consensus.len()
   }
 
-  pub fn count_n(&self) -> usize {
-    self.consensus.iter().filter(|c| c.0 == b'N').count()
-  }
 
   pub fn unaligned_len_for_edit(&self, edits: &Edit) -> usize {
     let total_dels: usize = edits.dels.iter().map(|del| del.len).sum();
@@ -831,21 +828,4 @@ mod tests {
     assert_eq!(result_block, expected_block);
   }
 
-  #[test]
-  fn test_count_n_zero() {
-    let block = PangraphBlock::new(BlockId(1), "ATCG", btreemap! { NodeId(1) => Edit::empty() });
-    assert_eq!(block.count_n(), 0);
-  }
-
-  #[test]
-  fn test_count_n_some() {
-    let block = PangraphBlock::new(BlockId(1), "ANCGN", btreemap! { NodeId(1) => Edit::empty() });
-    assert_eq!(block.count_n(), 2);
-  }
-
-  #[test]
-  fn test_count_n_all() {
-    let block = PangraphBlock::new(BlockId(1), "NNNN", btreemap! { NodeId(1) => Edit::empty() });
-    assert_eq!(block.count_n(), 4);
-  }
 }
