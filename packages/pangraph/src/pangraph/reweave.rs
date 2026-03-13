@@ -412,7 +412,8 @@ pub fn reweave(
 ) -> Result<(Pangraph, Vec<MergePromise>), Report> {
   // for each merger, assign a new block id (hash of original block ids and alignment intervals)
   assign_new_block_ids(mergers);
-  // and decide which block is the anchor, based on depth (ref block if equal depth)
+  // and decide which block is the anchor, based on depth and n. of ambiguous nucleotides
+  // (ref block wins ties)
   assign_anchor_block(mergers, &graph);
 
   // dictionary of BlockId -> alignments. Nb: each alignment is present twice.
