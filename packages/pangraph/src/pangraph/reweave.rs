@@ -1206,12 +1206,22 @@ mod tests {
   // Anchor block selection: depth wins, then fewer Ns in aligned interval, then ref wins ties
   #[rustfmt::skip]
   #[rstest]
-  //                                  block 1                         block 2                         alignment                               result
-  //                                  (consensus,        depth)       (consensus,       depth)        (qry, qry_interval, ref, ref_interval)  expected
-  #[case::equal_depth_ref_fewer_ns   (("ATCG",           2),          ("NNCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
-  #[case::equal_depth_qry_fewer_ns   (("ATCG",           2),          ("NNCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
-  #[case::depth_wins_over_ns         (("NNCG",           3),          ("ATCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
-  #[case::interval_ns_not_whole_block(("NNNNNACGTNNNNN", 2),          ("ACGTACNTACGT",  2),           (2,   (4, 8),       1,   (5, 9)),        AnchorBlock::Ref)]
+  //                                   block 1                         block 2                         alignment                               result
+  //                                   (consensus,        depth)       (consensus,       depth)        (qry, qry_interval, ref, ref_interval)  expected
+  // -- N count tie-breaker (equal depth) --
+  #[case::equal_depth_ref_fewer_ns    (("ATCG",           2),          ("NNCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
+  #[case::equal_depth_qry_fewer_ns    (("ATCG",           2),          ("NNCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
+  #[case::equal_depth_equal_ns_ref_wins(("ANCG",          2),          ("TNCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
+  #[case::equal_depth_zero_ns_ref_wins(("ATCG",           2),          ("GCTA",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
+  #[case::equal_depth_many_ns_qry_wins(("NNNG",           2),          ("NNCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Qry)]
+  // -- depth wins over N count --
+  #[case::qry_deeper_wins             (("NNCG",           3),          ("ATCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
+  #[case::ref_deeper_wins             (("NNCG",           3),          ("ATCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
+  #[case::depth_large_difference      (("ATCG",          10),          ("ATCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
+  // -- interval position matters --
+  #[case::interval_ns_not_whole_block (("NNNNNACGTNNNNN", 2),          ("ACGTACNTACGT",  2),           (2,   (4, 8),       1,   (5, 9)),        AnchorBlock::Ref)]
+  #[case::interval_at_end             (("ACGN",           2),          ("ACGT",          2),           (1,   (3, 4),       2,   (3, 4)),        AnchorBlock::Ref)]
+  #[case::single_base_interval        (("ACGT",           2),          ("NCGT",          2),           (2,   (0, 1),       1,   (0, 1)),        AnchorBlock::Ref)]
   #[trace]
   fn test_assign_anchor_block_selection(
     #[case] b1: (&str, usize),
