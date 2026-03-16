@@ -1304,4 +1304,64 @@ mod tests {
     assign_anchor_block(&mut mergers, &pangraph);
     assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Qry));
   }
+
+  #[test]
+  fn test_assign_anchor_block_counts_interval_not_whole_block() {
+    fn new_hit(block_id: usize, len: usize, interval: (usize, usize)) -> Hit {
+      Hit {
+        name: BlockId(block_id),
+        length: len,
+        interval: Interval::new(interval.0, interval.1),
+      }
+    }
+
+    fn new_aln(
+      q: usize,
+      q_len: usize,
+      q_interval: (usize, usize),
+      r: usize,
+      r_len: usize,
+      r_interval: (usize, usize),
+    ) -> Alignment {
+      Alignment {
+        qry: new_hit(q, q_len, q_interval),
+        reff: new_hit(r, r_len, r_interval),
+        matches: 0,
+        length: 0,
+        quality: 0,
+        orientation: Forward,
+        new_block_id: None,
+        anchor_block: None,
+        cigar: Cigar::default(),
+        divergence: None,
+        align: None,
+      }
+    }
+
+    fn e(nids: &[usize]) -> BTreeMap<NodeId, Edit> {
+      nids.iter().map(|nid| (NodeId(*nid), Edit::empty())).collect()
+    }
+
+    // Both blocks have depth 2
+    // b1: consensus "NNNNNACGTNNNNN" (14 bp, 10 Ns total), aligned interval [5..9] = "ACGT" (0 Ns)
+    // b2: consensus "ACGTACNTACGT"   (12 bp, 1 N total),  aligned interval [4..8] = "ACNT" (1 N)
+    let b1 = PangraphBlock::new(BlockId(1), "NNNNNACGTNNNNN", e(&[1, 2]));
+    let b2 = PangraphBlock::new(BlockId(2), "ACGTACNTACGT", e(&[3, 4]));
+
+    let pangraph = Pangraph {
+      blocks: btreemap! {
+        BlockId(1) => b1,
+        BlockId(2) => b2,
+      },
+      paths: btreemap! {},
+      nodes: btreemap! {},
+    };
+
+    // Whole-block N count: b1=10, b2=1 -> b2 would win (fewer Ns)
+    // Interval N count:    b1=0,  b2=1 -> b1 wins (fewer Ns in aligned region)
+    // qry=2 interval [4..8], ref=1 interval [5..9] -- ref has fewer interval Ns -> Ref
+    let mut mergers = vec![new_aln(2, 12, (4, 8), 1, 14, (5, 9))];
+    assign_anchor_block(&mut mergers, &pangraph);
+    assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Ref));
+  }
 }
