@@ -476,6 +476,7 @@ mod tests {
   use crate::utils::random::get_random_number_generator;
   use maplit::{btreemap, btreeset};
   use noodles::sam::record::Cigar;
+  use rstest::rstest;
   use noodles::sam::record::cigar::op::{Kind, Op};
   use pretty_assertions::assert_eq;
 
@@ -1202,166 +1203,62 @@ mod tests {
     assert_eq!(updated, expected);
   }
 
-  #[test]
-  fn test_assign_anchor_block_prefers_fewer_ns() {
-    fn new_hit(block_id: usize, len: usize) -> Hit {
-      Hit {
-        name: BlockId(block_id),
-        length: len,
-        interval: Interval::new(0, len),
-      }
-    }
+  // Anchor block selection: depth wins, then fewer Ns in aligned interval, then ref wins ties
+  #[rustfmt::skip]
+  #[rstest]
+  //                                  block 1                         block 2                         alignment                               result
+  //                                  (consensus,        depth)       (consensus,       depth)        (qry, qry_interval, ref, ref_interval)  expected
+  #[case::equal_depth_ref_fewer_ns   (("ATCG",           2),          ("NNCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
+  #[case::equal_depth_qry_fewer_ns   (("ATCG",           2),          ("NNCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
+  #[case::depth_wins_over_ns         (("NNCG",           3),          ("ATCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
+  #[case::interval_ns_not_whole_block(("NNNNNACGTNNNNN", 2),          ("ACGTACNTACGT",  2),           (2,   (4, 8),       1,   (5, 9)),        AnchorBlock::Ref)]
+  #[trace]
+  fn test_assign_anchor_block_selection(
+    #[case] b1: (&str, usize),
+    #[case] b2: (&str, usize),
+    #[case] alignment: (usize, (usize, usize), usize, (usize, usize)),
+    #[case] expected: AnchorBlock,
+  ) {
+    let make_edits = |depth: usize, offset: usize| -> BTreeMap<NodeId, Edit> {
+      (0..depth).map(|i| (NodeId(offset + i), Edit::empty())).collect()
+    };
 
-    fn new_aln(q: usize, q_len: usize, r: usize, r_len: usize) -> Alignment {
-      Alignment {
-        qry: new_hit(q, q_len),
-        reff: new_hit(r, r_len),
-        matches: 0,
-        length: 0,
-        quality: 0,
-        orientation: Forward,
-        new_block_id: None,
-        anchor_block: None,
-        cigar: Cigar::default(),
-        divergence: None,
-        align: None,
-      }
-    }
-
-    fn e(nids: &[usize]) -> BTreeMap<NodeId, Edit> {
-      nids.iter().map(|nid| (NodeId(*nid), Edit::empty())).collect()
-    }
-
-    // Both blocks have depth 2, but b1 has fewer Ns
-    let b1 = PangraphBlock::new(BlockId(1), "ATCG", e(&[1, 2]));
-    let b2 = PangraphBlock::new(BlockId(2), "NNCG", e(&[3, 4]));
+    let block1 = PangraphBlock::new(BlockId(1), b1.0, make_edits(b1.1, 0));
+    let block2 = PangraphBlock::new(BlockId(2), b2.0, make_edits(b2.1, 100));
 
     let pangraph = Pangraph {
       blocks: btreemap! {
-        BlockId(1) => b1,
-        BlockId(2) => b2,
+        BlockId(1) => block1,
+        BlockId(2) => block2,
       },
       paths: btreemap! {},
       nodes: btreemap! {},
     };
 
-    // qry=2 (2 Ns), ref=1 (0 Ns) — equal depth, ref has fewer Ns → Ref
-    let mut mergers = vec![new_aln(2, 4, 1, 4)];
-    assign_anchor_block(&mut mergers, &pangraph);
-    assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Ref));
-
-    // qry=1 (0 Ns), ref=2 (2 Ns) — equal depth, qry has fewer Ns → Qry
-    let mut mergers = vec![new_aln(1, 4, 2, 4)];
-    assign_anchor_block(&mut mergers, &pangraph);
-    assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Qry));
-  }
-
-  #[test]
-  fn test_assign_anchor_block_depth_still_wins() {
-    fn new_hit(block_id: usize) -> Hit {
-      Hit {
-        name: BlockId(block_id),
-        length: 0,
-        interval: Interval::default(),
-      }
-    }
-
-    fn new_aln(q: usize, r: usize) -> Alignment {
-      Alignment {
-        qry: new_hit(q),
-        reff: new_hit(r),
-        matches: 0,
-        length: 0,
-        quality: 0,
-        orientation: Forward,
-        new_block_id: None,
-        anchor_block: None,
-        cigar: Cigar::default(),
-        divergence: None,
-        align: None,
-      }
-    }
-
-    fn e(nids: &[usize]) -> BTreeMap<NodeId, Edit> {
-      nids.iter().map(|nid| (NodeId(*nid), Edit::empty())).collect()
-    }
-
-    // b1 has depth 3 with Ns, b2 has depth 2 without Ns — deeper wins regardless of Ns
-    let b1 = PangraphBlock::new(BlockId(1), "NNCG", e(&[1, 2, 3]));
-    let b2 = PangraphBlock::new(BlockId(2), "ATCG", e(&[4, 5]));
-
-    let pangraph = Pangraph {
-      blocks: btreemap! {
-        BlockId(1) => b1,
-        BlockId(2) => b2,
+    let (qry_id, qry_interval, ref_id, ref_interval) = alignment;
+    let mut mergers = vec![Alignment {
+      qry: Hit {
+        name: BlockId(qry_id),
+        length: b1.0.len().max(b2.0.len()),
+        interval: Interval::new(qry_interval.0, qry_interval.1),
       },
-      paths: btreemap! {},
-      nodes: btreemap! {},
-    };
-
-    // qry=1 (depth 3, 2 Ns), ref=2 (depth 2, 0 Ns) — depth wins, Qry is deeper
-    let mut mergers = vec![new_aln(1, 2)];
-    assign_anchor_block(&mut mergers, &pangraph);
-    assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Qry));
-  }
-
-  #[test]
-  fn test_assign_anchor_block_counts_interval_not_whole_block() {
-    fn new_hit(block_id: usize, len: usize, interval: (usize, usize)) -> Hit {
-      Hit {
-        name: BlockId(block_id),
-        length: len,
-        interval: Interval::new(interval.0, interval.1),
-      }
-    }
-
-    fn new_aln(
-      q: usize,
-      q_len: usize,
-      q_interval: (usize, usize),
-      r: usize,
-      r_len: usize,
-      r_interval: (usize, usize),
-    ) -> Alignment {
-      Alignment {
-        qry: new_hit(q, q_len, q_interval),
-        reff: new_hit(r, r_len, r_interval),
-        matches: 0,
-        length: 0,
-        quality: 0,
-        orientation: Forward,
-        new_block_id: None,
-        anchor_block: None,
-        cigar: Cigar::default(),
-        divergence: None,
-        align: None,
-      }
-    }
-
-    fn e(nids: &[usize]) -> BTreeMap<NodeId, Edit> {
-      nids.iter().map(|nid| (NodeId(*nid), Edit::empty())).collect()
-    }
-
-    // Both blocks have depth 2
-    // b1: consensus "NNNNNACGTNNNNN" (14 bp, 10 Ns total), aligned interval [5..9] = "ACGT" (0 Ns)
-    // b2: consensus "ACGTACNTACGT"   (12 bp, 1 N total),  aligned interval [4..8] = "ACNT" (1 N)
-    let b1 = PangraphBlock::new(BlockId(1), "NNNNNACGTNNNNN", e(&[1, 2]));
-    let b2 = PangraphBlock::new(BlockId(2), "ACGTACNTACGT", e(&[3, 4]));
-
-    let pangraph = Pangraph {
-      blocks: btreemap! {
-        BlockId(1) => b1,
-        BlockId(2) => b2,
+      reff: Hit {
+        name: BlockId(ref_id),
+        length: b1.0.len().max(b2.0.len()),
+        interval: Interval::new(ref_interval.0, ref_interval.1),
       },
-      paths: btreemap! {},
-      nodes: btreemap! {},
-    };
+      matches: 0,
+      length: 0,
+      quality: 0,
+      orientation: Forward,
+      new_block_id: None,
+      anchor_block: None,
+      cigar: Cigar::default(),
+      divergence: None,
+      align: None,
+    }];
 
-    // Whole-block N count: b1=10, b2=1 -> b2 would win (fewer Ns)
-    // Interval N count:    b1=0,  b2=1 -> b1 wins (fewer Ns in aligned region)
-    // qry=2 interval [4..8], ref=1 interval [5..9] -- ref has fewer interval Ns -> Ref
-    let mut mergers = vec![new_aln(2, 12, (4, 8), 1, 14, (5, 9))];
     assign_anchor_block(&mut mergers, &pangraph);
-    assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Ref));
+    assert_eq!(mergers[0].anchor_block, Some(expected));
   }
 }
