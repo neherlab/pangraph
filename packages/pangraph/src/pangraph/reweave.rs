@@ -145,11 +145,29 @@ fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
   for m in mergers.iter_mut() {
     let ref_block = &graph.blocks[&m.reff.name];
     let qry_block = &graph.blocks[&m.qry.name];
-    if ref_block.depth() >= qry_block.depth() {
-      m.anchor_block = Some(AnchorBlock::Ref);
+    let anchor = if ref_block.depth() != qry_block.depth() {
+      if ref_block.depth() > qry_block.depth() {
+        AnchorBlock::Ref
+      } else {
+        AnchorBlock::Qry
+      }
     } else {
-      m.anchor_block = Some(AnchorBlock::Qry);
-    }
+      // Equal depth: prefer fewer Ns in the aligned interval (ref wins ties via <=)
+      let ref_n = ref_block.consensus()[m.reff.interval.to_range()]
+        .iter()
+        .filter(|c| c.0 == b'N')
+        .count();
+      let qry_n = qry_block.consensus()[m.qry.interval.to_range()]
+        .iter()
+        .filter(|c| c.0 == b'N')
+        .count();
+      if ref_n <= qry_n {
+        AnchorBlock::Ref
+      } else {
+        AnchorBlock::Qry
+      }
+    };
+    m.anchor_block = Some(anchor);
   }
 }
 
@@ -394,7 +412,8 @@ pub fn reweave(
 ) -> Result<(Pangraph, Vec<MergePromise>), Report> {
   // for each merger, assign a new block id (hash of original block ids and alignment intervals)
   assign_new_block_ids(mergers);
-  // and decide which block is the anchor, based on depth (ref block if equal depth)
+  // and decide which block is the anchor, based on depth and n. of ambiguous nucleotides
+  // (ref block wins ties)
   assign_anchor_block(mergers, &graph);
 
   // dictionary of BlockId -> alignments. Nb: each alignment is present twice.
@@ -457,6 +476,7 @@ mod tests {
   use crate::utils::random::get_random_number_generator;
   use maplit::{btreemap, btreeset};
   use noodles::sam::record::Cigar;
+  use rstest::rstest;
   use noodles::sam::record::cigar::op::{Kind, Op};
   use pretty_assertions::assert_eq;
 
@@ -1181,5 +1201,74 @@ mod tests {
     ])
     .unwrap();
     assert_eq!(updated, expected);
+  }
+
+  // Anchor block selection: depth wins, then fewer Ns in aligned interval, then ref wins ties
+  #[rustfmt::skip]
+  #[rstest]
+  //                                   block 1                         block 2                         alignment                               result
+  //                                   (consensus,        depth)       (consensus,       depth)        (qry, qry_interval, ref, ref_interval)  expected
+  // -- N count tie-breaker (equal depth) --
+  #[case::equal_depth_ref_fewer_ns    (("ATCG",           2),          ("NNCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
+  #[case::equal_depth_qry_fewer_ns    (("ATCG",           2),          ("NNCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
+  #[case::equal_depth_equal_ns_ref_wins(("ANCG",          2),          ("TNCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
+  #[case::equal_depth_zero_ns_ref_wins(("ATCG",           2),          ("GCTA",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
+  #[case::equal_depth_many_ns_qry_wins(("NNNG",           2),          ("NNCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Qry)]
+  // -- depth wins over N count --
+  #[case::qry_deeper_wins             (("NNCG",           3),          ("ATCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
+  #[case::ref_deeper_wins             (("NNCG",           3),          ("ATCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
+  #[case::depth_large_difference      (("ATCG",          10),          ("ATCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
+  // -- interval position matters --
+  #[case::interval_ns_not_whole_block (("NNNNNACGTNNNNN", 2),          ("ACGTACNTACGT",  2),           (2,   (4, 8),       1,   (5, 9)),        AnchorBlock::Ref)]
+  #[case::interval_at_end             (("ACGN",           2),          ("ACGT",          2),           (1,   (3, 4),       2,   (3, 4)),        AnchorBlock::Ref)]
+  #[case::single_base_interval        (("ACGT",           2),          ("NCGT",          2),           (2,   (0, 1),       1,   (0, 1)),        AnchorBlock::Ref)]
+  #[trace]
+  fn test_assign_anchor_block_selection(
+    #[case] b1: (&str, usize),
+    #[case] b2: (&str, usize),
+    #[case] alignment: (usize, (usize, usize), usize, (usize, usize)),
+    #[case] expected: AnchorBlock,
+  ) {
+    let make_edits = |depth: usize, offset: usize| -> BTreeMap<NodeId, Edit> {
+      (0..depth).map(|i| (NodeId(offset + i), Edit::empty())).collect()
+    };
+
+    let block1 = PangraphBlock::new(BlockId(1), b1.0, make_edits(b1.1, 0));
+    let block2 = PangraphBlock::new(BlockId(2), b2.0, make_edits(b2.1, 100));
+
+    let pangraph = Pangraph {
+      blocks: btreemap! {
+        BlockId(1) => block1,
+        BlockId(2) => block2,
+      },
+      paths: btreemap! {},
+      nodes: btreemap! {},
+    };
+
+    let (qry_id, qry_interval, ref_id, ref_interval) = alignment;
+    let mut mergers = vec![Alignment {
+      qry: Hit {
+        name: BlockId(qry_id),
+        length: b1.0.len().max(b2.0.len()),
+        interval: Interval::new(qry_interval.0, qry_interval.1),
+      },
+      reff: Hit {
+        name: BlockId(ref_id),
+        length: b1.0.len().max(b2.0.len()),
+        interval: Interval::new(ref_interval.0, ref_interval.1),
+      },
+      matches: 0,
+      length: 0,
+      quality: 0,
+      orientation: Forward,
+      new_block_id: None,
+      anchor_block: None,
+      cigar: Cigar::default(),
+      divergence: None,
+      align: None,
+    }];
+
+    assign_anchor_block(&mut mergers, &pangraph);
+    assert_eq!(mergers[0].anchor_block, Some(expected));
   }
 }
