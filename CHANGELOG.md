@@ -1,4 +1,4 @@
-## Unreleased
+## 1.2.2
 
 - improved FASTA input file parsing and error messages for invalid characters, see #173.
 - internal improvement in block merging to reduce blocks with `NNNN` characters in their consensus, see #176.

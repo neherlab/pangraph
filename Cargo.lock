@@ -1334,7 +1334,7 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 
 [[package]]
 name = "minimap2"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "eyre",
  "itertools 0.14.0",
@@ -1649,7 +1649,7 @@ checksum = "48dd4f4a2c8405440fd0462561f0e5806bd0f77e86f51c761481bdd4018b545e"
 
 [[package]]
 name = "pangraph"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "approx",
  "atty",
@@ -1711,7 +1711,7 @@ dependencies = [
 
 [[package]]
 name = "pangraph-cli"
-version = "1.2.1"
+version = "1.2.2"
 dependencies = [
  "ctor",
  "eyre",
