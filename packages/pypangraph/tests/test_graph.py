@@ -20,6 +20,30 @@ def test_load_graph_gz():
     assert len(pan.strains()) == 15
 
 
+def test_load_graph_invalid_extension(tmp_path):
+    fname = tmp_path / "plasmids.txt"
+    fname.write_text("{}")
+
+    with pytest.raises(pp.PangraphLoadError, match=r"\.json or \.json\.gz"):
+        pp.Pangraph.from_json(fname)
+
+
+def test_load_graph_invalid_json(tmp_path):
+    fname = tmp_path / "broken.json"
+    fname.write_text("{this is not valid json}")
+
+    with pytest.raises(pp.PangraphLoadError, match="failed to load pangraph"):
+        pp.Pangraph.from_json(fname)
+
+
+def test_load_graph_invalid_schema(tmp_path):
+    fname = tmp_path / "invalid.json"
+    fname.write_text("{}")
+
+    with pytest.raises(pp.PangraphLoadError, match="invalid pangraph JSON"):
+        pp.Pangraph.from_json(fname)
+
+
 def test_paths(graph):
     path = graph.paths["RCS48_p1"]
     assert len(path) == 60

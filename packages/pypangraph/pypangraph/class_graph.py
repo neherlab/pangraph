@@ -15,6 +15,10 @@ from .class_node import Nodes
 from .pangraph_schema import schema
 
 
+class PangraphLoadError(ValueError):
+    """Raised when a Pangraph JSON file cannot be loaded or validated."""
+
+
 class Pangraph:
     """Wrapper class to load and interact with the output of the Pangraph pipeline.
     The class has three main attributes:
@@ -53,22 +57,29 @@ class Pangraph:
         is_json = str(filename).endswith(".json")
         is_gzjson = str(filename).endswith(".json.gz")
         if not (is_json or is_gzjson):
-            raise Exception(
+            raise PangraphLoadError(
                 f"the input file {filename} should be in .json or .json.gz format"
             )
 
-        if is_gzjson:
-            with gzip.open(filename, "rt") as f:
-                pan_json = json.load(f)
-        else:
-            with open(filename, "r") as f:
-                pan_json = json.load(f)
+        try:
+            if is_gzjson:
+                with gzip.open(filename, "rt") as f:
+                    pan_json = json.load(f)
+            else:
+                with open(filename, "r") as f:
+                    pan_json = json.load(f)
+        except (OSError, gzip.BadGzipFile, json.JSONDecodeError) as ex:
+            raise PangraphLoadError(
+                f"failed to load pangraph from {filename}: {ex}"
+            ) from ex
 
         try:
             graph = {"pangraph": pan_json}
             jsonschema.validate(instance=graph, schema=schema)
         except jsonschema.exceptions.ValidationError as ex:
-            print(ex)
+            raise PangraphLoadError(
+                f"invalid pangraph JSON in {filename}: {ex.message}"
+            ) from ex
 
         pan = Pangraph(pan_json)
         return pan

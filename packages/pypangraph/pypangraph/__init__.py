@@ -1,5 +1,5 @@
 # pangraph class
-from .class_graph import Pangraph
+from .class_graph import Pangraph, PangraphLoadError
 
 # sinteny analysis
 from .msu import minimal_synteny_units
