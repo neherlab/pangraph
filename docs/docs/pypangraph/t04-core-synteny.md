@@ -92,9 +92,11 @@ For these cases, pypangraph provides a method to quickly survey all changes in c
 
 ![minimal synteny units](../assets/pp_t4_minimal_synteny_units.png)
 
-For this part of the tutorial we will analyze the `graph.json` file created [in the first tutorial](../tutorial/t01-building-pangraph.md#building-the-pangraph), containing 10 _E. coli_ chromosomes. The minimal sinteny units for this graph can be extracted with the function:
+For this part of the tutorial we will analyze the `graph.json` file created [in the first tutorial](../tutorial/t01-building-pangraph.md#building-the-pangraph), containing 10 _E. coli_ chromosomes. The minimal synteny units for this graph can be extracted with the function:
 
 ```python
+import pypangraph as pp
+
 graph = pp.Pangraph.from_json("graph.json")
 
 # find MSUs
@@ -105,7 +107,7 @@ MSU_mergers, MSU_paths, MSU_len = pp.minimal_synteny_units(graph, threshold_len)
 This returns three objects:
 
 - `MSU_mergers`: a dictionary where keys are core block ids and the values are the ids of the MSU they belong to.
-- `MSU_paths`: a dictionary where keys are path ids and values are paths composed of MSUs instead of blocks.
+- `MSU_paths`: a dictionary where keys are path ids and values are `pypangraph.topology_utils.Path` objects composed of MSUs instead of blocks.
 - `MSU_len`: a list of the lengths of the MSUs in basepairs, i.e. the sum of consensus length of the core blocks that compose them.
 
 We can draw a linear representation for paths in terms of the MSUs with the following code, in which each MSU is represented as a colored block of unit size. Arrows indicate inversions.

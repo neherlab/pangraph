@@ -1,16 +1,18 @@
-from . import msu_utils as ut
 from collections import defaultdict
+
 import numpy as np
+
+from . import topology_utils as tu
 
 
 def core_paths(pan, L_thr):
     bdf = pan.to_blockstats_df()
-    paths = ut.pangraph_to_path_dict(pan)
+    paths = tu.pangraph_to_path_dict(pan)
 
     def is_core(node_id):
         return (bdf.loc[node_id, "len"] >= L_thr) and bdf.loc[node_id, "core"]
 
-    return ut.filter_paths(paths, is_core)
+    return tu.filter_paths(paths, is_core)
 
 
 def flip_msu_to_most_common_orientation(paths):
@@ -23,14 +25,14 @@ def flip_msu_to_most_common_orientation(paths):
     # flip all the ones with orient < 0
     for iso, p in paths.items():
         nodes = [n.invert() if orient[n.id] < 0 else n for n in p.nodes]
-        paths[iso] = ut.Path(nodes, p.circular)
+        paths[iso] = tu.Path(nodes, p.circular)
 
     return paths
 
 
 def minimal_synteny_units(pan, L_thr: int, rotate: bool = True):
     c_paths = core_paths(pan, L_thr)
-    mergers = ut.find_mergers(c_paths)
+    mergers = tu.find_mergers(c_paths)
 
     # MSU lengths
     B_len = pan.to_blockstats_df()["len"].to_dict()
@@ -42,7 +44,7 @@ def minimal_synteny_units(pan, L_thr: int, rotate: bool = True):
     MSU_order = sorted(MSU_len, key=MSU_len.get, reverse=True)
 
     # simplify paths
-    MSU_paths = ut.filter_paths(c_paths, lambda x: x in MSU_order)
+    MSU_paths = tu.filter_paths(c_paths, lambda x: x in MSU_order)
 
     # rename MSUs
     MSU_ids = {msu: f"MSU_{i}" for i, msu in enumerate(MSU_order)}
