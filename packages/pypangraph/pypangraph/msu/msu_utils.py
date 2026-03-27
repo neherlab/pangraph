@@ -38,7 +38,9 @@ class Node:
 class Path:
     """A path is a list of nodes"""
 
-    def __init__(self, nodes=[], circular=None) -> None:
+    def __init__(self, nodes=None, circular=None) -> None:
+        if nodes is None:
+            nodes = []
         self.nodes = nodes
         self.circular = circular
 

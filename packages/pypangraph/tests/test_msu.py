@@ -20,6 +20,13 @@ class TestNode:
 
 
 class TestPath:
+    def test_constructor_default_nodes_are_not_shared(self):
+        p1 = msu.Path()
+        p2 = msu.Path()
+        p1.add_right(msu.Node("A", True))
+        assert p1.nodes == [msu.Node("A", True)]
+        assert p2.nodes == []
+
     def test_eq(self):
         n1 = msu.Node("A", True)
         n2 = msu.Node("B", True)
