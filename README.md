@@ -74,7 +74,7 @@ PyPangraph is a python package with convenient utilities to load and explore the
 ```python
 import pypangraph as pp
 
-graph = pp.Pangraph.load_graph("graph.json")
+graph = pp.Pangraph.from_json("graph.json")
 print(graph)
 # pangraph object with 15 paths, 137 blocks and 1042 nodes
 ```
