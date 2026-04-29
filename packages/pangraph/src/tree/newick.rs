@@ -272,6 +272,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::assert_error;
   use crate::io::fasta::FastaRecord;
   use crate::pangraph::strand::Strand::Forward;
   use crate::representation::seq::Seq;
@@ -304,18 +305,20 @@ mod tests {
     assert_eq!(expected, round_trip(input));
   }
 
+  #[rustfmt::skip]
   #[rstest]
-  #[case::empty("")]
-  #[case::only_whitespace("   \n  ")]
-  #[case::unbalanced_open("((A,B);")]
-  #[case::unbalanced_close("A,B);")]
-  #[case::multifurcation("(A,B,C);")]
-  #[case::unifurcation("(A);")]
-  #[case::leaf_no_name("(,B);")]
-  #[case::trailing_garbage("(A,B);xyz")]
-  #[case::missing_branch_number("(A:,B);")]
-  fn newick_rejects_malformed_input(#[case] input: &str) {
-    assert!(parse_newick(input).is_err(), "expected error for input: {input:?}");
+  #[case::empty(                 "",          "Newick input is empty")]
+  #[case::only_whitespace(       "   \n  ",   "Newick input is empty")]
+  #[case::unbalanced_open(       "((A,B);",   "Newick: expected ')' or ',' at position 6, found ';'")]
+  #[case::unbalanced_close(      "A,B);",     "Newick: unexpected trailing content at position 1: ',B);'")]
+  #[case::multifurcation(        "(A,B,C);",  "Newick: internal node has 3 children; only strictly bifurcating trees are supported")]
+  #[case::unifurcation(          "(A);",      "Newick: internal node has 1 children; only strictly bifurcating trees are supported")]
+  #[case::leaf_no_name(          "(,B);",     "Newick: leaf without a name at position 1")]
+  #[case::trailing_garbage(      "(A,B);xyz", "Newick: unexpected trailing content at position 6: 'xyz'")]
+  #[case::missing_branch_number( "(A:,B);",   "Newick: expected a number after ':' at position 3")]
+  #[trace]
+  fn newick_rejects_malformed_input(#[case] input: &str, #[case] expected: &str) {
+    assert_error!(parse_newick(input), expected);
   }
 
   fn singleton(name: &str, index: usize) -> Pangraph {
@@ -352,10 +355,9 @@ mod tests {
     std::fs::write(&path, "((A,B),Z);").unwrap();
 
     let graphs = vec![singleton("A", 0), singleton("B", 1), singleton("C", 2)];
-    let err = build_tree_from_newick(&path, graphs).unwrap_err().to_string();
-    assert!(
-      err.contains("'Z' has no matching FASTA record"),
-      "unexpected error message: {err}"
+    assert_error!(
+      build_tree_from_newick(&path, graphs),
+      "Newick leaf 'Z' has no matching FASTA record"
     );
   }
 
@@ -366,11 +368,9 @@ mod tests {
     std::fs::write(&path, "(A,B);").unwrap();
 
     let graphs = vec![singleton("A", 0), singleton("B", 1), singleton("C", 2)];
-    let err = build_tree_from_newick(&path, graphs).unwrap_err().to_string();
-    assert!(err.contains("[C]"), "unexpected error message: {err}");
-    assert!(
-      err.contains("not present in the guide tree"),
-      "unexpected error message: {err}"
+    assert_error!(
+      build_tree_from_newick(&path, graphs),
+      "FASTA records [C] are not present in the guide tree"
     );
   }
 
@@ -381,10 +381,9 @@ mod tests {
     std::fs::write(&path, "((A,B),A);").unwrap();
 
     let graphs = vec![singleton("A", 0), singleton("B", 1)];
-    let err = build_tree_from_newick(&path, graphs).unwrap_err().to_string();
-    assert!(
-      err.contains("'A' has no matching FASTA record"),
-      "unexpected error message: {err}"
+    assert_error!(
+      build_tree_from_newick(&path, graphs),
+      "Newick leaf 'A' has no matching FASTA record"
     );
   }
 
