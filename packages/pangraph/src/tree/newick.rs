@@ -289,47 +289,19 @@ mod tests {
     parse_newick(input).unwrap().read().to_newick()
   }
 
+  #[rustfmt::skip]
   #[rstest]
-  fn newick_parses_basic_tree() {
-    assert_eq!(round_trip("((A,B),(C,D));"), "((A,B),(C,D));");
-  }
-
-  #[rstest]
-  fn newick_ignores_branch_lengths() {
-    assert_eq!(round_trip("((A:0.1,B:0.2):0.3,C:0.4);"), "((A,B),C);");
-  }
-
-  #[rstest]
-  fn newick_ignores_internal_labels() {
-    assert_eq!(round_trip("((A,B)inner,C)root;"), "((A,B),C);");
-  }
-
-  #[rstest]
-  fn newick_tolerates_whitespace_and_newlines() {
-    assert_eq!(round_trip("(\n  (A , B) ,\n  ( C, D )\n);\n"), "((A,B),(C,D));");
-  }
-
-  #[rstest]
-  fn newick_supports_quoted_names() {
-    assert_eq!(round_trip("('foo bar',B);"), "(foo bar,B);");
-  }
-
-  #[rstest]
-  fn newick_supports_doubled_quote_in_quoted_names() {
-    let tree = parse_newick("('it''s',B);").unwrap();
-    let g = tree.read();
-    let left = g.left.as_ref().unwrap().read();
-    assert_eq!(left.data.as_deref(), Some("it's"));
-  }
-
-  #[rstest]
-  fn newick_trailing_semicolon_optional() {
-    assert_eq!(round_trip("((A,B),C)"), "((A,B),C);");
-  }
-
-  #[rstest]
-  fn newick_branch_length_in_scientific_notation() {
-    assert_eq!(round_trip("(A:1e-3,B:2.5E+2);"), "(A,B);");
+  #[case::basic_tree(              "((A,B),(C,D));",                   "((A,B),(C,D));")]
+  #[case::branch_lengths(          "((A:0.1,B:0.2):0.3,C:0.4);",       "((A,B),C);"    )]
+  #[case::internal_labels(         "((A,B)inner,C)root;",              "((A,B),C);"    )]
+  #[case::whitespace_and_newlines( "(\n  (A , B) ,\n  ( C, D )\n);\n", "((A,B),(C,D));")]
+  #[case::quoted_names(            "('foo bar',B);",                   "(foo bar,B);"  )]
+  #[case::doubled_quote(           "('it''s',B);",                     "(it's,B);"     )]
+  #[case::trailing_semicolon(      "((A,B),C)",                        "((A,B),C);"    )]
+  #[case::scientific_notation(     "(A:1e-3,B:2.5E+2);",               "(A,B);"        )]
+  #[trace]
+  fn newick_round_trip(#[case] input: &str, #[case] expected: &str) {
+    assert_eq!(expected, round_trip(input));
   }
 
   #[rstest]
