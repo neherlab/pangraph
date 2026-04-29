@@ -348,43 +348,19 @@ mod tests {
     assert_eq!(leaves, vec!["A", "B", "C"]);
   }
 
+  #[rustfmt::skip]
   #[rstest]
-  fn build_tree_from_newick_errors_on_extra_leaf_in_tree() {
+  #[case::extra_leaf(     "((A,B),Z);", &["A", "B", "C"], "Newick leaf 'Z' has no matching FASTA record")]
+  #[case::missing_record( "(A,B);",     &["A", "B", "C"], "FASTA records [C] are not present in the guide tree")]
+  #[case::duplicate_leaf( "((A,B),A);", &["A", "B"],      "Newick leaf 'A' has no matching FASTA record")]
+  #[trace]
+  fn build_tree_from_newick_rejects_invalid(#[case] newick: &str, #[case] names: &[&str], #[case] expected: &str) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("tree.nwk");
-    std::fs::write(&path, "((A,B),Z);").unwrap();
+    std::fs::write(&path, newick).unwrap();
 
-    let graphs = vec![singleton("A", 0), singleton("B", 1), singleton("C", 2)];
-    assert_error!(
-      build_tree_from_newick(&path, graphs),
-      "Newick leaf 'Z' has no matching FASTA record"
-    );
-  }
-
-  #[rstest]
-  fn build_tree_from_newick_errors_on_missing_record_in_tree() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("tree.nwk");
-    std::fs::write(&path, "(A,B);").unwrap();
-
-    let graphs = vec![singleton("A", 0), singleton("B", 1), singleton("C", 2)];
-    assert_error!(
-      build_tree_from_newick(&path, graphs),
-      "FASTA records [C] are not present in the guide tree"
-    );
-  }
-
-  #[rstest]
-  fn build_tree_from_newick_errors_on_duplicate_leaf() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("tree.nwk");
-    std::fs::write(&path, "((A,B),A);").unwrap();
-
-    let graphs = vec![singleton("A", 0), singleton("B", 1)];
-    assert_error!(
-      build_tree_from_newick(&path, graphs),
-      "Newick leaf 'A' has no matching FASTA record"
-    );
+    let graphs = names.iter().enumerate().map(|(i, name)| singleton(name, i)).collect::<Vec<_>>();
+    assert_error!(build_tree_from_newick(&path, graphs), expected);
   }
 
   fn recurse_leaf_names(c: &Lock<Clade<Option<Pangraph>>>, out: &mut Vec<String>) {
