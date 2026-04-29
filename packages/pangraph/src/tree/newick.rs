@@ -273,22 +273,9 @@ impl<'a> Parser<'a> {
 mod tests {
   use super::*;
   use crate::assert_error;
-  use crate::io::fasta::FastaRecord;
-  use crate::pangraph::strand::Strand::Forward;
-  use crate::representation::seq::Seq;
-  use crate::tree::clade::WithName;
+  use helpers::{collect_leaf_names, round_trip, singleton};
   use pretty_assertions::assert_eq;
   use rstest::rstest;
-
-  impl WithName for Option<String> {
-    fn name(&self) -> Option<&str> {
-      self.as_deref()
-    }
-  }
-
-  fn round_trip(input: &str) -> String {
-    parse_newick(input).unwrap().read().to_newick()
-  }
 
   #[rustfmt::skip]
   #[rstest]
@@ -321,19 +308,6 @@ mod tests {
     assert_error!(parse_newick(input), expected);
   }
 
-  fn singleton(name: &str, index: usize) -> Pangraph {
-    Pangraph::singleton(
-      FastaRecord {
-        seq_name: name.to_owned(),
-        desc: None,
-        seq: Seq::from_str("ACGT"),
-        index,
-      },
-      Forward,
-      false,
-    )
-  }
-
   #[rstest]
   fn build_tree_from_newick_attaches_graphs() {
     let dir = tempfile::tempdir().unwrap();
@@ -363,25 +337,56 @@ mod tests {
     assert_error!(build_tree_from_newick(&path, graphs), expected);
   }
 
-  fn recurse_leaf_names(c: &Lock<Clade<Option<Pangraph>>>, out: &mut Vec<String>) {
-    let g = c.read();
-    match (&g.left, &g.right) {
-      (None, None) => {
-        let p = g.data.as_ref().unwrap();
-        let name = p.paths.values().next().unwrap().name.clone().unwrap();
-        out.push(name);
-      },
-      (Some(l), Some(r)) => {
-        recurse_leaf_names(l, out);
-        recurse_leaf_names(r, out);
-      },
-      _ => panic!("non-bifurcating internal node"),
-    }
-  }
+  mod helpers {
+    use super::*;
+    use crate::io::fasta::FastaRecord;
+    use crate::pangraph::strand::Strand::Forward;
+    use crate::representation::seq::Seq;
+    use crate::tree::clade::WithName;
 
-  fn collect_leaf_names(tree: &Lock<Clade<Option<Pangraph>>>) -> Vec<String> {
-    let mut out = vec![];
-    recurse_leaf_names(tree, &mut out);
-    out
+    impl WithName for Option<String> {
+      fn name(&self) -> Option<&str> {
+        self.as_deref()
+      }
+    }
+
+    pub fn round_trip(input: &str) -> String {
+      parse_newick(input).unwrap().read().to_newick()
+    }
+
+    pub fn singleton(name: &str, index: usize) -> Pangraph {
+      Pangraph::singleton(
+        FastaRecord {
+          seq_name: name.to_owned(),
+          desc: None,
+          seq: Seq::from_str("ACGT"),
+          index,
+        },
+        Forward,
+        false,
+      )
+    }
+
+    pub fn collect_leaf_names(tree: &Lock<Clade<Option<Pangraph>>>) -> Vec<String> {
+      let mut out = vec![];
+      recurse_leaf_names(tree, &mut out);
+      out
+    }
+
+    fn recurse_leaf_names(c: &Lock<Clade<Option<Pangraph>>>, out: &mut Vec<String>) {
+      let g = c.read();
+      match (&g.left, &g.right) {
+        (None, None) => {
+          let p = g.data.as_ref().unwrap();
+          let name = p.paths.values().next().unwrap().name.clone().unwrap();
+          out.push(name);
+        },
+        (Some(l), Some(r)) => {
+          recurse_leaf_names(l, out);
+          recurse_leaf_names(r, out);
+        },
+        _ => panic!("non-bifurcating internal node"),
+      }
+    }
   }
 }
