@@ -1,12 +1,39 @@
 use crate::io::file::open_file_or_stdin;
 use crate::make_error;
 use crate::pangraph::pangraph::Pangraph;
-use crate::tree::clade::Clade;
+use crate::tree::clade::{Clade, WithName};
 use crate::utils::lock::Lock;
 use eyre::{Report, WrapErr};
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::path::Path;
+
+impl<T: WithName> Clade<T> {
+  pub fn to_newick(&self) -> String {
+    fn recurse<T: WithName>(clade: &Clade<T>) -> String {
+      if clade.is_leaf() {
+        String::from(clade.data.name().unwrap_or_default())
+      } else {
+        let mut newick = String::from("(");
+        if let Some(left) = &clade.left {
+          newick.push_str(&recurse(&left.read()));
+        }
+        newick.push(',');
+        if let Some(right) = &clade.right {
+          newick.push_str(&recurse(&right.read()));
+        }
+        newick.push(')');
+        if let Some(name) = clade.data.name() {
+          newick.push_str(name);
+        }
+        newick
+      }
+    }
+
+    let newick = recurse(self);
+    format!("{newick};")
+  }
+}
 
 /// Parse Newick text into a tree of leaf names. Internal nodes carry `None`; leaves carry
 /// `Some(name)`. Branch lengths and internal labels are accepted but ignored. Only strictly

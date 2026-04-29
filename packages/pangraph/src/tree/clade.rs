@@ -44,33 +44,6 @@ pub trait WithName {
   fn name(&self) -> Option<&str>;
 }
 
-impl<T: WithName> Clade<T> {
-  pub fn to_newick(&self) -> String {
-    fn recurse<T: WithName>(clade: &Clade<T>) -> String {
-      if clade.is_leaf() {
-        String::from(clade.data.name().unwrap_or_default())
-      } else {
-        let mut newick = String::from("(");
-        if let Some(left) = &clade.left {
-          newick.push_str(&recurse(&left.read()));
-        }
-        newick.push(',');
-        if let Some(right) = &clade.right {
-          newick.push_str(&recurse(&right.read()));
-        }
-        newick.push(')');
-        if let Some(name) = clade.data.name() {
-          newick.push_str(name);
-        }
-        newick
-      }
-    }
-
-    let newick = recurse(self);
-    format!("{newick};")
-  }
-}
-
 pub fn postorder<T, D, E, F>(clade: &Lock<Clade<D>>, f: F) -> Result<Vec<T>, E>
 where
   F: Fn(&mut Clade<D>) -> Result<T, E>,
