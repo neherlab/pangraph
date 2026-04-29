@@ -135,6 +135,9 @@ Align genomes into a multiple sequence alignment graph
 * `--max-alignment-attempts <MAX_ALIGNMENT_ATTEMPTS>` — For within-block alignment: number of times Nextclade will retry alignment with more relaxed results if alignment band boundaries are hit
 
   Default value: `4`
+* `--guide-tree <GUIDE_TREE>` — Path to a Newick-format guide tree to use instead of the default neighbor-joining tree.
+
+   When provided, the tree's topology drives the bottom-up graph-merging order. Each input FASTA sequence must appear exactly once as a leaf (matched by sequence name), and every internal node must be strictly bifurcating. Branch lengths and internal labels, if present, are ignored. Accepts plain or compressed files (gz, bz2, xz, zst).
 
 
 
