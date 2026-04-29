@@ -272,91 +272,40 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::io::fasta::FastaRecord;
-  use crate::pangraph::strand::Strand::Forward;
-  use crate::representation::seq::Seq;
-  use crate::tree::clade::WithName;
+  use crate::assert_error;
+  use helpers::{collect_leaf_names, round_trip, singleton};
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 
-  impl WithName for Option<String> {
-    fn name(&self) -> Option<&str> {
-      self.as_deref()
-    }
-  }
-
-  fn round_trip(input: &str) -> String {
-    parse_newick(input).unwrap().read().to_newick()
-  }
-
+  #[rustfmt::skip]
   #[rstest]
-  fn newick_parses_basic_tree() {
-    assert_eq!(round_trip("((A,B),(C,D));"), "((A,B),(C,D));");
+  #[case::basic_tree(              "((A,B),(C,D));",                   "((A,B),(C,D));")]
+  #[case::branch_lengths(          "((A:0.1,B:0.2):0.3,C:0.4);",       "((A,B),C);"    )]
+  #[case::internal_labels(         "((A,B)inner,C)root;",              "((A,B),C);"    )]
+  #[case::whitespace_and_newlines( "(\n  (A , B) ,\n  ( C, D )\n);\n", "((A,B),(C,D));")]
+  #[case::quoted_names(            "('foo bar',B);",                   "(foo bar,B);"  )]
+  #[case::doubled_quote(           "('it''s',B);",                     "(it's,B);"     )]
+  #[case::trailing_semicolon(      "((A,B),C)",                        "((A,B),C);"    )]
+  #[case::scientific_notation(     "(A:1e-3,B:2.5E+2);",               "(A,B);"        )]
+  #[trace]
+  fn newick_round_trip(#[case] input: &str, #[case] expected: &str) {
+    assert_eq!(expected, round_trip(input));
   }
 
+  #[rustfmt::skip]
   #[rstest]
-  fn newick_ignores_branch_lengths() {
-    assert_eq!(round_trip("((A:0.1,B:0.2):0.3,C:0.4);"), "((A,B),C);");
-  }
-
-  #[rstest]
-  fn newick_ignores_internal_labels() {
-    assert_eq!(round_trip("((A,B)inner,C)root;"), "((A,B),C);");
-  }
-
-  #[rstest]
-  fn newick_tolerates_whitespace_and_newlines() {
-    assert_eq!(round_trip("(\n  (A , B) ,\n  ( C, D )\n);\n"), "((A,B),(C,D));");
-  }
-
-  #[rstest]
-  fn newick_supports_quoted_names() {
-    assert_eq!(round_trip("('foo bar',B);"), "(foo bar,B);");
-  }
-
-  #[rstest]
-  fn newick_supports_doubled_quote_in_quoted_names() {
-    let tree = parse_newick("('it''s',B);").unwrap();
-    let g = tree.read();
-    let left = g.left.as_ref().unwrap().read();
-    assert_eq!(left.data.as_deref(), Some("it's"));
-  }
-
-  #[rstest]
-  fn newick_trailing_semicolon_optional() {
-    assert_eq!(round_trip("((A,B),C)"), "((A,B),C);");
-  }
-
-  #[rstest]
-  fn newick_branch_length_in_scientific_notation() {
-    assert_eq!(round_trip("(A:1e-3,B:2.5E+2);"), "(A,B);");
-  }
-
-  #[rstest]
-  #[case::empty("")]
-  #[case::only_whitespace("   \n  ")]
-  #[case::unbalanced_open("((A,B);")]
-  #[case::unbalanced_close("A,B);")]
-  #[case::multifurcation("(A,B,C);")]
-  #[case::unifurcation("(A);")]
-  #[case::leaf_no_name("(,B);")]
-  #[case::trailing_garbage("(A,B);xyz")]
-  #[case::missing_branch_number("(A:,B);")]
-  fn newick_rejects_malformed_input(#[case] input: &str) {
-    assert!(parse_newick(input).is_err(), "expected error for input: {input:?}");
-  }
-
-  fn singleton(name: &str, index: usize) -> Pangraph {
-    Pangraph::singleton(
-      FastaRecord {
-        seq_name: name.to_owned(),
-        desc: None,
-        seq: Seq::from_str("ACGT"),
-        index,
-      },
-      Forward,
-      false,
-    )
+  #[case::empty(                 "",          "Newick input is empty")]
+  #[case::only_whitespace(       "   \n  ",   "Newick input is empty")]
+  #[case::unbalanced_open(       "((A,B);",   "Newick: expected ')' or ',' at position 6, found ';'")]
+  #[case::unbalanced_close(      "A,B);",     "Newick: unexpected trailing content at position 1: ',B);'")]
+  #[case::multifurcation(        "(A,B,C);",  "Newick: internal node has 3 children; only strictly bifurcating trees are supported")]
+  #[case::unifurcation(          "(A);",      "Newick: internal node has 1 children; only strictly bifurcating trees are supported")]
+  #[case::leaf_no_name(          "(,B);",     "Newick: leaf without a name at position 1")]
+  #[case::trailing_garbage(      "(A,B);xyz", "Newick: unexpected trailing content at position 6: 'xyz'")]
+  #[case::missing_branch_number( "(A:,B);",   "Newick: expected a number after ':' at position 3")]
+  #[trace]
+  fn newick_rejects_malformed_input(#[case] input: &str, #[case] expected: &str) {
+    assert_error!(parse_newick(input), expected);
   }
 
   #[rstest]
@@ -373,68 +322,71 @@ mod tests {
     assert_eq!(leaves, vec!["A", "B", "C"]);
   }
 
+  #[rustfmt::skip]
   #[rstest]
-  fn build_tree_from_newick_errors_on_extra_leaf_in_tree() {
+  #[case::extra_leaf(     "((A,B),Z);", &["A", "B", "C"], "Newick leaf 'Z' has no matching FASTA record")]
+  #[case::missing_record( "(A,B);",     &["A", "B", "C"], "FASTA records [C] are not present in the guide tree")]
+  #[case::duplicate_leaf( "((A,B),A);", &["A", "B"],      "Newick leaf 'A' has no matching FASTA record")]
+  #[trace]
+  fn build_tree_from_newick_rejects_invalid(#[case] newick: &str, #[case] names: &[&str], #[case] expected: &str) {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("tree.nwk");
-    std::fs::write(&path, "((A,B),Z);").unwrap();
+    std::fs::write(&path, newick).unwrap();
 
-    let graphs = vec![singleton("A", 0), singleton("B", 1), singleton("C", 2)];
-    let err = build_tree_from_newick(&path, graphs).unwrap_err().to_string();
-    assert!(
-      err.contains("'Z' has no matching FASTA record"),
-      "unexpected error message: {err}"
-    );
+    let graphs = names.iter().enumerate().map(|(i, name)| singleton(name, i)).collect::<Vec<_>>();
+    assert_error!(build_tree_from_newick(&path, graphs), expected);
   }
 
-  #[rstest]
-  fn build_tree_from_newick_errors_on_missing_record_in_tree() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("tree.nwk");
-    std::fs::write(&path, "(A,B);").unwrap();
+  mod helpers {
+    use super::*;
+    use crate::io::fasta::FastaRecord;
+    use crate::pangraph::strand::Strand::Forward;
+    use crate::representation::seq::Seq;
+    use crate::tree::clade::WithName;
 
-    let graphs = vec![singleton("A", 0), singleton("B", 1), singleton("C", 2)];
-    let err = build_tree_from_newick(&path, graphs).unwrap_err().to_string();
-    assert!(err.contains("[C]"), "unexpected error message: {err}");
-    assert!(
-      err.contains("not present in the guide tree"),
-      "unexpected error message: {err}"
-    );
-  }
-
-  #[rstest]
-  fn build_tree_from_newick_errors_on_duplicate_leaf() {
-    let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("tree.nwk");
-    std::fs::write(&path, "((A,B),A);").unwrap();
-
-    let graphs = vec![singleton("A", 0), singleton("B", 1)];
-    let err = build_tree_from_newick(&path, graphs).unwrap_err().to_string();
-    assert!(
-      err.contains("'A' has no matching FASTA record"),
-      "unexpected error message: {err}"
-    );
-  }
-
-  fn recurse_leaf_names(c: &Lock<Clade<Option<Pangraph>>>, out: &mut Vec<String>) {
-    let g = c.read();
-    match (&g.left, &g.right) {
-      (None, None) => {
-        let p = g.data.as_ref().unwrap();
-        let name = p.paths.values().next().unwrap().name.clone().unwrap();
-        out.push(name);
-      },
-      (Some(l), Some(r)) => {
-        recurse_leaf_names(l, out);
-        recurse_leaf_names(r, out);
-      },
-      _ => panic!("non-bifurcating internal node"),
+    impl WithName for Option<String> {
+      fn name(&self) -> Option<&str> {
+        self.as_deref()
+      }
     }
-  }
 
-  fn collect_leaf_names(tree: &Lock<Clade<Option<Pangraph>>>) -> Vec<String> {
-    let mut out = vec![];
-    recurse_leaf_names(tree, &mut out);
-    out
+    pub fn round_trip(input: &str) -> String {
+      parse_newick(input).unwrap().read().to_newick()
+    }
+
+    pub fn singleton(name: &str, index: usize) -> Pangraph {
+      Pangraph::singleton(
+        FastaRecord {
+          seq_name: name.to_owned(),
+          desc: None,
+          seq: Seq::from_str("ACGT"),
+          index,
+        },
+        Forward,
+        false,
+      )
+    }
+
+    pub fn collect_leaf_names(tree: &Lock<Clade<Option<Pangraph>>>) -> Vec<String> {
+      let mut out = vec![];
+      recurse_leaf_names(tree, &mut out);
+      out
+    }
+
+    fn recurse_leaf_names(c: &Lock<Clade<Option<Pangraph>>>, out: &mut Vec<String>) {
+      let g = c.read();
+      match (&g.left, &g.right) {
+        (None, None) => {
+          let p = g.data.as_ref().unwrap();
+          let name = p.paths.values().next().unwrap().name.clone().unwrap();
+          out.push(name);
+        },
+        (Some(l), Some(r)) => {
+          recurse_leaf_names(l, out);
+          recurse_leaf_names(r, out);
+        },
+        _ => panic!("non-bifurcating internal node"),
+      }
+    }
   }
 }
