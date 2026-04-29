@@ -83,4 +83,13 @@ pub struct PangraphBuildArgs {
   #[clap(long, default_value_t = PangraphBuildArgs::default().max_alignment_attempts)]
   #[clap(value_hint = ValueHint::Other)]
   pub max_alignment_attempts: usize,
+
+  /// Path to a Newick-format guide tree to use instead of the default neighbor-joining tree.
+  ///
+  /// When provided, the tree's topology drives the bottom-up graph-merging order. Each input
+  /// FASTA sequence must appear exactly once as a leaf (matched by sequence name), and every
+  /// internal node must be strictly bifurcating. Branch lengths and internal labels, if present,
+  /// are ignored. Accepts plain or compressed files (gz, bz2, xz, zst).
+  #[clap(long, value_hint = ValueHint::FilePath)]
+  pub guide_tree: Option<PathBuf>,
 }
