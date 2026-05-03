@@ -100,6 +100,9 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -
     None => build_tree_using_neighbor_joining(graphs)?,
   };
 
+  // Log the guide tree topology in Newick format (visible at `info` log level and above).
+  info!("Guide tree (newick): {}", tree.read().to_newick());
+
   // Instantiate the progress bar
   let pb = ProgressBar::new(n_paths - 1, args.no_progress_bar)?;
 
