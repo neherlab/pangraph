@@ -1,18 +1,20 @@
 use crate::io::file::open_file_or_stdin;
 use crate::make_error;
 use crate::pangraph::pangraph::Pangraph;
-use crate::tree::clade::{Clade, WithName};
+use crate::tree::clade::{Clade, WithNewickName};
 use crate::utils::lock::Lock;
 use eyre::{Report, WrapErr};
 use std::collections::BTreeMap;
 use std::io::Read;
 use std::path::Path;
 
-impl<T: WithName> Clade<T> {
+impl<T: WithNewickName> Clade<T> {
+  /// Serialize the (sub)tree rooted at `self` as a Newick string terminated by `;`.
+  /// Node labels come from `T::newick_name`; nodes returning `None` are emitted unlabeled.
   pub fn to_newick(&self) -> String {
-    fn recurse<T: WithName>(clade: &Clade<T>) -> String {
+    fn recurse<T: WithNewickName>(clade: &Clade<T>) -> String {
       if clade.is_leaf() {
-        String::from(clade.data.name().unwrap_or_default())
+        clade.data.newick_name().unwrap_or_default()
       } else {
         let mut newick = String::from("(");
         if let Some(left) = &clade.left {
@@ -23,8 +25,8 @@ impl<T: WithName> Clade<T> {
           newick.push_str(&recurse(&right.read()));
         }
         newick.push(')');
-        if let Some(name) = clade.data.name() {
-          newick.push_str(name);
+        if let Some(name) = clade.data.newick_name() {
+          newick.push_str(&name);
         }
         newick
       }
@@ -342,11 +344,11 @@ mod tests {
     use crate::io::fasta::FastaRecord;
     use crate::pangraph::strand::Strand::Forward;
     use crate::representation::seq::Seq;
-    use crate::tree::clade::WithName;
+    use crate::tree::clade::WithNewickName;
 
-    impl WithName for Option<String> {
-      fn name(&self) -> Option<&str> {
-        self.as_deref()
+    impl WithNewickName for Option<String> {
+      fn newick_name(&self) -> Option<String> {
+        self.clone()
       }
     }
 

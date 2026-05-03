@@ -40,8 +40,10 @@ impl<T> Clade<T> {
   }
 }
 
-pub trait WithName {
-  fn name(&self) -> Option<&str>;
+/// Provides a Newick-compatible label for a tree node's payload.
+/// Returning `None` yields an unlabeled node in the Newick output.
+pub trait WithNewickName {
+  fn newick_name(&self) -> Option<String>;
 }
 
 pub fn postorder<T, D, E, F>(clade: &Lock<Clade<D>>, f: F) -> Result<Vec<T>, E>
@@ -86,9 +88,9 @@ mod tests {
     }
   }
 
-  impl WithName for N {
-    fn name(&self) -> Option<&str> {
-      Some(&self.0)
+  impl WithNewickName for N {
+    fn newick_name(&self) -> Option<String> {
+      Some(self.0.clone())
     }
   }
 
