@@ -308,6 +308,7 @@ mod tests {
   use crate::pangraph::pangraph_path::PangraphPath;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use maplit::btreemap;
+  use rstest::rstest;
 
   #[test]
   fn test_graph_update() {
@@ -433,38 +434,18 @@ mod tests {
   }
 
   #[test]
-  fn test_newick_name_singleton_named() {
-    let g = pangraph_with_named_paths(&[Some("isolate_A")]);
-    assert_eq!(g.newick_name(), Some("isolate_A".to_owned()));
-  }
-
-  #[test]
-  fn test_newick_name_singleton_unnamed() {
-    let g = pangraph_with_named_paths(&[None]);
-    assert_eq!(g.newick_name(), None);
-  }
-
-  #[test]
-  fn test_newick_name_multi_path_all_named() {
-    let g = pangraph_with_named_paths(&[Some("a"), Some("b"), Some("c")]);
-    assert_eq!(g.newick_name(), Some("a|b|c".to_owned()));
-  }
-
-  #[test]
-  fn test_newick_name_multi_path_some_unnamed() {
-    let g = pangraph_with_named_paths(&[Some("a"), None, Some("c")]);
-    assert_eq!(g.newick_name(), Some("a|c".to_owned()));
-  }
-
-  #[test]
-  fn test_newick_name_option_pangraph_none() {
+  fn test_newick_no_graph() {
     let g: Option<Pangraph> = None;
     assert_eq!(g.newick_name(), None);
   }
 
-  #[test]
-  fn test_newick_name_option_pangraph_some() {
-    let g = Some(pangraph_with_named_paths(&[Some("only")]));
-    assert_eq!(g.newick_name(), Some("only".to_owned()));
+  #[rstest]
+  #[case::singleton_named(&[Some("isolate_A")], Some("isolate_A".to_owned()))]
+  #[case::singleton_unnamed(&[None], None)]
+  #[case::multi_path_all_named(&[Some("a"), Some("b"), Some("c")], Some("a|b|c".to_owned()))]
+  #[case::multi_path_some_unnamed(&[Some("a"), None, Some("c")], Some("a|c".to_owned()))]
+  fn test_newick_name(#[case] names: &[Option<&str>], #[case] expected: Option<String>) {
+    let g = pangraph_with_named_paths(names);
+    assert_eq!(g.newick_name(), expected);
   }
 }
