@@ -170,7 +170,7 @@ Rust code is linted by running [Clippy](https://github.com/rust-lang/rust-clippy
 cargo clippy --all-targets --all
 ```
 
-Clippy is configured in [`.cargo/config.toml`](../../../.cargo/config.toml).
+Clippy is configured in [`.cargo/config.toml`](https://github.com/neherlab/pangraph/blob/master/.cargo/config.toml).
 
 ### Formatting (code style)
 
@@ -180,13 +180,14 @@ Code formatting is done using [rustfmt](https://rust-lang.github.io/rustfmt):
 cargo fmt --all
 ```
 
-Rustfmt is configured in [`rustfmt.toml`](../../../rustfmt.toml).
+Rustfmt is configured in [`rustfmt.toml`](https://github.com/neherlab/pangraph/blob/master/rustfmt.toml).
 
 ### Development scripts (optional)
 
-The project includes development scripts at [`./dev/docker/run`](../../../dev/docker/run) and
-[`./dev/dev`](../../../dev/dev) which provide shortcuts for common development tasks. All commands run inside a Docker
-container:
+The project includes development scripts at
+[`./dev/docker/run`](https://github.com/neherlab/pangraph/blob/master/dev/docker/run) and
+[`./dev/dev`](https://github.com/neherlab/pangraph/blob/master/dev/dev) which provide shortcuts for common development
+tasks. All commands run inside a Docker container:
 
 ```bash
 # Build in debug mode
@@ -226,7 +227,8 @@ container:
 The same docker commands and the same container is used in CI. This setup ensures a consistent, isolated, reproducible
 environment on local machines and on remotes.
 
-Additional cargo aliases are defined in [`.cargo/config.toml`](../../../.cargo/config.toml) and can be used directly
+Additional cargo aliases are defined in
+[`.cargo/config.toml`](https://github.com/neherlab/pangraph/blob/master/.cargo/config.toml) and can be used directly
 with `cargo` (e.g., `cargo l` for lint, `cargo t` for tests). These are optional shortcuts - canonical `cargo` commands
 work as usual.
 
@@ -234,14 +236,15 @@ work as usual.
 
 ### Upgrading Rust
 
-Rust version is defined in [`rust-toolchain.toml`](../../../rust-toolchain.toml). When using `cargo`, the version
-defined in this file gets installed automatically.
+Rust version is defined in
+[`rust-toolchain.toml`](https://github.com/neherlab/pangraph/blob/master/rust-toolchain.toml). When using `cargo`, the
+version defined in this file gets installed automatically.
 
 ### Upgrading Rust dependencies
 
-Dependencies for subprojects are defined in `packages/**/Cargo.toml` and in [`Cargo.lock`](../../../Cargo.lock). They
-are periodically upgraded by a dedicated maintainer, manually using `cargo-upgrade` from
-[cargo-edit](https://github.com/killercup/cargo-edit) package.
+Dependencies for subprojects are defined in `packages/**/Cargo.toml` and in
+[`Cargo.lock`](https://github.com/neherlab/pangraph/blob/master/Cargo.lock). They are periodically upgraded by a
+dedicated maintainer, manually using `cargo-upgrade` from [cargo-edit](https://github.com/killercup/cargo-edit) package.
 
 ```bash
 cargo upgrade --workspace
@@ -261,7 +264,8 @@ End-user and developer documentation source is in [`docs/`](../../), built using
 
 #### Requirements
 
-- Node.js via [nvm](https://github.com/nvm-sh/nvm). The supported version is declared in [`.nvmrc`](../../../.nvmrc).
+- Node.js via [nvm](https://github.com/nvm-sh/nvm). The supported version is declared in
+  [`.nvmrc`](https://github.com/neherlab/pangraph/blob/master/.nvmrc).
 - [bun](https://bun.sh)
 
 #### Local development
@@ -306,7 +310,7 @@ The `build` command produces HTML, CSS and JS files ready for deployment. The `s
 #### Generate command-line reference
 
 The [`docs/docs/reference.md`](../reference.md) file is generated using script
-[`generate-reference-docs`](../../generate-reference-docs):
+[`generate-reference-docs`](https://github.com/neherlab/pangraph/blob/master/docs/generate-reference-docs):
 
 ```bash
 cargo build --bin=pangraph
@@ -321,11 +325,11 @@ Do not edit the generated file manually. All manual changes will be overwritten 
 There are multiple release targets. Each has a dedicated script in `dev/` and a corresponding release branch that
 triggers CI on push.
 
-| Target     | Script                     | Branch               | CI workflow                                                 | Destination                                                                                                               |
-| ---------- | -------------------------- | -------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| CLI        | `./dev/release`            | `release-cli`        | [cli.yml](../../../.github/workflows/cli.yml)               | [GitHub Releases](https://github.com/neherlab/pangraph/releases), [DockerHub](https://hub.docker.com/r/neherlab/pangraph) |
-| PyPangraph | `./dev/release-pypangraph` | `release-pypangraph` | [pypangraph.yml](../../../.github/workflows/pypangraph.yml) | [PyPI](https://pypi.org/project/pypangraph/)                                                                              |
-| Docs       | `./dev/release-docs`       | `release-docs`       | [docs.yml](../../../.github/workflows/docs.yml)             | [docs.pangraph.org](https://docs.pangraph.org)                                                                            |
+| Target     | Script                     | Branch               | CI workflow                                                                                         | Destination                                                                                                               |
+| ---------- | -------------------------- | -------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| CLI        | `./dev/release`            | `release-cli`        | [cli.yml](https://github.com/neherlab/pangraph/blob/master/.github/workflows/cli.yml)               | [GitHub Releases](https://github.com/neherlab/pangraph/releases), [DockerHub](https://hub.docker.com/r/neherlab/pangraph) |
+| PyPangraph | `./dev/release-pypangraph` | `release-pypangraph` | [pypangraph.yml](https://github.com/neherlab/pangraph/blob/master/.github/workflows/pypangraph.yml) | [PyPI](https://pypi.org/project/pypangraph/)                                                                              |
+| Docs       | `./dev/release-docs`       | `release-docs`       | [docs.yml](https://github.com/neherlab/pangraph/blob/master/.github/workflows/docs.yml)             | [docs.pangraph.org](https://docs.pangraph.org)                                                                            |
 
 #### Releasing Pangraph CLI
 
@@ -333,13 +337,15 @@ triggers CI on push.
    that the last [GitHub Action](https://github.com/neherlab/pangraph/actions) on master branch succeeded (use branch
    filter dropdown). If not, make sure to fix the failures before trying to release.
 
-2. Prepare changelog document for the release: open [`CHANGELOG.md`](../../../CHANGELOG.md) in the root directory of the
-   project, add `## Unreleased` section at the top of the file, spelled exactly like this - important for automation.
-   Under this section, describe all changes in the coming release. This is a user-facing document, so use simple words,
-   avoid internal and dev jargon. If `## Unreleased` section already exists, then extend it - do not add multiple of
-   these sections.
+2. Prepare changelog document for the release: open
+   [`CHANGELOG.md`](https://github.com/neherlab/pangraph/blob/master/CHANGELOG.md) in the root directory of the project,
+   add `## Unreleased` section at the top of the file, spelled exactly like this - important for automation. Under this
+   section, describe all changes in the coming release. This is a user-facing document, so use simple words, avoid
+   internal and dev jargon. If `## Unreleased` section already exists, then extend it - do not add multiple of these
+   sections.
 
-3. Perform pre-release checks, bump versions, commit using the helper [`./dev/release`](../../../dev/release) script.
+3. Perform pre-release checks, bump versions, commit using the helper
+   [`./dev/release`](https://github.com/neherlab/pangraph/blob/master/dev/release) script.
 
    Read comments in the script on how to install currently required dependencies.
 
@@ -374,9 +380,9 @@ triggers CI on push.
 1. Check out `master` branch. Make sure that all the changes you want to release are on `master` branch.
 
 2. Prepare changelog for the release: open
-   [`packages/pypangraph/CHANGELOG.md`](../../../packages/pypangraph/CHANGELOG.md) and add a `## ${version_number}`
-   section describing released changes. The changelog does not need to be committed - the release script will include it
-   in the release commit.
+   [`packages/pypangraph/CHANGELOG.md`](https://github.com/neherlab/pangraph/blob/master/packages/pypangraph/CHANGELOG.md)
+   and add a `## ${version_number}` section describing released changes. The changelog does not need to be committed -
+   the release script will include it in the release commit.
 
 3. Run the release script:
 
@@ -385,10 +391,11 @@ triggers CI on push.
    ```
 
    The script validates preconditions, bumps the version in
-   [`pyproject.toml`](../../../packages/pypangraph/pyproject.toml), commits both the version bump and changelog
-   together, and fast-forwards `release-pypangraph` to HEAD.
+   [`pyproject.toml`](https://github.com/neherlab/pangraph/blob/master/packages/pypangraph/pyproject.toml), commits both
+   the version bump and changelog together, and fast-forwards `release-pypangraph` to HEAD.
 
-   Dependencies: `dasel` (see comments in [`./dev/release`](../../../dev/release) for install instructions).
+   Dependencies: `dasel` (see comments in
+   [`./dev/release`](https://github.com/neherlab/pangraph/blob/master/dev/release) for install instructions).
 
 4. Follow instructions printed by the script. Push master and the release branch.
 
@@ -400,7 +407,7 @@ triggers CI on push.
 #### Releasing user documentation
 
 Documentation is deployed to [docs.pangraph.org](https://docs.pangraph.org) by pushing the `release-docs` branch, which
-triggers the [docs.yml](../../../.github/workflows/docs.yml) workflow.
+triggers the [docs.yml](https://github.com/neherlab/pangraph/blob/master/.github/workflows/docs.yml) workflow.
 
 1. Make sure documentation changes are on `master` branch and CI passes.
 
