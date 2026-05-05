@@ -8,6 +8,7 @@ use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::pangraph_path::{PangraphPath, PathId};
 use crate::pangraph::strand::Strand;
 use crate::representation::seq::Seq;
+use crate::tree::clade::WithNewickName;
 use crate::utils::map_merge::{ConflictResolution, map_merge};
 use eyre::{Report, WrapErr};
 use maplit::btreemap;
@@ -273,6 +274,22 @@ impl FromStr for Pangraph {
   }
 }
 
+impl WithNewickName for Pangraph {
+  /// Returns a Newick-safe label for this graph: the path name for a singleton,
+  /// or names joined with `|` for a multi-path graph. `None` if no paths are named.
+  fn newick_name(&self) -> Option<String> {
+    let names: Vec<&str> = self.paths.values().filter_map(|p| p.name.as_deref()).collect();
+    (!names.is_empty()).then(|| names.join("|"))
+  }
+}
+
+impl WithNewickName for Option<Pangraph> {
+  /// Internal tree nodes carry `None` (unlabeled in Newick); leaves delegate to `Pangraph`.
+  fn newick_name(&self) -> Option<String> {
+    self.as_ref().and_then(WithNewickName::newick_name)
+  }
+}
+
 #[derive(Debug)]
 pub struct GraphUpdate {
   pub b_old_id: BlockId,
@@ -291,6 +308,7 @@ mod tests {
   use crate::pangraph::pangraph_path::PangraphPath;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use maplit::btreemap;
+  use rstest::rstest;
 
   #[test]
   fn test_graph_update() {
@@ -388,5 +406,46 @@ mod tests {
       NodeId(14) => new_nodes[&NodeId(14)].clone(),
     };
     assert_eq!(G.nodes, expected_nodes);
+  }
+
+  /// Builds a `Pangraph` whose only relevant content for `newick_name` is its `paths` map.
+  /// Blocks and nodes are left empty since `newick_name` only inspects path names.
+  fn pangraph_with_named_paths(names: &[Option<&str>]) -> Pangraph {
+    let paths = names
+      .iter()
+      .enumerate()
+      .map(|(i, name)| {
+        let path = PangraphPath::new(
+          Some(PathId(i)),
+          Vec::<NodeId>::new(),
+          0,
+          false,
+          name.map(String::from),
+          None,
+        );
+        (path.id, path)
+      })
+      .collect::<BTreeMap<_, _>>();
+    Pangraph {
+      paths,
+      blocks: BTreeMap::new(),
+      nodes: BTreeMap::new(),
+    }
+  }
+
+  #[test]
+  fn test_newick_no_graph() {
+    let g: Option<Pangraph> = None;
+    assert_eq!(g.newick_name(), None);
+  }
+
+  #[rstest]
+  #[case::singleton_named(&[Some("isolate_A")], Some("isolate_A".to_owned()))]
+  #[case::singleton_unnamed(&[None], None)]
+  #[case::multi_path_all_named(&[Some("a"), Some("b"), Some("c")], Some("a|b|c".to_owned()))]
+  #[case::multi_path_some_unnamed(&[Some("a"), None, Some("c")], Some("a|c".to_owned()))]
+  fn test_newick_name(#[case] names: &[Option<&str>], #[case] expected: Option<String>) {
+    let g = pangraph_with_named_paths(names);
+    assert_eq!(g.newick_name(), expected);
   }
 }

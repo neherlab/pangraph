@@ -1,3 +1,8 @@
+## Unreleased
+
+- added `--guide-tree` option to `pangraph build` command to allow users to provide a custom guide tree in Newick format, see #180.
+- in `--verbose` logging mode, the guide tree is now printed in Newick format.
+
 ## 1.2.2
 
 - improved FASTA input file parsing and error messages for invalid characters, see #173.

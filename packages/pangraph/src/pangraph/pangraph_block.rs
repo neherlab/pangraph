@@ -86,7 +86,6 @@ impl PangraphBlock {
     self.consensus.len()
   }
 
-
   pub fn unaligned_len_for_edit(&self, edits: &Edit) -> usize {
     let total_dels: usize = edits.dels.iter().map(|del| del.len).sum();
     let total_inss: usize = edits.inss.iter().map(|ins| ins.seq.len()).sum();
@@ -827,5 +826,4 @@ mod tests {
 
     assert_eq!(result_block, expected_block);
   }
-
 }

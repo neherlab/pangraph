@@ -7,6 +7,7 @@ use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::strand::Strand::Forward;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
+use crate::tree::newick::build_tree_from_newick;
 use crate::utils::progress_bar::ProgressBar;
 use crate::{make_internal_error, make_internal_report};
 use color_eyre::owo_colors::{AnsiColors, OwoColorize};
@@ -92,8 +93,15 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -
     .map(|fasta| Pangraph::singleton(fasta, Forward, args.circular)) // FIXME: strand hardcoded
     .collect_vec();
 
-  // Build guide tree
-  let tree = build_tree_using_neighbor_joining(graphs)?;
+  // Build guide tree, or load it from a user-supplied Newick file.
+  let tree = match &args.guide_tree {
+    Some(path) => build_tree_from_newick(path, graphs)
+      .wrap_err_with(|| format!("When loading guide tree from '{}'", path.display()))?,
+    None => build_tree_using_neighbor_joining(graphs)?,
+  };
+
+  // Log the guide tree topology in Newick format (visible at `info` log level and above).
+  info!("Guide tree (newick): {}", tree.read().to_newick());
 
   // Instantiate the progress bar
   let pb = ProgressBar::new(n_paths - 1, args.no_progress_bar)?;
