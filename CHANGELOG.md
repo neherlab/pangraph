@@ -1,4 +1,4 @@
-## Unreleased
+## 1.3.0
 
 - added `--guide-tree` option to `pangraph build` command to allow users to provide a custom guide tree in Newick format, see #180.
 - in `--verbose` logging mode, the guide tree is now printed in Newick format.
