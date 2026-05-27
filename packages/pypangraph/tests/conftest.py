@@ -99,19 +99,24 @@ def build_linear_pangraph_json():
     """Build a synthetic pangraph JSON with linear (non-circular) paths.
 
     Graph topology (all paths linear):
-      s1: A1+ C1+ A2+ C2+ C3+
-      s2: C1+ A3+ C2+ C3+ A1+
+      s1: c5+ C1+ A2+ C2+ C3+
+      s2: C1+ A3+ C2+ C3+ c5+
 
-    Core blocks (>=500bp, present once per strain):
+    Backbone blocks (core AND >=500bp, present once per strain):
       C1=100 (1000bp), C2=200 (800bp), C3=300 (600bp)
-    Accessory blocks (<500bp):
-      A1=500 (200bp, s1+s2), A2=600 (150bp, s1 only), A3=700 (300bp, s2 only)
+    Accessory blocks (present in only one strain):
+      A2=600 (150bp, s1 only), A3=700 (300bp, s2 only)
+    Core-but-not-backbone block (lowercase 'c' to flag it):
+      c5=500 (200bp, present once in both strains)
 
-    s1 has a leading accessory block (A1 before C1) and an internal junction.
-    s2 has a trailing accessory block (A1 after C3) and an internal junction.
+    c5 is strictly a `core` block (it occurs exactly once in every strain), but its
+    200bp length is below the backbone threshold used by the junction/MSU analyses
+    (core AND len>=L_thr), so it cannot be a backbone block and is handled as accessory
+    content. It is the same block at a leading position in s1 and a trailing position in
+    s2, exercising terminal junctions at both ends.
     """
-    # s1 (path 0): A1+(1) C1+(2) A2+(3) C2+(4) C3+(5)
-    # s2 (path 1): C1+(6) A3+(7) C2+(8) C3+(9) A1+(10)
+    # s1 (path 0): c5+(1) C1+(2) A2+(3) C2+(4) C3+(5)
+    # s2 (path 1): C1+(6) A3+(7) C2+(8) C3+(9) c5+(10)
     nodes = {
         # s1
         "1": _make_node(1, 500, 0, True, 0, 200),
@@ -170,15 +175,18 @@ def build_sequence_pangraph_json():
 
     Two strains (circular), sharing the same junction in opposite orientations:
       s1: C1+(n1) A1+(n2) C2+(n3)    ← forward orientation
-      s2: C2-(n4) A1-(n5) C1-(n6)    ← inverted orientation
+      s2: C2-(n4) A2-(n5) C1-(n6)    ← inverted orientation
 
     Block consensuses use distinct sequences for verification:
       C1 (bid=10, 6bp): "AAACCC" - backbone (len >= L_thr=4)
       C2 (bid=20, 6bp): "GGGAAA" - backbone
-      A1 (bid=30, 3bp): "TTC"    - accessory (len < L_thr=4)
+      A1 (bid=30, 3bp): "TTC"    - accessory (s1 only, len < L_thr=4)
+      A2 (bid=40, 3bp): "ACG"    - accessory (s2 only, len < L_thr=4)
 
-    Node 6 (C1 in s2) has a substitution: pos=0 A->T, giving "TAACCC".
-    This makes the two isolates' sequences distinguishable.
+    A1 and A2 are distinct strain-private accessory blocks with different consensus
+    sequences, so neither junction center block is `core`. Node 6 (C1 in s2) has a
+    substitution: pos=0 A->T, giving "TAACCC", which makes the isolates' flanking
+    sequences distinguishable too.
     """
     nodes = {
         # s1
@@ -187,7 +195,7 @@ def build_sequence_pangraph_json():
         "3": _make_node(3, 20, 0, True, 9, 15),
         # s2
         "4": _make_node(4, 20, 1, False, 0, 6),
-        "5": _make_node(5, 30, 1, False, 6, 9),
+        "5": _make_node(5, 40, 1, False, 6, 9),
         "6": _make_node(6, 10, 1, False, 9, 15),
     }
 
@@ -202,6 +210,8 @@ def build_sequence_pangraph_json():
         }),
         "30": _make_block_with_edits(30, "TTC", {
             2: None,
+        }),
+        "40": _make_block_with_edits(40, "ACG", {
             5: None,
         }),
     }

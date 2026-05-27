@@ -229,8 +229,8 @@ def test_junction_positions_shape(junction_pangraph):
 def test_path_junction_split_linear(linear_pangraph):
     """Splitting linear paths produces terminal junctions with None flanks.
 
-    s1: A1+ C1+ A2+ C2+ C3+
-    s2: C1+ A3+ C2+ C3+ A1+
+    s1: c5+ C1+ A2+ C2+ C3+
+    s2: C1+ A3+ C2+ C3+ c5+
     """
     pan = linear_pangraph
     bdf = pan.to_blockstats_df()
@@ -239,12 +239,12 @@ def test_path_junction_split_linear(linear_pangraph):
     def is_core(bid):
         return (bdf.loc[bid, "len"] >= 500) and bdf.loc[bid, "core"]
 
-    # s1: A1+ C1+ A2+ C2+ C3+
-    # Expected: [None|A1+|C1+], [C1+||C2+], [C2+||C3+], no trailing (C3 is last)
+    # s1: c5+ C1+ A2+ C2+ C3+
+    # Expected: [None|c5+|C1+], [C1+||C2+], [C2+||C3+], no trailing (C3 is last)
     # Wait - trailing after C3 is empty, but left_node=C3 so we get [C3+||None]
     junctions_s1 = path_junction_split(paths["s1"], is_core)
 
-    # Leading terminal: left=None, center=[A1+], right=C1+
+    # Leading terminal: left=None, center=[c5+], right=C1+
     assert junctions_s1[0].left is None
     assert len(junctions_s1[0].center) == 1
     assert junctions_s1[0].right is not None
@@ -262,7 +262,7 @@ def test_path_junction_split_linear(linear_pangraph):
     assert junctions_s1[-1].flanking_edge() is None
     assert junctions_s1[1].flanking_edge() is not None
 
-    # s2: C1+ A3+ C2+ C3+ A1+
+    # s2: C1+ A3+ C2+ C3+ c5+
     junctions_s2 = path_junction_split(paths["s2"], is_core)
 
     # No leading terminal (C1 is first)
@@ -270,7 +270,7 @@ def test_path_junction_split_linear(linear_pangraph):
     assert len(junctions_s2[0].center) == 0
     assert junctions_s2[0].right is not None
 
-    # Trailing terminal: left=C3+, center=[A1+], right=None
+    # Trailing terminal: left=C3+, center=[c5+], right=None
     assert junctions_s2[-1].left is not None
     assert len(junctions_s2[-1].center) == 1
     assert junctions_s2[-1].right is None
@@ -296,13 +296,13 @@ def test_junctions_dataframe_linear(linear_pangraph):
 def test_junction_positions_linear(linear_pangraph):
     """Positions work correctly for linear paths.
 
-    s1: A1+(0,200) C1+(200,1200) A2+(1200,1350) C2+(1350,2150) C3+(2150,2750)
-    s2: C1+(0,1000) A3+(1000,1300) C2+(1300,2100) C3+(2100,2700) A1+(2700,2900)
+    s1: c5+(0,200) C1+(200,1200) A2+(1200,1350) C2+(1350,2150) C3+(2150,2750)
+    s2: C1+(0,1000) A3+(1000,1300) C2+(1300,2100) C3+(2100,2700) c5+(2700,2900)
     """
     bj = BackboneJunctions(linear_pangraph, L_thr=500)
     pos = bj.positions()
 
-    # terminal junctions (leading A1 in s1, trailing A1 in s2) have no flanking
+    # terminal junctions (leading c5 in s1, trailing c5 in s2) have no flanking
     # edge, so only the two edge-bearing junctions appear
     assert set(pos.index.get_level_values("edge")) == {"100_f__200_f", "200_f__300_f"}
 
@@ -433,17 +433,17 @@ def test_sequences_forward_junction(sequence_pangraph):
 def test_sequences_inverted_junction(sequence_pangraph):
     """Inverted junction is co-oriented with the forward one.
 
-    s2: C2-(n4) A1-(n5) C1-(n6) — inverted for edge 10_f__20_f
-    After inversion: C1+(n6) A1+(n5) C2+(n4)
+    s2: C2-(n4) A2-(n5) C1-(n6) — inverted for edge 10_f__20_f
+    After inversion: C1+(n6) A2+(n5) C2+(n4)
     C1 n6 has sub pos=0 A->T, so seq = TAACCC
-    A1 n5: TTC (no edits)
+    A2 n5: ACG (no edits)
     C2 n4: GGGAAA (no edits)
-    Expected: TAACCC + TTC + GGGAAA = TAACCCTTCGGGAAA
+    Expected: TAACCC + ACG + GGGAAA = TAACCCACGGGGAAA
     """
     bj = BackboneJunctions(sequence_pangraph, L_thr=4)
     records = bj.sequences("10_f__20_f")
     by_iso = {r.id: str(r.seq) for r in records}
-    assert by_iso["s2"] == "TAACCCTTCGGGAAA"
+    assert by_iso["s2"] == "TAACCCACGGGGAAA"
 
 
 def test_sequences_co_orientation(sequence_pangraph):
