@@ -170,9 +170,8 @@ class Pangraph:
         # get order of core blocks in guide strain
         if guide_strain is None:
             guide_strain = self.strains()[0]
-        assert guide_strain in strains, (
-            f"Guide strain {guide_strain} not found in the dataset"
-        )
+        if guide_strain not in strains:
+            raise ValueError(f"Guide strain {guide_strain} not found in the dataset")
         guide_path = self.paths[guide_strain]
 
         # core block ids and strandedness
@@ -188,9 +187,11 @@ class Pangraph:
         for bid, guide_strand in core_blocks:
             # get block alignment
             aln_dict = self.blocks[bid].to_alignment()
-            assert len(aln_dict) == len(strains), (
-                f"error: unexpected number of strains {bid}"
-            )
+            if len(aln_dict) != len(strains):
+                raise ValueError(
+                    f"core block {bid} has {len(aln_dict)} alignment rows but the graph "
+                    f"has {len(strains)} strains"
+                )
 
             # append alignment to the final alignment for each strain
             aln_strains = []
@@ -204,9 +205,10 @@ class Pangraph:
                 aln_strains.append(strain)
 
             # sanity check: core-blocks are present once per strain
-            assert set(strains) == set(aln_strains), (
-                f"error: strain missing in block {bid}: {set(strains)} != {set(aln_strains)}"
-            )
+            if set(strains) != set(aln_strains):
+                raise ValueError(
+                    f"strain missing in core block {bid}: {set(strains)} != {set(aln_strains)}"
+                )
 
         # convert to biopython alignment
         records = []

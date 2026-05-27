@@ -108,6 +108,12 @@ def test_core_genome_alignment(graph):
     assert core_aln.get_alignment_length() == 64989
 
 
+def test_core_genome_alignment_invalid_guide_strain(graph):
+    """An unknown guide strain is rejected with a ValueError (not a bare assert)."""
+    with pytest.raises(ValueError, match="Guide strain .* not found"):
+        graph.core_genome_alignment(guide_strain="does_not_exist")
+
+
 def test_pairwise_accessory_genome_comparisons(graph):
     ddf = graph.pairwise_accessory_genome_comparison()
     assert ddf.shape == (225, 2)

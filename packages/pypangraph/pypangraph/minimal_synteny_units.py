@@ -53,9 +53,8 @@ def minimal_synteny_units(pan, L_thr: int, rotate: bool = True):
     MSU_mergers = {source: MSU_ids[sink] for source, sink in mergers.items()}
 
     if rotate:
-        assert np.all(
-            [p.circular for p in MSU_paths.values()]
-        ), "Only circular paths can be rotated"
+        if not np.all([p.circular for p in MSU_paths.values()]):
+            raise ValueError("Only circular paths can be rotated")
         focal_block = max(MSU_len, key=MSU_len.get)
         focal_strandedness = True
         MSU_paths = {

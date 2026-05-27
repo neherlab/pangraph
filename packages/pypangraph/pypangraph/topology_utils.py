@@ -52,8 +52,10 @@ class Path:
         self.nodes.append(node)
 
     def rotate_to(self, bid: str, strand: bool) -> "Path":
-        assert self.circular, "Path is not circular"
-        assert bid in [n.id for n in self.nodes], "Block not in path"
+        if not self.circular:
+            raise ValueError("Path is not circular")
+        if bid not in [n.id for n in self.nodes]:
+            raise ValueError(f"Block {bid} not in path")
         n = Node(bid, strand)
         if n in self.nodes:
             idx = self.nodes.index(n)
