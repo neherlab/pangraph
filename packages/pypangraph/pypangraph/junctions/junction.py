@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from ..topology_utils import Node, Path, Edge
 
 
