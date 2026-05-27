@@ -1,3 +1,5 @@
+from functools import cache
+
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
@@ -27,6 +29,14 @@ def junction_sequences(edge_map, pan, edge_str: str) -> list[SeqRecord]:
         return []
 
     edge = Edge.from_str_id(edge_str)
+
+    # to_sequences() regenerates a block's full alignment; the flanking core blocks
+    # recur in every isolate, so memoize per block id to compute each one only once.
+    @cache
+    def block_sequences(bid):
+        """Return the block's node_id -> sequence map, computing it once per block."""
+        return pan.blocks[bid].to_sequences()
+
     records = []
     for iso, junction in edge_map[edge_str].items():
         oriented = junction if junction.is_canonical(edge) else junction.invert()
@@ -34,8 +44,7 @@ def junction_sequences(edge_map, pan, edge_str: str) -> list[SeqRecord]:
         all_nodes = [oriented.left] + oriented.center.nodes + [oriented.right]
         seq_parts = []
         for node in all_nodes:
-            block = pan.blocks[node.id]
-            node_seq = block.to_sequences()[str(node.node_id)]
+            node_seq = block_sequences(node.id)[str(node.node_id)]
             if not node.strand:
                 node_seq = str(Seq(node_seq).reverse_complement())
             seq_parts.append(node_seq)
