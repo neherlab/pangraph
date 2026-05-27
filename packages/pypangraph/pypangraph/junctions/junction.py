@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from ..topology_utils import Node, Path, Edge
+from ..topology_utils import OrientedBlock, Walk, Edge
 
 
-class JunctionNode(Node):
-    """Node that also carries the unique node_id for unambiguous sequence lookup.
+class JunctionNode(OrientedBlock):
+    """OrientedBlock that also carries the unique node_id for unambiguous sequence lookup.
 
-    Inherits equality/hashing from Node (compares block_id + strand only),
-    so it works transparently with Path, Edge, and Junction.
+    Inherits equality/hashing from OrientedBlock (compares block_id + strand only),
+    so it works transparently with Walk, Edge, and Junction.
     """
 
     def __init__(self, bid, strand: bool, node_id: int) -> None:
@@ -28,11 +28,11 @@ class Junction:
 
     Attributes:
         left: The core block on the left flank.
-        center: A Path of accessory blocks between the flanks.
+        center: A Walk of accessory blocks between the flanks.
         right: The core block on the right flank.
     """
 
-    def __init__(self, left: Node, center: Path, right: Node) -> None:
+    def __init__(self, left: OrientedBlock, center: Walk, right: OrientedBlock) -> None:
         self.left = left
         self.center = center
         self.right = right
@@ -76,7 +76,7 @@ class Junction:
         return f"{self.left} <-- {self.center} --> {self.right}"
 
 
-def path_junction_split(path: Path, is_core) -> list[Junction]:
+def path_junction_split(path: Walk, is_core) -> list[Junction]:
     """Split a path into junctions at core block boundaries.
 
     Given a path and a boolean predicate on node ids, splits the path into a list
@@ -91,7 +91,7 @@ def path_junction_split(path: Path, is_core) -> list[Junction]:
     have no flanking edge.
 
     Args:
-        path: A Path object (circular or linear).
+        path: A Walk object (circular or linear).
         is_core: A callable taking a block id and returning True if the block is core.
 
     Returns:
@@ -113,7 +113,7 @@ def path_junction_split(path: Path, is_core) -> list[Junction]:
     left_node = None
     for node in path.nodes:
         if is_core(node.id):
-            J = Junction(left_node, Path(current), node)
+            J = Junction(left_node, Walk(current), node)
             junctions.append(J)
             left_node = node
             current = []
@@ -124,10 +124,10 @@ def path_junction_split(path: Path, is_core) -> list[Junction]:
         # complete periodic boundary: merge trailing non-core nodes into the first junction
         J = junctions[0]
         J.left = left_node
-        J.center = Path(current + J.center.nodes)
+        J.center = Walk(current + J.center.nodes)
         junctions[0] = J
     elif current or left_node is not None:
         # trailing accessory nodes after the last core block
-        junctions.append(Junction(left_node, Path(current), None))
+        junctions.append(Junction(left_node, Walk(current), None))
 
     return junctions

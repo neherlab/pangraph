@@ -1,7 +1,7 @@
 import pandas as pd
 from Bio.SeqRecord import SeqRecord
 
-from ..topology_utils import Path
+from ..topology_utils import Walk
 from .junction import JunctionNode, Junction, path_junction_split
 from .dataframe import junctions_dataframe
 from .positions import junction_positions
@@ -40,7 +40,7 @@ class BackboneJunctions:
             for nid in path.nodes:
                 row = self.pan.nodes.df.loc[str(nid)]
                 nodes.append(JunctionNode(row["block_id"], row["strand"], nid))
-            tu_path = Path(nodes, path.circular)
+            tu_path = Walk(nodes, path.circular)
 
             juncs = path_junction_split(tu_path, self._is_backbone)
             self._junctions[name] = juncs

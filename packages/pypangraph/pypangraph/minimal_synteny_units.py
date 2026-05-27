@@ -25,7 +25,7 @@ def flip_msu_to_most_common_orientation(paths):
     # flip all the ones with orient < 0
     for iso, p in paths.items():
         nodes = [n.invert() if orient[n.id] < 0 else n for n in p.nodes]
-        paths[iso] = tu.Path(nodes, p.circular)
+        paths[iso] = tu.Walk(nodes, p.circular)
 
     return paths
 

@@ -61,12 +61,12 @@ def test_path_junction_split_requires_two_core_blocks():
     with a single core block cannot form a junction either.
     """
     # no core blocks (circular) — would otherwise hit IndexError on junctions[0]
-    p0 = tu.Path([tu.Node(1, True), tu.Node(2, True)], circular=True)
+    p0 = tu.Walk([tu.OrientedBlock(1, True), tu.OrientedBlock(2, True)], circular=True)
     with pytest.raises(ValueError, match="at least 2"):
         path_junction_split(p0, lambda bid: False)
 
     # exactly one core block is still insufficient
-    p1 = tu.Path([tu.Node(1, True), tu.Node(2, True)], circular=True)
+    p1 = tu.Walk([tu.OrientedBlock(1, True), tu.OrientedBlock(2, True)], circular=True)
     with pytest.raises(ValueError, match="at least 2"):
         path_junction_split(p1, lambda bid: bid == 1)
 

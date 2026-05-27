@@ -1,17 +1,17 @@
 from collections import Counter, defaultdict
 
 
-class Node:
+class OrientedBlock:
     """Combination of block id and strandedness"""
 
     def __init__(self, bid: str, strand: bool) -> None:
         self.id = bid
         self.strand = strand
 
-    def invert(self) -> "Node":
-        return Node(self.id, not self.strand)
+    def invert(self) -> "OrientedBlock":
+        return OrientedBlock(self.id, not self.strand)
 
-    def __invert__(self) -> "Node":
+    def __invert__(self) -> "OrientedBlock":
         return self.invert()
 
     def __eq__(self, other: object) -> bool:
@@ -29,15 +29,15 @@ class Node:
         return f"{self.id}_{s}"
 
     @staticmethod
-    def from_str_id(t) -> "Node":
+    def from_str_id(t) -> "OrientedBlock":
         # Block ids are kept as strings internally (they are u64 hashes; see the
         # pypangraph data-model notes), so the id token round-trips as-is.
         bid_str, strand_str = t.split("_")
-        return Node(bid_str, strand_str == "f")
+        return OrientedBlock(bid_str, strand_str == "f")
 
 
-class Path:
-    """A path is a list of nodes"""
+class Walk:
+    """An ordered traversal of oriented blocks (a path through the block graph)."""
 
     def __init__(self, nodes=None, circular=None) -> None:
         if nodes is None:
@@ -45,34 +45,34 @@ class Path:
         self.nodes = nodes
         self.circular = circular
 
-    def add_left(self, node: Node) -> None:
+    def add_left(self, node: OrientedBlock) -> None:
         self.nodes.insert(0, node)
 
-    def add_right(self, node: Node) -> None:
+    def add_right(self, node: OrientedBlock) -> None:
         self.nodes.append(node)
 
-    def rotate_to(self, bid: str, strand: bool) -> "Path":
+    def rotate_to(self, bid: str, strand: bool) -> "Walk":
         if not self.circular:
-            raise ValueError("Path is not circular")
+            raise ValueError("Walk is not circular")
         if bid not in [n.id for n in self.nodes]:
             raise ValueError(f"Block {bid} not in path")
-        n = Node(bid, strand)
+        n = OrientedBlock(bid, strand)
         if n in self.nodes:
             idx = self.nodes.index(n)
-            p = Path(self.nodes[idx:] + self.nodes[:idx], circular=True)
+            p = Walk(self.nodes[idx:] + self.nodes[:idx], circular=True)
         else:
             p = self.invert()
             idx = p.nodes.index(n)
-            p = Path(p.nodes[idx:] + p.nodes[:idx], circular=True)
+            p = Walk(p.nodes[idx:] + p.nodes[:idx], circular=True)
         return p
 
-    def rotate_to_node(self, node: Node) -> "Path":
+    def rotate_to_node(self, node: OrientedBlock) -> "Walk":
         return self.rotate_to(node.id, node.strand)
 
-    def invert(self) -> "Path":
-        return Path([n.invert() for n in self.nodes[::-1]], circular=self.circular)
+    def invert(self) -> "Walk":
+        return Walk([n.invert() for n in self.nodes[::-1]], circular=self.circular)
 
-    def __invert__(self) -> "Path":
+    def __invert__(self) -> "Walk":
         return self.invert()
 
     def __eq__(self, o: object) -> bool:
@@ -87,14 +87,14 @@ class Path:
     def __len__(self) -> int:
         return len(self.nodes)
 
-    def rename_bids(self, bid_dict: dict) -> "Path":
-        return Path(
-            [Node(bid_dict[n.id], n.strand) for n in self.nodes], circular=self.circular
+    def rename_bids(self, bid_dict: dict) -> "Walk":
+        return Walk(
+            [OrientedBlock(bid_dict[n.id], n.strand) for n in self.nodes], circular=self.circular
         )
 
 
 class Edge:
-    """Oriented link between two nodes/paths"""
+    """Oriented link between two oriented blocks."""
 
     def __init__(self, left, right) -> None:
         self.left = left
@@ -132,7 +132,7 @@ class Edge:
     @staticmethod
     def from_str_id(t) -> "Edge":
         left, right = t.split("__")
-        return Edge(Node.from_str_id(left), Node.from_str_id(right))
+        return Edge(OrientedBlock.from_str_id(left), OrientedBlock.from_str_id(right))
 
 
 def pangraph_to_path_dict(pan):
@@ -140,8 +140,8 @@ def pangraph_to_path_dict(pan):
     res = {}
     for name, path in pan.paths.items():
         B, S = pan.nodes.nodes_to_blocks(path.nodes)
-        nodes = [Node(b, s) for b, s in zip(B, S)]
-        res[name] = Path(nodes, path.circular)
+        nodes = [OrientedBlock(b, s) for b, s in zip(B, S)]
+        res[name] = Walk(nodes, path.circular)
     return res
 
 
@@ -150,7 +150,7 @@ def filter_paths(paths, keep_f):
     the path dictionaries."""
     res = {}
     for iso, path in paths.items():
-        filt_path = Path(
+        filt_path = Walk(
             [node for node in path.nodes if keep_f(node.id)],
             path.circular,
         )

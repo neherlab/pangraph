@@ -18,7 +18,7 @@ def _co_oriented_center_paths(edge_str, iso_junctions):
         iso_junctions: dict mapping isolate name -> Junction.
 
     Returns:
-        dict mapping isolate name -> co-oriented center Path.
+        dict mapping isolate name -> co-oriented center Walk.
     """
     edge = Edge.from_str_id(edge_str)
     result = {}
