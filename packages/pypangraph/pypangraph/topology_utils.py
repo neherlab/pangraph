@@ -90,13 +90,6 @@ class Path:
             [Node(bid_dict[n.id], n.strand) for n in self.nodes], circular=self.circular
         )
 
-    def to_list(self):
-        return [n.to_str_id() for n in self.nodes]
-
-    @staticmethod
-    def from_list(path_list: list[Node], circular: bool) -> "Path":
-        return Path([Node.from_str_id(nid) for nid in path_list])
-
 
 class Edge:
     """Oriented link between two nodes/paths"""

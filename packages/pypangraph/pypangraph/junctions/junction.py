@@ -79,15 +79,6 @@ class Junction:
     def __repr__(self) -> str:
         return f"{self.left} <-- {self.center} --> {self.right}"
 
-    def to_list(self):
-        return [self.left.to_str_id(), self.center.to_list(), self.right.to_str_id()]
-
-    @staticmethod
-    def from_list(t) -> "Junction":
-        return Junction(
-            Node.from_str_id(t[0]), Path.from_list(t[1], circular=False), Node.from_str_id(t[2])
-        )
-
 
 def path_junction_split(path: Path, is_core) -> list[Junction]:
     """Split a path into junctions at core block boundaries.
