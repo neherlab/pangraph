@@ -56,9 +56,11 @@ if ! [[ "${BUMP_TYPE}" =~ ^(major|minor|patch|rc|beta|alpha|[0-9]+\.[0-9]+\.[0-9
 fi
 printf "✅\n"
 
-printf "Pre-check: working directory is not dirty... "
-if [ -n "$(git status -s)" ]; then
-  printf "\nWorking directory is dirty.\nUncommitted changes detected. Refusing to proceed.\nStash or commit the changes and retry.\n" >&2
+printf "Pre-check: no uncommitted changes outside CHANGELOG.md... "
+dirty_files="$(git status -s | grep -v "CHANGELOG.md" || true)"
+if [ -n "${dirty_files}" ]; then
+  printf "\nUncommitted changes found outside CHANGELOG.md:\n%s\n" "${dirty_files}" >&2
+  printf "Stash or commit these changes and retry.\n" >&2
   exit 1
 fi
 printf "✅\n"
@@ -82,7 +84,8 @@ printf "✅\n"
 
 printf "Pre-check: changelog contains \`## Unreleased\` section... "
 if ! grep -q "^## Unreleased" CHANGELOG.md 2>/dev/null; then
-  printf "\nERROR: CHANGELOG.md does not contain \`## Unreleased\` section. Create a new section for the upcoming release, commit it and retry.\n" >&2
+  printf "\nERROR: CHANGELOG.md does not contain a \`## Unreleased\` section.\n" >&2
+  printf "Add the section (it may be uncommitted or staged) and retry.\n" >&2
   exit 1
 fi
 printf "✅\n"

@@ -476,9 +476,9 @@ mod tests {
   use crate::utils::random::get_random_number_generator;
   use maplit::{btreemap, btreeset};
   use noodles::sam::record::Cigar;
-  use rstest::rstest;
   use noodles::sam::record::cigar::op::{Kind, Op};
   use pretty_assertions::assert_eq;
+  use rstest::rstest;
 
   #[test]
   fn test_extract_hits() {

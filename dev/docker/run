@@ -13,6 +13,8 @@ PROJECT_DOCKER_REPO="${PROJECT_DOCKER_BUILDER_REPO:?}"
 USER="user"
 GROUP="user"
 
+BUILD_DIRS=(target .build .cache)
+
 cache_dir="$(get_cache_dir "${CROSS_COMPILE}")"
 
 HOST_TUPLE_DEBIAN="x86_64-linux-gnu"
@@ -141,7 +143,16 @@ if ! docker inspect --format '{{.Id}}' "${PROJECT_DOCKER_REPO}:${docker_image_ta
   fi
 fi
 
-declare -A volumes=(
+declare -A volumes=()
+for dir in "${BUILD_DIRS[@]}"; do
+  local_path="$(pwd)/${dir}"
+  if [[ -e "${dir}" ]] || [[ -L "${dir}" ]]; then
+    local_path=$(readlink -f "${dir}")
+  fi
+  volumes["${local_path}"]="/workdir/${dir}"
+done
+
+volumes+=(
   ["${cache_dir}/cargo/git"]="/home/${USER}/.cargo/git"
   ["${cache_dir}/cargo/install"]="/home/${USER}/.cargo/install"
   ["${cache_dir}/cargo/registry/cache"]="/home/${USER}/.cargo/registry/cache"

@@ -135,6 +135,10 @@ function main() {
 
     nicely cargo -q ${cargo_cmd[@]} ${target_dir:+--target-dir="${target_dir}"} ${cargo_append_args[@]} ${bin:+--bin="${bin}"} "${cargo_run_args[@]}"
 
+    if [[ "${cargo_cmd[*]}" == *--release* ]] && [ -n "${bin}" ]; then
+      copy_bin_to_out "${bin}"
+    fi
+
     if [ "${cmd[*]:-}" == "hyperfine" ]; then
       nicely hyperfine --warmup 1 --show-output "'${target_dir}/release/${bin} ${args[*]}'"
     fi

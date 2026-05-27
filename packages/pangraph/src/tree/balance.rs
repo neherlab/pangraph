@@ -41,7 +41,7 @@ fn leaves<T>(root: &Lock<Clade<T>>) -> Vec<Lock<Clade<T>>> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::tree::clade::WithName;
+  use crate::tree::clade::WithNewickName;
   use eyre::Report;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
@@ -55,9 +55,9 @@ mod tests {
     }
   }
 
-  impl WithName for N {
-    fn name(&self) -> Option<&str> {
-      Some(&self.0)
+  impl WithNewickName for N {
+    fn newick_name(&self) -> Option<String> {
+      Some(self.0.clone())
     }
   }
 

@@ -1,0 +1,190 @@
+#!/usr/bin/env bash
+#
+# Usage: $0 <version>
+#
+# Release pypangraph to PyPI.
+#
+# Validates preconditions, bumps version in pyproject.toml, verifies changelog
+# has a section for the new version, commits, fast-forwards `release-pypangraph`
+# to master, and prints the push command.
+#
+# The actual push (irreversible) is left to the operator.
+#
+# Arguments:
+#   <version>   Semantic version to release (e.g., 1.0.2, 2.0.0)
+#
+# Prerequisites:
+#   - On master branch
+#   - CHANGELOG.md at packages/pypangraph/CHANGELOG.md has a `## <version>` section
+#     (may be uncommitted or staged - will be included in the release commit)
+#   - No uncommitted changes outside CHANGELOG.md
+#   - dasel installed (for TOML editing)
+#
+# Examples:
+#   $0 1.0.2
+#   $0 2.0.0
+#
+set -euo pipefail
+trap "exit" INT
+
+THIS_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+PROJECT_ROOT="$(dirname "${THIS_DIR}")"
+
+RELEASE_BRANCH="release-pypangraph"
+PYPROJECT="${PROJECT_ROOT}/packages/pypangraph/pyproject.toml"
+CHANGELOG="${PROJECT_ROOT}/packages/pypangraph/CHANGELOG.md"
+ACTIONS_URL="https://github.com/neherlab/pangraph/actions"
+
+ask_confirmation() {
+  local choice=""
+  while [[ "${choice}" != "y" ]]; do
+    read -r -p "${1} | Type 'y' or 'n' >> " choice
+    case "${choice}" in
+      y | Y) break ;;
+      n | N) printf "Aborted by user.\n"; exit 0 ;;
+      *) printf "Invalid answer. Type 'y' or 'n' (without quotation marks), or hit Ctrl+C to exit forcefully.\n" >&2 ;;
+    esac
+  done
+}
+
+check_preconditions() {
+  local version="${1}"
+
+  printf "Pre-check: dasel is installed... "
+  if ! command -v dasel >/dev/null 2>&1; then
+    printf "\ndasel is required but not found. Install from: https://github.com/TomWright/dasel\n" >&2
+    exit 1
+  fi
+  printf "✅\n"
+
+  printf "Pre-check: no uncommitted changes outside CHANGELOG.md... "
+  local dirty_files
+  dirty_files="$(git status -s | grep -v "packages/pypangraph/CHANGELOG.md" || true)"
+  if [[ -n "${dirty_files}" ]]; then
+    printf "\nUncommitted changes found outside CHANGELOG.md:\n%s\n" "${dirty_files}" >&2
+    printf "Stash or commit these changes and retry.\n" >&2
+    exit 1
+  fi
+  printf "✅\n"
+
+  printf "Pre-check: on master branch... "
+  local branch
+  branch="$(git rev-parse --abbrev-ref HEAD)"
+  if [[ "${branch}" != "master" ]]; then
+    printf "\nYou are on branch '%s'. Switch to 'master' before releasing.\n" "${branch}" >&2
+    exit 1
+  fi
+  printf "✅\n"
+
+  printf "Pre-check: fetching origin... "
+  if ! err=$(git fetch origin 2>&1); then
+    printf "\nFetch failed: %s\n" "${err}" >&2
+    exit 1
+  fi
+  printf "✅\n"
+
+  printf "Pre-check: local master is up to date with origin/master... "
+  local local_master
+  local_master="$(git rev-parse master)"
+  local origin_master
+  origin_master="$(git rev-parse origin/master)"
+  if [[ "${local_master}" != "${origin_master}" ]]; then
+    printf "\nLocal master (%s) differs from origin/master (%s).\n" "${local_master:0:8}" "${origin_master:0:8}" >&2
+    ask_confirmation "Proceed with release from current local master anyway?"
+  fi
+  printf "✅\n"
+
+  printf "Pre-check: release branch exists... "
+  if ! git rev-parse --verify "${RELEASE_BRANCH}" >/dev/null 2>&1; then
+    printf "\nBranch '%s' does not exist locally. Create it with: git branch %s %s\n" "${RELEASE_BRANCH}" "${RELEASE_BRANCH}" "origin/${RELEASE_BRANCH}" >&2
+    exit 1
+  fi
+  printf "✅\n"
+
+  printf "Pre-check: changelog has section for version %s... " "${version}"
+  if ! grep -q "^## ${version}" "${CHANGELOG}" 2>/dev/null; then
+    printf "\nCHANGELOG.md does not contain a '## %s' section.\n" "${version}" >&2
+    printf "Add a section describing the changes to: %s\n" "${CHANGELOG}" >&2
+    exit 1
+  fi
+  printf "✅\n"
+
+  printf "Pre-check: version is not already released... "
+  local current_version
+  current_version="$(yq -p toml -o yaml '.project.version' "${PYPROJECT}")"
+  if [[ "${current_version}" == "${version}" ]]; then
+    printf "\npyproject.toml already has version %s. Nothing to do.\n" "${version}" >&2
+    exit 0
+  fi
+  printf "✅\n"
+  printf "Releasing %s (up from %s) ✅\n" "${version}" "${current_version}"
+}
+
+bump_version() {
+  local version="${1}"
+
+  printf "Setting version to %s in pyproject.toml... " "${version}"
+  dasel put -r toml -t string -v "${version}" -s ".project.version" -f "${PYPROJECT}"
+  printf "✅\n"
+}
+
+commit_release() {
+  local version="${1}"
+
+  printf "Committing release... "
+  git add "${PYPROJECT}" "${CHANGELOG}"
+  git commit -m "chore: release pypangraph ${version}" >/dev/null
+  printf "✅\n"
+}
+
+fast_forward() {
+  printf "Fast-forwarding '%s' to HEAD... " "${RELEASE_BRANCH}"
+  if ! err=$(git branch -f "${RELEASE_BRANCH}" HEAD 2>&1); then
+    printf "\nFast-forward failed: %s\n" "${err}" >&2
+    printf "The release branch may have diverged. Resolve manually.\n" >&2
+    exit 1
+  fi
+  printf "✅\n"
+}
+
+print_push_instructions() {
+  local branch
+  branch="$(git rev-parse --abbrev-ref HEAD)"
+
+  printf "\n\nRelease is now on the local branch (%s) and is ready to be pushed:\n" "${branch}"
+  printf "\n  git push origin %s\n" "${branch}"
+  printf "  git push origin %s\n" "${RELEASE_BRANCH}"
+  printf "\nThe push to '%s' triggers CI deployment.\n" "${RELEASE_BRANCH}"
+  printf "Monitor at: %s\n" "${ACTIONS_URL}"
+  printf "\nAs always, before pushing anything, it is advisable to use your favorite GUI git client to review the changes and view the branch tree to make sure you are doing what you mean to do.\n"
+}
+
+main() {
+  show_help() {
+    sed -n '2,${/^#/!q; s/^# \?//p}' "${BASH_SOURCE[0]}" | sed "s|\$0|${0##*/}|g"
+  }
+
+  [[ "${1:-}" =~ ^(-h|--help)$ ]] && { show_help; exit 0; }
+
+  if [[ $# -ne 1 ]]; then
+    printf "Usage: %s <version>\n" "${0##*/}" >&2
+    exit 1
+  fi
+
+  local version="${1}"
+
+  if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+.*$ ]]; then
+    printf "Invalid version format: %s. Expected semantic version (e.g., 1.0.2).\n" "${version}" >&2
+    exit 1
+  fi
+
+  check_preconditions "${version}"
+  bump_version "${version}"
+  commit_release "${version}"
+  fast_forward
+  print_push_instructions
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi

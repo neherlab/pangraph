@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+#
+# Usage: $0
+#
+# Release documentation website to https://docs.pangraph.org.
+#
+# Fast-forwards the local `release-docs` branch to `origin/master` and prints
+# the push command. The actual push (irreversible) is left to the operator.
+#
+# Prerequisites:
+#   - Clean working directory
+#   - Local repo fetched from origin
+#
+set -euo pipefail
+trap "exit" INT
+
+RELEASE_BRANCH="release-docs"
+SOURCE_BRANCH="origin/master"
+ACTIONS_URL="https://github.com/neherlab/pangraph/actions"
+
+ask_confirmation() {
+  local choice=""
+  while [[ "${choice}" != "y" ]]; do
+    read -r -p "${1} | Type 'y' or 'n' >> " choice
+    case "${choice}" in
+      y | Y) break ;;
+      n | N) printf "Aborted by user.\n"; exit 0 ;;
+      *) printf "Invalid answer. Type 'y' or 'n' (without quotation marks), or hit Ctrl+C to exit forcefully.\n" >&2 ;;
+    esac
+  done
+}
+
+check_preconditions() {
+  printf "Pre-check: working directory is not dirty... "
+  if [[ -n "$(git status -s)" ]]; then
+    printf "\nWorking directory is dirty. Stash or commit changes and retry.\n" >&2
+    exit 1
+  fi
+  printf "✅\n"
+
+  printf "Pre-check: fetching origin... "
+  if ! err=$(git fetch origin 2>&1); then
+    printf "\nFetch failed: %s\n" "${err}" >&2
+    exit 1
+  fi
+  printf "✅\n"
+
+  printf "Pre-check: local master is up to date with origin/master... "
+  local local_master
+  local_master="$(git rev-parse master)"
+  local origin_master
+  origin_master="$(git rev-parse origin/master)"
+  if [[ "${local_master}" != "${origin_master}" ]]; then
+    printf "\nLocal master (%s) differs from origin/master (%s).\n" "${local_master:0:8}" "${origin_master:0:8}" >&2
+    ask_confirmation "Release will use origin/master. Local-only changes will not be included. Proceed anyway?"
+  fi
+  printf "✅\n"
+
+  printf "Pre-check: release branch exists... "
+  if ! git rev-parse --verify "${RELEASE_BRANCH}" >/dev/null 2>&1; then
+    printf "\nBranch '%s' does not exist locally. Create it with: git branch %s %s\n" "${RELEASE_BRANCH}" "${RELEASE_BRANCH}" "origin/${RELEASE_BRANCH}" >&2
+    exit 1
+  fi
+  printf "✅\n"
+
+  printf "Pre-check: docs changed since last release... "
+  local last_release_commit
+  last_release_commit="$(git rev-parse "${RELEASE_BRANCH}")"
+  local source_commit
+  source_commit="$(git rev-parse "${SOURCE_BRANCH}")"
+
+  if [[ "${last_release_commit}" == "${source_commit}" ]]; then
+    printf "\n'%s' is already at '%s'. Nothing to release.\n" "${RELEASE_BRANCH}" "${SOURCE_BRANCH}"
+    exit 0
+  fi
+
+  local docs_changes
+  docs_changes="$(git log --oneline "${last_release_commit}..${source_commit}" -- docs/)"
+  if [[ -z "${docs_changes}" ]]; then
+    printf "\nNo documentation changes between '%s' and '%s'. Nothing to release.\n" "${RELEASE_BRANCH}" "${SOURCE_BRANCH}"
+    exit 0
+  fi
+  printf "✅\n"
+
+  printf "\nDocumentation changes to release:\n"
+  printf "%s\n" "${docs_changes}"
+}
+
+fast_forward() {
+  printf "\nFast-forwarding '%s' to '%s'... " "${RELEASE_BRANCH}" "${SOURCE_BRANCH}"
+  if ! err=$(git branch -f "${RELEASE_BRANCH}" "${SOURCE_BRANCH}" 2>&1); then
+    printf "\nFast-forward failed: %s\n" "${err}" >&2
+    printf "The release branch may have diverged. Resolve manually.\n" >&2
+    exit 1
+  fi
+  printf "✅\n"
+}
+
+print_push_instructions() {
+  printf "\n\nRelease is ready to be pushed:\n"
+  printf "\n  git push origin %s\n" "${RELEASE_BRANCH}"
+  printf "\nThe push triggers CI deployment.\n"
+  printf "Monitor at: %s\n" "${ACTIONS_URL}"
+  printf "\nAs always, before pushing anything, it is advisable to use your favorite GUI git client to review the changes and view the branch tree to make sure you are doing what you mean to do.\n"
+}
+
+main() {
+  show_help() {
+    sed -n '2,${/^#/!q; s/^# \?//p}' "${BASH_SOURCE[0]}" | sed "s|\$0|${0##*/}|g"
+  }
+
+  [[ "${1:-}" =~ ^(-h|--help)$ ]] && { show_help; exit 0; }
+
+  check_preconditions
+  fast_forward
+  print_push_instructions
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi
