@@ -49,10 +49,6 @@ class Junction:
             return None
         return Edge(self.left, self.right)
 
-    def flanks_bid(self, bid) -> bool:
-        """Check whether the given block id is one of the flanking blocks."""
-        return (self.left.id == bid) or (self.right.id == bid)
-
     def is_canonical(self, edge: Edge) -> bool:
         """Whether this junction is oriented along the edge's canonical direction.
 
