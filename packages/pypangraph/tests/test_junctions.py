@@ -24,10 +24,17 @@ def test_path_junction_split(junction_pangraph):
     assert len(junctions) == 4
 
     edges = [j.flanking_edge().to_str_id() for j in junctions]
-    assert set(edges) == {"100_r__400_r", "100_f__200_f", "200_f__300_f", "300_f__400_f"}
+    assert set(edges) == {
+        "100_r__400_r",
+        "100_f__200_f",
+        "200_f__300_f",
+        "300_f__400_f",
+    }
 
     # The junction between C1 and C2 should contain 2 accessory blocks (A1, A2)
-    j_c1_c2 = [j for j in junctions if j.flanking_edge().to_str_id() == "100_f__200_f"][0]
+    j_c1_c2 = [j for j in junctions if j.flanking_edge().to_str_id() == "100_f__200_f"][
+        0
+    ]
     assert len(j_c1_c2.center) == 2
 
 
@@ -161,10 +168,10 @@ def test_junction_positions_inverted_edge(junction_pangraph):
     # In s1: junction is inverted, left=C4, right=C1
     row = pos.loc[("s1", "100_r__400_r")]
     assert row["strand"] == False
-    assert row["left_start"] == 2750   # C4 start
-    assert row["left_end"] == 3450     # C4 end
-    assert row["right_start"] == 0     # C1 start
-    assert row["right_end"] == 1000    # C1 end
+    assert row["left_start"] == 2750  # C4 start
+    assert row["left_end"] == 3450  # C4 end
+    assert row["right_start"] == 0  # C1 start
+    assert row["right_end"] == 1000  # C1 end
 
 
 def test_junction_positions_rearranged_strain(junction_pangraph):
@@ -178,7 +185,7 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
     # Edge C1+→C3+: forward in s3
     row = pos.loc[("s3", "100_f__300_f")]
     assert row["strand"] == True
-    assert row["left_start"] == 0      # C1
+    assert row["left_start"] == 0  # C1
     assert row["left_end"] == 1000
     assert row["right_start"] == 1150  # C3
     assert row["right_end"] == 1750
@@ -187,7 +194,7 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
     # Swapped: left=C3(1150,1750), right=C2(1750,2550)
     row = pos.loc[("s3", "200_r__300_r")]
     assert row["strand"] == False
-    assert row["left_start"] == 1150   # C3
+    assert row["left_start"] == 1150  # C3
     assert row["left_end"] == 1750
     assert row["right_start"] == 1750  # C2
     assert row["right_end"] == 2550
@@ -195,7 +202,7 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
     # Edge C2+→C4+: forward in s3, A3 between them
     row = pos.loc[("s3", "200_f__400_f")]
     assert row["strand"] == True
-    assert row["left_start"] == 1750   # C2
+    assert row["left_start"] == 1750  # C2
     assert row["left_end"] == 2550
     assert row["right_start"] == 2850  # C4
     assert row["right_end"] == 3550
@@ -210,7 +217,13 @@ def test_junction_positions_shape(junction_pangraph):
     # Total non-NaN entries in jdf = number of position rows
     n_junctions = jdf.notna().sum().sum()
     assert len(pos) == n_junctions
-    assert list(pos.columns) == ["left_start", "left_end", "right_start", "right_end", "strand"]
+    assert list(pos.columns) == [
+        "left_start",
+        "left_end",
+        "right_start",
+        "right_end",
+        "strand",
+    ]
 
 
 def test_path_junction_split_linear(linear_pangraph):
@@ -289,18 +302,22 @@ def test_junction_positions_linear(linear_pangraph):
     bj = BackboneJunctions(linear_pangraph, L_thr=500)
     pos = bj.positions()
 
+    # terminal junctions (leading A1 in s1, trailing A1 in s2) have no flanking
+    # edge, so only the two edge-bearing junctions appear
+    assert set(pos.index.get_level_values("edge")) == {"100_f__200_f", "200_f__300_f"}
+
     # s1: C1→C2 has A2 in between
     row = pos.loc[("s1", "100_f__200_f")]
-    assert row["left_start"] == 200     # C1
+    assert row["left_start"] == 200  # C1
     assert row["left_end"] == 1200
-    assert row["right_start"] == 1350   # C2
+    assert row["right_start"] == 1350  # C2
     assert row["right_end"] == 2150
 
     # s2: C1→C2 has A3 in between
     row = pos.loc[("s2", "100_f__200_f")]
-    assert row["left_start"] == 0       # C1
+    assert row["left_start"] == 0  # C1
     assert row["left_end"] == 1000
-    assert row["right_start"] == 1300   # C2
+    assert row["right_start"] == 1300  # C2
     assert row["right_end"] == 2100
 
 
@@ -330,7 +347,13 @@ def test_junction_positions_smoke(plasmid_pangraph):
     assert isinstance(pos, pd.DataFrame)
     n_junctions = jdf.notna().sum().sum()
     assert len(pos) == n_junctions
-    assert list(pos.columns) == ["left_start", "left_end", "right_start", "right_end", "strand"]
+    assert list(pos.columns) == [
+        "left_start",
+        "left_end",
+        "right_start",
+        "right_end",
+        "strand",
+    ]
 
 
 # --- JunctionNode tests ---
@@ -379,8 +402,13 @@ def test_backbone_edges(junction_pangraph):
     """edges() returns all distinct edge string IDs."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
     assert set(bj.edges()) == {
-        "100_r__400_r", "100_f__200_f", "200_f__300_f", "300_f__400_f",
-        "100_f__300_f", "200_f__400_f", "200_r__300_r",
+        "100_r__400_r",
+        "100_f__200_f",
+        "200_f__300_f",
+        "300_f__400_f",
+        "100_f__300_f",
+        "200_f__400_f",
+        "200_r__300_r",
     }
 
 
@@ -504,26 +532,70 @@ def test_junction_stats_values(junction_pangraph):
     sdf = bj.stats()
 
     expected = {
-        "100_r__400_r": {"frequency": 3, "n_categories": 1, "majority_category_freq": 3,
-                         "left_core_length": 1000, "right_core_length": 700, "accessory_length": 0},
-        "100_f__200_f": {"frequency": 2, "n_categories": 2, "majority_category_freq": 1,
-                         "left_core_length": 1000, "right_core_length": 800, "accessory_length": 350},
-        "200_f__300_f": {"frequency": 2, "n_categories": 2, "majority_category_freq": 1,
-                         "left_core_length": 800, "right_core_length": 600, "accessory_length": 300},
-        "300_f__400_f": {"frequency": 2, "n_categories": 1, "majority_category_freq": 2,
-                         "left_core_length": 600, "right_core_length": 700, "accessory_length": 0},
-        "100_f__300_f": {"frequency": 1, "n_categories": 1, "majority_category_freq": 1,
-                         "left_core_length": 1000, "right_core_length": 600, "accessory_length": 150},
-        "200_f__400_f": {"frequency": 1, "n_categories": 1, "majority_category_freq": 1,
-                         "left_core_length": 800, "right_core_length": 700, "accessory_length": 300},
-        "200_r__300_r": {"frequency": 1, "n_categories": 1, "majority_category_freq": 1,
-                         "left_core_length": 800, "right_core_length": 600, "accessory_length": 0},
+        "100_r__400_r": {
+            "frequency": 3,
+            "n_categories": 1,
+            "majority_category_freq": 3,
+            "left_core_length": 1000,
+            "right_core_length": 700,
+            "accessory_length": 0,
+        },
+        "100_f__200_f": {
+            "frequency": 2,
+            "n_categories": 2,
+            "majority_category_freq": 1,
+            "left_core_length": 1000,
+            "right_core_length": 800,
+            "accessory_length": 350,
+        },
+        "200_f__300_f": {
+            "frequency": 2,
+            "n_categories": 2,
+            "majority_category_freq": 1,
+            "left_core_length": 800,
+            "right_core_length": 600,
+            "accessory_length": 300,
+        },
+        "300_f__400_f": {
+            "frequency": 2,
+            "n_categories": 1,
+            "majority_category_freq": 2,
+            "left_core_length": 600,
+            "right_core_length": 700,
+            "accessory_length": 0,
+        },
+        "100_f__300_f": {
+            "frequency": 1,
+            "n_categories": 1,
+            "majority_category_freq": 1,
+            "left_core_length": 1000,
+            "right_core_length": 600,
+            "accessory_length": 150,
+        },
+        "200_f__400_f": {
+            "frequency": 1,
+            "n_categories": 1,
+            "majority_category_freq": 1,
+            "left_core_length": 800,
+            "right_core_length": 700,
+            "accessory_length": 300,
+        },
+        "200_r__300_r": {
+            "frequency": 1,
+            "n_categories": 1,
+            "majority_category_freq": 1,
+            "left_core_length": 800,
+            "right_core_length": 600,
+            "accessory_length": 0,
+        },
     }
 
     assert set(sdf.index) == set(expected.keys())
     for edge, vals in expected.items():
         for col, val in vals.items():
-            assert sdf.loc[edge, col] == val, f"{edge}.{col}: {sdf.loc[edge, col]} != {val}"
+            assert sdf.loc[edge, col] == val, (
+                f"{edge}.{col}: {sdf.loc[edge, col]} != {val}"
+            )
 
 
 def test_junction_stats_transitive_and_singleton(junction_pangraph):
@@ -532,12 +604,20 @@ def test_junction_stats_transitive_and_singleton(junction_pangraph):
     sdf = bj.stats()
 
     # Transitive: only one path category
-    transitive_edges = {"100_r__400_r", "300_f__400_f", "100_f__300_f", "200_f__400_f", "200_r__300_r"}
+    transitive_edges = {
+        "100_r__400_r",
+        "300_f__400_f",
+        "100_f__300_f",
+        "200_f__400_f",
+        "200_r__300_r",
+    }
     non_transitive = {"100_f__200_f", "200_f__300_f"}
     for edge in transitive_edges:
         assert sdf.loc[edge, "is_transitive"] == True, f"{edge} should be transitive"
     for edge in non_transitive:
-        assert sdf.loc[edge, "is_transitive"] == False, f"{edge} should not be transitive"
+        assert sdf.loc[edge, "is_transitive"] == False, (
+            f"{edge} should not be transitive"
+        )
 
     # Singleton: all but one isolate share the same path
     singleton_edges = {"100_f__200_f", "200_f__300_f"}
@@ -567,6 +647,8 @@ def test_junction_stats_linear(linear_pangraph):
     sdf = bj.stats()
 
     assert len(sdf) == 2
+    # terminal junctions (no flanking edge) are excluded
+    assert set(sdf.index) == {"100_f__200_f", "200_f__300_f"}
 
     # 100_f__200_f: two different non-empty centers
     row = sdf.loc["100_f__200_f"]
@@ -598,9 +680,14 @@ def test_backbone_dataframe_returns_stats(junction_pangraph):
     assert jdf.shape == (3, 7)
 
     expected_cols = [
-        "frequency", "n_categories", "majority_category_freq",
-        "is_transitive", "is_singleton",
-        "left_core_length", "right_core_length", "accessory_length",
+        "frequency",
+        "n_categories",
+        "majority_category_freq",
+        "is_transitive",
+        "is_singleton",
+        "left_core_length",
+        "right_core_length",
+        "accessory_length",
     ]
     assert list(stats_df.columns) == expected_cols
     assert len(stats_df) == 7
