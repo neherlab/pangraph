@@ -109,7 +109,17 @@ def path_junction_split(path: Path, is_core) -> list[Junction]:
 
     Returns:
         A list of Junction objects.
+
+    Raises:
+        ValueError: if the path has fewer than two core blocks, in which case no
+            junction can be defined (and a circular path would have no flanks at all).
     """
+    n_core = sum(1 for node in path.nodes if is_core(node.id))
+    if n_core < 2:
+        raise ValueError(
+            f"path has {n_core} core block(s); at least 2 are required to define a junction"
+        )
+
     junctions = []
 
     current = []

@@ -47,6 +47,23 @@ def test_path_junction_split_rearranged(junction_pangraph):
     assert edges == {"100_r__400_r", "100_f__300_f", "200_r__300_r", "200_f__400_f"}
 
 
+def test_path_junction_split_requires_two_core_blocks():
+    """path_junction_split errors when a path has fewer than 2 core blocks.
+
+    A circular path with no core blocks previously crashed with IndexError; a path
+    with a single core block cannot form a junction either.
+    """
+    # no core blocks (circular) — would otherwise hit IndexError on junctions[0]
+    p0 = tu.Path([tu.Node(1, True), tu.Node(2, True)], circular=True)
+    with pytest.raises(ValueError, match="at least 2"):
+        path_junction_split(p0, lambda bid: False)
+
+    # exactly one core block is still insufficient
+    p1 = tu.Path([tu.Node(1, True), tu.Node(2, True)], circular=True)
+    with pytest.raises(ValueError, match="at least 2"):
+        path_junction_split(p1, lambda bid: bid == 1)
+
+
 def test_junctions_dataframe_shape(junction_pangraph):
     """DataFrame has 3 isolates and 7 distinct edges."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
