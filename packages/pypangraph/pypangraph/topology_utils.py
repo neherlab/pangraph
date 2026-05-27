@@ -30,10 +30,10 @@ class Node:
 
     @staticmethod
     def from_str_id(t) -> "Node":
-        # Block ids are integers (pangraph hashes); parse as int so the id round-trips
-        # through to_str_id and matches the int-typed block ids used elsewhere.
+        # Block ids are kept as strings internally (they are u64 hashes; see the
+        # pypangraph data-model notes), so the id token round-trips as-is.
         bid_str, strand_str = t.split("_")
-        return Node(int(bid_str), strand_str == "f")
+        return Node(bid_str, strand_str == "f")
 
 
 class Path:

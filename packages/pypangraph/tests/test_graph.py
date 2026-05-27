@@ -63,6 +63,26 @@ def test_blockstats_df(graph):
     assert df["duplicated"].sum() == 10
 
 
+def test_block_ids_are_strings(graph):
+    """Block ids are stored as strings internally, and the blockstats index is str.
+
+    Block ids are u64 hashes that overflow int64; storing them as strings keeps them
+    out of any float64 coercion (which would silently corrupt values above 2**53).
+    """
+    bdf = graph.to_blockstats_df()
+    assert bdf.index.dtype == object
+    assert all(isinstance(bid, str) for bid in bdf.index)
+    assert all(isinstance(bid, str) for bid in graph.blocks.keys())
+
+
+def test_blocks_accessor_accepts_int_or_str(graph):
+    """pan.blocks[bid] resolves the same block whether bid is passed as str or int."""
+    bid = graph.blocks.keys()[0]  # str
+    assert isinstance(bid, str)
+    assert graph.blocks[int(bid)] is graph.blocks[bid]
+    assert int(bid) in graph.blocks and bid in graph.blocks
+
+
 def test_blockcount_df(graph):
     df = graph.to_blockcount_df()
     assert df.shape[0] == 137
@@ -78,7 +98,7 @@ def test_nodes_to_blocks(graph):
     assert len(S) == len(nodes)
 
     b, s = graph.nodes.node_to_block(8533989107945450583)
-    assert b == 14710008249239879492
+    assert b == "14710008249239879492"  # block ids are strings internally
     assert s
 
 

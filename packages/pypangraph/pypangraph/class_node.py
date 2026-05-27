@@ -18,7 +18,7 @@ def parse_strandedness(strand: str) -> bool:
 class Nodes:
     """Dataset with pangraph nodes information:
     - id (str): node id. Index of the dataframe
-    - block_id (int): block id
+    - block_id (str): block id
     - path_id (int): path id
     - strand (bool): strandedness of the node
     - position (tuple): position of the node in the genome (start, end)
@@ -28,7 +28,7 @@ class Nodes:
         self.df = pd.DataFrame.from_dict(
             {
                 node_id: {
-                    "block_id": node["block_id"],
+                    "block_id": str(node["block_id"]),
                     "path_id": node["path_id"],
                     "strand": parse_strandedness(node["strand"]),
                     "start": node["position"][0],
