@@ -1,6 +1,8 @@
+from collections import Counter
+
 import pandas as pd
 
-from ..topology_utils import Edge, path_categories
+from ..topology_utils import Edge
 
 
 def _co_oriented_center_paths(edge_str, iso_junctions):
@@ -21,11 +23,7 @@ def _co_oriented_center_paths(edge_str, iso_junctions):
     edge = Edge.from_str_id(edge_str)
     result = {}
     for iso, junction in iso_junctions.items():
-        is_canonical = (
-            str(junction.left.id) == str(edge.left.id)
-            and junction.left.strand == edge.left.strand
-        )
-        result[iso] = junction.center if is_canonical else junction.center.invert()
+        result[iso] = junction.center if junction.is_canonical(edge) else junction.center.invert()
     return result
 
 
@@ -43,33 +41,20 @@ def _edge_stats(edge_str, iso_junctions, bdf):
     edge = Edge.from_str_id(edge_str)
     frequency = len(iso_junctions)
 
-    # Co-orient center paths and compute path categories
+    # Co-orient center paths, then group identical ones into categories. The empty
+    # path (junction with no accessory blocks) is a category in its own right, so it
+    # is counted like any other distinct center path.
     center_paths = _co_oriented_center_paths(edge_str, iso_junctions)
+    category_counts = Counter(center_paths.values())
 
-    # path_categories skips empty paths, so count them separately
-    # FIX: n. categories should count how many distinct center paths there are, including the empty path if it exists.
-    empty_count = sum(1 for p in center_paths.values() if len(p.nodes) == 0)
-    non_empty = {iso: p for iso, p in center_paths.items() if len(p.nodes) > 0}
-
-    if non_empty:
-        cats = path_categories(non_empty)
-        all_counts = (
-            [empty_count] + [c for c, _, _ in cats]
-            if empty_count > 0
-            else [c for c, _, _ in cats]
-        )
-        n_categories = len(cats) + (1 if empty_count > 0 else 0)
-    else:
-        all_counts = [empty_count]
-        n_categories = 1
-
-    majority_category_freq = max(all_counts)
+    n_categories = len(category_counts)
+    majority_category_freq = max(category_counts.values())
     is_transitive = n_categories == 1
     is_singleton = frequency > 1 and majority_category_freq == frequency - 1
 
-    # Core block lengths (Edge.from_str_id returns string IDs, bdf indexed by int)
-    left_core_length = bdf.loc[int(edge.left.id), "len"]
-    right_core_length = bdf.loc[int(edge.right.id), "len"]
+    # Core block lengths
+    left_core_length = bdf.loc[edge.left.id, "len"]
+    right_core_length = bdf.loc[edge.right.id, "len"]
 
     # Unique accessory content: collect all distinct block IDs across all isolates
     unique_block_ids = set()

@@ -7,15 +7,8 @@ from Bio.Seq import Seq
 
 import pypangraph as pp
 import pypangraph.topology_utils as tu
-from pypangraph.junctions import (
-    Junction,
-    JunctionNode,
-    path_junction_split,
-    junctions_dataframe,
-    junction_positions,
-    junction_stats,
-    BackboneJunctions,
-)
+from pypangraph.junctions import BackboneJunctions
+from pypangraph.junctions.junction import JunctionNode, path_junction_split
 
 
 def test_path_junction_split(junction_pangraph):
@@ -56,14 +49,16 @@ def test_path_junction_split_rearranged(junction_pangraph):
 
 def test_junctions_dataframe_shape(junction_pangraph):
     """DataFrame has 3 isolates and 7 distinct edges."""
-    jdf, edge_freq = junctions_dataframe(junction_pangraph, L_thr=500)
+    bj = BackboneJunctions(junction_pangraph, L_thr=500)
+    jdf, stats_df = bj.dataframe()
     assert jdf.shape == (3, 7)
-    assert len(edge_freq) == 7
+    assert len(stats_df) == 7
 
 
 def test_junctions_dataframe_values(junction_pangraph):
     """Verify specific junction lengths and NaN positions."""
-    jdf, _ = junctions_dataframe(junction_pangraph, L_thr=500)
+    bj = BackboneJunctions(junction_pangraph, L_thr=500)
+    jdf, _ = bj.dataframe()
 
     # s1: C1→C2 junction has A1(200) + A2(150) = 350
     assert jdf.loc["s1", "100_f__200_f"] == 350.0
@@ -90,9 +85,9 @@ def test_junctions_dataframe_values(junction_pangraph):
 
 def test_junctions_edge_freq(junction_pangraph):
     """Edge frequency is correct and sorted descending."""
-    _, edge_freq = junctions_dataframe(junction_pangraph, L_thr=500)
-
-    assert edge_freq.name == "count"
+    bj = BackboneJunctions(junction_pangraph, L_thr=500)
+    _, stats_df = bj.dataframe()
+    edge_freq = stats_df["frequency"]
 
     # C4→C1 edge is universal (all 3 strains)
     assert edge_freq["100_r__400_r"] == 3
@@ -115,9 +110,8 @@ def test_junction_positions_forward_strand(junction_pangraph):
 
     s1 path: C1+(0,1000) A1+(1000,1200) A2+(1200,1350) C2+(1350,2150) C3+(2150,2750) C4+(2750,3450)
     """
-    pan = junction_pangraph
-    jdf, _ = junctions_dataframe(pan, L_thr=500)
-    pos = junction_positions(pan, jdf)
+    bj = BackboneJunctions(junction_pangraph, L_thr=500)
+    pos = bj.positions()
 
     # Edge C1+→C2+ in s1: both flanks on forward strand → strand=True
     row = pos.loc[("s1", "100_f__200_f")]
@@ -144,9 +138,8 @@ def test_junction_positions_inverted_edge(junction_pangraph):
 
     s1: C4+(2750,3450) ... C1+(0,1000) (wraps around)
     """
-    pan = junction_pangraph
-    jdf, _ = junctions_dataframe(pan, L_thr=500)
-    pos = junction_positions(pan, jdf)
+    bj = BackboneJunctions(junction_pangraph, L_thr=500)
+    pos = bj.positions()
 
     # In s1: junction is inverted, left=C4, right=C1
     row = pos.loc[("s1", "100_r__400_r")]
@@ -162,9 +155,8 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
 
     s3 path: C1+(0,1000) A2-(1000,1150) C3+(1150,1750) C2+(1750,2550) A3+(2550,2850) C4+(2850,3550)
     """
-    pan = junction_pangraph
-    jdf, _ = junctions_dataframe(pan, L_thr=500)
-    pos = junction_positions(pan, jdf)
+    bj = BackboneJunctions(junction_pangraph, L_thr=500)
+    pos = bj.positions()
 
     # Edge C1+→C3+: forward in s3
     row = pos.loc[("s3", "100_f__300_f")]
@@ -194,9 +186,9 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
 
 def test_junction_positions_shape(junction_pangraph):
     """Position DataFrame has one row per (isolate, edge) with non-NaN junction length."""
-    pan = junction_pangraph
-    jdf, _ = junctions_dataframe(pan, L_thr=500)
-    pos = junction_positions(pan, jdf)
+    bj = BackboneJunctions(junction_pangraph, L_thr=500)
+    jdf, _ = bj.dataframe()
+    pos = bj.positions()
 
     # Total non-NaN entries in jdf = number of position rows
     n_junctions = jdf.notna().sum().sum()
@@ -256,7 +248,8 @@ def test_path_junction_split_linear(linear_pangraph):
 
 def test_junctions_dataframe_linear(linear_pangraph):
     """DataFrame for linear paths excludes terminal junctions (no edge)."""
-    jdf, edge_freq = junctions_dataframe(linear_pangraph, L_thr=500)
+    bj = BackboneJunctions(linear_pangraph, L_thr=500)
+    jdf, _ = bj.dataframe()
 
     # Both strains share edges C1→C2 and C2→C3
     assert jdf.shape[0] == 2  # 2 isolates
@@ -276,9 +269,8 @@ def test_junction_positions_linear(linear_pangraph):
     s1: A1+(0,200) C1+(200,1200) A2+(1200,1350) C2+(1350,2150) C3+(2150,2750)
     s2: C1+(0,1000) A3+(1000,1300) C2+(1300,2100) C3+(2100,2700) A1+(2700,2900)
     """
-    pan = linear_pangraph
-    jdf, _ = junctions_dataframe(pan, L_thr=500)
-    pos = junction_positions(pan, jdf)
+    bj = BackboneJunctions(linear_pangraph, L_thr=500)
+    pos = bj.positions()
 
     # s1: C1→C2 has A2 in between
     row = pos.loc[("s1", "100_f__200_f")]
@@ -301,21 +293,22 @@ def plasmid_pangraph():
 
 
 def test_junctions_dataframe_smoke(plasmid_pangraph):
-    """junctions_dataframe runs on the real plasmids dataset without errors."""
-    jdf, edge_freq = junctions_dataframe(plasmid_pangraph, L_thr=500)
+    """dataframe() runs on the real plasmids dataset without errors."""
+    bj = BackboneJunctions(plasmid_pangraph, L_thr=500)
+    jdf, stats_df = bj.dataframe()
 
     assert isinstance(jdf, pd.DataFrame)
-    assert isinstance(edge_freq, pd.Series)
+    assert isinstance(stats_df, pd.DataFrame)
     assert jdf.shape[0] == len(plasmid_pangraph.strains())
-    assert jdf.shape[1] == len(edge_freq)
-    assert edge_freq.name == "count"
-    assert (edge_freq > 0).all()
+    assert jdf.shape[1] == len(stats_df)
+    assert (stats_df["frequency"] > 0).all()
 
 
 def test_junction_positions_smoke(plasmid_pangraph):
-    """junction_positions runs on the real plasmids dataset without errors."""
-    jdf, _ = junctions_dataframe(plasmid_pangraph, L_thr=500)
-    pos = junction_positions(plasmid_pangraph, jdf)
+    """positions() runs on the real plasmids dataset without errors."""
+    bj = BackboneJunctions(plasmid_pangraph, L_thr=500)
+    jdf, _ = bj.dataframe()
+    pos = bj.positions()
 
     assert isinstance(pos, pd.DataFrame)
     n_junctions = jdf.notna().sum().sum()
@@ -347,37 +340,6 @@ def test_junction_node_invert():
 
 
 # --- BackboneJunctions tests ---
-
-
-def test_backbone_dataframe_matches_standalone(junction_pangraph):
-    """BackboneJunctions.dataframe() pivot table matches junctions_dataframe()."""
-    pan = junction_pangraph
-    bj = BackboneJunctions(pan, L_thr=500)
-    jdf_bj, stats_bj = bj.dataframe()
-    jdf_fn, _ = junctions_dataframe(pan, L_thr=500)
-
-    # Sort columns for comparison (tie-breaking order may differ)
-    jdf_bj = jdf_bj[sorted(jdf_bj.columns)]
-    jdf_fn = jdf_fn[sorted(jdf_fn.columns)]
-    pd.testing.assert_frame_equal(jdf_bj, jdf_fn)
-    # stats_df replaces edge_freq; frequency column should match
-    assert isinstance(stats_bj, pd.DataFrame)
-    assert "frequency" in stats_bj.columns
-
-
-def test_backbone_positions_matches_standalone(junction_pangraph):
-    """BackboneJunctions.positions() produces the same result as junction_positions()."""
-    pan = junction_pangraph
-    bj = BackboneJunctions(pan, L_thr=500)
-    pos_bj = bj.positions()
-
-    jdf, _ = junctions_dataframe(pan, L_thr=500)
-    pos_fn = junction_positions(pan, jdf)
-
-    # Sort both for comparison (row order may differ)
-    pos_bj = pos_bj.sort_index()
-    pos_fn = pos_fn.sort_index()
-    pd.testing.assert_frame_equal(pos_bj, pos_fn)
 
 
 def test_backbone_junctions_for(junction_pangraph):

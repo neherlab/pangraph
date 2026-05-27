@@ -3,36 +3,21 @@ import pandas as pd
 from ..topology_utils import Edge
 
 
-def _build_node_position_lookup(pan):
-    """Build a (block_id, path_id) -> (strand, start, end) lookup dict.
+def junction_positions(edge_map, pan) -> pd.DataFrame:
+    """Find genomic positions of the flanking core blocks for each junction.
 
-    Core blocks appear exactly once per strain, so the lookup is unambiguous for them.
-    """
-    lookup = {}
-    for _, row in pan.nodes.df.iterrows():
-        key = (row["block_id"], row["path_id"])
-        lookup[key] = (row["strand"], row["start"], row["end"])
-    return lookup
+    For every (isolate, edge) the flanking blocks are looked up by their unique
+    node id, so the coordinates are unambiguous even if a block recurs in a genome.
 
-
-def junction_positions(pan, jdf) -> pd.DataFrame:
-    """Find genomic positions of flanking core blocks for each junction.
-
-    For each (isolate, edge) present in jdf, looks up the genomic coordinates of the
-    two flanking core blocks and determines the junction strand orientation.
-
-    The "left" and "right" labels refer to the canonical edge orientation: when
-    strand=True, the junction appears in the same orientation as the edge definition;
-    when strand=False, left/right are swapped relative to the edge definition to
-    reflect the actual genomic arrangement.
-
-    The accessory region sits between left_end and right_start, moving in increasing
-    coordinate order (wrapping around for circular genomes).
+    The "left" and "right" labels follow each genome's own path order: ``left`` is
+    the flank encountered first when walking the path, ``right`` the one after the
+    accessory center. The ``strand`` column records whether that path order matches
+    the edge's canonical orientation (True) or is inverted relative to it (False).
 
     Args:
-        pan: A Pangraph object.
-        jdf: Junction length DataFrame as returned by junctions_dataframe (isolates
-            as rows, edge string ids as columns).
+        edge_map: dict mapping edge string ID -> dict[isolate, Junction], as cached
+            by BackboneJunctions.
+        pan: A Pangraph object (used for node coordinate lookup).
 
     Returns:
         A DataFrame with MultiIndex (iso, edge) and columns:
@@ -40,50 +25,21 @@ def junction_positions(pan, jdf) -> pd.DataFrame:
         - right_start, right_end: genomic position of the right flanking block
         - strand: True if the junction is in the canonical edge orientation
     """
-    lookup = _build_node_position_lookup(pan)
-    path_ids = {name: path.id for name, path in pan.paths.items()}
-
     records = []
-    for edge_str in jdf.columns:
+    for edge_str, iso_junctions in edge_map.items():
         edge = Edge.from_str_id(edge_str)
-        isolates = jdf[edge_str].dropna().index
-
-        for iso in isolates:
-            pid = path_ids[iso]
-
-            # Edge.from_str_id returns string block IDs; the nodes DataFrame
-            # stores them as int, so we convert to match.
-            left_bid = int(edge.left.id)
-            right_bid = int(edge.right.id)
-
-            left_strand, left_start, left_end = lookup[(left_bid, pid)]
-            right_strand, right_start, right_end = lookup[(right_bid, pid)]
-
-            # Does the actual genome strand match the edge's node strand?
-            same_strand = edge.left.strand == left_strand
-
-            if same_strand:
-                records.append({
-                    "iso": iso,
-                    "edge": edge_str,
-                    "left_start": left_start,
-                    "left_end": left_end,
-                    "right_start": right_start,
-                    "right_end": right_end,
-                    "strand": True,
-                })
-            else:
-                # Junction is inverted: the edge's "left" block is actually on the
-                # right in the genome, and vice versa.
-                records.append({
-                    "iso": iso,
-                    "edge": edge_str,
-                    "left_start": right_start,
-                    "left_end": right_end,
-                    "right_start": left_start,
-                    "right_end": left_end,
-                    "strand": False,
-                })
+        for iso, junction in iso_junctions.items():
+            left_row = pan.nodes.df.loc[str(junction.left.node_id)]
+            right_row = pan.nodes.df.loc[str(junction.right.node_id)]
+            records.append({
+                "iso": iso,
+                "edge": edge_str,
+                "left_start": left_row["start"],
+                "left_end": left_row["end"],
+                "right_start": right_row["start"],
+                "right_end": right_row["end"],
+                "strand": junction.is_canonical(edge),
+            })
 
     result = pd.DataFrame(records)
     if result.empty:

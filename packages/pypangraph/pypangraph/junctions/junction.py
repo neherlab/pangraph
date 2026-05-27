@@ -51,6 +51,17 @@ class Junction:
         """Check whether the given block id is one of the flanking blocks."""
         return (self.left.id == bid) or (self.right.id == bid)
 
+    def is_canonical(self, edge: Edge) -> bool:
+        """Whether this junction is oriented along the edge's canonical direction.
+
+        A junction for a given edge can appear in either orientation across genomes;
+        it is canonical when its left flank matches the edge's left node. Returns False
+        for terminal junctions with no left flank.
+        """
+        if self.left is None:
+            return False
+        return self.left == edge.left
+
     def __side_eq__(self, o: object) -> bool:
         return self.left == o.left and self.center == o.center and self.right == o.right
 

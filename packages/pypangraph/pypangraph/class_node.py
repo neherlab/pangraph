@@ -18,8 +18,8 @@ def parse_strandedness(strand: str) -> bool:
 class Nodes:
     """Dataset with pangraph nodes information:
     - id (str): node id. Index of the dataframe
-    - block_id (str): block id
-    - path_id (str): path id
+    - block_id (int): block id
+    - path_id (int): path id
     - strand (bool): strandedness of the node
     - position (tuple): position of the node in the genome (start, end)
     """

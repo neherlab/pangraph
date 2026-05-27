@@ -30,9 +30,10 @@ class Node:
 
     @staticmethod
     def from_str_id(t) -> "Node":
-        bid = t.split("_")[0]
-        strand = True if t.split("_")[1] == "f" else False
-        return Node(bid, strand)
+        # Block ids are integers (pangraph hashes); parse as int so the id round-trips
+        # through to_str_id and matches the int-typed block ids used elsewhere.
+        bid_str, strand_str = t.split("_")
+        return Node(int(bid_str), strand_str == "f")
 
 
 class Path:
