@@ -103,8 +103,8 @@ class Pangraph:
         - count: n. times the block occurs
         - n. strains: number of strains in which the block is observed
         - duplicated: whether the block is duplicated in at least one strain
-        - len: average block length from pangraph.
-        - core: whether a gene occurrs exactly once per strain
+        - len: block consensus length in basepairs.
+        - core: whether a block occurs exactly once per strain
         """
         df = self.nodes.to_blockstats_df()
         df["len"] = [len(self.blocks[bid]) for bid in df.index]
