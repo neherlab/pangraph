@@ -229,6 +229,43 @@ def test_minimal_synteny_units_rotate_requires_circular(linear_pangraph):
         minimal_synteny_units(linear_pangraph, L_thr=500)
 
 
+def test_minimal_synteny_units_rc_collapse(inversion_pangraph):
+    """A genome and its whole reverse-complement collapse onto the same canonical MSU walk.
+
+    Core blocks C1=10..C7=70; C5/C6/C7 are co-oriented neighbours of C1/C2/C3 and merge with
+    them. The universal adjacencies merge {C1,C2,C4,C5,C6} (sink 10); the s3 inversion breaks
+    C6-C3 and C7-C4, keeping {C3,C7} as a separate, invertible MSU (sink 30):
+      MSU_0 = {C1,C2,C4,C5,C6} (70bp), MSU_1 = {C3,C7} (28bp).
+    s1 and its RC s2 rotate/flip onto the identical walk (exercising rotate_to's invert branch);
+    s3's inversion survives as a flipped MSU_1 node.
+    """
+    MSU_mergers, MSU_paths, MSU_len = minimal_synteny_units(
+        inversion_pangraph, L_thr=10, rotate=True
+    )
+
+    assert MSU_len == {"MSU_0": 70, "MSU_1": 28}
+    assert MSU_mergers == {
+        "10": "MSU_0",
+        "50": "MSU_0",
+        "20": "MSU_0",
+        "60": "MSU_0",
+        "40": "MSU_0",
+        "70": "MSU_1",
+        "30": "MSU_1",
+    }
+
+    expected_ref = tu.Walk(
+        [tu.OrientedBlock("MSU_0", True), tu.OrientedBlock("MSU_1", True)], circular=True
+    )
+    expected_s3 = tu.Walk(
+        [tu.OrientedBlock("MSU_0", True), tu.OrientedBlock("MSU_1", False)], circular=True
+    )
+    assert MSU_paths["s1"] == expected_ref
+    assert MSU_paths["s2"] == expected_ref  # RC collapses onto the reference
+    assert MSU_paths["s3"] == expected_s3  # the inversion survives as a flipped MSU node
+    assert all(p.circular for p in MSU_paths.values())
+
+
 def test_flip_msu_to_most_common_orientation():
     """Blocks predominantly on the reverse strand are flipped to forward.
 

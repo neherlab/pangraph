@@ -89,7 +89,8 @@ class Walk:
 
     def rename_bids(self, bid_dict: dict) -> "Walk":
         return Walk(
-            [OrientedBlock(bid_dict[n.id], n.strand) for n in self.nodes], circular=self.circular
+            [OrientedBlock(bid_dict[n.id], n.strand) for n in self.nodes],
+            circular=self.circular,
         )
 
 

@@ -17,7 +17,7 @@ class BackboneJunctions:
 
     Args:
         pan: A Pangraph object.
-        L_thr: Minimum block length to be considered backbone (default 500).
+        L_thr: Minimum block length to be considered backbone (default 500 bp).
     """
 
     def __init__(self, pan, L_thr: int = 500):
@@ -27,15 +27,18 @@ class BackboneJunctions:
         self._junctions = None  # dict[iso, list[Junction]]
         self._edge_map = None  # dict[edge_str, dict[iso, Junction]]
 
-    def _is_backbone(self, bid):
+    def _is_backbone(self, bid: str) -> bool:
+        """Determine if a block ID corresponds to a backbone block."""
         return self._bdf.loc[bid, "core"] and self._bdf.loc[bid, "len"] >= self.L_thr
 
     def _ensure_split(self):
+        """Ensure that paths have been split into junctions and edge maps built."""
         if self._junctions is not None:
             return
         self._junctions = {}
         self._edge_map = {}
         for name, path in self.pan.paths.items():
+            # create a Walk from a Path object, including accessory blocks
             nodes = []
             for nid in path.nodes:
                 row = self.pan.nodes.df.loc[str(nid)]

@@ -107,6 +107,7 @@ def path_junction_split(path: Walk, is_core) -> list[Junction]:
             f"path has {n_core} core block(s); at least 2 are required to define a junction"
         )
 
+    # collect here the junctions
     junctions = []
 
     current = []

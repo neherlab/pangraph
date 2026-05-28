@@ -224,6 +224,100 @@ def build_sequence_pangraph_json():
     return {"paths": paths, "blocks": blocks, "nodes": nodes}
 
 
+# Consensus sequences for build_inversion_pangraph_json, keyed by block-id string.
+# Distinct and non-palindromic so junction sequence extraction (incl. reverse-complement)
+# can be verified. Lengths are variable and <20bp; the seven core blocks (10-70) are >10bp.
+INVERSION_CONS = {
+    "10": "ACGTTGCAACCA",      # C1, 12bp
+    "20": "TTGGAACCGGTTAC",    # C2, 14bp
+    "30": "GATTACAGGCT",       # C3, 11bp
+    "40": "CCAGTACGTGACATCA",  # C4, 16bp
+    "50": "ACACGTGTACGTA",     # C5, 13bp
+    "60": "TGTCATGCAATGCAT",   # C6, 15bp
+    "70": "GGATCCGAATTCAGTCA",  # C7, 17bp
+    "80": "ACGTGA",            # A1, 6bp (accessory)
+    "90": "TTCAGGCA",          # A2, 8bp (accessory)
+}
+
+
+def build_inversion_pangraph_json():
+    """Circular pangraph exercising reverse-complement, a single inversion, and mergers.
+
+    Three strains (all circular). C5/C6/C7 sit next to and co-oriented with C1/C2/C3, so
+    each pair always travels together and forms a merger (MSU):
+      s1 (reference):       C1+ C5+ A1+ C2+ C6+ C3+ C7+ A2- C4+
+      s2 (whole-genome RC): C4- A2+ C7- C3- C6- C2- A1- C5- C1-
+      s3 (single inversion): C1+ C5+ C2+ C6+ C7- C3- C4+   (no accessory)
+
+    s2 is the exact reverse complement of s1 (order reversed, every strand flipped), so it
+    carries the same backbone edges as s1 (Edge equality is orientation-canonical) and must
+    co-orient back onto s1. s3 inverts the contiguous `C3 C7` segment: the internal C3-C7
+    adjacency is preserved (so {C3,C7} still merge) while C6-C3 and C7-C4 are broken, leaving
+    {C3,C7} as a separate, invertible MSU. A2 is on the `-` strand in s1 so the junction
+    sequence extraction exercises the center reverse-complement path. See INVERSION_CONS for
+    block consensuses (variable <20bp lengths; core blocks >10bp; tested at L_thr=10).
+
+    Core blocks (once per strain): C1=10, C2=20, C3=30, C4=40, C5=50, C6=60, C7=70.
+    Accessory blocks (s1+s2 only): A1=80, A2=90.
+    """
+    nodes = {
+        # s1: C1+ C5+ A1+ C2+ C6+ C3+ C7+ A2- C4+
+        "1": _make_node(1, 10, 0, True, 0, 12),
+        "2": _make_node(2, 50, 0, True, 12, 25),
+        "3": _make_node(3, 80, 0, True, 25, 31),
+        "4": _make_node(4, 20, 0, True, 31, 45),
+        "5": _make_node(5, 60, 0, True, 45, 60),
+        "6": _make_node(6, 30, 0, True, 60, 71),
+        "7": _make_node(7, 70, 0, True, 71, 88),
+        "8": _make_node(8, 90, 0, False, 88, 96),
+        "9": _make_node(9, 40, 0, True, 96, 112),
+        # s2: C4- A2+ C7- C3- C6- C2- A1- C5- C1-
+        "10": _make_node(10, 40, 1, False, 0, 16),
+        "11": _make_node(11, 90, 1, True, 16, 24),
+        "12": _make_node(12, 70, 1, False, 24, 41),
+        "13": _make_node(13, 30, 1, False, 41, 52),
+        "14": _make_node(14, 60, 1, False, 52, 67),
+        "15": _make_node(15, 20, 1, False, 67, 81),
+        "16": _make_node(16, 80, 1, False, 81, 87),
+        "17": _make_node(17, 50, 1, False, 87, 100),
+        "18": _make_node(18, 10, 1, False, 100, 112),
+        # s3: C1+ C5+ C2+ C6+ C7- C3- C4+
+        "19": _make_node(19, 10, 2, True, 0, 12),
+        "20": _make_node(20, 50, 2, True, 12, 25),
+        "21": _make_node(21, 20, 2, True, 25, 39),
+        "22": _make_node(22, 60, 2, True, 39, 54),
+        "23": _make_node(23, 70, 2, False, 54, 71),
+        "24": _make_node(24, 30, 2, False, 71, 82),
+        "25": _make_node(25, 40, 2, True, 82, 98),
+    }
+
+    block_nodes = {
+        "10": [1, 18, 19],
+        "20": [4, 15, 21],
+        "30": [6, 13, 24],
+        "40": [9, 10, 25],
+        "50": [2, 17, 20],
+        "60": [5, 14, 22],
+        "70": [7, 12, 23],
+        "80": [3, 16],
+        "90": [8, 11],
+    }
+    blocks = {
+        bid: _make_block_with_edits(
+            int(bid), INVERSION_CONS[bid], {nid: None for nid in nids}
+        )
+        for bid, nids in block_nodes.items()
+    }
+
+    paths = {
+        "0": _make_path(0, "s1", [1, 2, 3, 4, 5, 6, 7, 8, 9], 112),
+        "1": _make_path(1, "s2", [10, 11, 12, 13, 14, 15, 16, 17, 18], 112),
+        "2": _make_path(2, "s3", [19, 20, 21, 22, 23, 24, 25], 98),
+    }
+
+    return {"paths": paths, "blocks": blocks, "nodes": nodes}
+
+
 @pytest.fixture
 def sequence_pangraph():
     """A minimal Pangraph for testing junction sequence extraction."""
@@ -240,3 +334,9 @@ def junction_pangraph():
 def linear_pangraph():
     """A synthetic Pangraph with linear (non-circular) paths."""
     return pp.Pangraph(build_linear_pangraph_json())
+
+
+@pytest.fixture
+def inversion_pangraph():
+    """A circular Pangraph with a reverse-complemented strain, a single inversion, and mergers."""
+    return pp.Pangraph(build_inversion_pangraph_json())
