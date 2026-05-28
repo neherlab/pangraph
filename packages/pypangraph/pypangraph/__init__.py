@@ -7,3 +7,11 @@ from .plots import dotplot
 
 # junction analysis
 from . import junctions
+
+__all__ = [
+    "Pangraph",
+    "PangraphLoadError",
+    "minimal_synteny_units",
+    "dotplot",
+    "junctions",
+]

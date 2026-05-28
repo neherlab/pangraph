@@ -139,7 +139,7 @@ def test_junction_positions_forward_strand(junction_pangraph):
 
     # Edge C1+→C2+ in s1: both flanks on forward strand → strand=True
     row = pos.loc[("s1", "100_f__200_f")]
-    assert row["strand"] == True
+    assert row["strand"]
     assert row["left_start"] == 0
     assert row["left_end"] == 1000
     assert row["right_start"] == 1350
@@ -147,7 +147,7 @@ def test_junction_positions_forward_strand(junction_pangraph):
 
     # Edge C2+→C3+ in s1: empty junction, strand=True
     row = pos.loc[("s1", "200_f__300_f")]
-    assert row["strand"] == True
+    assert row["strand"]
     assert row["left_start"] == 1350
     assert row["left_end"] == 2150
     assert row["right_start"] == 2150
@@ -167,7 +167,7 @@ def test_junction_positions_inverted_edge(junction_pangraph):
 
     # In s1: junction is inverted, left=C4, right=C1
     row = pos.loc[("s1", "100_r__400_r")]
-    assert row["strand"] == False
+    assert not row["strand"]
     assert row["left_start"] == 2750  # C4 start
     assert row["left_end"] == 3450  # C4 end
     assert row["right_start"] == 0  # C1 start
@@ -184,7 +184,7 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
 
     # Edge C1+→C3+: forward in s3
     row = pos.loc[("s3", "100_f__300_f")]
-    assert row["strand"] == True
+    assert row["strand"]
     assert row["left_start"] == 0  # C1
     assert row["left_end"] == 1000
     assert row["right_start"] == 1150  # C3
@@ -193,7 +193,7 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
     # Edge "200_r__300_r" = Edge(C2-, C3-): in s3 both are on + strand → inverted
     # Swapped: left=C3(1150,1750), right=C2(1750,2550)
     row = pos.loc[("s3", "200_r__300_r")]
-    assert row["strand"] == False
+    assert not row["strand"]
     assert row["left_start"] == 1150  # C3
     assert row["left_end"] == 1750
     assert row["right_start"] == 1750  # C2
@@ -201,7 +201,7 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
 
     # Edge C2+→C4+: forward in s3, A3 between them
     row = pos.loc[("s3", "200_f__400_f")]
-    assert row["strand"] == True
+    assert row["strand"]
     assert row["left_start"] == 1750  # C2
     assert row["left_end"] == 2550
     assert row["right_start"] == 2850  # C4
@@ -613,19 +613,17 @@ def test_junction_stats_transitive_and_singleton(junction_pangraph):
     }
     non_transitive = {"100_f__200_f", "200_f__300_f"}
     for edge in transitive_edges:
-        assert sdf.loc[edge, "is_transitive"] == True, f"{edge} should be transitive"
+        assert sdf.loc[edge, "is_transitive"], f"{edge} should be transitive"
     for edge in non_transitive:
-        assert sdf.loc[edge, "is_transitive"] == False, (
-            f"{edge} should not be transitive"
-        )
+        assert not sdf.loc[edge, "is_transitive"], f"{edge} should not be transitive"
 
     # Singleton: all but one isolate share the same path
     singleton_edges = {"100_f__200_f", "200_f__300_f"}
     non_singleton = set(sdf.index) - singleton_edges
     for edge in singleton_edges:
-        assert sdf.loc[edge, "is_singleton"] == True, f"{edge} should be singleton"
+        assert sdf.loc[edge, "is_singleton"], f"{edge} should be singleton"
     for edge in non_singleton:
-        assert sdf.loc[edge, "is_singleton"] == False, f"{edge} should not be singleton"
+        assert not sdf.loc[edge, "is_singleton"], f"{edge} should not be singleton"
 
 
 def test_junction_stats_sorted_by_frequency(junction_pangraph):
@@ -655,8 +653,8 @@ def test_junction_stats_linear(linear_pangraph):
     assert row["frequency"] == 2
     assert row["n_categories"] == 2
     assert row["majority_category_freq"] == 1
-    assert row["is_transitive"] == False
-    assert row["is_singleton"] == True
+    assert not row["is_transitive"]
+    assert row["is_singleton"]
     # Unique blocks: A2(bid=600, 150bp) + A3(bid=700, 300bp)
     assert row["accessory_length"] == 150 + 300
 
@@ -665,8 +663,8 @@ def test_junction_stats_linear(linear_pangraph):
     assert row["frequency"] == 2
     assert row["n_categories"] == 1
     assert row["majority_category_freq"] == 2
-    assert row["is_transitive"] == True
-    assert row["is_singleton"] == False
+    assert row["is_transitive"]
+    assert not row["is_singleton"]
     assert row["accessory_length"] == 0
 
 
@@ -788,15 +786,15 @@ def test_inversion_stats(inversion_pangraph):
     assert row["frequency"] == 3
     assert row["n_categories"] == 2
     assert row["majority_category_freq"] == 2
-    assert row["is_transitive"] == False
-    assert row["is_singleton"] == True
+    assert not row["is_transitive"]
+    assert row["is_singleton"]
     assert row["accessory_length"] == 6  # len(A1)
 
     # C7-C4: center [A2] in both strains that carry it -> 1 category, transitive
     row = sdf.loc[_edge("70", True, "40", True)]
     assert row["frequency"] == 2
     assert row["n_categories"] == 1
-    assert row["is_transitive"] == True
+    assert row["is_transitive"]
     assert row["accessory_length"] == 8  # len(A2)
 
 

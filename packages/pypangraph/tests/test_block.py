@@ -1,5 +1,4 @@
 import pytest
-import pypangraph as pp
 from pypangraph.class_block import Block
 from pypangraph.class_alignments import (
     Alignment,

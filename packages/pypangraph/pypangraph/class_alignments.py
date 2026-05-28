@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from Bio.Align import MultipleSeqAlignment
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
-import numpy as np
 
 
 @dataclass
@@ -62,11 +61,11 @@ class Edits:
         for D in self.dels:
             for idx in range(D.length):
                 sq[D.pos + idx] = ""
-        for I in self.inss:
-            if I.pos > 0:
-                sq[I.pos - 1] += I.seq
-            elif I.pos == 0:
-                sq[0] = I.seq + sq[0]
+        for ins in self.inss:
+            if ins.pos > 0:
+                sq[ins.pos - 1] += ins.seq
+            elif ins.pos == 0:
+                sq[0] = ins.seq + sq[0]
         return "".join(sq)
 
     def aligned_seq(self, cons: str) -> str:
