@@ -125,9 +125,9 @@ colors = defaultdict(lambda: next(color_generator))
 fig, ax = plt.subplots(figsize=(8, 5))
 
 for i, (iso, path) in enumerate(MSU_paths.items()):
-    for j, node in enumerate(path.nodes):
-        ax.barh(i, 1, left=j, color=colors[node.id])
-        if not node.strand:
+    for j, ob in enumerate(path.oriented_blocks):
+        ax.barh(i, 1, left=j, color=colors[ob.id])
+        if not ob.strand:
             ax.arrow(j + 1, i, -0.8, 0, head_width=0.2, head_length=0.2)
 ax.set_yticks(range(len(MSU_paths)))
 ax.set_yticklabels(list(MSU_paths.keys()))

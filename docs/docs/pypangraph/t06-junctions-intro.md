@@ -73,25 +73,6 @@ print(j)
 
 Each junction has a `left` flank, a `center` (a path of accessory blocks), and a `right` flank.
 
-## Junction dataframe
-
-The `dataframe()` method returns a pivot table summarizing accessory content per isolate and edge, together with per-edge statistics:
-
-```python
-jdf, stats_df = bj.dataframe()
-print(jdf.shape)
-# (15, 20)
-
-print(jdf.iloc[:3, :3])
-# edge       124231..._r__865151..._r  124231..._f__160331..._f  160331..._f__843402..._f
-# iso
-# RCS100_p1                    29083.0                       0.0                     327.0
-# RCS29_p1                     14961.0                       0.0                     329.0
-# RCS33_p1                     14961.0                       0.0                     329.0
-```
-
-Rows are isolates, columns are edges, and values are the total accessory block length in each junction. `NaN` means the isolate does not have that edge (which would indicate a rearrangement). The `stats_df` dataframe contains per-edge statistics such as frequency and diversity — see [junction statistics](t07-junction-stats.md) for details.
-
 ## Co-orientation
 
 Junctions for the same edge may appear in opposite orientations on different genomes: one genome reads the junction left-to-right, while another traverses it right-to-left. The `BackboneJunctions` class handles co-orientation automatically when comparing junctions or extracting sequences. This is transparent to the user in most cases.

@@ -105,23 +105,3 @@ ax.set_ylabel("Total accessory length (bp)")
 ![accessory vs categories](../assets/pp_t7_accessory_vs_freq.png)
 
 Non-transitive junctions (coral) span a wide range of accessory lengths, from a few hundred base pairs to over 100 kbp.
-
-### Junction length heatmap
-
-The junction dataframe provides a presence-absence-like view of accessory content:
-
-```python
-jdf, stats_df = bj.dataframe()
-
-# select non-transitive junctions
-variable_edges = stats_df[~stats_df["is_transitive"]].index
-jdf_variable = jdf[variable_edges]
-
-sns.heatmap(jdf_variable.T, cmap="YlOrRd", linewidths=0.5)
-plt.xlabel("Isolate")
-plt.ylabel("Edge")
-```
-
-![junction heatmap](../assets/pp_t7_junction_heatmap.png)
-
-This heatmap reveals which junctions carry large accessory insertions and how they vary across isolates. Rows (edges) with uniform color across columns represent junctions where all isolates carry a similar amount of accessory DNA, while rows with mixed colors indicate structural variation.
