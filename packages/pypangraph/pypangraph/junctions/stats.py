@@ -93,9 +93,9 @@ def junction_stats(edge_map, bdf):
         - majority_category_freq: count of the most common variant
         - is_transitive: True if only one variant exists
         - is_singleton: True if all but one isolate share the same variant
-        - left_core_length: length of left flanking core block
-        - right_core_length: length of right flanking core block
-        - accessory_length: total unique accessory content (sum of distinct block lengths)
+        - left_core_length: consensus length of left flanking core block
+        - right_core_length: consensus length of right flanking core block
+        - accessory_length: total unique accessory content (sum of distinct blocks consensus lengths)
 
         Sorted by frequency descending.
     """

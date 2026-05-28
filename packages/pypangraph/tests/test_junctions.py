@@ -1,6 +1,5 @@
 """Tests for the pypangraph.junctions sub-package."""
 
-import numpy as np
 import pandas as pd
 import pytest
 from Bio.Seq import Seq
@@ -71,47 +70,10 @@ def test_path_junction_split_requires_two_core_blocks():
         path_junction_split(p1, lambda bid: bid == 1)
 
 
-def test_junctions_dataframe_shape(junction_pangraph):
-    """DataFrame has 3 isolates and 7 distinct edges."""
-    bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    jdf, stats_df = bj.dataframe()
-    assert jdf.shape == (3, 7)
-    assert len(stats_df) == 7
-
-
-def test_junctions_dataframe_values(junction_pangraph):
-    """Verify specific junction lengths and NaN positions."""
-    bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    jdf, _ = bj.dataframe()
-
-    # s1: C1→C2 junction has A1(200) + A2(150) = 350
-    assert jdf.loc["s1", "100_f__200_f"] == 350.0
-    # s2: C1→C2 junction has A1(200) only
-    assert jdf.loc["s2", "100_f__200_f"] == 200.0
-    # s2: C2→C3 junction has A3(300)
-    assert jdf.loc["s2", "200_f__300_f"] == 300.0
-    # s3: C1→C3 junction has A2(150)
-    assert jdf.loc["s3", "100_f__300_f"] == 150.0
-    # s3: C2→C4 junction has A3(300)
-    assert jdf.loc["s3", "200_f__400_f"] == 300.0
-
-    # empty junctions have length 0
-    assert jdf.loc["s1", "200_f__300_f"] == 0.0
-    assert jdf.loc["s1", "300_f__400_f"] == 0.0
-    assert jdf.loc["s1", "100_r__400_r"] == 0.0
-
-    # s3 doesn't have the C1→C2 edge (rearranged), so it's NaN
-    assert np.isnan(jdf.loc["s3", "100_f__200_f"])
-    # s1 doesn't have the s3-private edges
-    assert np.isnan(jdf.loc["s1", "100_f__300_f"])
-    assert np.isnan(jdf.loc["s1", "200_f__400_f"])
-
-
 def test_junctions_edge_freq(junction_pangraph):
     """Edge frequency is correct and sorted descending."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    _, stats_df = bj.dataframe()
-    edge_freq = stats_df["frequency"]
+    edge_freq = bj.stats()["frequency"]
 
     # C4→C1 edge is universal (all 3 strains)
     assert edge_freq["100_r__400_r"] == 3
@@ -211,11 +173,10 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
 def test_junction_positions_shape(junction_pangraph):
     """Position DataFrame has one row per (isolate, edge) with non-NaN junction length."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    jdf, _ = bj.dataframe()
     pos = bj.positions()
 
-    # Total non-NaN entries in jdf = number of position rows
-    n_junctions = jdf.notna().sum().sum()
+    # one position row per (iso, edge) carrying that junction
+    n_junctions = bj.stats()["frequency"].sum()
     assert len(pos) == n_junctions
     assert list(pos.columns) == [
         "left_start",
@@ -276,23 +237,6 @@ def test_path_junction_split_linear(linear_pangraph):
     assert junctions_s2[-1].right is None
 
 
-def test_junctions_dataframe_linear(linear_pangraph):
-    """DataFrame for linear paths excludes terminal junctions (no edge)."""
-    bj = BackboneJunctions(linear_pangraph, L_thr=500)
-    jdf, _ = bj.dataframe()
-
-    # Both strains share edges C1→C2 and C2→C3
-    assert jdf.shape[0] == 2  # 2 isolates
-    # s1 has: C1→C2 (A2, len=150), C2→C3 (empty, len=0)
-    # s2 has: C1→C2 (A3, len=300), C2→C3 (empty, len=0)
-    assert jdf.shape[1] == 2  # 2 edges (shared by both)
-
-    assert jdf.loc["s1", "100_f__200_f"] == 150.0
-    assert jdf.loc["s2", "100_f__200_f"] == 300.0
-    assert jdf.loc["s1", "200_f__300_f"] == 0.0
-    assert jdf.loc["s2", "200_f__300_f"] == 0.0
-
-
 def test_junction_positions_linear(linear_pangraph):
     """Positions work correctly for linear paths.
 
@@ -326,26 +270,13 @@ def plasmid_pangraph():
     return pp.Pangraph.from_json("tests/data/plasmids.json")
 
 
-def test_junctions_dataframe_smoke(plasmid_pangraph):
-    """dataframe() runs on the real plasmids dataset without errors."""
-    bj = BackboneJunctions(plasmid_pangraph, L_thr=500)
-    jdf, stats_df = bj.dataframe()
-
-    assert isinstance(jdf, pd.DataFrame)
-    assert isinstance(stats_df, pd.DataFrame)
-    assert jdf.shape[0] == len(plasmid_pangraph.strains())
-    assert jdf.shape[1] == len(stats_df)
-    assert (stats_df["frequency"] > 0).all()
-
-
 def test_junction_positions_smoke(plasmid_pangraph):
     """positions() runs on the real plasmids dataset without errors."""
     bj = BackboneJunctions(plasmid_pangraph, L_thr=500)
-    jdf, _ = bj.dataframe()
     pos = bj.positions()
 
     assert isinstance(pos, pd.DataFrame)
-    n_junctions = jdf.notna().sum().sum()
+    n_junctions = bj.stats()["frequency"].sum()
     assert len(pos) == n_junctions
     assert list(pos.columns) == [
         "left_start",
@@ -508,7 +439,7 @@ def test_sequences_nonexistent_edge(junction_pangraph):
 def test_sequences_smoke(plasmid_pangraph):
     """sequences() runs on the real plasmids dataset without errors."""
     bj = BackboneJunctions(plasmid_pangraph, L_thr=500)
-    jdf, stats_df = bj.dataframe()
+    stats_df = bj.stats()
 
     # Test on the most frequent edge
     top_edge = stats_df.index[0]
@@ -668,16 +599,13 @@ def test_junction_stats_linear(linear_pangraph):
     assert row["accessory_length"] == 0
 
 
-def test_backbone_dataframe_returns_stats(junction_pangraph):
-    """dataframe() returns (jdf, stats_df) where stats_df has correct columns."""
+def test_backbone_stats_columns(junction_pangraph):
+    """stats() returns a DataFrame with the documented column set."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    jdf, stats_df = bj.dataframe()
+    stats_df = bj.stats()
 
-    assert isinstance(jdf, pd.DataFrame)
     assert isinstance(stats_df, pd.DataFrame)
-    assert jdf.shape == (3, 7)
-
-    expected_cols = [
+    assert list(stats_df.columns) == [
         "frequency",
         "n_categories",
         "majority_category_freq",
@@ -687,11 +615,7 @@ def test_backbone_dataframe_returns_stats(junction_pangraph):
         "right_core_length",
         "accessory_length",
     ]
-    assert list(stats_df.columns) == expected_cols
     assert len(stats_df) == 7
-
-    # jdf columns should match stats_df index (same order)
-    assert list(jdf.columns) == list(stats_df.index)
 
 
 def test_junction_stats_smoke(plasmid_pangraph):

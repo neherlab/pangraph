@@ -3,7 +3,6 @@ from Bio.SeqRecord import SeqRecord
 
 from ..topology_utils import Walk
 from .junction import JunctionNode, Junction, path_junction_split
-from .dataframe import junctions_dataframe
 from .positions import junction_positions
 from .sequences import junction_sequences
 from .stats import junction_stats
@@ -84,24 +83,6 @@ class BackboneJunctions:
         """
         self._ensure_split()
         return junction_stats(self._edge_map, self._bdf)
-
-    def dataframe(self) -> tuple[pd.DataFrame, pd.DataFrame]:
-        """Build a pivot table of junction lengths per isolate/edge.
-
-        Returns:
-            A tuple (jdf, stats_df) where:
-            - jdf: DataFrame with isolates as rows, edges as columns, accessory
-              lengths as values. NaN for absent junctions. Columns sorted by
-              frequency descending.
-            - stats_df: Per-edge statistics DataFrame (see stats() for columns).
-        """
-        self._ensure_split()
-        stats_df = self.stats()
-        jdf = junctions_dataframe(self._edge_map, self._bdf)
-        if not jdf.empty:
-            # Sort columns by frequency (same order as stats_df index)
-            jdf = jdf[stats_df.index]
-        return jdf, stats_df
 
     def positions(self) -> pd.DataFrame:
         """Find genomic positions of flanking core blocks for each junction.
