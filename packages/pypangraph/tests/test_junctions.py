@@ -15,12 +15,12 @@ def test_path_junction_split(junction_pangraph):
     """Splitting s1 at core blocks produces 4 junctions with correct flanking edges."""
     pan = junction_pangraph
     bdf = pan.to_blockstats_df()
-    paths = tu.pangraph_to_path_dict(pan)
+    walks = tu.pangraph_to_walks(pan)
 
     def is_core(bid):
         return (bdf.loc[bid, "len"] >= 500) and bdf.loc[bid, "core"]
 
-    junctions = path_junction_split(paths["s1"], is_core)
+    junctions = path_junction_split(walks["s1"], is_core)
     assert len(junctions) == 4
 
     edges = [j.flanking_edge().to_str_id() for j in junctions]
@@ -42,12 +42,12 @@ def test_path_junction_split_rearranged(junction_pangraph):
     """Splitting s3 (rearranged) produces 4 junctions with different edges than s1/s2."""
     pan = junction_pangraph
     bdf = pan.to_blockstats_df()
-    paths = tu.pangraph_to_path_dict(pan)
+    walks = tu.pangraph_to_walks(pan)
 
     def is_core(bid):
         return (bdf.loc[bid, "len"] >= 500) and bdf.loc[bid, "core"]
 
-    junctions = path_junction_split(paths["s3"], is_core)
+    junctions = path_junction_split(walks["s3"], is_core)
     assert len(junctions) == 4
 
     edges = {j.flanking_edge().to_str_id() for j in junctions}
@@ -234,7 +234,7 @@ def test_path_junction_split_linear(linear_pangraph):
     """
     pan = linear_pangraph
     bdf = pan.to_blockstats_df()
-    paths = tu.pangraph_to_path_dict(pan)
+    walks = tu.pangraph_to_walks(pan)
 
     def is_core(bid):
         return (bdf.loc[bid, "len"] >= 500) and bdf.loc[bid, "core"]
@@ -242,7 +242,7 @@ def test_path_junction_split_linear(linear_pangraph):
     # s1: c5+ C1+ A2+ C2+ C3+
     # Expected: [None|c5+|C1+], [C1+||C2+], [C2+||C3+], no trailing (C3 is last)
     # Wait - trailing after C3 is empty, but left_node=C3 so we get [C3+||None]
-    junctions_s1 = path_junction_split(paths["s1"], is_core)
+    junctions_s1 = path_junction_split(walks["s1"], is_core)
 
     # Leading terminal: left=None, center=[c5+], right=C1+
     assert junctions_s1[0].left is None
@@ -263,7 +263,7 @@ def test_path_junction_split_linear(linear_pangraph):
     assert junctions_s1[1].flanking_edge() is not None
 
     # s2: C1+ A3+ C2+ C3+ c5+
-    junctions_s2 = path_junction_split(paths["s2"], is_core)
+    junctions_s2 = path_junction_split(walks["s2"], is_core)
 
     # No leading terminal (C1 is first)
     assert junctions_s2[0].left is None

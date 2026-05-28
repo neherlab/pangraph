@@ -37,7 +37,7 @@ class OrientedBlock:
 
 
 class Walk:
-    """An ordered traversal of oriented blocks (a path through the block graph)."""
+    """An ordered traversal of oriented blocks (a walk through the block graph)."""
 
     def __init__(self, nodes=None, circular=None) -> None:
         if nodes is None:
@@ -45,17 +45,17 @@ class Walk:
         self.nodes = nodes
         self.circular = circular
 
-    def add_left(self, node: OrientedBlock) -> None:
-        self.nodes.insert(0, node)
+    def add_left(self, oriented_block: OrientedBlock) -> None:
+        self.nodes.insert(0, oriented_block)
 
-    def add_right(self, node: OrientedBlock) -> None:
-        self.nodes.append(node)
+    def add_right(self, oriented_block: OrientedBlock) -> None:
+        self.nodes.append(oriented_block)
 
     def rotate_to(self, bid: str, strand: bool) -> "Walk":
         if not self.circular:
             raise ValueError("Walk is not circular")
         if bid not in [n.id for n in self.nodes]:
-            raise ValueError(f"Block {bid} not in path")
+            raise ValueError(f"Block {bid} not in walk")
         n = OrientedBlock(bid, strand)
         if n in self.nodes:
             idx = self.nodes.index(n)
@@ -66,8 +66,8 @@ class Walk:
             p = Walk(p.nodes[idx:] + p.nodes[:idx], circular=True)
         return p
 
-    def rotate_to_node(self, node: OrientedBlock) -> "Walk":
-        return self.rotate_to(node.id, node.strand)
+    def rotate_to_oriented_block(self, oriented_block: OrientedBlock) -> "Walk":
+        return self.rotate_to(oriented_block.id, oriented_block.strand)
 
     def invert(self) -> "Walk":
         return Walk([n.invert() for n in self.nodes[::-1]], circular=self.circular)
@@ -136,76 +136,76 @@ class Edge:
         return Edge(OrientedBlock.from_str_id(left), OrientedBlock.from_str_id(right))
 
 
-def pangraph_to_path_dict(pan):
-    """Creates a dictionary isolate -> path objects"""
+def pangraph_to_walks(pan):
+    """Creates a dictionary isolate -> Walk objects"""
     res = {}
     for name, path in pan.paths.items():
         B, S = pan.nodes.nodes_to_blocks(path.nodes)
-        nodes = [OrientedBlock(b, s) for b, s in zip(B, S)]
-        res[name] = Walk(nodes, path.circular)
+        oriented_blocks = [OrientedBlock(b, s) for b, s in zip(B, S)]
+        res[name] = Walk(oriented_blocks, path.circular)
     return res
 
 
-def filter_paths(paths, keep_f):
-    """Given a filter function, removes nodes that fail the condition from
-    the path dictionaries."""
+def filter_walks(walks, keep_f):
+    """Given a filter function, removes oriented blocks that fail the condition
+    from the walk dictionary."""
     res = {}
-    for iso, path in paths.items():
-        filt_path = Walk(
-            [node for node in path.nodes if keep_f(node.id)],
-            path.circular,
+    for iso, walk in walks.items():
+        filt_walk = Walk(
+            [ob for ob in walk.nodes if keep_f(ob.id)],
+            walk.circular,
         )
-        res[iso] = filt_path
+        res[iso] = filt_walk
     return res
 
 
-def path_categories(paths):
-    """Returns a list of touples, one per non-empty path, with the following info:
-    (count, path, [list of isolates])"""
+def walk_categories(walks):
+    """Returns a list of tuples, one per non-empty walk, with the following info:
+    (count, walk_nodes, [list of isolates])"""
     iso_list = defaultdict(list)
-    n_paths = defaultdict(int)
+    n_walks = defaultdict(int)
     nodes = {}
-    for iso, path in paths.items():
-        if len(path.nodes) > 0:
-            n_paths[path] += 1
-            iso_list[path].append(iso)
-            nodes[path] = path.nodes
+    for iso, walk in walks.items():
+        if len(walk.nodes) > 0:
+            n_walks[walk] += 1
+            iso_list[walk].append(iso)
+            nodes[walk] = walk.nodes
 
     # sort by count
-    path_cat = [(count, nodes[path], iso_list[path]) for path, count in n_paths.items()]
-    path_cat.sort(key=lambda x: x[0], reverse=True)
-    return path_cat
+    walk_cat = [(count, nodes[walk], iso_list[walk]) for walk, count in n_walks.items()]
+    walk_cat.sort(key=lambda x: x[0], reverse=True)
+    return walk_cat
 
 
-def path_edge_count(paths):
-    """Count internal edges of paths"""
+def walk_edge_count(walks):
+    """Count internal edges of walks"""
     ct = Counter()
-    for iso, p in paths.items():
-        L = len(p.nodes)
+    for iso, w in walks.items():
+        L = len(w.nodes)
         es = []
         for i in range(L - 1):
-            e = Edge(p.nodes[i], p.nodes[i + 1])
+            e = Edge(w.nodes[i], w.nodes[i + 1])
             es.append(e)
-        if p.circular:
-            e = Edge(p.nodes[-1], p.nodes[0])
+        if w.circular:
+            e = Edge(w.nodes[-1], w.nodes[0])
             es.append(e)
         ct.update(es)
     return dict(ct)
 
 
-def path_block_count(paths):
-    """Count internal blocks of paths"""
+def walk_block_count(walks):
+    """Count occurrences of each block across walks"""
     ct = Counter()
-    for iso, p in paths.items():
-        for node in p.nodes:
-            ct.update([node.id])
+    for iso, w in walks.items():
+        for ob in w.nodes:
+            ct.update([ob.id])
     return dict(ct)
 
 
-def find_mergers(paths):
+def find_mergers(walks):
     """Create a dictionary source -> sinks of block-ids to be merged"""
-    edge_ct = path_edge_count(paths)
-    block_ct = path_block_count(paths)
+    edge_ct = walk_edge_count(walks)
+    block_ct = walk_block_count(walks)
 
     mergers = {}
     for e, ec in edge_ct.items():

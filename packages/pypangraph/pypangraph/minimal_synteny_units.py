@@ -7,12 +7,12 @@ from . import topology_utils as tu
 
 def core_paths(pan, L_thr):
     bdf = pan.to_blockstats_df()
-    paths = tu.pangraph_to_path_dict(pan)
+    walks = tu.pangraph_to_walks(pan)
 
     def is_core(node_id):
         return (bdf.loc[node_id, "len"] >= L_thr) and bdf.loc[node_id, "core"]
 
-    return tu.filter_paths(paths, is_core)
+    return tu.filter_walks(walks, is_core)
 
 
 def flip_msu_to_most_common_orientation(paths):
@@ -44,7 +44,7 @@ def minimal_synteny_units(pan, L_thr: int, rotate: bool = True):
     MSU_order = sorted(MSU_len, key=MSU_len.get, reverse=True)
 
     # simplify paths
-    MSU_paths = tu.filter_paths(c_paths, lambda x: x in MSU_order)
+    MSU_paths = tu.filter_walks(c_paths, lambda x: x in MSU_order)
 
     # rename MSUs
     MSU_ids = {msu: f"MSU_{i}" for i, msu in enumerate(MSU_order)}
