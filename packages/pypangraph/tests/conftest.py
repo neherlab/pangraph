@@ -200,20 +200,36 @@ def build_sequence_pangraph_json():
     }
 
     blocks = {
-        "10": _make_block_with_edits(10, "AAACCC", {
-            1: None,
-            6: {"subs": [{"pos": 0, "alt": "T"}], "dels": [], "inss": []},
-        }),
-        "20": _make_block_with_edits(20, "GGGAAA", {
-            3: None,
-            4: None,
-        }),
-        "30": _make_block_with_edits(30, "TTC", {
-            2: None,
-        }),
-        "40": _make_block_with_edits(40, "ACG", {
-            5: None,
-        }),
+        "10": _make_block_with_edits(
+            10,
+            "AAACCC",
+            {
+                1: None,
+                6: {"subs": [{"pos": 0, "alt": "T"}], "dels": [], "inss": []},
+            },
+        ),
+        "20": _make_block_with_edits(
+            20,
+            "GGGAAA",
+            {
+                3: None,
+                4: None,
+            },
+        ),
+        "30": _make_block_with_edits(
+            30,
+            "TTC",
+            {
+                2: None,
+            },
+        ),
+        "40": _make_block_with_edits(
+            40,
+            "ACG",
+            {
+                5: None,
+            },
+        ),
     }
 
     paths = {
@@ -228,15 +244,15 @@ def build_sequence_pangraph_json():
 # Distinct and non-palindromic so junction sequence extraction (incl. reverse-complement)
 # can be verified. Lengths are variable and <20bp; the seven core blocks (10-70) are >10bp.
 INVERSION_CONS = {
-    "10": "ACGTTGCAACCA",      # C1, 12bp
-    "20": "TTGGAACCGGTTAC",    # C2, 14bp
-    "30": "GATTACAGGCT",       # C3, 11bp
+    "10": "ACGTTGCAACCA",  # C1, 12bp
+    "20": "TTGGAACCGGTTAC",  # C2, 14bp
+    "30": "GATTACAGGCT",  # C3, 11bp
     "40": "CCAGTACGTGACATCA",  # C4, 16bp
-    "50": "ACACGTGTACGTA",     # C5, 13bp
-    "60": "TGTCATGCAATGCAT",   # C6, 15bp
+    "50": "ACACGTGTACGTA",  # C5, 13bp
+    "60": "TGTCATGCAATGCAT",  # C6, 15bp
     "70": "GGATCCGAATTCAGTCA",  # C7, 17bp
-    "80": "ACGTGA",            # A1, 6bp (accessory)
-    "90": "TTCAGGCA",          # A2, 8bp (accessory)
+    "80": "ACGTGA",  # A1, 6bp (accessory)
+    "90": "TTCAGGCA",  # A2, 8bp (accessory)
 }
 
 

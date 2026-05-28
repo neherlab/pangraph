@@ -18,7 +18,9 @@ def junctions_dataframe(edge_map, bdf) -> pd.DataFrame:
     rows = []
     for edge_str, iso_junctions in edge_map.items():
         for iso, junction in iso_junctions.items():
-            length = sum(bdf.loc[node.id, "len"] for node in junction.center.nodes)
+            length = sum(
+                bdf.loc[ob.id, "len"] for ob in junction.center.oriented_blocks
+            )
             rows.append({"iso": iso, "edge": edge_str, "len": length})
     jdf = pd.DataFrame(rows)
     if jdf.empty:

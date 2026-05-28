@@ -18,14 +18,14 @@ def core_paths(pan, L_thr):
 def flip_msu_to_most_common_orientation(paths):
     orient = defaultdict(int)
     for iso, p in paths.items():
-        for n in p.nodes:
-            msu_id, strand = n.id, n.strand
+        for ob in p.oriented_blocks:
+            msu_id, strand = ob.id, ob.strand
             orient[msu_id] += 1 if strand else -1
 
     # flip all the ones with orient < 0
     for iso, p in paths.items():
-        nodes = [n.invert() if orient[n.id] < 0 else n for n in p.nodes]
-        paths[iso] = tu.Walk(nodes, p.circular)
+        flipped = [ob.invert() if orient[ob.id] < 0 else ob for ob in p.oriented_blocks]
+        paths[iso] = tu.Walk(flipped, p.circular)
 
     return paths
 

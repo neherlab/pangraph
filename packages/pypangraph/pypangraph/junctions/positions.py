@@ -31,15 +31,17 @@ def junction_positions(edge_map, pan) -> pd.DataFrame:
         for iso, junction in iso_junctions.items():
             left_row = pan.nodes.df.loc[str(junction.left.node_id)]
             right_row = pan.nodes.df.loc[str(junction.right.node_id)]
-            records.append({
-                "iso": iso,
-                "edge": edge_str,
-                "left_start": left_row["start"],
-                "left_end": left_row["end"],
-                "right_start": right_row["start"],
-                "right_end": right_row["end"],
-                "strand": junction.is_canonical(edge),
-            })
+            records.append(
+                {
+                    "iso": iso,
+                    "edge": edge_str,
+                    "left_start": left_row["start"],
+                    "left_end": left_row["end"],
+                    "right_start": right_row["start"],
+                    "right_end": right_row["end"],
+                    "strand": junction.is_canonical(edge),
+                }
+            )
 
     result = pd.DataFrame(records)
     if result.empty:

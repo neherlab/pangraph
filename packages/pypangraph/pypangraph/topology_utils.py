@@ -39,57 +39,61 @@ class OrientedBlock:
 class Walk:
     """An ordered traversal of oriented blocks (a walk through the block graph)."""
 
-    def __init__(self, nodes=None, circular=None) -> None:
-        if nodes is None:
-            nodes = []
-        self.nodes = nodes
+    def __init__(self, oriented_blocks=None, circular=None) -> None:
+        if oriented_blocks is None:
+            oriented_blocks = []
+        self.oriented_blocks = oriented_blocks
         self.circular = circular
 
     def add_left(self, oriented_block: OrientedBlock) -> None:
-        self.nodes.insert(0, oriented_block)
+        self.oriented_blocks.insert(0, oriented_block)
 
     def add_right(self, oriented_block: OrientedBlock) -> None:
-        self.nodes.append(oriented_block)
+        self.oriented_blocks.append(oriented_block)
 
     def rotate_to(self, bid: str, strand: bool) -> "Walk":
         if not self.circular:
             raise ValueError("Walk is not circular")
-        if bid not in [n.id for n in self.nodes]:
+        if bid not in [ob.id for ob in self.oriented_blocks]:
             raise ValueError(f"Block {bid} not in walk")
-        n = OrientedBlock(bid, strand)
-        if n in self.nodes:
-            idx = self.nodes.index(n)
-            p = Walk(self.nodes[idx:] + self.nodes[:idx], circular=True)
-        else:
-            p = self.invert()
-            idx = p.nodes.index(n)
-            p = Walk(p.nodes[idx:] + p.nodes[:idx], circular=True)
-        return p
+        target = OrientedBlock(bid, strand)
+        if target in self.oriented_blocks:
+            idx = self.oriented_blocks.index(target)
+            return Walk(
+                self.oriented_blocks[idx:] + self.oriented_blocks[:idx], circular=True
+            )
+        inv = self.invert()
+        idx = inv.oriented_blocks.index(target)
+        return Walk(
+            inv.oriented_blocks[idx:] + inv.oriented_blocks[:idx], circular=True
+        )
 
     def rotate_to_oriented_block(self, oriented_block: OrientedBlock) -> "Walk":
         return self.rotate_to(oriented_block.id, oriented_block.strand)
 
     def invert(self) -> "Walk":
-        return Walk([n.invert() for n in self.nodes[::-1]], circular=self.circular)
+        return Walk(
+            [ob.invert() for ob in self.oriented_blocks[::-1]], circular=self.circular
+        )
 
     def __invert__(self) -> "Walk":
         return self.invert()
 
     def __eq__(self, o: object) -> bool:
-        return self.nodes == o.nodes
+        return self.oriented_blocks == o.oriented_blocks
 
     def __hash__(self) -> int:
-        return hash(tuple(self.nodes))
+        return hash(tuple(self.oriented_blocks))
 
     def __repr__(self) -> str:
-        return "_".join([str(n) for n in self.nodes])
+        return "_".join([str(ob) for ob in self.oriented_blocks])
 
     def __len__(self) -> int:
-        return len(self.nodes)
+        return len(self.oriented_blocks)
 
     def rename_bids(self, bid_dict: dict) -> "Walk":
         return Walk(
-            [OrientedBlock(bid_dict[n.id], n.strand) for n in self.nodes],
+            [OrientedBlock(bid_dict[ob.id], ob.strand) for ob in self.oriented_blocks],
             circular=self.circular,
         )
 
@@ -152,7 +156,7 @@ def filter_walks(walks, keep_f):
     res = {}
     for iso, walk in walks.items():
         filt_walk = Walk(
-            [ob for ob in walk.nodes if keep_f(ob.id)],
+            [ob for ob in walk.oriented_blocks if keep_f(ob.id)],
             walk.circular,
         )
         res[iso] = filt_walk
@@ -161,18 +165,20 @@ def filter_walks(walks, keep_f):
 
 def walk_categories(walks):
     """Returns a list of tuples, one per non-empty walk, with the following info:
-    (count, walk_nodes, [list of isolates])"""
+    (count, oriented_blocks, [list of isolates])"""
     iso_list = defaultdict(list)
     n_walks = defaultdict(int)
-    nodes = {}
+    walk_obs = {}
     for iso, walk in walks.items():
-        if len(walk.nodes) > 0:
+        if len(walk.oriented_blocks) > 0:
             n_walks[walk] += 1
             iso_list[walk].append(iso)
-            nodes[walk] = walk.nodes
+            walk_obs[walk] = walk.oriented_blocks
 
     # sort by count
-    walk_cat = [(count, nodes[walk], iso_list[walk]) for walk, count in n_walks.items()]
+    walk_cat = [
+        (count, walk_obs[walk], iso_list[walk]) for walk, count in n_walks.items()
+    ]
     walk_cat.sort(key=lambda x: x[0], reverse=True)
     return walk_cat
 
@@ -181,14 +187,13 @@ def walk_edge_count(walks):
     """Count internal edges of walks"""
     ct = Counter()
     for iso, w in walks.items():
-        L = len(w.nodes)
+        obs = w.oriented_blocks
+        L = len(obs)
         es = []
         for i in range(L - 1):
-            e = Edge(w.nodes[i], w.nodes[i + 1])
-            es.append(e)
+            es.append(Edge(obs[i], obs[i + 1]))
         if w.circular:
-            e = Edge(w.nodes[-1], w.nodes[0])
-            es.append(e)
+            es.append(Edge(obs[-1], obs[0]))
         ct.update(es)
     return dict(ct)
 
@@ -197,7 +202,7 @@ def walk_block_count(walks):
     """Count occurrences of each block across walks"""
     ct = Counter()
     for iso, w in walks.items():
-        for ob in w.nodes:
+        for ob in w.oriented_blocks:
             ct.update([ob.id])
     return dict(ct)
 

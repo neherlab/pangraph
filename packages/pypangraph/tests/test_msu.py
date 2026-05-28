@@ -29,8 +29,8 @@ class TestPath:
         p1 = tu.Walk()
         p2 = tu.Walk()
         p1.add_right(tu.OrientedBlock("A", True))
-        assert p1.nodes == [tu.OrientedBlock("A", True)]
-        assert p2.nodes == []
+        assert p1.oriented_blocks == [tu.OrientedBlock("A", True)]
+        assert p2.oriented_blocks == []
 
     def test_eq(self):
         n1 = tu.OrientedBlock("A", True)
@@ -68,7 +68,11 @@ class TestPath:
         n3 = tu.OrientedBlock("C", True)
         p = tu.Walk([n1, n2, n3], circular=True)
         assert p.rename_bids({"A": "X", "B": "Y", "C": "Z"}) == tu.Walk(
-            [tu.OrientedBlock("X", True), tu.OrientedBlock("Y", False), tu.OrientedBlock("Z", True)],
+            [
+                tu.OrientedBlock("X", True),
+                tu.OrientedBlock("Y", False),
+                tu.OrientedBlock("Z", True),
+            ],
             circular=True,
         )
 
@@ -255,14 +259,18 @@ def test_minimal_synteny_units_rc_collapse(inversion_pangraph):
     }
 
     expected_ref = tu.Walk(
-        [tu.OrientedBlock("MSU_0", True), tu.OrientedBlock("MSU_1", True)], circular=True
+        [tu.OrientedBlock("MSU_0", True), tu.OrientedBlock("MSU_1", True)],
+        circular=True,
     )
     expected_s3 = tu.Walk(
-        [tu.OrientedBlock("MSU_0", True), tu.OrientedBlock("MSU_1", False)], circular=True
+        [tu.OrientedBlock("MSU_0", True), tu.OrientedBlock("MSU_1", False)],
+        circular=True,
     )
     assert MSU_paths["s1"] == expected_ref
     assert MSU_paths["s2"] == expected_ref  # RC collapses onto the reference
-    assert MSU_paths["s3"] == expected_s3  # the inversion survives as a flipped MSU node
+    assert (
+        MSU_paths["s3"] == expected_s3
+    )  # the inversion survives as a flipped MSU node
     assert all(p.circular for p in MSU_paths.values())
 
 
@@ -289,9 +297,9 @@ def test_flip_msu_to_most_common_orientation():
 
     assert result is paths  # mutates in place and returns the same dict
     # X net = (-1) + (-1) + (+1) = -1 < 0 -> every X occurrence flipped
-    assert paths["a"].nodes[0] == tu.OrientedBlock("X", True)
-    assert paths["b"].nodes[0] == tu.OrientedBlock("X", True)
-    assert paths["c"].nodes[0] == tu.OrientedBlock("X", False)
+    assert paths["a"].oriented_blocks[0] == tu.OrientedBlock("X", True)
+    assert paths["b"].oriented_blocks[0] == tu.OrientedBlock("X", True)
+    assert paths["c"].oriented_blocks[0] == tu.OrientedBlock("X", False)
     # Y net positive -> unchanged
-    assert paths["a"].nodes[1] == tu.OrientedBlock("Y", True)
-    assert paths["c"].nodes[1] == tu.OrientedBlock("Y", True)
+    assert paths["a"].oriented_blocks[1] == tu.OrientedBlock("Y", True)
+    assert paths["c"].oriented_blocks[1] == tu.OrientedBlock("Y", True)

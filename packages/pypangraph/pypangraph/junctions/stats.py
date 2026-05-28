@@ -23,7 +23,9 @@ def _co_oriented_center_paths(edge_str, iso_junctions):
     edge = Edge.from_str_id(edge_str)
     result = {}
     for iso, junction in iso_junctions.items():
-        result[iso] = junction.center if junction.is_canonical(edge) else junction.center.invert()
+        result[iso] = (
+            junction.center if junction.is_canonical(edge) else junction.center.invert()
+        )
     return result
 
 
@@ -59,8 +61,8 @@ def _edge_stats(edge_str, iso_junctions, bdf):
     # Unique accessory content: collect all distinct block IDs across all isolates
     unique_block_ids = set()
     for junction in iso_junctions.values():
-        for node in junction.center.nodes:
-            unique_block_ids.add(node.id)
+        for ob in junction.center.oriented_blocks:
+            unique_block_ids.add(ob.id)
     accessory_length = sum(bdf.loc[bid, "len"] for bid in unique_block_ids)
 
     return {

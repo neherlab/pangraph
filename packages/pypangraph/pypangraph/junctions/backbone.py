@@ -39,11 +39,13 @@ class BackboneJunctions:
         self._edge_map = {}
         for name, path in self.pan.paths.items():
             # create a Walk from a Path object, including accessory blocks
-            nodes = []
+            oriented_blocks = []
             for nid in path.nodes:
                 row = self.pan.nodes.df.loc[str(nid)]
-                nodes.append(JunctionNode(row["block_id"], row["strand"], nid))
-            tu_path = Walk(nodes, path.circular)
+                oriented_blocks.append(
+                    JunctionNode(row["block_id"], row["strand"], nid)
+                )
+            tu_path = Walk(oriented_blocks, path.circular)
 
             juncs = path_junction_split(tu_path, self._is_backbone)
             self._junctions[name] = juncs

@@ -101,7 +101,7 @@ def path_junction_split(path: Walk, is_core) -> list[Junction]:
         ValueError: if the path has fewer than two core blocks, in which case no
             junction can be defined (and a circular path would have no flanks at all).
     """
-    n_core = sum(1 for node in path.nodes if is_core(node.id))
+    n_core = sum(1 for ob in path.oriented_blocks if is_core(ob.id))
     if n_core < 2:
         raise ValueError(
             f"path has {n_core} core block(s); at least 2 are required to define a junction"
@@ -112,20 +112,20 @@ def path_junction_split(path: Walk, is_core) -> list[Junction]:
 
     current = []
     left_node = None
-    for node in path.nodes:
-        if is_core(node.id):
-            J = Junction(left_node, Walk(current), node)
+    for ob in path.oriented_blocks:
+        if is_core(ob.id):
+            J = Junction(left_node, Walk(current), ob)
             junctions.append(J)
-            left_node = node
+            left_node = ob
             current = []
         else:
-            current.append(node)
+            current.append(ob)
 
     if path.circular:
         # complete periodic boundary: merge trailing non-core nodes into the first junction
         J = junctions[0]
         J.left = left_node
-        J.center = Walk(current + J.center.nodes)
+        J.center = Walk(current + J.center.oriented_blocks)
         junctions[0] = J
     elif current or left_node is not None:
         # trailing accessory nodes after the last core block
