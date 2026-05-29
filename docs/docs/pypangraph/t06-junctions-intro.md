@@ -14,10 +14,7 @@ To define junctions, we first identify **backbone blocks**: core blocks (present
 
 A **junction** is the segment on a given genome's path between two consecutive backbone blocks:
 
-```
-   [left backbone block] ── accessory center ── [right backbone block]
-         (core)           (0 or more blocks)          (core)
-```
+![junction scheme](../assets/pp_t6_junction_scheme.png)
 
 The two flanking backbone blocks define an **edge**, identified by a string encoding the block IDs and strand of the flanks (e.g. `"124231456905500231_f__1603316146112203317_f"`). Different isolates that share the same edge can have different accessory content in the center — different blocks, different lengths, or no accessory blocks at all.
 
