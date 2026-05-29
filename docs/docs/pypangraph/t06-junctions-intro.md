@@ -2,91 +2,138 @@
 sidebar_position: 8
 ---
 
-# Junctions: accessory genome structure
+# Junctions: comparing local accessory variation
 
-When comparing closely related bacterial genomes, the core genome is largely syntenic — long stretches of conserved blocks appear in the same order across isolates. Between these conserved blocks, segments of **accessory** DNA (insertions, deletions, mobile elements) vary from one genome to another. A **junction** captures one such segment together with its flanking core blocks, providing a natural unit for comparing structural variation across isolates.
+When comparing closely related bacterial genomes, the core genome is often largely **syntenic** — long stretches of conserved blocks appear in the same order across isolates. Between these conserved blocks, segments of **accessory** DNA (insertions, deletions, mobile elements) vary from one genome to another.
 
-In this tutorial we introduce the junction concept and the `BackboneJunctions` class, which is the main entry point for junction analysis in pypangraph.
+The largely conserved order of core segments provide a natural **frame of reference** to meaningfully break down and compare local accessory variation across isolates. To this end we introduce the concept of a **junction**: a region of the graph encompassing two adjacent core blocks.
 
 ## What is a junction?
 
-To define junctions, we first identify **backbone blocks**: core blocks (present exactly once in every genome) whose consensus length is at least `L_thr` base pairs (default 500). These long, universally conserved blocks form a stable "spine" through the pangenome.
-
-A **junction** is the segment on a given genome's path between two consecutive backbone blocks:
+A **junction** is defined as the part of the graph spanning two consecutive core-blocks. It starts and ends with the **two flanking core blocks** that serve as anchor points, and can contain various degrees of accessory diversity in-between.
 
 ![junction scheme](../assets/pp_t6_junction_scheme.png)
 
-The two flanking backbone blocks define an **edge**, identified by a string encoding the block IDs and strand of the flanks (e.g. `"124231456905500231_f__1603316146112203317_f"`). Different isolates that share the same edge can have different accessory content in the center — different blocks, different lengths, or no accessory blocks at all.
+### Unique identifiers for junctions: core edges
 
-:::info edge string format
+A graph can contain a large amount of junctions. How to uniquely identify them?
 
-Edge strings have the format `<left_block_id>_<strand>__<right_block_id>_<strand>`, where `_f` means forward strand and `_r` means reverse. Each edge has a single canonical ID: the lexicographically smaller of the two possible orientations (the edge vs. its reverse complement).
+The defining feature of a junction are the two flanking core blocks. Their identity and _orientation_ determines the identity of the junction.
 
-:::
+We call a **core edge** the oriented adjacency relation of two core blocks, neglecting accessory blocks in-between. In the example below, core blocks `X` and `Y` form a core edge with orientation `[X+|Y-]`.
 
-## Creating BackboneJunctions
+This notation indicates that in genomes we observe first a sequence homologous to the consensus sequence of block `X` (denoted as `X+`) and then (potentially after an accessory region) a sequence homologous to the _reverse complement_ of the consensus sequence of block `Y` (denoted as `Y-`).
 
-We start by loading a graph and creating a `BackboneJunctions` object:
+The same junction region can occur with different strandedness on different genomes, but it should still be identified as the same junction.
+For this reason we define core-edges to be **invariant under reverse-complementation**, so `[X+|Y-]` and its reverse complement `[Y+|X-]` correspond to the same core edge.
+
+![edge scheme](../assets/pp_t6_core_edge_scheme.png)
+
+In pypangraph core edges are identified by a string of the form `X_a__Y_b`, where `X` and `Y` are large integers corresponding to the `block_id` of the two blocks, and `a` and `b` are either `f` or `r`, indicating respectively forward (`+`) or reverse (`-`) orientation.
+
+Since edges are equivalent under reverse-complementation, there are actually two possible strings that can identify an edge. To break the tie we take the lexicographically smaller. This order defines the **canonical orientation** of the junction.
+
+## The `junctions` module in pypangraph
+
+Pypangraph has a `junction` module to facilitate junction analyses.
+
+In this part of the tutorial we will load and explore the `staph.json.gz` file, which contains a pangraph of 15 _Staphylococcus aureus_ chromosomes. You can download it from the pypangraph repository at [`packages/pypangraph/tests/data/staph.json.gz`](https://raw.githubusercontent.com/neherlab/pangraph/master/packages/pypangraph/tests/data/staph.json.gz).
+
+<details>
+    <summary>how was `staph.json.gz` built?</summary>
+
+    The graph was built from 15 complete _S. aureus_ chromosomes downloaded from NCBI. To reproduce it, fetch the sequences and run `pangraph build`:
+
+    ```bash
+    ACCESSIONS="NZ_CP132362.1,NZ_LR822061.1,NZ_CP077852.1,NZ_CP162433.1,NZ_CP034011.1,NZ_CP092558.1,NZ_CP062358.1,NZ_CP132372.1,NZ_AP024511.1,NZ_CP181145.1,NZ_CP157420.1,NZ_CP080550.1,NZ_CP169947.1,NZ_CP022905.1,NZ_CP035791.1"
+
+    # download the sequences in FASTA format
+    curl -L "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=${ACCESSIONS}&rettype=fasta&retmode=text" > staph.fa
+
+    # build the pangraph
+    pangraph build --circular -l 100 -s 20 -b 5 staph.fa -o staph.json.gz
+    ```
+</details>
+
+We start by loading the graph and creating a `BackboneJunctions` object. This class identifies junctions in the graph and provides methods to analyze them.
 
 ```python
 import pypangraph as pp
 
-graph = pp.Pangraph.from_json("plasmids.json")
+graph = pp.Pangraph.from_json("staph.json.gz")
 print(graph)
-# pangraph object with 15 paths, 137 blocks and 1042 nodes
+# pangraph object with 15 paths, 664 blocks and 6817 nodes
 
-bj = pp.junctions.BackboneJunctions(graph, L_thr=500)
+junctions = pp.junctions.BackboneJunctions(graph, L_thr=500)
 ```
 
-The `L_thr` parameter controls which core blocks count as backbone. Only core blocks with consensus length >= `L_thr` are used as junction boundaries. Shorter core blocks are absorbed into the accessory center of junctions. This avoids splitting junctions at very small core blocks that may not represent stable genomic landmarks.
+The constructor takes only two arguments: the graph object and a length threshold `L_thr` (default 500 bp). Core blocks shorter than this threshold are considered as too short to be reliable anchors, and are considered equivalent to accessory blocks for the purpose of junction definition.
 
-Results are lazily computed: the first call to any method triggers the path splitting, after which results are cached.
+### A look at edges
 
-## Listing edges and junctions
+The graph has a total of 143 valid anchor core blocks.
 
 ```python
-edges = bj.edges()
-print(f"Number of edges: {len(edges)}")
-# Number of edges: 20
-
-print(edges[:3])
-# ['124231456905500231_r__865151745502309237_r',
-#  '124231456905500231_f__1603316146112203317_f',
-#  '1603316146112203317_f__8434022508348362741_f']
+graph.to_blockstats_df().query("len > 500")["core"].sum()
+# 143 core blocks
 ```
 
-We can also list junctions for a specific isolate:
+We can get the list of edges with:
 
 ```python
-juncs = bj.junctions_for("RCS48_p1")
-print(f"Number of junctions: {len(juncs)}")
-# Number of junctions: 20
-
-# inspect one junction
-j = juncs[0]
-print(j)
-# [865151745502309237|+|n...] <-- [14710...|+|n...]_[8000...|+|n...]_... --> [124231...|+|n...]
+print(junctions.edges())
+# ['13733442150340492168_f__17042526223432838337_f',
+#  '12427448985183016017_f__13733442150340492168_f',
+#  '12427448985183016017_r__14846644350907526570_f',
+#  '11809679528571820295_f__14846644350907526570_r',
+#  ...
+# ]
+# a total of 151 edges
 ```
 
-Each junction has a `left` flank, a `center` (a path of accessory blocks), and a `right` flank.
+There are 151 edges, which is only slightly more than the number of valid anchor blocks. This means that, as expected, the order of core blocks is strongly conserved across genomes, and across the whole dataset we expect to observe only a handful of synteny changes.
 
-## Co-orientation
+### A single junction
 
-Junctions for the same edge may appear in opposite orientations on different genomes: one genome reads the junction left-to-right, while another traverses it right-to-left. The `BackboneJunctions` class handles co-orientation automatically when comparing junctions or extracting sequences. This is transparent to the user in most cases.
+To get a feel for what a junction actually looks like, let's pick one and inspect it. The `junction_for` method returns the junction observed on a given isolate for a given edge:
 
-<details>
-<summary>How co-orientation works</summary>
+```python
+J = junctions.junction_for(
+    isolate="NZ_CP162433.1",
+    edge_str="3156970751805415521_f__4335229004353524956_f",
+)
 
-The canonical edge string defines a reference direction. When a junction's left flank matches the canonical edge's left block (same block ID and strand), the junction is in canonical orientation. Otherwise, it is inverted.
+print(J)
+# [4335229004353524956|-|n9037...] <-- [8061...|-|n6246...]_[12150...|-|n15781...] --> [3156970751805415521|-|n4000...]
+```
 
-For operations like computing path categories (to determine if two isolates have the same accessory content) or extracting sequences, junctions are co-oriented to the canonical direction before comparison. This ensures that the same accessory content is recognized as identical regardless of which direction a genome traverses it.
+The `repr` summarises the three pieces of the junction — the left flanking core block, the center walk of accessory blocks, and the right flanking core block — each printed as `[block_id|strand|node_id]`.
 
-</details>
+The three pieces are accessible as attributes:
 
-## Next steps
+```python
+print(J.left)
+# [4335229004353524956|-|n9037460965821963980]
+print(J.right)
+# [3156970751805415521|-|n4000080501404186153]
+print(J.center)
+# [8061287138899943998|-|n6246290944320777144]_[12150994386844653378|-|n15781614871823306740]
+print(len(J.center))
+# 2
+```
 
-In the following tutorials we explore junction analysis in more detail:
+So on this isolate the junction sits between core blocks `4335229004353524956` (7962 bp) and `3156970751805415521` (5601 bp), with two accessory blocks of length 167 bp and 1345 bp between them.
 
-- [Junction statistics](t07-junction-stats.md) — characterize structural variation across isolates
-- [Junction genomic positions](t08-junction-positions.md) — map junctions to genomic coordinates
-- [Extracting junction sequences](t09-junction-sequences.md) — export co-oriented sequences for downstream analysis
+Note that both flanking blocks appear on the reverse strand (`|-|`) and in swapped order with respect to the canonical edge ID we asked for (`3156970751805415521_f__4335229004353524956_f`). This is the reverse-complement symmetry introduced earlier: this isolate carries the junction in its reverse orientation, but the edge ID — the canonical, orientation-invariant identifier — is the same. The `Junction.is_canonical` method tells you which orientation a junction is in relative to its edge:
+
+```python
+edge = J.flanking_edge()
+print(edge.to_str_id())
+# 3156970751805415521_f__4335229004353524956_f
+print(J.is_canonical(edge))
+# False
+```
+
+## Next: from single junctions to summary statistics
+
+Inspecting individual junctions like the one above gives a concrete sense of what a junction is, but a graph contains _hundreds of them_ — going through one at a time quickly becomes impractical. To get an overview of the structural variation landscape, and to spot the junctions worth zooming in on, we need **summary statistics** across all junctions. This will be the focus of the [next part of the tutorial](t07-junction-stats.md).

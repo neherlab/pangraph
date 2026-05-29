@@ -6,6 +6,8 @@ sidebar_position: 9
 
 After identifying junctions (see [introduction](t06-junctions-intro.md)), we can compute per-edge statistics to characterize the landscape of structural variation. Which junctions are conserved? Which show diversity? Are there insertions unique to a single isolate?
 
+![stats scheme](../assets/pp_t7_stats_scheme.png)
+
 ## Computing junction statistics
 
 ```python
@@ -16,23 +18,24 @@ bj = pp.junctions.BackboneJunctions(graph, L_thr=500)
 
 stats = bj.stats()
 print(stats)
-#                                                    frequency  n_categories  majority_category_freq  is_transitive  is_singleton  ...
+#                                                    n_isolates  n_non_empty  n_categories  n_majority_category  is_transitive  is_singleton  ...
 # edge
-# 124231456905500231_r__865151745502309237_r               15            10                       3          False         False  ...
-# 124231456905500231_f__1603316146112203317_f              15             2                      14          False          True  ...
-# 1603316146112203317_f__8434022508348362741_f             15             3                      12          False         False  ...
+# 124231456905500231_r__865151745502309237_r                 15           15            10                    3          False         False  ...
+# 124231456905500231_f__1603316146112203317_f                15            1             2                   14          False          True  ...
+# 1603316146112203317_f__8434022508348362741_f               15           15             3                   12          False         False  ...
 # ...
 ```
 
 ## Understanding the columns
 
-The statistics dataframe has one row per edge (sorted by frequency descending) with the following columns:
+The statistics dataframe has one row per edge (sorted by `n_isolates` descending) with the following columns:
 
-- **`frequency`**: number of isolates that have this junction. When frequency equals the total number of isolates, the junction is universal — the flanking backbone blocks appear consecutively in all genomes.
+- **`n_isolates`**: number of isolates that have this junction. When `n_isolates` equals the total number of isolates, the junction is universal — the flanking backbone blocks appear consecutively in all genomes.
+- **`n_non_empty`**: number of isolates where the junction is non-empty (carries at least one accessory block). The complement, `n_isolates - n_non_empty`, is the count of isolates where the two flanking backbone blocks sit directly adjacent with no accessory content in between.
 - **`n_categories`**: number of distinct accessory path variants. A "category" is a unique sequence of accessory block IDs. All isolates with no accessory blocks (empty center) count as one category.
-- **`majority_category_freq`**: count of the most common variant. Together with `n_categories`, this tells you how diverse the junction is.
+- **`n_majority_category`**: number of isolates in the most common variant. Together with `n_categories`, this tells you how diverse the junction is.
 - **`is_transitive`**: `True` if `n_categories == 1` — all isolates sharing this edge have the same accessory structure (including all-empty).
-- **`is_singleton`**: `True` if exactly one isolate has a different variant from all others (`frequency > 1` and `majority_category_freq == frequency - 1`).
+- **`is_singleton`**: `True` if exactly one isolate has a different variant from all others (`n_isolates > 1` and `n_majority_category == n_isolates - 1`).
 - **`left_core_length`** / **`right_core_length`**: consensus length (bp) of the left and right flanking backbone blocks.
 - **`accessory_length`**: total unique accessory content — the sum of consensus lengths of all distinct accessory block IDs appearing in any isolate's center path for this edge. Each block is counted once even if it appears in multiple isolates.
 
@@ -58,7 +61,7 @@ To select only universal junctions (present in all isolates):
 
 ```python
 N = len(graph.paths)
-universal = stats[stats["frequency"] == N]
+universal = stats[stats["n_isolates"] == N]
 print(f"Universal junctions: {len(universal)}")
 # Universal junctions: 20
 ```
@@ -75,15 +78,15 @@ print(f"Singletons: {stats['is_singleton'].sum()}")
 
 ## Visualizing junction statistics
 
-### Frequency distribution
+### Isolate-count distribution
 
-A histogram of junction frequencies shows how many junctions are universal vs. rare:
+A histogram of `n_isolates` shows how many junctions are universal vs. rare:
 
 ```python
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-sns.histplot(stats, x="frequency", discrete=True)
+sns.histplot(stats, x="n_isolates", discrete=True)
 plt.xlabel("Number of isolates")
 plt.ylabel("Number of junctions")
 ```
