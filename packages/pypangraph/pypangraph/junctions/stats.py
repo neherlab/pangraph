@@ -41,7 +41,8 @@ def _edge_stats(edge_str, iso_junctions, bdf):
         dict with stat column names as keys.
     """
     edge = Edge.from_str_id(edge_str)
-    frequency = len(iso_junctions)
+    n_isolates = len(iso_junctions)
+    n_non_empty = sum(1 for j in iso_junctions.values() if len(j.center) > 0)
 
     # Co-orient center paths, then group identical ones into categories. The empty
     # path (junction with no accessory blocks) is a category in its own right, so it
@@ -50,9 +51,9 @@ def _edge_stats(edge_str, iso_junctions, bdf):
     category_counts = Counter(center_paths.values())
 
     n_categories = len(category_counts)
-    majority_category_freq = max(category_counts.values())
+    n_majority_category = max(category_counts.values())
     is_transitive = n_categories == 1
-    is_singleton = frequency > 1 and majority_category_freq == frequency - 1
+    is_singleton = n_isolates > 1 and n_majority_category == n_isolates - 1
 
     # Core block lengths
     left_core_length = bdf.loc[edge.left.id, "len"]
@@ -66,9 +67,10 @@ def _edge_stats(edge_str, iso_junctions, bdf):
     accessory_length = sum(bdf.loc[bid, "len"] for bid in unique_block_ids)
 
     return {
-        "frequency": frequency,
+        "n_isolates": n_isolates,
+        "n_non_empty": n_non_empty,
         "n_categories": n_categories,
-        "majority_category_freq": majority_category_freq,
+        "n_majority_category": n_majority_category,
         "is_transitive": is_transitive,
         "is_singleton": is_singleton,
         "left_core_length": left_core_length,
@@ -88,31 +90,34 @@ def junction_stats(edge_map, bdf):
 
     Returns:
         DataFrame with edge string IDs as index and columns:
-        - frequency: number of isolates with this junction
+        - n_isolates: number of isolates with this junction
+        - n_non_empty: number of isolates whose center path has at least one
+          accessory block (`n_isolates - n_non_empty` gives the empty-junction count)
         - n_categories: number of distinct center path variants
-        - majority_category_freq: count of the most common variant
+        - n_majority_category: count of isolates in the most common variant
         - is_transitive: True if only one variant exists
         - is_singleton: True if all but one isolate share the same variant
         - left_core_length: consensus length of left flanking core block
         - right_core_length: consensus length of right flanking core block
         - accessory_length: total unique accessory content (sum of distinct blocks consensus lengths)
 
-        Sorted by frequency descending.
+        Sorted by `n_isolates` descending.
     """
-    # TODO: one could add more stats. E.g. the number of empty paths (no accessory blocks), the average non-empty accessory length.
+    # TODO: one could add more stats. E.g. the average non-empty accessory length.
     records = {}
     for edge_str, iso_junctions in edge_map.items():
         records[edge_str] = _edge_stats(edge_str, iso_junctions, bdf)
 
     df = pd.DataFrame.from_dict(records, orient="index")
     df.index.name = "edge"
-    df = df.sort_values("frequency", ascending=False)
+    df = df.sort_values("n_isolates", ascending=False)
 
     # Ensure integer types for count columns
     for col in [
-        "frequency",
+        "n_isolates",
+        "n_non_empty",
         "n_categories",
-        "majority_category_freq",
+        "n_majority_category",
         "left_core_length",
         "right_core_length",
         "accessory_length",

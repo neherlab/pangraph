@@ -77,9 +77,9 @@ class BackboneJunctions:
 
         Returns:
             DataFrame with edge string IDs as index and columns:
-            frequency, n_categories, majority_category_freq, is_transitive,
-            is_singleton, left_core_length, right_core_length, accessory_length.
-            Sorted by frequency descending.
+            n_isolates, n_non_empty, n_categories, n_majority_category,
+            is_transitive, is_singleton, left_core_length, right_core_length,
+            accessory_length. Sorted by `n_isolates` descending.
         """
         self._ensure_split()
         return junction_stats(self._edge_map, self._bdf)

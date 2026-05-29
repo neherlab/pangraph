@@ -71,9 +71,9 @@ def test_path_junction_split_requires_two_core_blocks():
 
 
 def test_junctions_edge_freq(junction_pangraph):
-    """Edge frequency is correct and sorted descending."""
+    """Edge isolate count is correct and sorted descending."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    edge_freq = bj.stats()["frequency"]
+    edge_freq = bj.stats()["n_isolates"]
 
     # C4→C1 edge is universal (all 3 strains)
     assert edge_freq["100_r__400_r"] == 3
@@ -176,7 +176,7 @@ def test_junction_positions_shape(junction_pangraph):
     pos = bj.positions()
 
     # one position row per (iso, edge) carrying that junction
-    n_junctions = bj.stats()["frequency"].sum()
+    n_junctions = bj.stats()["n_isolates"].sum()
     assert len(pos) == n_junctions
     assert list(pos.columns) == [
         "left_start",
@@ -276,7 +276,7 @@ def test_junction_positions_smoke(plasmid_pangraph):
     pos = bj.positions()
 
     assert isinstance(pos, pd.DataFrame)
-    n_junctions = bj.stats()["frequency"].sum()
+    n_junctions = bj.stats()["n_isolates"].sum()
     assert len(pos) == n_junctions
     assert list(pos.columns) == [
         "left_start",
@@ -443,7 +443,7 @@ def test_sequences_smoke(plasmid_pangraph):
 
     # Test on the most frequent edge
     top_edge = stats_df.index[0]
-    top_freq = stats_df.loc[top_edge, "frequency"]
+    top_freq = stats_df.loc[top_edge, "n_isolates"]
     records = bj.sequences(top_edge)
     assert len(records) == top_freq
     for r in records:
@@ -464,57 +464,64 @@ def test_junction_stats_values(junction_pangraph):
 
     expected = {
         "100_r__400_r": {
-            "frequency": 3,
+            "n_isolates": 3,
+            "n_non_empty": 0,
             "n_categories": 1,
-            "majority_category_freq": 3,
+            "n_majority_category": 3,
             "left_core_length": 1000,
             "right_core_length": 700,
             "accessory_length": 0,
         },
         "100_f__200_f": {
-            "frequency": 2,
+            "n_isolates": 2,
+            "n_non_empty": 2,
             "n_categories": 2,
-            "majority_category_freq": 1,
+            "n_majority_category": 1,
             "left_core_length": 1000,
             "right_core_length": 800,
             "accessory_length": 350,
         },
         "200_f__300_f": {
-            "frequency": 2,
+            "n_isolates": 2,
+            "n_non_empty": 1,
             "n_categories": 2,
-            "majority_category_freq": 1,
+            "n_majority_category": 1,
             "left_core_length": 800,
             "right_core_length": 600,
             "accessory_length": 300,
         },
         "300_f__400_f": {
-            "frequency": 2,
+            "n_isolates": 2,
+            "n_non_empty": 0,
             "n_categories": 1,
-            "majority_category_freq": 2,
+            "n_majority_category": 2,
             "left_core_length": 600,
             "right_core_length": 700,
             "accessory_length": 0,
         },
         "100_f__300_f": {
-            "frequency": 1,
+            "n_isolates": 1,
+            "n_non_empty": 1,
             "n_categories": 1,
-            "majority_category_freq": 1,
+            "n_majority_category": 1,
             "left_core_length": 1000,
             "right_core_length": 600,
             "accessory_length": 150,
         },
         "200_f__400_f": {
-            "frequency": 1,
+            "n_isolates": 1,
+            "n_non_empty": 1,
             "n_categories": 1,
-            "majority_category_freq": 1,
+            "n_majority_category": 1,
             "left_core_length": 800,
             "right_core_length": 700,
             "accessory_length": 300,
         },
         "200_r__300_r": {
-            "frequency": 1,
+            "n_isolates": 1,
+            "n_non_empty": 0,
             "n_categories": 1,
-            "majority_category_freq": 1,
+            "n_majority_category": 1,
             "left_core_length": 800,
             "right_core_length": 600,
             "accessory_length": 0,
@@ -557,11 +564,11 @@ def test_junction_stats_transitive_and_singleton(junction_pangraph):
         assert not sdf.loc[edge, "is_singleton"], f"{edge} should not be singleton"
 
 
-def test_junction_stats_sorted_by_frequency(junction_pangraph):
-    """Stats DataFrame is sorted by frequency descending."""
+def test_junction_stats_sorted_by_n_isolates(junction_pangraph):
+    """Stats DataFrame is sorted by `n_isolates` descending."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
     sdf = bj.stats()
-    freqs = sdf["frequency"].values
+    freqs = sdf["n_isolates"].values
     assert all(freqs[i] >= freqs[i + 1] for i in range(len(freqs) - 1))
 
 
@@ -581,9 +588,10 @@ def test_junction_stats_linear(linear_pangraph):
 
     # 100_f__200_f: two different non-empty centers
     row = sdf.loc["100_f__200_f"]
-    assert row["frequency"] == 2
+    assert row["n_isolates"] == 2
+    assert row["n_non_empty"] == 2
     assert row["n_categories"] == 2
-    assert row["majority_category_freq"] == 1
+    assert row["n_majority_category"] == 1
     assert not row["is_transitive"]
     assert row["is_singleton"]
     # Unique blocks: A2(bid=600, 150bp) + A3(bid=700, 300bp)
@@ -591,9 +599,10 @@ def test_junction_stats_linear(linear_pangraph):
 
     # 200_f__300_f: both empty
     row = sdf.loc["200_f__300_f"]
-    assert row["frequency"] == 2
+    assert row["n_isolates"] == 2
+    assert row["n_non_empty"] == 0
     assert row["n_categories"] == 1
-    assert row["majority_category_freq"] == 2
+    assert row["n_majority_category"] == 2
     assert row["is_transitive"]
     assert not row["is_singleton"]
     assert row["accessory_length"] == 0
@@ -606,9 +615,10 @@ def test_backbone_stats_columns(junction_pangraph):
 
     assert isinstance(stats_df, pd.DataFrame)
     assert list(stats_df.columns) == [
-        "frequency",
+        "n_isolates",
+        "n_non_empty",
         "n_categories",
-        "majority_category_freq",
+        "n_majority_category",
         "is_transitive",
         "is_singleton",
         "left_core_length",
@@ -626,16 +636,19 @@ def test_junction_stats_smoke(plasmid_pangraph):
     assert isinstance(sdf, pd.DataFrame)
     assert len(sdf) > 0
 
-    # All frequencies positive
-    assert (sdf["frequency"] > 0).all()
+    # All isolate counts positive
+    assert (sdf["n_isolates"] > 0).all()
+    # Non-empty count is bounded by `n_isolates`
+    assert (sdf["n_non_empty"] >= 0).all()
+    assert (sdf["n_non_empty"] <= sdf["n_isolates"]).all()
     # At least one category per edge
     assert (sdf["n_categories"] >= 1).all()
-    # Majority can't exceed frequency
-    assert (sdf["majority_category_freq"] <= sdf["frequency"]).all()
+    # Majority can't exceed `n_isolates`
+    assert (sdf["n_majority_category"] <= sdf["n_isolates"]).all()
     # Transitive iff exactly one category
     assert (sdf["is_transitive"] == (sdf["n_categories"] == 1)).all()
-    # Singleton requires frequency > 1
-    assert not (sdf["is_singleton"] & (sdf["frequency"] <= 1)).any()
+    # Singleton requires `n_isolates` > 1
+    assert not (sdf["is_singleton"] & (sdf["n_isolates"] <= 1)).any()
     # Core lengths positive
     assert (sdf["left_core_length"] > 0).all()
     assert (sdf["right_core_length"] > 0).all()
@@ -654,7 +667,7 @@ def _edge(a, sa, b, sb):
 def test_inversion_edges_rc_and_private(inversion_pangraph):
     """s1 and its whole-RC s2 share the same 7 backbone edges; s3's inversion adds 2 private ones."""
     bj = BackboneJunctions(inversion_pangraph, L_thr=10)
-    freq = bj.stats()["frequency"].to_dict()
+    freq = bj.stats()["n_isolates"].to_dict()
 
     shared = {
         _edge("10", True, "50", True),  # C1-C5
@@ -707,16 +720,16 @@ def test_inversion_stats(inversion_pangraph):
 
     # C5-C2: center [A1] in s1/s2, empty in s3 -> 2 categories, singleton
     row = sdf.loc[_edge("50", True, "20", True)]
-    assert row["frequency"] == 3
+    assert row["n_isolates"] == 3
     assert row["n_categories"] == 2
-    assert row["majority_category_freq"] == 2
+    assert row["n_majority_category"] == 2
     assert not row["is_transitive"]
     assert row["is_singleton"]
     assert row["accessory_length"] == 6  # len(A1)
 
     # C7-C4: center [A2] in both strains that carry it -> 1 category, transitive
     row = sdf.loc[_edge("70", True, "40", True)]
-    assert row["frequency"] == 2
+    assert row["n_isolates"] == 2
     assert row["n_categories"] == 1
     assert row["is_transitive"]
     assert row["accessory_length"] == 8  # len(A2)
@@ -740,7 +753,7 @@ def test_inversion_sequences_rc_equivalence(inversion_pangraph):
     )  # center block reverse-complemented
     assert a1 not in seqs["s1"]
 
-    # C7-C4 (frequency 2, s1/s2 only) also co-orients to identical sequences
+    # C7-C4 (n_isolates=2, s1/s2 only) also co-orients to identical sequences
     seqs2 = {r.id: str(r.seq) for r in bj.sequences(_edge("70", True, "40", True))}
     assert set(seqs2) == {"s1", "s2"}
     assert seqs2["s1"] == seqs2["s2"]
