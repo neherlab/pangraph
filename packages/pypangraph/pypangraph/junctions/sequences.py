@@ -41,11 +41,8 @@ def junction_sequences(edge_map, pan, edge_str: str) -> list[SeqRecord]:
     for iso, junction in edge_map[edge_str].items():
         oriented = junction if junction.is_canonical(edge) else junction.invert()
 
-        oriented_blocks = (
-            [oriented.left] + oriented.center.oriented_blocks + [oriented.right]
-        )
         seq_parts = []
-        for ob in oriented_blocks:
+        for ob in oriented.oriented_blocks():
             node_seq = block_sequences(ob.id)[str(ob.node_id)]
             if not ob.strand:
                 node_seq = str(Seq(node_seq).reverse_complement())

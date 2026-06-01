@@ -60,6 +60,21 @@ class Junction:
             return False
         return self.left == edge.left
 
+    def oriented_blocks(self) -> list[OrientedBlock]:
+        """Flatten the junction into a left-to-right list of oriented blocks.
+
+        Includes the left flank (if any), then the center walk's blocks in order,
+        then the right flank (if any). Terminal junctions on linear paths may have
+        ``left`` or ``right`` equal to None; those flanks are silently omitted.
+        """
+        blocks: list[OrientedBlock] = []
+        if self.left is not None:
+            blocks.append(self.left)
+        blocks.extend(self.center.oriented_blocks)
+        if self.right is not None:
+            blocks.append(self.right)
+        return blocks
+
     def __side_eq__(self, o: object) -> bool:
         return self.left == o.left and self.center == o.center and self.right == o.right
 

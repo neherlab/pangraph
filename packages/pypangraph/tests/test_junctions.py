@@ -7,7 +7,7 @@ from Bio.Seq import Seq
 import pypangraph as pp
 import pypangraph.topology_utils as tu
 from pypangraph.junctions import BackboneJunctions
-from pypangraph.junctions.junction import JunctionNode, path_junction_split
+from pypangraph.junctions.junction import Junction, JunctionNode, path_junction_split
 
 
 def test_path_junction_split(junction_pangraph):
@@ -308,6 +308,30 @@ def test_junction_node_invert():
     assert inv.strand is False
     assert inv.node_id == 42
     assert isinstance(inv, JunctionNode)
+
+
+def test_junction_oriented_blocks():
+    """Junction.oriented_blocks() flattens left + center + right, skipping None flanks."""
+    left = tu.OrientedBlock(100, True)
+    a1 = tu.OrientedBlock(200, True)
+    a2 = tu.OrientedBlock(300, False)
+    right = tu.OrientedBlock(400, True)
+
+    # full junction: left + non-empty center + right
+    full = Junction(left, tu.Walk([a1, a2]), right)
+    assert full.oriented_blocks() == [left, a1, a2, right]
+
+    # empty center: just the two flanks
+    empty_center = Junction(left, tu.Walk([]), right)
+    assert empty_center.oriented_blocks() == [left, right]
+
+    # terminal junction with no left flank
+    no_left = Junction(None, tu.Walk([a1, a2]), right)
+    assert no_left.oriented_blocks() == [a1, a2, right]
+
+    # terminal junction with no right flank
+    no_right = Junction(left, tu.Walk([a1, a2]), None)
+    assert no_right.oriented_blocks() == [left, a1, a2]
 
 
 # --- BackboneJunctions tests ---
