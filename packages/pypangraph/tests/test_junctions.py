@@ -368,6 +368,23 @@ def test_junction_is_canonical(junction_pangraph):
     assert not bj["200_r__300_r"]["s3"].is_canonical()
 
 
+def test_junction_to_canonical(junction_pangraph):
+    """to_canonical() returns self when already canonical, inverted otherwise;
+    the result always satisfies is_canonical()."""
+    bj = BackboneJunctions(junction_pangraph, L_thr=500)
+
+    # canonical case: to_canonical() is a no-op
+    j_canon = bj["100_f__200_f"]["s1"]
+    assert j_canon.to_canonical() is j_canon
+
+    # non-canonical case: to_canonical() inverts and the result is canonical
+    j_inv = bj["200_r__300_r"]["s3"]
+    j_out = j_inv.to_canonical()
+    assert j_out is not j_inv
+    assert j_out.is_canonical()
+    assert j_out == j_inv.invert()
+
+
 # --- BackboneJunctions tests ---
 
 

@@ -60,6 +60,13 @@ class Junction:
             return False
         return edge.is_canonical()
 
+    def to_canonical(self) -> "Junction":
+        """Return this junction co-oriented to its canonical edge direction.
+
+        Returns ``self`` when already canonical, otherwise the inverted junction.
+        """
+        return self if self.is_canonical() else self.invert()
+
     def oriented_blocks(self) -> list[OrientedBlock]:
         """Flatten the junction into a left-to-right list of oriented blocks.
 

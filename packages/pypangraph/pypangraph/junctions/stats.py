@@ -21,9 +21,7 @@ def _co_oriented_center_paths(iso_junctions):
     """
     result = {}
     for iso, junction in iso_junctions.items():
-        result[iso] = (
-            junction.center if junction.is_canonical() else junction.center.invert()
-        )
+        result[iso] = junction.to_canonical().center
     return result
 
 

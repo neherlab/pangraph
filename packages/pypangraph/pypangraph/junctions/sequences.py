@@ -35,7 +35,7 @@ def junction_sequences(edge_map, pan, edge_str: str) -> list[SeqRecord]:
 
     records = []
     for iso, junction in edge_map[edge_str].items():
-        oriented = junction if junction.is_canonical() else junction.invert()
+        oriented = junction.to_canonical()
 
         seq_parts = []
         for ob in oriented.oriented_blocks():
