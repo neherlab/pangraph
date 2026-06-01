@@ -102,14 +102,9 @@ J = junctions.junction_for(
     isolate="NZ_CP162433.1",
     edge_str="3156970751805415521_f__4335229004353524956_f",
 )
-
-print(J)
-# [4335229004353524956|-|n9037...] <-- [8061...|-|n6246...]_[12150...|-|n15781...] --> [3156970751805415521|-|n4000...]
 ```
 
-The `repr` summarises the three pieces of the junction — the left flanking core block, the center walk of accessory blocks, and the right flanking core block — each printed as `[block_id|strand|node_id]`.
-
-The three pieces are accessible as attributes:
+Each junction contains the left flanking core block, the center walk of accessory blocks, and the right flanking core block, accessible as attributes:
 
 ```python
 print(J.left)
@@ -122,7 +117,7 @@ print(len(J.center))
 # 2
 ```
 
-So on this isolate the junction sits between core blocks `4335229004353524956` (7962 bp) and `3156970751805415521` (5601 bp), with two accessory blocks of length 167 bp and 1345 bp between them.
+Each block occurrence is printed as `[block_id|strand|node_id]`.
 
 Note that both flanking blocks appear on the reverse strand (`|-|`) and in swapped order with respect to the canonical edge ID we asked for (`3156970751805415521_f__4335229004353524956_f`). This is the reverse-complement symmetry introduced earlier: this isolate carries the junction in its reverse orientation, but the edge ID — the canonical, orientation-invariant identifier — is the same. The `Junction.is_canonical` method tells you which orientation a junction is in relative to its edge:
 
