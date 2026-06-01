@@ -11,6 +11,7 @@ Once the summary statistics from the [previous part](t07-junction-stats.md) have
 - **`positions()`** — where each occurrence of the junction sits on the genomes that carry it. Useful e.g. for cross-referencing with annotation files.
 - **`sequences()`** — the actual DNA spanning the junction on every genome, returned as `Bio.SeqRecord` objects ready to be written to FASTA for further analysis (multiple sequence alignment, secondary pangraph construction, BLAST searches, ...).
 
+
 ## The example: a candidate IS insertion
 
 As a running example we will use the same junction introduced [in part 6](t06-junctions-intro.md): the edge `3156970751805415521_f__4335229004353524956_f`. Looking up its row in the statistics dataframe:
@@ -201,3 +202,7 @@ Empty junctions cleanly trim to `0` bp; the IS carriers each retain ~1.5 kb of a
     ```
 
 </details>
+
+## An exercise for the reader
+
+#TODO: give another example of an interesting junction to look at

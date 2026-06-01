@@ -24,9 +24,9 @@ Pypangraph provides a convenient way to quickly calculate summary statistics for
 import pypangraph as pp
 
 graph = pp.Pangraph.from_json("staph.json.gz")
-bj = pp.junctions.BackboneJunctions(graph, L_thr=500)
+junctions = pp.junctions.BackboneJunctions(graph, L_thr=500)
 
-stats = bj.stats()
+stats = junctions.stats()
 print(stats)
 #                                                 n_isolates  n_non_empty  n_categories  accessory_length  ...
 # edge
@@ -109,4 +109,109 @@ Reading the plot:
   - amongst these, we find bands of several junctions with characteristic lengths around 1500 and 1300 bp. These are junctions with very low n. occupied genomes (blue dots), consistent with recent and repeated activity of mobile elements such as _Insertion Sequences_.
 - On the other side of the spectrum, in the top-right corner of the plot, we find **hotspots**. These are regions with high variability (almost every genome has a unique accessory pattern) and that contain a vast accessory repertoire (around 100kb of unique accessory genome across 15 isolates).
 
-This stratification of the junction landscape lets us pick interesting candidates for closer inspection — the subject of the next tutorial section.
+## Selecting and visualizing a junction
+
+With the `stats` dataframe in hand, we can easily pick a junction of interest. For example, let's select one of the junctions in the set of 2-category junction and length ~ 1300 bp:
+
+```python
+stats.query("n_categories == 2 and 1200 < accessory_length < 1400")
+
+#                                                 n_isolates  n_non_empty  n_categories  accessory_length  ...
+# edge
+# 11809679528571820295_r__14906387308163561070_r          15           14             2              1242  ...
+# 13894307413921282410_r__14205544068867539089_f          15            1             2              1324  ...
+# 10486523597117694808_f__6531151666869853507_r           15            1             2              1324  ...
+# 4535080423279022649_f__4857718550591370421_r            15            1             2              1324  ...
+# 5751814192644177414_r__8949119045531796691_f            15            2             2              1324  ...
+...
+# 15114786226276103752_r__432022604910877054_r            15            1             2              1324  ...
+# 10485686697184953244_r__1548999589339136461_f           15            1             2              1324  ...
+# 1532495113773479365_r__1534747068225797391_f            15            1             2              1324  ...
+# 1534747068225797391_f__7253571478449116197_r            15            1             2              1324  ...
+```
+
+There are several such junctions, all with a characteristic accessory length of 1324. This is suggestive of the same mobile element being integrated in several locations of the genome.
+
+A linear schematic of the junction makes its structure visible at a glance. The helper `pp.plots.linear_junction_plot` draws one row per isolate and one horizontal bar per block, with width equal to the block's consensus length. Junctions are co-oriented to the canonical edge direction so the flanking core blocks line up across rows.
+
+```python
+edge = "10485686697184953244_r__1548999589339136461_f"
+
+fig, ax = plt.subplots(figsize=(10, 5))
+pp.plots.linear_junction_plot(ax, junctions, edge)
+ax.set_title(edge, fontsize=9)
+plt.tight_layout()
+plt.show()
+```
+
+![linear junction plot](../assets/pp_t7_linear_junction_plot.png)
+
+
+<details>
+    <summary>**Customizing the linear junction plot**</summary>
+
+    Once the junction decomposition is done, the code to produce this linear representation for a junction is relatively simple. Feel free to modify it and customize it to your needs.
+
+    ```python
+
+    from collections import defaultdict
+    import matplotlib as mpl
+    import numpy as np
+
+    # select an edge to plot
+    edge = "10485686697184953244_r__1548999589339136461_f"
+
+    # assign a unique random color to each block
+    cmap = mpl.colormaps["rainbow"]
+    colors = defaultdict(lambda: cmap(np.random.rand()))
+
+    # consensus length for each block
+    block_len = graph.to_blockstats_df()["len"].to_dict()
+
+    # dictionary isolate -> junction
+    Js = junctions[edge]
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    isolates = list(Js.keys())
+    # cycle through each isolate that has the junction
+    for row, (iso, J) in enumerate(Js.items()):
+        J = J.to_canonical() # align junction to canonical orientation
+        x = 0
+        for ob in J.oriented_blocks():
+            # consensus length and color of each block
+            length = block_len[str(ob.id)]
+            color = colors[str(ob.id)]
+            # each block is a horizontal bar
+            ax.barh(
+                row,
+                length,
+                left=x,
+                height=0.8,
+                color=color,
+                edgecolor="k",
+                linewidth=0.4,
+            )
+            x += length
+
+    ax.set_yticks(range(len(isolates)))
+    ax.set_yticklabels(isolates, fontsize=8)
+    ax.set_xlabel("position along junction (bp)")
+    plt.tight_layout()
+    plt.show()
+    ```
+
+</details>
+
+This pattern is suggestive of an element being integrated in this specific location in a single genome. But which element?
+
+In the next part of the tutorial we'll go more in-depth with the analysis of junctions, extracting their sequences and connecting them to locations in the original genomes.
+
+
+<details>
+    <summary>**Displaying more complex junction**</summary>
+
+    What happens if we explore the pattern of more complex junctions? Try to select junctions that have a large number of unique path categories and visualize their linear structure.
+
+    ![linear_plot_hotspot](../assets/pp_t7_linear_junction_plot_hotspot.png)
+
+</details>
