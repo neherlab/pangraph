@@ -108,16 +108,16 @@ Each junction contains the left flanking core block, the center walk of accessor
 
 ```python
 print(J.left)
-# [4335229004353524956|-|n9037460965821963980]
+# {block=4335229004353524956|-}
 print(J.right)
-# [3156970751805415521|-|n4000080501404186153]
+# {block=3156970751805415521|-}
 print(J.center)
-# [8061287138899943998|-|n6246290944320777144]_[12150994386844653378|-|n15781614871823306740]
+# {block=8061287138899943998|-} {block=12150994386844653378|-}
 print(len(J.center))
 # 2
 ```
 
-Each block occurrence is printed as `[block_id|strand|node_id]`.
+Each block occurrence is printed as `{block=<block_id>|<strand>}`.
 
 Note that both flanking blocks appear on the reverse strand (`|-|`) and in swapped order with respect to the canonical edge ID we asked for (`3156970751805415521_f__4335229004353524956_f`). This is the reverse-complement symmetry introduced earlier: this isolate carries the junction in its reverse orientation, but the edge ID — the canonical, orientation-invariant identifier — is the same. The `Junction.is_canonical` method tells you which orientation a junction is in relative to its edge:
 

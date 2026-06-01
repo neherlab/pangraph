@@ -86,7 +86,7 @@ class Walk:
         return hash(tuple(self.oriented_blocks))
 
     def __repr__(self) -> str:
-        return "_".join([str(ob) for ob in self.oriented_blocks])
+        return " ".join([str(ob) for ob in self.oriented_blocks])
 
     def __len__(self) -> int:
         return len(self.oriented_blocks)

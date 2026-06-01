@@ -19,7 +19,7 @@ class JunctionNode(OrientedBlock):
 
     def __repr__(self) -> str:
         s = "+" if self.strand else "-"
-        return f"[{self.id}|{s}|n{self.node_id}]"
+        return f"{{block={self.id}|{s}}}"
 
 
 class Junction:
