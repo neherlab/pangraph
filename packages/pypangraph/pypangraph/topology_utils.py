@@ -126,13 +126,23 @@ class Edge:
     def __repr__(self) -> str:
         return f"{self.left} <--> {self.right}"
 
-    def __to_str_id(self) -> str:
+    def _natural_str_id(self) -> str:
+        """Join left and right ids in their stored order, without canonicalizing."""
         return "__".join([self.left.to_str_id(), self.right.to_str_id()])
 
+    def is_canonical(self) -> bool:
+        """Whether (left, right) is the canonical (lex-min) orientation of this edge.
+
+        Ties (RC-palindromic edges) resolve canonical by convention.
+        """
+        return self._natural_str_id() <= self.invert()._natural_str_id()
+
     def to_str_id(self) -> str:
-        A = self.__to_str_id()
-        B = self.invert().__to_str_id()
-        return A if A < B else B
+        return (
+            self._natural_str_id()
+            if self.is_canonical()
+            else self.invert()._natural_str_id()
+        )
 
     @staticmethod
     def from_str_id(t) -> "Edge":

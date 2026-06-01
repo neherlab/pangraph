@@ -3,8 +3,6 @@ from functools import cache
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-from ..topology_utils import Edge
-
 
 def junction_sequences(edge_map, pan, edge_str: str) -> list[SeqRecord]:
     """Extract co-oriented sequences spanning a junction.
@@ -28,8 +26,6 @@ def junction_sequences(edge_map, pan, edge_str: str) -> list[SeqRecord]:
     if edge_str not in edge_map:
         return []
 
-    edge = Edge.from_str_id(edge_str)
-
     # to_sequences() regenerates a block's full alignment; the flanking core blocks
     # recur in every isolate, so memoize per block id to compute each one only once.
     @cache
@@ -39,7 +35,7 @@ def junction_sequences(edge_map, pan, edge_str: str) -> list[SeqRecord]:
 
     records = []
     for iso, junction in edge_map[edge_str].items():
-        oriented = junction if junction.is_canonical(edge) else junction.invert()
+        oriented = junction if junction.is_canonical() else junction.invert()
 
         seq_parts = []
         for ob in oriented.oriented_blocks():

@@ -5,7 +5,7 @@ import pandas as pd
 from ..topology_utils import Edge
 
 
-def _co_oriented_center_paths(edge_str, iso_junctions):
+def _co_oriented_center_paths(iso_junctions):
     """Co-orient all center paths for a given edge to canonical direction.
 
     Junctions for the same edge may appear in opposite orientations on different
@@ -14,17 +14,15 @@ def _co_oriented_center_paths(edge_str, iso_junctions):
     genomic strand.
 
     Args:
-        edge_str: Canonical edge string ID.
         iso_junctions: dict mapping isolate name -> Junction.
 
     Returns:
         dict mapping isolate name -> co-oriented center Walk.
     """
-    edge = Edge.from_str_id(edge_str)
     result = {}
     for iso, junction in iso_junctions.items():
         result[iso] = (
-            junction.center if junction.is_canonical(edge) else junction.center.invert()
+            junction.center if junction.is_canonical() else junction.center.invert()
         )
     return result
 
@@ -47,7 +45,7 @@ def _edge_stats(edge_str, iso_junctions, bdf):
     # Co-orient center paths, then group identical ones into categories. The empty
     # path (junction with no accessory blocks) is a category in its own right, so it
     # is counted like any other distinct center path.
-    center_paths = _co_oriented_center_paths(edge_str, iso_junctions)
+    center_paths = _co_oriented_center_paths(iso_junctions)
     category_counts = Counter(center_paths.values())
 
     n_categories = len(category_counts)

@@ -334,6 +334,40 @@ def test_junction_oriented_blocks():
     assert no_right.oriented_blocks() == [left, a1, a2]
 
 
+# --- is_canonical tests ---
+
+
+def test_edge_is_canonical():
+    """Edge.is_canonical() is True iff (left, right) is the lex-min orientation."""
+    # natural form "100_f__200_f" is already lex-min
+    e = tu.Edge.from_str_id("100_f__200_f")
+    assert e.is_canonical()
+    assert e.to_str_id() == "100_f__200_f"
+
+    # inverting flips the orientation: now non-canonical
+    inv = e.invert()
+    assert not inv.is_canonical()
+    # but to_str_id() always returns the canonical form
+    assert inv.to_str_id() == "100_f__200_f"
+
+    # RC-palindromic edge: invert() yields the same string; tie resolves canonical
+    palindrome = tu.Edge(tu.OrientedBlock(100, True), tu.OrientedBlock(100, False))
+    assert palindrome.is_canonical()
+
+
+def test_junction_is_canonical(junction_pangraph):
+    """Junction.is_canonical() reports whether the junction's natural orientation
+    matches the lex-min canonical form of its flanking edge."""
+    bj = BackboneJunctions(junction_pangraph, L_thr=500)
+
+    # s1 walks C1+ ... C2+: natural form "100_f__200_f" == canonical
+    assert bj["100_f__200_f"]["s1"].is_canonical()
+
+    # s3 walks C3+ then C2+ for the C2-C3 adjacency: natural form
+    # "300_f__200_f" loses lex-min to its invert "200_r__300_r"
+    assert not bj["200_r__300_r"]["s3"].is_canonical()
+
+
 # --- BackboneJunctions tests ---
 
 

@@ -1,7 +1,5 @@
 import pandas as pd
 
-from ..topology_utils import Edge
-
 
 def junction_positions(edge_map, pan) -> pd.DataFrame:
     """Find genomic positions of the flanking core blocks for each junction.
@@ -27,7 +25,6 @@ def junction_positions(edge_map, pan) -> pd.DataFrame:
     """
     records = []
     for edge_str, iso_junctions in edge_map.items():
-        edge = Edge.from_str_id(edge_str)
         for iso, junction in iso_junctions.items():
             left_row = pan.nodes.df.loc[str(junction.left.node_id)]
             right_row = pan.nodes.df.loc[str(junction.right.node_id)]
@@ -39,7 +36,7 @@ def junction_positions(edge_map, pan) -> pd.DataFrame:
                     "left_end": left_row["end"],
                     "right_start": right_row["start"],
                     "right_end": right_row["end"],
-                    "strand": junction.is_canonical(edge),
+                    "strand": junction.is_canonical(),
                 }
             )
 

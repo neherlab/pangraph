@@ -49,16 +49,16 @@ class Junction:
             return None
         return Edge(self.left, self.right)
 
-    def is_canonical(self, edge: Edge) -> bool:
-        """Whether this junction is oriented along the edge's canonical direction.
+    def is_canonical(self) -> bool:
+        """Whether the junction's flanks are in canonical edge orientation.
 
-        A junction for a given edge can appear in either orientation across genomes;
-        it is canonical when its left flank matches the edge's left node. Returns False
-        for terminal junctions with no left flank.
+        Delegates to the flanking edge's own canonical-direction predicate.
+        Returns False for terminal junctions with no flanking edge.
         """
-        if self.left is None:
+        edge = self.flanking_edge()
+        if edge is None:
             return False
-        return self.left == edge.left
+        return edge.is_canonical()
 
     def oriented_blocks(self) -> list[OrientedBlock]:
         """Flatten the junction into a left-to-right list of oriented blocks.
