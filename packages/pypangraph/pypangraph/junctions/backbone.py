@@ -57,15 +57,19 @@ class BackboneJunctions:
                     self._edge_map[edge_str] = {}
                 self._edge_map[edge_str][name] = j
 
-    def junctions_for(self, isolate: str) -> list[Junction]:
-        """Return all junctions for a given isolate."""
-        self._ensure_split()
-        return self._junctions[isolate]
+    def __getitem__(self, edge_str: str) -> dict[str, Junction]:
+        """Return the {isolate -> Junction} mapping for a core edge.
 
-    def junction_for(self, isolate: str, edge_str: str) -> Junction:
-        """Return the junction for a given isolate and edge."""
+        Raises:
+            KeyError: if no junction with this edge exists in the graph.
+        """
         self._ensure_split()
-        return self._edge_map[edge_str][isolate]
+        return self._edge_map[edge_str]
+
+    def __contains__(self, edge_str: str) -> bool:
+        """Whether a core edge with this id exists in the graph."""
+        self._ensure_split()
+        return edge_str in self._edge_map
 
     def edges(self) -> list[str]:
         """Return list of all edge string IDs."""

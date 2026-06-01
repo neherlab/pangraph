@@ -95,13 +95,11 @@ There are 151 edges, which is only slightly more than the number of valid anchor
 
 ### A single junction
 
-To get a feel for what a junction actually looks like, let's pick one and inspect it. The `junction_for` method returns the junction observed on a given isolate for a given edge:
+To get a feel for what a junction actually looks like, let's pick one and inspect it. Indexing into the `BackboneJunctions` object by edge id returns the `{isolate: Junction}` mapping for that edge; a second index by isolate name gives the single junction:
 
 ```python
-J = junctions.junction_for(
-    isolate="NZ_CP162433.1",
-    edge_str="3156970751805415521_f__4335229004353524956_f",
-)
+edge_str = "3156970751805415521_f__4335229004353524956_f"
+J = junctions[edge_str]["NZ_CP162433.1"]
 ```
 
 Each junction contains the left flanking core block, the center walk of accessory blocks, and the right flanking core block, accessible as attributes:
@@ -119,15 +117,7 @@ print(len(J.center))
 
 Each block occurrence is printed as `{block=<block_id>|<strand>}`.
 
-Note that both flanking blocks appear on the reverse strand (`|-|`) and in swapped order with respect to the canonical edge ID we asked for (`3156970751805415521_f__4335229004353524956_f`). This is the reverse-complement symmetry introduced earlier: this isolate carries the junction in its reverse orientation, but the edge ID — the canonical, orientation-invariant identifier — is the same. The `Junction.is_canonical` method tells you which orientation a junction is in relative to its edge:
-
-```python
-edge = J.flanking_edge()
-print(edge.to_str_id())
-# 3156970751805415521_f__4335229004353524956_f
-print(J.is_canonical(edge))
-# False
-```
+Note that both flanking blocks appear on the reverse strand (`-`) and in swapped order with respect to the canonical edge ID we asked for (`3156970751805415521_f__4335229004353524956_f`). This is the reverse-complement symmetry introduced earlier: this isolate carries the junction in its reverse orientation, but the edge ID — the canonical, orientation-invariant identifier — is the same.
 
 ## Next: from single junctions to summary statistics
 

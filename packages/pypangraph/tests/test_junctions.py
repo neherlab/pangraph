@@ -337,20 +337,21 @@ def test_junction_oriented_blocks():
 # --- BackboneJunctions tests ---
 
 
-def test_backbone_junctions_for(junction_pangraph):
-    """junctions_for returns correct number of junctions per isolate."""
+def test_backbone_getitem(junction_pangraph):
+    """bj[edge_str] returns the {isolate -> Junction} mapping for an edge,
+    and `edge in bj` reports presence."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    assert len(bj.junctions_for("s1")) == 4
-    assert len(bj.junctions_for("s2")) == 4
-    assert len(bj.junctions_for("s3")) == 4
 
-
-def test_backbone_junction_for(junction_pangraph):
-    """junction_for returns the correct junction for a given isolate/edge."""
-    bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    j = bj.junction_for("s1", "100_f__200_f")
+    per_iso = bj["100_f__200_f"]
+    assert set(per_iso.keys()) == {"s1", "s2"}
+    j = per_iso["s1"]
     assert j.flanking_edge().to_str_id() == "100_f__200_f"
     assert len(j.center) == 2  # A1 + A2
+
+    assert "100_f__200_f" in bj
+    assert "nonexistent_edge" not in bj
+    with pytest.raises(KeyError):
+        _ = bj["nonexistent_edge"]
 
 
 def test_backbone_edges(junction_pangraph):
