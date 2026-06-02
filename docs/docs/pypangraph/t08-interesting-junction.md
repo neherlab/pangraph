@@ -32,7 +32,7 @@ print(stats.loc[edge])
 
 We found multiple junctions with this specific accessory length and low number of non-empty paths, indicative of a putative recent _Insertion Sequence_ insertion.
 
-## Coordinates of a junction on the genomes
+## Genomic coordinates of a junction
 
 The `positions()` method returns a `pandas.DataFrame` indexed by `(edge, isolate)`, with the genomic coordinates of the two flanking core blocks plus a strand flag. We slice on our edge of interest with `.loc`:
 
@@ -91,9 +91,15 @@ pos.loc["NZ_CP022905.1", ["left_end", "right_start"]]
 # right_start    878866
 ```
 
-Inspecting [this location in NCBI's GenBank viewer](https://www.ncbi.nlm.nih.gov/nuccore/1443152002?report=graph&tracks=[key:sequence_track,name:Sequence,display_name:Sequence,id:STD649220238,annots:Sequence,ShowLabel:false,ColorGaps:false,shown:true,order:1][key:gene_model_track,name:Genes,display_name:Genes,id:STD3194982005,annots:Unnamed,Options:MergeAll,CDSProductFeats:false,NtRuler:true,AaRuler:true,HighlightMode:2,ShowLabel:true,shown:true,order:5]&assm_context=GCF_003354985.1&v=877542:878866&c=00FF00&select=null&slim=0) reveals indeed the presence of an IS element, likely to have recently inserted and originated the junction.
+Inspecting [this location in NCBI's GenBank viewer](https://www.ncbi.nlm.nih.gov/nuccore/NZ_CP022905.1?report=graph&from=877542&to=878866#) reveals indeed the presence of an IS256 element, commonly found in _S. aureus_, and likely to have recently inserted and given rise to the junction.
 
 ![NCBI genome viewer screenshot](../assets/pp_t8_ncbi_viewer_IS_screenshot.png)
+
+The location of an insertion is often not random. If inserted in a coding region, an IS element can have significant fitness effects by disrupting genes. We can easily check if this is the case for our insertion by observing whether the junction breakpoint falls in a coding region in genomes where the IS element is absent. For example, consulting the `pos` table above, we can check [genome `NZ_LR822061.1`](https://www.ncbi.nlm.nih.gov/nuccore/NZ_LR822061.1?report=graph&from=1289278&to=1291278) at coordinate `1290278`.
+
+![NCBI genome viewer screenshot 2](../assets/pp_t8_ncbi_viewer_interrupted_gene.png)
+
+The IS element insertion truncates the _clfA_ gene, which encodes an immunogenic surface protein involved in adhesion — a known virulence factor.
 
 ## Extracting the junction sequences
 
@@ -143,7 +149,7 @@ pangraph export gfa junctions.json -o junctions.gfa
 
 ![bandage screenshot](../assets/pp_t8_bandage.png)
 
-## Want to explore further?
+## More junctions to explore
 
 As a further exercise you can try to explore some more interesting junctions yourself. Here are some suggestions:
 
@@ -151,8 +157,8 @@ As a further exercise you can try to explore some more interesting junctions you
   - Can you locate the **prophage insertion**?
   - Find its coordinates in the genome and visualize it on NCBI. Inspecting the annotations of the accessory region should confirm that it is likely a prophage integration. Where did it get integrated? _Note_: it wraps around the start of the sequence record.
   - Can you find the gene immediately upstream of the prophage insertion and the first gene of the accessory region? Does this suggest a **mechanism of integration**?
-- edge `10486523597117694808_f__6531151666869853507_r` is another simple example of a junction originated by an IS element insertion. When such insertions occur in the coding region of a gene, they can inactivate the gene.
-  - take one of the isolates without the insertion (e.g. `NZ_CP132362.1`) and check which gene is present at the location where isolate `NZ_LR822061.1` shows an insertion. You should find that the insertion likely inactivated the [_staphylocoagulase_](https://www.uniprot.org/uniprotkb/P17855/entry), a known virulence factor.
+- edge `10486523597117694808_f__6531151666869853507_r` is another simple example of a junction originated by an IS element insertion.
+  - Which gene is inactivated by the insertion? Take one of the isolates without the insertion (e.g. `NZ_CP132362.1`) and check which gene is present at the location where isolate `NZ_LR822061.1` shows an insertion. You should find that the insertion likely inactivated the [_staphylocoagulase_](https://www.uniprot.org/uniprotkb/P17855/entry), a known virulence factor.
 - look into `17042526223432838337_f__8287974428665837959_r`
   - Can you spot a **duplication** in some sequences? Which genes are duplicated?
 - edge `13256234721607664913_r__7427484406751306657_f` encompasses a **highly-variable region** in these genomes.
