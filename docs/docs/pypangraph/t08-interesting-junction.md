@@ -57,9 +57,9 @@ The columns are:
 - **`right_start`**, **`right_end`** — genomic coordinates of the right flanking core block on the genome.
 - **`strand`** — `True` if the junction appears in canonical edge orientation on this genome, `False` if reverse-complemented.
 
-Note that - depending on the orientation of the junction on the genome - the left and right block might not always be the same. The **left block** is defined as the **first core block** of the junction to appear in the genome, as illustrated in the scheme below.
+Note that the **left** / **right** labels follow each genome's own path order: the **left block** is the **first core block** of the junction encountered when walking the genome, as illustrated in the scheme below. On isolates where the junction is inverted (`strand = False`), this means the left/right roles are swapped relative to the canonical edge direction.
 
-The order on the genome of these coordinates should always be `left_start` < `left_end` < `right_start` < `right_end`, irrespective of orientation. In circular genomest there can be exception to this pattern, as described below.
+The coordinates on the genome should therefore always satisfy `left_start` < `left_end` < `right_start` < `right_end`, irrespective of orientation. In circular genomes there can be exceptions to this pattern, as described below.
 
 ![position scheme](../assets/pp_t8_positions_scheme.png)
 
@@ -69,7 +69,7 @@ In circular genomes, a junction might wrap around the genome origin. In such cas
 
 :::
 
-The difference between the `left_end` and `right_start` coordinates gives the precise size of the accessory region. This can be empy if no accessoy blocks are present.
+The difference between the `left_end` and `right_start` coordinates gives the precise size of the accessory region. This is zero when no accessory blocks are present.
 
 ```python
 pos.eval("right_start - left_end")
@@ -86,7 +86,7 @@ pos.eval("right_start - left_end")
 As we saw in the linear representation of the junction in the previous tutorial section, the insertion is only present in genome `NZ_CP022905.1` between coordinates:
 
 ```python
-positions.loc[edge, "NZ_CP022905.1"][["left_end", "right_start"]]
+pos.loc["NZ_CP022905.1", ["left_end", "right_start"]]
 # left_end       877542
 # right_start    878866
 ```
@@ -97,9 +97,7 @@ Inspecting [this location in NCBI's GenBank viewer](https://www.ncbi.nlm.nih.gov
 
 ## Extracting the junction sequences
 
-It is often very useful for further downsream analysis, to be able to extract and further process the nucleotide sequences of a junction.
-
-The `sequences()` method in Pypangraph has been devised for this. It returns one `Bio.SeqRecord` per isolate, spanning **left flank + accessory center + right flank**. All sequences are co-oriented to the canonical edge direction, so that no further inversion is necessary.
+For further downstream analysis you often want the nucleotide sequence of a junction. The `sequences()` method returns one `Bio.SeqRecord` per isolate, spanning **left flank + accessory center + right flank**, all co-oriented to the canonical edge direction so that no further inversion is necessary.
 
 ```python
 records = junctions.sequences(edge)
@@ -114,7 +112,7 @@ for r in records:
 # NZ_CP035791.1: ATTTGTAGCC...ACTCAGACAG | len = 6471 bp
 ```
 
-The three IS carriers stand out as ~1.5 kb longer than the rest. Each record has:
+The IS carrier (`NZ_CP022905.1`) stands out as ~1.3 kb longer than the rest. Each record has:
 
 - **`id`** — the isolate name.
 - **`description`** — the canonical edge string.
@@ -125,7 +123,7 @@ These can be conveniently exported in a fasta file using [biopython](https://bio
 ```python
 from Bio import SeqIO
 
-SeqIO.write(records, f"junction.fa", "fasta")
+SeqIO.write(records, "junction.fa", "fasta")
 ```
 
 For example a multiple sequence alignment with [MAFFT](https://mafft.cbrc.jp/alignment/software/):
@@ -136,7 +134,7 @@ mafft junction.fa > junction_aligned.fa
 
 ![mafft alignment](../assets/pp_t8_mafft.png)
 
-Or a second, junction-specific pangraph. This usually useful in more complex junction, to refine the junction structure.
+Or a second, junction-specific pangraph. This is usually useful in more complex junctions, to refine the junction structure.
 
 ```bash
 pangraph build -l 100 -s 20 junction.fa -o junction.json
@@ -152,7 +150,7 @@ As a further exercise you can try to explore some more interesting junctions you
 - look into `13654622636097204630_f__5922465870918455593_f`.
   - Can you locate the **prophage insertion**?
   - Find its coordinates in the genome and visualize it on NCBI. Inspecting the annotations of the accessory region should confirm that it is likely a prophage integration. Where did it get integrated? _Note_: it wraps around the start of the sequence record.
-  - Can you find the gene immediately upstream of the prophage insertion and the first gene of the accessory region? does this suggest a **mechanism of integration**?
+  - Can you find the gene immediately upstream of the prophage insertion and the first gene of the accessory region? Does this suggest a **mechanism of integration**?
 - edge `10486523597117694808_f__6531151666869853507_r` is another simple example of a junction originated by an IS element insertion. When such insertions occur in the coding region of a gene, they can inactivate the gene.
   - take one of the isolates without the insertion (e.g. `NZ_CP132362.1`) and check which gene is present at the location where isolate `NZ_LR822061.1` shows an insertion. You should find that the insertion likely inactivated the [_staphylocoagulase_](https://www.uniprot.org/uniprotkb/P17855/entry), a known virulence factor.
 - look into `17042526223432838337_f__8287974428665837959_r`
@@ -160,4 +158,4 @@ As a further exercise you can try to explore some more interesting junctions you
 - edge `13256234721607664913_r__7427484406751306657_f` encompasses a **highly-variable region** in these genomes.
   - draw a linear representation to compare the variation across different genomes.
   - focus on one genome, e.g. `NZ_CP022905.1`, and look at the annotations. Can you find mobile genetic elements? Can you find resistance determinants?
-  - the presence of _mecA_ gene and recombinases suggest that this is a [SCCmec cassette](https://en.wikipedia.org/wiki/SCCmec), a known mobile genetic element of _Staphylococcus_ bacteria that confers methicilin resistance.
+  - the presence of the _mecA_ gene and recombinases suggests that this is a [SCCmec cassette](https://en.wikipedia.org/wiki/SCCmec), a known mobile genetic element of _Staphylococcus_ bacteria that confers methicillin resistance.

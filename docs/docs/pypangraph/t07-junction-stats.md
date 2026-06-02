@@ -10,9 +10,9 @@ Bacterial genomes can harbor hundreds of loci of accessory genome variability. M
 
 Useful per-junction summaries include, for example:
 
-- the total number of unique "accessory paths" found within the junction (including the empty one). This is an indication of the **structural diversity** of the junction. We call this the number of **path categories**. In the example below, we find 4 categories over 5 paths, since one category is repeated twice.
-- the **total length of accessory genome** found in the junction. This can be calculated by summing the consensus length of all unique accessory blocks found in the junction. In the example below, the junction's total accessory length is roughly 3kb. This number gives an idea of the amount of accessory material that the junction harbors, and can help for example to distinguish recent changes associated to particular mobile genetic elements by typical size.
-- the number of **non-empty paths**, i.e. paths that contain at least one accessory block. In the example below, this is every path except for the last one, which only has the flanking core block. Comparing this number to the total number of genomes gives for example an indication of whether a junction was caused by a **recent insertion**. In this case the number of non-empty (or _occupied_) paths is expected to be very small compared to the dataset size. A recent deletion would show up conversely as a junction where the number of empty paths is very small.
+- the total number of unique "accessory paths" found within the junction (including the empty one). This is an indication of the **structural diversity** of the junction. We call this the number of **path categories**. In the example below, we find 4 categories across 5 paths, since one category appears in two paths.
+- the **total length of accessory genome** found in the junction. This can be calculated by summing the consensus length of all unique accessory blocks found in the junction. In the example below, the junction's total accessory length is roughly 3kb. This number gives an idea of the amount of accessory material that the junction harbors, and can help, for example, to distinguish recent changes associated with particular mobile genetic elements by typical size.
+- the number of **non-empty paths**, i.e. paths that contain at least one accessory block. In the example below, this is every path except for the last one, which only has the flanking core block. Comparing this number to the total number of genomes gives, for example, an indication of whether a junction was caused by a **recent insertion**. In this case the number of non-empty (or _occupied_) paths is expected to be very small compared to the dataset size. A recent deletion would conversely show up as a junction where the number of empty paths is very small.
 
 ![stats scheme](../assets/pp_t7_stats_scheme.png)
 
@@ -41,7 +41,7 @@ The dataframe carries nine columns (see the dropdown below for the full referenc
 - **`accessory_length`** — total unique accessory content (bp) summed across all distinct accessory blocks ever seen at the junction.
 - **`n_non_empty`** — out of the isolates that share the edge, how many actually carry accessory content between the two flanking core blocks (the rest have the two backbone blocks sitting directly adjacent).
 
-In addition to this, the `n_isolates` indicates in how many isolates the junction was found. Cases where this number is smaller than the total number of paths in the graph typically indicate core-genome synteny breaks. This is discussed further in the "_transitive junctions_" dropdown below.
+In addition to this, the `n_isolates` column indicates in how many isolates the junction was found. Cases where this number is smaller than the total number of paths in the graph typically indicate core-genome synteny breaks. This is discussed further in the "_transitive junctions_" dropdown below.
 
 <details>
     <summary>**full column reference**</summary>
@@ -105,13 +105,13 @@ ax.legend(title="n. non-empty", loc="upper left")
 
 Reading the plot:
 
-- most variation is in junctions with **low n. of categories** (typically around 2). These are loci of **limited structural variation**, where typically only 2 variations are found.
-  - amongst these, we find bands of several junctions with characteristic lengths around 1500 and 1300 bp. These are junctions with very low n. occupied genomes (blue dots), consistent with recent and repeated activity of mobile elements such as _Insertion Sequences_.
-- On the other side of the spectrum, in the top-right corner of the plot, we find **hotspots**. These are regions with high variability (almost every genome has a unique accessory pattern) and that contain a vast accessory repertoire (around 100kb of unique accessory genome across 15 isolates).
+- most variation is in junctions with a **low number of categories** (typically around 2) — loci of **limited structural variation**.
+  - amongst these, we find bands of several junctions with characteristic lengths around 1500 and 1300 bp. These are junctions with very few occupied genomes (blue dots), consistent with recent and repeated activity of mobile elements such as _Insertion Sequences_.
+- At the other end of the spectrum, in the top-right corner of the plot, we find **hotspots**. These are regions with high variability (almost every genome has a unique accessory pattern) and a vast accessory repertoire (around 100kb of unique accessory genome across 15 isolates).
 
 ## Selecting and visualizing a junction
 
-With the `stats` dataframe in hand, we can easily pick a junction of interest. For example, let's select one of the junctions in the set of 2-category junction and length ~ 1300 bp:
+With the `stats` dataframe in hand, we can easily pick a junction of interest. For example, let's select one of the 2-category junctions with length ~1300 bp:
 
 ```python
 stats.query("n_categories == 2 and 1200 < accessory_length < 1400")
@@ -130,7 +130,7 @@ stats.query("n_categories == 2 and 1200 < accessory_length < 1400")
 # 1534747068225797391_f__7253571478449116197_r            15            1             2              1324  ...
 ```
 
-There are several such junctions, all with a characteristic accessory length of 1324. This is suggestive of the same mobile element being integrated in several locations of the genome.
+There are several such junctions, all with a characteristic accessory length of 1324 bp. This is suggestive of the same mobile element being integrated in several locations of the genome.
 
 A linear schematic of the junction makes its structure visible at a glance. The helper `pp.plots.linear_junction_plot` draws one row per isolate and one horizontal bar per block, with width equal to the block's consensus length. Junctions are co-oriented to the canonical edge direction so the flanking core blocks line up across rows.
 
