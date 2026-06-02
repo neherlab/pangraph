@@ -1,5 +1,7 @@
 """Linear schematic plot of a junction across isolates."""
 
+from __future__ import annotations
+
 import random
 from collections import defaultdict
 
