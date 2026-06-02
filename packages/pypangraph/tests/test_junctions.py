@@ -100,7 +100,7 @@ def test_junction_positions_forward_strand(junction_pangraph):
     pos = bj.positions()
 
     # Edge C1+→C2+ in s1: both flanks on forward strand → strand=True
-    row = pos.loc[("s1", "100_f__200_f")]
+    row = pos.loc[("100_f__200_f", "s1")]
     assert row["strand"]
     assert row["left_start"] == 0
     assert row["left_end"] == 1000
@@ -108,7 +108,7 @@ def test_junction_positions_forward_strand(junction_pangraph):
     assert row["right_end"] == 2150
 
     # Edge C2+→C3+ in s1: empty junction, strand=True
-    row = pos.loc[("s1", "200_f__300_f")]
+    row = pos.loc[("200_f__300_f", "s1")]
     assert row["strand"]
     assert row["left_start"] == 1350
     assert row["left_end"] == 2150
@@ -128,7 +128,7 @@ def test_junction_positions_inverted_edge(junction_pangraph):
     pos = bj.positions()
 
     # In s1: junction is inverted, left=C4, right=C1
-    row = pos.loc[("s1", "100_r__400_r")]
+    row = pos.loc[("100_r__400_r", "s1")]
     assert not row["strand"]
     assert row["left_start"] == 2750  # C4 start
     assert row["left_end"] == 3450  # C4 end
@@ -145,7 +145,7 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
     pos = bj.positions()
 
     # Edge C1+→C3+: forward in s3
-    row = pos.loc[("s3", "100_f__300_f")]
+    row = pos.loc[("100_f__300_f", "s3")]
     assert row["strand"]
     assert row["left_start"] == 0  # C1
     assert row["left_end"] == 1000
@@ -154,7 +154,7 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
 
     # Edge "200_r__300_r" = Edge(C2-, C3-): in s3 both are on + strand → inverted
     # Swapped: left=C3(1150,1750), right=C2(1750,2550)
-    row = pos.loc[("s3", "200_r__300_r")]
+    row = pos.loc[("200_r__300_r", "s3")]
     assert not row["strand"]
     assert row["left_start"] == 1150  # C3
     assert row["left_end"] == 1750
@@ -162,7 +162,7 @@ def test_junction_positions_rearranged_strain(junction_pangraph):
     assert row["right_end"] == 2550
 
     # Edge C2+→C4+: forward in s3, A3 between them
-    row = pos.loc[("s3", "200_f__400_f")]
+    row = pos.loc[("200_f__400_f", "s3")]
     assert row["strand"]
     assert row["left_start"] == 1750  # C2
     assert row["left_end"] == 2550
@@ -251,14 +251,14 @@ def test_junction_positions_linear(linear_pangraph):
     assert set(pos.index.get_level_values("edge")) == {"100_f__200_f", "200_f__300_f"}
 
     # s1: C1→C2 has A2 in between
-    row = pos.loc[("s1", "100_f__200_f")]
+    row = pos.loc[("100_f__200_f", "s1")]
     assert row["left_start"] == 200  # C1
     assert row["left_end"] == 1200
     assert row["right_start"] == 1350  # C2
     assert row["right_end"] == 2150
 
     # s2: C1→C2 has A3 in between
-    row = pos.loc[("s2", "100_f__200_f")]
+    row = pos.loc[("100_f__200_f", "s2")]
     assert row["left_start"] == 0  # C1
     assert row["left_end"] == 1000
     assert row["right_start"] == 1300  # C2
@@ -779,14 +779,14 @@ def test_inversion_positions_strand_mix(inversion_pangraph):
     shared = set(pos.xs("s1", level="iso").index) & set(pos.xs("s2", level="iso").index)
     assert len(shared) == 7
     for edge in shared:
-        assert pos.loc[("s1", edge), "strand"] != pos.loc[("s2", edge), "strand"]
+        assert pos.loc[(edge, "s1"), "strand"] != pos.loc[(edge, "s2"), "strand"]
 
     # genuine mix of both orientations (not the near-constant column of junction_pangraph)
     assert set(pos["strand"]) == {True, False}
 
     # the inversion flips the canonical sense of the C3-C7 edge in s3 relative to the reference
     c3c7 = _edge("30", True, "70", True)
-    assert pos.loc[("s1", c3c7), "strand"] != pos.loc[("s3", c3c7), "strand"]
+    assert pos.loc[(c3c7, "s1"), "strand"] != pos.loc[(c3c7, "s3"), "strand"]
 
 
 def test_inversion_stats(inversion_pangraph):

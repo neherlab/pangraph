@@ -18,7 +18,7 @@ def junction_positions(edge_map, pan) -> pd.DataFrame:
         pan: A Pangraph object (used for node coordinate lookup).
 
     Returns:
-        A DataFrame with MultiIndex (iso, edge) and columns:
+        A DataFrame with MultiIndex (edge, iso) and columns:
         - left_start, left_end: genomic position of the left flanking block
         - right_start, right_end: genomic position of the right flanking block
         - strand: True if the junction is in the canonical edge orientation
@@ -43,4 +43,4 @@ def junction_positions(edge_map, pan) -> pd.DataFrame:
     result = pd.DataFrame(records)
     if result.empty:
         return result
-    return result.set_index(["iso", "edge"])
+    return result.set_index(["edge", "iso"])

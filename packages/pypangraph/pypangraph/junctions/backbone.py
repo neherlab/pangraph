@@ -92,7 +92,7 @@ class BackboneJunctions:
         """Find genomic positions of flanking core blocks for each junction.
 
         Returns:
-            A DataFrame with MultiIndex (iso, edge) and columns:
+            A DataFrame with MultiIndex (edge, iso) and columns:
             - left_start, left_end: genomic position of the left flanking block
             - right_start, right_end: genomic position of the right flanking block
             - strand: True if canonical orientation, False if inverted
