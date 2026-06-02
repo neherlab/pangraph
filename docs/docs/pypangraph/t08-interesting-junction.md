@@ -2,126 +2,116 @@
 sidebar_position: 10
 ---
 
-# A look at an interesting junction
+# Investigating junctions further: positions and sequences
 
-Once the summary statistics from the [previous part](t07-junction-stats.md) have pointed out a junction worth investigating, the natural next step is to **zoom in on that one junction** and look at it in detail.
+Using summary statistics, in the [previous part](t07-junction-stats.md) of the tutorial we have singled out a junction we want to investigate further. Here we will showcase the use of two `BackboneJunctions` methods for this:
 
-`BackboneJunctions` offers two methods for this:
-
-- **`positions()`** — where each occurrence of the junction sits on the genomes that carry it. Useful e.g. for cross-referencing with annotation files.
-- **`sequences()`** — the actual DNA spanning the junction on every genome, returned as `Bio.SeqRecord` objects ready to be written to FASTA for further analysis (multiple sequence alignment, secondary pangraph construction, BLAST searches, ...).
+- **`positions()`** — indicates the location of each occurrence of the junction on the genomes that carry it. Useful e.g. for cross-referencing with annotation files.
+- **`sequences()`** — returns the actual DNA sequence spanning the junction on every genome, as `Bio.SeqRecord` objects ready to be written to FASTA for further analysis (multiple sequence alignment, secondary pangraph construction, BLAST searches, ...).
 
 
 ## The example: a candidate IS insertion
 
-As a running example we will use the same junction introduced [in part 6](t06-junctions-intro.md): the edge `3156970751805415521_f__4335229004353524956_f`. Looking up its row in the statistics dataframe:
+As a running example we will use the same junction introduced [in the previous section](t07-junction-stats.md): the edge `10485686697184953244_r__1548999589339136461_f`. Looking up its row in the statistics dataframe:
 
 ```python
 import pypangraph as pp
 
 graph = pp.Pangraph.from_json("staph.json.gz")
-bj = pp.junctions.BackboneJunctions(graph, L_thr=500)
-stats = bj.stats()
+junctions = pp.junctions.BackboneJunctions(graph, L_thr=500)
+stats = junctions.stats()
 
-edge = "3156970751805415521_f__4335229004353524956_f"
-print(stats.loc[edge, ["n_isolates", "n_non_empty", "n_categories", "accessory_length"]])
-# n_isolates            15
-# n_non_empty            3
-# n_categories           2
-# accessory_length    1512
+edge = "10485686697184953244_r__1548999589339136461_f"
+print(stats.loc[edge])
+# n_isolates                15
+# n_non_empty                1
+# n_categories               2
+# accessory_length        1324
+# ...
 ```
 
-The junction is universal (`n_isolates == 15`), only **3 of the 15 isolates** carry accessory content between the flanking core blocks (`n_non_empty == 3`), and there are only two distinct accessory variants: empty, and a single shared insert of about **1.5 kb** (`accessory_length == 1512`). This is the textbook profile of a recently acquired **insertion sequence** present in a minority of the population.
+We found multiple junctions with this specific accessory length and low number of non-empty paths, indicative of a putative recent _Insertion Sequence_ insertion.
 
-## Locating the junction on each genome
+## Coordinates of a junction on the genomes
 
-The `positions()` method returns a `pandas.DataFrame` indexed by `(isolate, edge)`, with the genomic coordinates of the two flanking core blocks plus a strand flag. We slice on our edge of interest with `.xs`:
+The `positions()` method returns a `pandas.DataFrame` indexed by `(edge, isolate)`, with the genomic coordinates of the two flanking core blocks plus a strand flag. We slice on our edge of interest with `.loc`:
 
 ```python
-pos = bj.positions().xs(edge, level=1)
-print(pos.head(6))
+positions = junctions.positions()
+pos = positions.loc[edge]
+print(pos)
 #                left_start  left_end  right_start  right_end  strand
-# iso
-# NZ_CP132362.1       75741     83703        83703      89270   False
-# NZ_LR822061.1     1725093   1733055      1733055    1738656   False
-# NZ_CP077852.1     1234589   1240190      1240190    1248152    True
-# NZ_CP162433.1     1568982   1576944      1578456    1584065   False
-# NZ_CP034011.1      414663    420264       420264     428226    True
-# NZ_CP092558.1      392241    397850       397850     405804    True
+# iso                                                                
+# NZ_CP132362.1     2509902   2511822      2511822    2516373   False
+# NZ_LR822061.1     1288340   1290278      1290278    1294829   False
+# NZ_CP077852.1     1661385   1665936      1665936    1667856    True
+# ...
+# NZ_CP169947.1      880245    884796       884796     886716    True
+# NZ_CP022905.1      872983    877542       878866     880786    True
+# NZ_CP035791.1     1215039   1216959      1216959    1221510   False
 ```
 
 The columns are:
 
-- **`left_start`**, **`left_end`** — genomic coordinates of the left flanking core block.
-- **`right_start`**, **`right_end`** — genomic coordinates of the right flanking core block.
+- **`left_start`**, **`left_end`** — genomic coordinates of the left flanking core block on the genome.
+- **`right_start`**, **`right_end`** — genomic coordinates of the right flanking core block on the genome.
 - **`strand`** — `True` if the junction appears in canonical edge orientation on this genome, `False` if reverse-complemented.
 
-The accessory content of the junction sits in the interval `[left_end, right_start)`. Notice how on most isolates `left_end == right_start` (the two flanks sit directly adjacent: empty junction), but on `NZ_CP162433.1` the gap is `1578456 - 1576944 = 1512` bp — the IS insert. Hunting for rows with `right_start - left_end > 0` is a quick way to find the IS carriers:
+Note that - depending on the orientation of the junction on the genome - the left and right block might not always be the same. The **left block** is defined as the **first core block** of the junction to appear in the genome, as illustrated in the scheme below.
 
-```python
-pos.eval("right_start - left_end").rename("insert_len").to_frame().query("insert_len > 0")
-#                insert_len
-# iso
-# NZ_CP162433.1        1512
-# NZ_AP024511.1        1520
-# NZ_CP080550.1        1515
-```
+The order on the genome of these coordinates should always be `left_start` < `left_end` < `right_start` < `right_end`, irrespective of orientation. In circular genomest there can be exception to this pattern, as described below.
 
-The small per-isolate differences (1512 / 1515 / 1520 bp) come from indels in the IS sequence; the **consensus** length of the shared accessory block — which is what `accessory_length` in the stats reports — is exactly 1512 bp.
+![position scheme](../assets/pp_t8_positions_scheme.png)
 
 :::info circular genomes
 
-For circular genomes the coordinates may wrap around the origin, in which case `left_start > left_end` on the isolate where the junction straddles position 0.
+In circular genomes, a junction might wrap around the genome origin. In such cases the left core block might be found around the end of the sequence, and the right core block at the beginning. As such, in these genomes the order of positions described will not be respected.
 
 :::
 
-<details>
-    <summary>cross-referencing with genome annotations</summary>
+The difference between the `left_end` and `right_start` coordinates gives the precise size of the accessory region. This can be empy if no accessoy blocks are present.
 
-    Knowing where each junction sits on each genome lets us cross-reference these coordinates with annotation files (e.g. GFF) — for instance to check whether the IS insertion overlaps any predicted CDS, prophage, or transposase annotation on a given isolate.
+```python
+pos.eval("right_start - left_end")
+# iso
+# NZ_CP132362.1       0
+# NZ_LR822061.1       0
+# NZ_CP077852.1       0
+# ...
+# NZ_CP169947.1       0
+# NZ_CP022905.1    1324  <-- IS insertion
+# NZ_CP035791.1       0
+```
 
-    The sketch below picks one IS-carrying isolate and asks for annotations overlapping the insert interval:
+As we saw in the linear representation of the junction in the previous tutorial section, the insertion is only present in genome `NZ_CP022905.1` between coordinates:
 
-    ```python
-    iso = "NZ_CP162433.1"
-    insert_start = pos.loc[iso, "left_end"]
-    insert_end = pos.loc[iso, "right_start"]
+```python
+positions.loc[edge, "NZ_CP022905.1"][["left_end", "right_start"]]
+# left_end       877542
+# right_start    878866
+```
 
-    # `annotations` is a hypothetical dataframe with columns
-    # "iso", "start", "end", "feature" loaded from a GFF file
-    overlaps = annotations.query(
-        "iso == @iso and start < @insert_end and end > @insert_start"
-    )
-    print(overlaps[["start", "end", "feature"]])
-    ```
+Inspecting [this location in NCBI's GenBank viewer](https://www.ncbi.nlm.nih.gov/nuccore/1443152002?report=graph&tracks=[key:sequence_track,name:Sequence,display_name:Sequence,id:STD649220238,annots:Sequence,ShowLabel:false,ColorGaps:false,shown:true,order:1][key:gene_model_track,name:Genes,display_name:Genes,id:STD3194982005,annots:Unnamed,Options:MergeAll,CDSProductFeats:false,NtRuler:true,AaRuler:true,HighlightMode:2,ShowLabel:true,shown:true,order:5]&assm_context=GCF_003354985.1&v=877542:878866&c=00FF00&select=null&slim=0) reveals indeed the presence of an IS element, likely to have recently inserted and originated the junction.
 
-    The same logic can be applied to every IS-carrying isolate in a loop to confirm that the insert is annotated as a mobile element on each of them.
-
-</details>
+![NCBI genome viewer screenshot](../assets/pp_t8_ncbi_viewer_IS_screenshot.png)
 
 ## Extracting the junction sequences
 
-The `sequences()` method returns one `Bio.SeqRecord` per isolate, spanning **left flank + accessory center + right flank**, all co-oriented to the canonical edge direction:
+It is often very useful for further downsream analysis, to be able to extract and further process the nucleotide sequences of a junction.
+
+The `sequences()` method in Pypangraph has been devised for this. It returns one `Bio.SeqRecord` per isolate, spanning **left flank + accessory center + right flank**. All sequences are co-oriented to the canonical edge direction, so that no further inversion is necessary.
 
 ```python
-records = bj.sequences(edge)
+records = junctions.sequences(edge)
 for r in records:
-    print(f"  {r.id}: {len(r.seq)} bp")
-#   NZ_CP132362.1: 13529 bp
-#   NZ_LR822061.1: 13563 bp
-#   NZ_CP077852.1: 13563 bp
-#   NZ_CP162433.1: 15083 bp  <-- IS carrier
-#   NZ_CP034011.1: 13563 bp
-#   NZ_CP092558.1: 13563 bp
-#   NZ_CP062358.1: 13563 bp
-#   NZ_CP132372.1: 13563 bp
-#   NZ_AP024511.1: 15083 bp  <-- IS carrier
-#   NZ_CP181145.1: 13563 bp
-#   NZ_CP157420.1: 13563 bp
-#   NZ_CP080550.1: 15083 bp  <-- IS carrier
-#   NZ_CP169947.1: 13563 bp
-#   NZ_CP022905.1: 13563 bp
-#   NZ_CP035791.1: 13563 bp
+    print(f"  {r.id}: {r.seq[:10]}...{r.seq[-10:]} | len = {len(r.seq)} bp")
+# NZ_CP132362.1: ATTTGTAGCC...ACTCAGACAG | len = 6471 bp
+# NZ_LR822061.1: ATTTGTAGCC...ACTCAGACAG | len = 6489 bp
+# NZ_CP077852.1: ATTTGTAGCC...ACTCAGACAG | len = 6471 bp
+# ...
+# NZ_CP169947.1: ATTTGTAGCC...ACTCAGACAG | len = 6471 bp
+# NZ_CP022905.1: ATTTGTAGCC...ACTCAGACAG | len = 7803 bp
+# NZ_CP035791.1: ATTTGTAGCC...ACTCAGACAG | len = 6471 bp
 ```
 
 The three IS carriers stand out as ~1.5 kb longer than the rest. Each record has:
@@ -130,79 +120,44 @@ The three IS carriers stand out as ~1.5 kb longer than the rest. Each record has
 - **`description`** — the canonical edge string.
 - **`seq`** — the DNA from the start of the left flank to the end of the right flank.
 
-<details>
-    <summary>co-orientation guarantees</summary>
-
-    All returned sequences are co-oriented to the canonical edge: sequences from genomes where the junction is found in the inverted orientation are automatically reverse-complemented before being returned. Individual accessory blocks within each sequence are also placed in the correct orientation based on their strand. This makes the flanking core blocks directly alignable across isolates without further pre-processing.
-
-</details>
-
-### Saving to a FASTA file
-
-The records are ready to be written out with `Bio.SeqIO`:
+These can be conveniently exported in a fasta file using [biopython](https://biopython.org/) for further downstream processing.
 
 ```python
 from Bio import SeqIO
 
-SeqIO.write(records, f"junction_{edge}.fasta", "fasta")
+SeqIO.write(records, f"junction.fa", "fasta")
 ```
 
-From there the FASTA can be fed to any downstream tool — for example a multiple sequence alignment with [MAFFT](https://mafft.cbrc.jp/alignment/software/):
+For example a multiple sequence alignment with [MAFFT](https://mafft.cbrc.jp/alignment/software/):
 
 ```bash
-mafft junction_3156970751805415521_f__4335229004353524956_f.fasta > junction_aligned.fasta
+mafft junction.fa > junction_aligned.fa
 ```
 
-Or a second, junction-specific pangraph build to resolve sub-block structure in the IS region:
+![mafft alignment](../assets/pp_t8_mafft.png)
+
+Or a second, junction-specific pangraph. This usually useful in more complex junction, to refine the junction structure.
 
 ```bash
-pangraph build -l 100 -s 20 junction_aligned.fasta -o junction.json.gz
+pangraph build -l 100 -s 20 junction.fa -o junction.json
+pangraph export gfa junctions.json -o junctions.gfa
 ```
 
-### Trimming away the flanks
+![bandage screenshot](../assets/pp_t8_bandage.png)
 
-If only the accessory portion of each junction is of interest, the flank lengths from the statistics dataframe can be used to slice off the core flanks:
+## Want to explore further?
 
-```python
-left_len = stats.loc[edge, "left_core_length"]   # 5601
-right_len = stats.loc[edge, "right_core_length"] # 7962
+As a further exercise you can try to explore some more interesting junctions yourself. Here are some suggestions:
 
-for r in records:
-    accessory = r.seq[left_len:-right_len] if right_len > 0 else r.seq[left_len:]
-    print(f"  {r.id}: accessory = {len(accessory)} bp")
-#   NZ_CP132362.1: accessory =    0 bp
-#   NZ_LR822061.1: accessory =    0 bp
-#   ...
-#   NZ_CP162433.1: accessory = 1520 bp  <-- the IS
-#   ...
-```
-
-Empty junctions cleanly trim to `0` bp; the IS carriers each retain ~1.5 kb of accessory content as expected.
-
-## Exporting many junctions at once
-
-<details>
-    <summary>batch export of all non-transitive junctions to FASTA files</summary>
-
-    The same workflow scales naturally to every non-transitive junction in the graph: just iterate over the relevant rows of the statistics dataframe and call `sequences()` on each edge.
-
-    ```python
-    import os
-
-    os.makedirs("junctions", exist_ok=True)
-
-    non_transitive = stats[~stats["is_transitive"]].index
-    for e in non_transitive:
-        recs = bj.sequences(e)
-        if recs:
-            SeqIO.write(recs, f"junctions/{e}.fasta", "fasta")
-
-    print(f"Exported {len(non_transitive)} junction files")
-    # Exported 132 junction files
-    ```
-
-</details>
-
-## An exercise for the reader
-
-#TODO: give another example of an interesting junction to look at
+- look into `13654622636097204630_f__5922465870918455593_f`.
+  - Can you locate the **prophage insertion**?
+  - Find its coordinates in the genome and visualize it on NCBI. Inspecting the annotations of the accessory region should confirm that it is likely a prophage integration. Where did it get integrated? _Note_: it wraps around the start of the sequence record.
+  - Can you find the gene immediately upstream of the prophage insertion and the first gene of the accessory region? does this suggest a **mechanism of integration**?
+- edge `10486523597117694808_f__6531151666869853507_r` is another simple example of a junction originated by an IS element insertion. When such insertions occur in the coding region of a gene, they can inactivate the gene.
+  - take one of the isolates without the insertion (e.g. `NZ_CP132362.1`) and check which gene is present at the location where isolate `NZ_LR822061.1` shows an insertion. You should find that the insertion likely inactivated the [_staphylocoagulase_](https://www.uniprot.org/uniprotkb/P17855/entry), a known virulence factor.
+- look into `17042526223432838337_f__8287974428665837959_r`
+  - Can you spot a **duplication** in some sequences? Which genes are duplicated?
+- edge `13256234721607664913_r__7427484406751306657_f` encompasses a **highly-variable region** in these genomes.
+  - draw a linear representation to compare the variation across different genomes.
+  - focus on one genome, e.g. `NZ_CP022905.1`, and look at the annotations. Can you find mobile genetic elements? Can you find resistance determinants?
+  - the presence of _mecA_ gene and recombinases suggest that this is a [SCCmec cassette](https://en.wikipedia.org/wiki/SCCmec), a known mobile genetic element of _Staphylococcus_ bacteria that confers methicilin resistance.

@@ -153,10 +153,14 @@ plt.show()
     Once the junction decomposition is done, the code to produce this linear representation for a junction is relatively simple. Feel free to modify it and customize it to your needs.
 
     ```python
-
     from collections import defaultdict
     import matplotlib as mpl
     import numpy as np
+    import pypangraph as pp
+
+    # load the graph and create the junctions object
+    graph = pp.Pangraph.from_json("staph.json.gz")
+    junctions = pp.junctions.BackboneJunctions(graph, L_thr=500)
 
     # select an edge to plot
     edge = "10485686697184953244_r__1548999589339136461_f"
@@ -172,7 +176,7 @@ plt.show()
     Js = junctions[edge]
 
     fig, ax = plt.subplots(figsize=(10, 5))
-    isolates = list(Js.keys())
+    
     # cycle through each isolate that has the junction
     for row, (iso, J) in enumerate(Js.items()):
         J = J.to_canonical() # align junction to canonical orientation
@@ -193,6 +197,7 @@ plt.show()
             )
             x += length
 
+    isolates = list(Js.keys())
     ax.set_yticks(range(len(isolates)))
     ax.set_yticklabels(isolates, fontsize=8)
     ax.set_xlabel("position along junction (bp)")
@@ -202,16 +207,13 @@ plt.show()
 
 </details>
 
-This pattern is suggestive of an element being integrated in this specific location in a single genome. But which element?
-
-In the next part of the tutorial we'll go more in-depth with the analysis of junctions, extracting their sequences and connecting them to locations in the original genomes.
-
-
 <details>
-    <summary>**Displaying more complex junction**</summary>
+    <summary>**Displaying more complex junctions**</summary>
 
-    What happens if we explore the pattern of more complex junctions? Try to select junctions that have a large number of unique path categories and visualize their linear structure.
+    What happens if we explore the pattern of more complex junctions? Try to select junctions that have a large number of unique path categories and visualize their linear structure. Here is an example for core-edge `13256234721607664913_r__7427484406751306657_f`.
 
     ![linear_plot_hotspot](../assets/pp_t7_linear_junction_plot_hotspot.png)
 
 </details>
+
+This pattern is suggestive of an element being integrated in this specific location in a single genome. But which element? To answer this question it is useful to be able to access the **location** of these blocks on the genome, to connect it with sequence annotations, and the **sequence** itself, for specific homology search or further downstream processing. This will be the topic of the next tutorial section.
