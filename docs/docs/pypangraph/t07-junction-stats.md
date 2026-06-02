@@ -18,7 +18,7 @@ Useful per-junction summaries include, for example:
 
 ## Computing junction statistics with pypangraph
 
-Pypangraph provides a convenient way to quickly calculate summary statistics for all junctions. The `BackboneJunctions.stats()` method returns a `pandas.DataFrame` with one row per core edge:
+Pypangraph provides a convenient way to quickly calculate summary statistics for all junctions. The `BackboneJunctions.stats()` method returns a `pandas.DataFrame` with one row per junction identified by the core edge:
 
 ```python
 import pypangraph as pp
@@ -41,7 +41,7 @@ The dataframe carries nine columns (see the dropdown below for the full referenc
 - **`accessory_length`** — total unique accessory content (bp) summed across all distinct accessory blocks ever seen at the junction.
 - **`n_non_empty`** — out of the isolates that share the edge, how many actually carry accessory content between the two flanking core blocks (the rest have the two backbone blocks sitting directly adjacent).
 
-In addition to this, the `n_isolates` column indicates in how many isolates the junction was found. Cases where this number is smaller than the total number of paths in the graph typically indicate core-genome synteny breaks. This is discussed further in the "_transitive junctions_" dropdown below.
+In addition to this, the `n_isolates` column indicates in how many isolates the junction was found. Cases where this number is smaller than the total number of genomes typically indicate synteny changes in some. This is discussed further in the "_transitive junctions_" dropdown below.
 
 <details>
     <summary>**full column reference**</summary>
@@ -176,7 +176,7 @@ plt.show()
     Js = junctions[edge]
 
     fig, ax = plt.subplots(figsize=(10, 5))
-    
+
     # cycle through each isolate that has the junction
     for row, (iso, J) in enumerate(Js.items()):
         J = J.to_canonical() # align junction to canonical orientation
