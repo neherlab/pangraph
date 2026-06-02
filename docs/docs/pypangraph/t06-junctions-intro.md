@@ -6,7 +6,7 @@ sidebar_position: 8
 
 When comparing closely related bacterial genomes, the core genome is often largely **syntenic** — long stretches of conserved blocks appear in the same order across isolates. Between these conserved blocks, segments of **accessory** DNA (insertions, deletions, mobile elements) vary from one genome to another.
 
-The largely conserved order of core segments provide a natural **frame of reference** to meaningfully break down and compare local accessory variation across isolates. To this end we introduce the concept of a **junction**: a region of the graph encompassing two adjacent core blocks.
+The largely conserved order of core segments provides a natural **frame of reference** to meaningfully break down and compare local accessory variation across isolates. To this end we introduce the concept of a **junction**: a region of the graph encompassing two adjacent core blocks.
 
 ## What is a junction?
 
@@ -35,7 +35,7 @@ Since edges are equivalent under reverse-complementation, there are actually two
 
 ## The `junctions` module in pypangraph
 
-Pypangraph has a `junction` module to facilitate junction analyses.
+Pypangraph has a `junctions` module to facilitate junction analyses.
 
 In this part of the tutorial we will load and explore the `staph.json.gz` file, which contains a pangraph of 15 _Staphylococcus aureus_ chromosomes. You can download it from the pypangraph repository at [`packages/pypangraph/tests/data/staph.json.gz`](https://raw.githubusercontent.com/neherlab/pangraph/master/packages/pypangraph/tests/data/staph.json.gz).
 
@@ -74,7 +74,7 @@ The constructor takes only two arguments: the graph object and a length threshol
 The graph has a total of 143 valid anchor core blocks.
 
 ```python
-graph.to_blockstats_df().query("len > 500")["core"].sum()
+graph.to_blockstats_df().query("len >= 500")["core"].sum()
 # 143 core blocks
 ```
 

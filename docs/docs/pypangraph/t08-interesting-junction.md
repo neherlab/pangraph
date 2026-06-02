@@ -108,7 +108,7 @@ For further downstream analysis you often want the nucleotide sequence of a junc
 ```python
 records = junctions.sequences(edge)
 for r in records:
-    print(f"  {r.id}: {r.seq[:10]}...{r.seq[-10:]} | len = {len(r.seq)} bp")
+    print(f"{r.id}: {r.seq[:10]}...{r.seq[-10:]} | len = {len(r.seq)} bp")
 # NZ_CP132362.1: ATTTGTAGCC...ACTCAGACAG | len = 6471 bp
 # NZ_LR822061.1: ATTTGTAGCC...ACTCAGACAG | len = 6489 bp
 # NZ_CP077852.1: ATTTGTAGCC...ACTCAGACAG | len = 6471 bp
