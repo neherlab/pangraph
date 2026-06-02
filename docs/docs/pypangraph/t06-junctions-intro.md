@@ -6,19 +6,17 @@ sidebar_position: 8
 
 When comparing closely related bacterial genomes, the core genome is often largely **syntenic** — long stretches of conserved blocks appear in the same order across isolates. Between these conserved blocks, segments of **accessory** DNA (insertions, deletions, mobile elements) vary from one genome to another.
 
-The largely conserved order of core segments provides a natural **frame of reference** to meaningfully break down and compare local accessory variation across isolates. To this end we introduce the concept of a **junction**: a region of the graph encompassing two adjacent core blocks.
+The largely conserved order of core segments provides a natural **frame of reference** to meaningfully break down and compare local accessory variation across isolates. To this end we introduce the concept of a **junction**: a region of the graph delimited by two consecutive core blocks.
 
 ## What is a junction?
 
-A **junction** is defined as the part of the graph spanning two consecutive core-blocks. It starts and ends with the **two flanking core blocks** that serve as anchor points, and can contain various degrees of accessory diversity in-between.
+A **junction** is defined as the part of the graph "between" two consecutive core-blocks. It starts and ends with the **two flanking core blocks** that serve as anchor points, and contains all accessory diversity in-between.
 
 ![junction scheme](../assets/pp_t6_junction_scheme.png)
 
 ### Unique identifiers for junctions: core edges
 
-A graph can contain a large amount of junctions. How to uniquely identify them?
-
-The defining feature of a junction are the two flanking core blocks. Their identity and _orientation_ determines the identity of the junction.
+A graph can contain a large number of junctions, but each is uniquely defined by the two flanking core blocks. Their identity and _orientation_ determines the identity of the junction.
 
 We call a **core edge** the oriented adjacency relation of two core blocks, neglecting accessory blocks in-between. In the example below, core blocks `X` and `Y` form a core edge with orientation `[X+|Y-]`.
 
@@ -91,7 +89,8 @@ print(junctions.edges())
 # a total of 151 edges
 ```
 
-There are 151 edges, which is only slightly more than the number of valid anchor blocks. This means that, as expected, the order of core blocks is strongly conserved across genomes, and across the whole dataset we expect to observe only a handful of synteny changes.
+There are 151 edges, which is only slightly more than the number of core blocks. This means that, as expected, the order of core blocks is strongly conserved and almost every core block has the same core block neighbors in every genome.
+Across the whole dataset we expect to observe only a handful of synteny changes.
 
 ### A single junction
 
