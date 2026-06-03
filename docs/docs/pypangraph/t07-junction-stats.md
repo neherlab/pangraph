@@ -37,7 +37,7 @@ print(stats)
 
 The dataframe carries nine columns (see the dropdown below for the full reference), but the three most important ones are those described above:
 
-- **`n_categories`** — number of distinct accessory variants observed at the junction.
+- **`n_categories`** — number of distinct accessory paths observed at the junction.
 - **`accessory_length`** — total unique accessory content (bp) summed across all distinct accessory blocks ever seen at the junction.
 - **`n_non_empty`** — out of the isolates that share the edge, how many actually carry accessory content between the two flanking core blocks (the rest have the two backbone blocks sitting directly adjacent).
 

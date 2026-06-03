@@ -30,16 +30,16 @@ print(stats.loc[edge])
 # ...
 ```
 
-We found multiple junctions with this specific accessory length and low number of non-empty paths, indicative of a putative recent _Insertion Sequence_ insertion.
+We found multiple junctions with this specific accessory length and low number of non-empty paths, indicative of a putative recent _Insertion Sequence_ (IS) insertion.
 
 ## Genomic coordinates of a junction
 
 The `positions()` method returns a `pandas.DataFrame` indexed by `(edge, isolate)`, with the genomic coordinates of the two flanking core blocks plus a strand flag. We slice on our edge of interest with `.loc`:
 
 ```python
-positions = junctions.positions()
-pos = positions.loc[edge]
-print(pos)
+all_positions = junctions.positions()
+junction_pos = all_positions.loc[edge]
+print(junction_pos)
 #                left_start  left_end  right_start  right_end  strand
 # iso                                                                
 # NZ_CP132362.1     2509902   2511822      2511822    2516373   False
@@ -57,7 +57,7 @@ The columns are:
 - **`right_start`**, **`right_end`** — genomic coordinates of the right flanking core block on the genome.
 - **`strand`** — `True` if the junction appears in canonical edge orientation on this genome, `False` if reverse-complemented.
 
-Note that the **left** / **right** labels follow each genome's own path order: the **left block** is the **first core block** of the junction encountered when walking the genome, as illustrated in the scheme below. On isolates where the junction is inverted (`strand = False`), this means the left/right roles are swapped relative to the canonical edge direction.
+Note that the **left** / **right** labels follow each genome's own path order: the **left block** is the **first core block** of the junction encountered when walking the genome, as illustrated in the scheme below. On isolates where the junction path is inverted (`strand = False`), this means the left/right roles are swapped relative to the canonical edge direction.
 
 The coordinates on the genome should therefore always satisfy `left_start` < `left_end` < `right_start` < `right_end`, irrespective of orientation. In circular genomes there can be exceptions to this pattern, as described below.
 
@@ -65,14 +65,14 @@ The coordinates on the genome should therefore always satisfy `left_start` < `le
 
 :::info circular genomes
 
-In circular genomes, a junction might wrap around the genome origin. In such cases the left core block might be found around the end of the sequence, and the right core block at the beginning. As such, in these genomes the order of positions described will not be respected.
+In circular genomes, a junction path might wrap around the genome origin. In such cases the left core block might be found around the end of the sequence, and the right core block at the beginning. As such, in these genomes the order of positions described will not be respected.
 
 :::
 
 The difference between the `left_end` and `right_start` coordinates gives the precise size of the accessory region. This is zero when no accessory blocks are present.
 
 ```python
-pos.eval("right_start - left_end")
+junction_pos.eval("right_start - left_end")
 # iso
 # NZ_CP132362.1       0
 # NZ_LR822061.1       0
@@ -86,7 +86,7 @@ pos.eval("right_start - left_end")
 As we saw in the linear representation of the junction in the previous tutorial section, the insertion is only present in genome `NZ_CP022905.1` between coordinates:
 
 ```python
-pos.loc["NZ_CP022905.1", ["left_end", "right_start"]]
+junction_pos.loc["NZ_CP022905.1", ["left_end", "right_start"]]
 # left_end       877542
 # right_start    878866
 ```
@@ -159,6 +159,7 @@ As a further exercise you can try to explore some more interesting junctions you
   - Can you find the gene immediately upstream of the prophage insertion and the first gene of the accessory region? Does this suggest a **mechanism of integration**?
 - edge `10486523597117694808_f__6531151666869853507_r` is another simple example of a junction originated by an IS element insertion.
   - Which gene is inactivated by the insertion? Take one of the isolates without the insertion (e.g. `NZ_CP132362.1`) and check which gene is present at the location where isolate `NZ_LR822061.1` shows an insertion. You should find that the insertion likely inactivated the [_staphylocoagulase_](https://www.uniprot.org/uniprotkb/P17855/entry), a known virulence factor.
+  - This is just one example of gene inactivation; in the [junction overview plot](t07-junction-stats.md#visualizing-the-junction-landscape) we noted that several junctions originated from an IS movement. What is the general pattern? Can you automate this search and check how often a recent IS element insertion interrupted a gene? Is this more or less frequent than what is expected by chance? What could be the selective forces driving this imbalance?
 - look into `17042526223432838337_f__8287974428665837959_r`
   - Can you spot a **duplication** in some sequences? Which genes are duplicated?
 - edge `13256234721607664913_r__7427484406751306657_f` encompasses a **highly-variable region** in these genomes.

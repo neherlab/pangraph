@@ -65,7 +65,7 @@ print(graph)
 junctions = pp.junctions.BackboneJunctions(graph, L_thr=500)
 ```
 
-The constructor takes only two arguments: the graph object and a length threshold `L_thr` (default 500 bp). Core blocks shorter than this threshold are considered as too short to be reliable anchors, and are considered equivalent to accessory blocks for the purpose of junction definition.
+The constructor takes only two arguments: the graph object and a length threshold `L_thr` (default 500 bp). Core blocks shorter than this threshold are too short to be reliable anchors and are treated as accessory blocks for the purpose of junction definition.
 
 ### A look at edges
 
@@ -92,25 +92,29 @@ print(junctions.edges())
 There are 151 edges, which is only slightly more than the number of core blocks. This means that, as expected, the order of core blocks is strongly conserved and almost every core block has the same core block neighbors in every genome.
 Across the whole dataset we expect to observe only a handful of synteny changes.
 
-### A single junction
+### Selecting a junction and a single path through it
 
-To get a feel for what a junction actually looks like, let's pick one and inspect it. Indexing into the `BackboneJunctions` object by edge id returns the `{isolate: Junction}` mapping for that edge; a second index by isolate name gives the single junction:
+To get a feel for what a junction actually looks like, let's pick one and inspect it. Indexing into the `BackboneJunctions` object by edge id returns the `{isolate: Junction}` mapping for that edge; a second index by isolate name gives the path of a single isolate through the junction:
 
 ```python
+# core edge
 edge_str = "3156970751805415521_f__4335229004353524956_f"
-J = junctions[edge_str]["NZ_CP162433.1"]
+# select the junction corresponding to that edge
+junction = junctions[edge_str]
+# select the path of a single isolate through that junction
+junction_path = junction["NZ_CP162433.1"]
 ```
 
-Each junction contains the left flanking core block, the center walk of accessory blocks, and the right flanking core block, accessible as attributes:
+Each junction path contains the left flanking core block, the center walk of accessory blocks, and the right flanking core block, accessible as attributes:
 
 ```python
-print(J.left)
+print(junction_path.left)
 # {block=4335229004353524956|-}
-print(J.right)
+print(junction_path.right)
 # {block=3156970751805415521|-}
-print(J.center)
+print(junction_path.center)
 # {block=8061287138899943998|-} {block=12150994386844653378|-}
-print(len(J.center))
+print(len(junction_path.center))
 # 2
 ```
 
@@ -118,6 +122,6 @@ Each block occurrence is printed as `{block=<block_id>|<strand>}`.
 
 Note that both flanking blocks appear on the reverse strand (`-`) and in swapped order with respect to the canonical edge ID we asked for (`3156970751805415521_f__4335229004353524956_f`). This is the reverse-complement symmetry introduced earlier: this isolate carries the junction in its reverse orientation, but the edge ID — the canonical, orientation-invariant identifier — is the same.
 
-## Next: from single junctions to summary statistics
+## Next: from a single junction to summary statistics
 
 Inspecting individual junctions like the one above gives a concrete sense of what a junction is, but a graph contains _hundreds of them_ — going through one at a time quickly becomes impractical. To get an overview of the structural variation landscape, and to spot the junctions worth zooming in on, we need **summary statistics** across all junctions. This will be the focus of the [next part of the tutorial](t07-junction-stats.md).
