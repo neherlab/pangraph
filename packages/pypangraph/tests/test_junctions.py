@@ -334,6 +334,32 @@ def test_junction_oriented_blocks():
     assert no_right.oriented_blocks() == [left, a1, a2]
 
 
+def test_junction_invert_terminal():
+    """invert() is robust to terminal junctions: a None flank stays None and the
+    present flank moves to the opposite side with its node_id preserved."""
+    a1 = tu.OrientedBlock(200, True)
+    a2 = tu.OrientedBlock(300, False)
+
+    # no left flank -> after inversion, no right flank
+    right = JunctionNode(400, True, 42)
+    no_left = Junction(None, tu.Walk([a1, a2]), right)
+    inv = no_left.invert()
+    assert inv.right is None
+    assert inv.left == right.invert()
+    assert inv.left.node_id == 42  # node_id preserved across inversion
+    assert inv.center == tu.Walk([a2.invert(), a1.invert()])
+    # double inversion round-trips
+    assert no_left.invert().invert() == no_left
+
+    # symmetric: no right flank -> after inversion, no left flank
+    left = JunctionNode(100, True, 7)
+    no_right = Junction(left, tu.Walk([a1, a2]), None)
+    rinv = no_right.invert()
+    assert rinv.left is None
+    assert rinv.right == left.invert()
+    assert rinv.right.node_id == 7
+
+
 # --- is_canonical tests ---
 
 
@@ -383,6 +409,24 @@ def test_junction_to_canonical(junction_pangraph):
     assert j_out is not j_inv
     assert j_out.is_canonical()
     assert j_out == j_inv.invert()
+
+
+def test_junction_canonical_terminal_raises():
+    """is_canonical()/to_canonical() are undefined for terminal junctions and raise,
+    so they cannot be applied accidentally to a junction with a missing flank."""
+    center = tu.Walk([tu.OrientedBlock(200, True)])
+
+    no_left = Junction(None, center, tu.OrientedBlock(400, True))
+    with pytest.raises(ValueError, match="terminal"):
+        no_left.is_canonical()
+    with pytest.raises(ValueError, match="terminal"):
+        no_left.to_canonical()
+
+    no_right = Junction(tu.OrientedBlock(100, True), center, None)
+    with pytest.raises(ValueError, match="terminal"):
+        no_right.is_canonical()
+    with pytest.raises(ValueError, match="terminal"):
+        no_right.to_canonical()
 
 
 # --- BackboneJunctions tests ---

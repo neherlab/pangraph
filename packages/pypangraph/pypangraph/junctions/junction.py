@@ -38,7 +38,14 @@ class Junction:
         self.right = right
 
     def invert(self) -> "Junction":
-        return Junction(self.right.invert(), self.center.invert(), self.left.invert())
+        """Reverse-complement the junction, swapping and inverting the flanks.
+
+        Robust to terminal junctions: a ``None`` flank stays ``None`` (it simply
+        moves to the opposite side).
+        """
+        left = self.right.invert() if self.right is not None else None
+        right = self.left.invert() if self.left is not None else None
+        return Junction(left, self.center.invert(), right)
 
     def flanking_edge(self) -> Edge | None:
         """Returns the Edge connecting the two flanking core blocks.
@@ -53,17 +60,24 @@ class Junction:
         """Whether the junction's flanks are in canonical edge orientation.
 
         Delegates to the flanking edge's own canonical-direction predicate.
-        Returns False for terminal junctions with no flanking edge.
+
+        Raises:
+            ValueError: if the junction has a missing flank (terminal junction on
+                a linear path), for which canonical orientation is undefined.
         """
         edge = self.flanking_edge()
         if edge is None:
-            return False
+            raise ValueError(
+                "is_canonical() is undefined for terminal junctions with a missing flank"
+            )
         return edge.is_canonical()
 
     def to_canonical(self) -> "Junction":
         """Return this junction co-oriented to its canonical edge direction.
 
         Returns ``self`` when already canonical, otherwise the inverted junction.
+        Raises ``ValueError`` for terminal junctions with a missing flank (see
+        ``is_canonical``).
         """
         return self if self.is_canonical() else self.invert()
 
