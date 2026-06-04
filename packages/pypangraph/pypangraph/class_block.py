@@ -42,11 +42,11 @@ class Block:
         """Returns the consensus sequence of the block"""
         return self.alignment.consensus
 
-    def to_sequences(self) -> dict[int, str]:
+    def to_sequences(self) -> dict[str, str]:
         """Returns a dictionary node_id -> sequence for the block"""
         return self.alignment.generate_sequences()
 
-    def to_alignment(self) -> dict[int, str]:
+    def to_alignment(self) -> dict[str, str]:
         """Returns a dictionary node_id -> aligned sequence for the block.
         The aligned sequence does not include insertions."""
         return self.alignment.generate_alignment()

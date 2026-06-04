@@ -86,6 +86,8 @@ class Junction:
         return self.left == o.left and self.center == o.center and self.right == o.right
 
     def __eq__(self, o: object) -> bool:
+        if not isinstance(o, Junction):
+            return NotImplemented
         return self.__side_eq__(o) or self.__side_eq__(o.invert())
 
     def __side_hash__(self) -> int:

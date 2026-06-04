@@ -15,6 +15,8 @@ class OrientedBlock:
         return self.invert()
 
     def __eq__(self, other: object) -> bool:
+        if not isinstance(other, OrientedBlock):
+            return NotImplemented
         return self.id == other.id and self.strand == other.strand
 
     def __hash__(self) -> int:
@@ -80,6 +82,8 @@ class Walk:
         return self.invert()
 
     def __eq__(self, o: object) -> bool:
+        if not isinstance(o, Walk):
+            return NotImplemented
         return self.oriented_blocks == o.oriented_blocks
 
     def __hash__(self) -> int:
@@ -115,6 +119,8 @@ class Edge:
         return self.left == o.left and self.right == o.right
 
     def __eq__(self, o: object) -> bool:
+        if not isinstance(o, Edge):
+            return NotImplemented
         return self.__side_eq__(o) or self.__side_eq__(o.invert())
 
     def __side_hash__(self) -> int:
