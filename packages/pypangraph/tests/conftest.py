@@ -356,3 +356,9 @@ def linear_pangraph():
 def inversion_pangraph():
     """A circular Pangraph with a reverse-complemented strain, a single inversion, and mergers."""
     return pp.Pangraph(build_inversion_pangraph_json())
+
+
+@pytest.fixture
+def plasmid_pangraph():
+    """The real plasmids dataset, used by smoke tests."""
+    return pp.Pangraph.from_json("tests/data/plasmids.json")
