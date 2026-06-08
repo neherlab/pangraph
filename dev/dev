@@ -1,4 +1,39 @@
 #!/usr/bin/env bash
+#
+# Usage: $0 <command> [args...]
+#
+# Development task runner. Runs inside a container via ./dev/docker/run (Rust)
+# or ./dev/docker/python (Python).
+#
+# Rust workhorses (via ./dev/docker/run ./dev/dev <cmd>):
+#   lint, l               Run clippy lints (includes check and build)
+#   lint-fix, lf          Run clippy with --fix
+#   format, f             Run rustfmt
+#   test, t               Run all tests
+#   run, r                Run (e.g., r pangraph -- --help)
+#   quality, q            Run lint-fix + format + test
+#
+# Rust other:
+#   build, b              Build debug (rarely - l/r include it)
+#   build-release, br     Build release
+#   run-release, rr       Run release build
+#   test-unit, tu         Run unit tests only
+#   test-integration, ti  Run integration tests only
+#   format-check, fc      Check rustfmt (no changes)
+#   lint-ci, lc           Run clippy with -Dwarnings (CI mode)
+#   bench, B              Run benchmarks
+#   bench-hyperfine, H    Build release + run hyperfine
+#   upgrade-deps, U       Upgrade Cargo dependencies
+#   why, w                Show dependency tree
+#
+# Python (via ./dev/docker/python ./dev/dev <cmd>):
+#   p, py                 Open bash shell (Python environment)
+#   jupyter, j            Start JupyterLab
+#
+# Docker (no container wrapper):
+#   docker-image-build, Db    Build Docker image
+#   docker-image-build-push, Dp  Build and push Docker image
+#
 # shellcheck disable=SC2178
 set -euo pipefail
 trap "exit" INT
