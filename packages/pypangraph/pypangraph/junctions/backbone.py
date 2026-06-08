@@ -17,6 +17,14 @@ class BackboneJunctions:
     Args:
         pan: A Pangraph object.
         L_thr: Minimum block length to be considered backbone (default 500 bp).
+
+    Note:
+        Every genome must contain at least two backbone blocks, since a junction
+        is defined by its two flanking core blocks. A genome with fewer than two
+        (plausible with a high ``L_thr`` for a short or divergent genome) raises
+        ``ValueError`` when the split is computed, aborting the whole analysis.
+        To analyze the remaining genomes, lower ``L_thr`` or drop the offending
+        genome from ``pan`` beforehand.
     """
 
     def __init__(self, pan, L_thr: int = 500):
@@ -31,7 +39,13 @@ class BackboneJunctions:
         return self._bdf.loc[bid, "core"] and self._bdf.loc[bid, "len"] >= self.L_thr
 
     def _ensure_split(self):
-        """Ensure that paths have been split into junctions and edge maps built."""
+        """Ensure that paths have been split into junctions and edge maps built.
+
+        Raises:
+            ValueError: if any genome has fewer than two backbone blocks (see the
+                class docstring). The failure aborts the whole split, not just the
+                offending genome.
+        """
         if self._junctions is not None:
             return
         self._junctions = {}
