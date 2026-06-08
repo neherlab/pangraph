@@ -4,7 +4,7 @@ sidebar_position: 8
 
 # Junctions: comparing local accessory variation
 
-When comparing closely related bacterial genomes, the core genome is often largely **syntenic** — long stretches of conserved blocks appear in the same order across isolates. Between these conserved blocks, segments of **accessory** DNA (insertions, deletions, mobile elements) vary from one genome to another.
+When comparing closely related bacterial genomes, the core genome is often largely **syntenic**: long stretches of conserved blocks appear in the same order across isolates. Between these conserved blocks, segments of **accessory** DNA (insertions, deletions, mobile elements) vary from one genome to another.
 
 The largely conserved order of core segments provides a natural **frame of reference** to meaningfully break down and compare local accessory variation across isolates. To this end we introduce the concept of a **junction**: a region of the graph delimited by two consecutive core blocks.
 
@@ -120,8 +120,8 @@ print(len(junction_path.center))
 
 Each block occurrence is printed as `{block=<block_id>|<strand>}`.
 
-Note that both flanking blocks appear on the reverse strand (`-`) and in swapped order with respect to the canonical edge ID we asked for (`3156970751805415521_f__4335229004353524956_f`). This is the reverse-complement symmetry introduced earlier: this isolate carries the junction in its reverse orientation, but the edge ID — the canonical, orientation-invariant identifier — is the same.
+Note that both flanking blocks appear on the reverse strand (`-`) and in swapped order with respect to the canonical edge ID we asked for (`3156970751805415521_f__4335229004353524956_f`). This is the reverse-complement symmetry introduced earlier: this isolate carries the junction in its reverse orientation, but the edge ID (the canonical, orientation-invariant identifier) is the same.
 
 ## Next: from a single junction to summary statistics
 
-Inspecting individual junctions like the one above gives a concrete sense of what a junction is, but a graph contains _hundreds of them_ — going through one at a time quickly becomes impractical. To get an overview of the structural variation landscape, and to spot the junctions worth zooming in on, we need **summary statistics** across all junctions. This will be the focus of the [next part of the tutorial](t07-junction-stats.md).
+Inspecting individual junctions like the one above gives a concrete sense of what a junction is, but a graph contains _hundreds of them_, and going through one at a time quickly becomes impractical. To get an overview of the structural variation landscape, and to spot the junctions worth zooming in on, we need **summary statistics** across all junctions. This will be the focus of the [next part of the tutorial](t07-junction-stats.md).

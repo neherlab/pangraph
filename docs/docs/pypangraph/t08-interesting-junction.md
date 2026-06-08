@@ -6,8 +6,8 @@ sidebar_position: 10
 
 Using summary statistics, in the [previous part](t07-junction-stats.md) of the tutorial we have singled out a junction we want to investigate further. Here we will showcase the use of two `BackboneJunctions` methods for this:
 
-- **`positions()`** — indicates the location of each occurrence of the junction on the genomes that carry it. Useful e.g. for cross-referencing with annotation files.
-- **`sequences()`** — returns the actual DNA sequence spanning the junction on every genome, as `Bio.SeqRecord` objects ready to be written to FASTA for further analysis (multiple sequence alignment, secondary pangraph construction, BLAST searches, ...).
+- `positions()`: indicates the location of each occurrence of the junction on the genomes that carry it. Useful e.g. for cross-referencing with annotation files.
+- `sequences()`: returns the actual DNA sequence spanning the junction on every genome, as `Bio.SeqRecord` objects ready to be written to FASTA for further analysis (multiple sequence alignment, secondary pangraph construction, BLAST searches, ...).
 
 
 ## The example: a candidate IS insertion
@@ -53,9 +53,9 @@ print(junction_pos)
 
 The columns are:
 
-- **`left_start`**, **`left_end`** — genomic coordinates of the left flanking core block on the genome.
-- **`right_start`**, **`right_end`** — genomic coordinates of the right flanking core block on the genome.
-- **`strand`** — `True` if the junction appears in canonical edge orientation on this genome, `False` if reverse-complemented.
+- `left_start`, `left_end`: genomic coordinates of the left flanking core block on the genome.
+- `right_start`, `right_end`: genomic coordinates of the right flanking core block on the genome.
+- `strand`: `True` if the junction appears in canonical edge orientation on this genome, `False` if reverse-complemented.
 
 Note that the **left** / **right** labels follow each genome's own path order: the **left block** is the **first core block** of the junction encountered when walking the genome, as illustrated in the scheme below. On isolates where the junction path is inverted (`strand = False`), this means the left/right roles are swapped relative to the canonical edge direction.
 
@@ -99,7 +99,7 @@ The location of an insertion is often not random. If inserted in a coding region
 
 ![NCBI genome viewer screenshot 2](../assets/pp_t8_ncbi_viewer_interrupted_gene.png)
 
-The IS element insertion truncates the _clfA_ gene, which encodes an immunogenic surface protein involved in adhesion — a known virulence factor.
+The IS element insertion truncates the _clfA_ gene, which encodes an immunogenic surface protein involved in adhesion, a known virulence factor.
 
 ## Extracting the junction sequences
 
@@ -120,9 +120,9 @@ for r in records:
 
 The IS carrier (`NZ_CP022905.1`) stands out as ~1.3 kb longer than the rest. Each record has:
 
-- **`id`** — the isolate name.
-- **`description`** — the canonical edge string.
-- **`seq`** — the DNA from the start of the left flank to the end of the right flank.
+- `id`: the isolate name.
+- `description`: the canonical edge string.
+- `seq`: the DNA from the start of the left flank to the end of the right flank.
 
 These can be conveniently exported in a fasta file using [biopython](https://biopython.org/) for further downstream processing.
 

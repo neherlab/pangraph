@@ -37,23 +37,23 @@ print(stats)
 
 The dataframe carries nine columns (see the dropdown below for the full reference), but the three most important ones are those described above:
 
-- **`n_categories`** — number of distinct accessory paths observed at the junction.
-- **`accessory_length`** — total unique accessory content (bp) summed across all distinct accessory blocks ever seen at the junction.
-- **`n_non_empty`** — out of the isolates that share the edge, how many actually carry accessory content between the two flanking core blocks (the rest have the two backbone blocks sitting directly adjacent).
+- `n_categories`: number of distinct accessory paths observed at the junction.
+- `accessory_length`: total unique accessory content (bp) summed across all distinct accessory blocks ever seen at the junction.
+- `n_non_empty`: out of the isolates that share the edge, how many actually carry accessory content between the two flanking core blocks (the rest have the two backbone blocks sitting directly adjacent).
 
 In addition to this, the `n_isolates` column indicates in how many isolates the junction was found. Cases where this number is smaller than the total number of genomes typically indicate synteny changes in some. This is discussed further in the "_transitive junctions_" dropdown below.
 
 <details>
     <summary>**full column reference**</summary>
 
-    - **`n_isolates`**: number of isolates that have this junction. When `n_isolates` equals the total number of isolates in the graph, the junction is universal — the flanking backbone blocks appear consecutively in all genomes. Non-universal junctions are typically a sign of synteny breaks.
-    - **`n_non_empty`**: number of isolates where the junction is non-empty (carries at least one accessory block). The complement, `n_isolates - n_non_empty`, is the count of isolates where the two flanking backbone blocks sit directly adjacent with no accessory content in between.
-    - **`n_categories`**: number of distinct accessory path variants. A "category" is a unique sequence of accessory block IDs. All isolates with no accessory blocks (empty center) count as one category.
-    - **`n_majority_category`**: number of isolates in the most common variant. Together with `n_categories`, this tells you how diverse the junction is.
-    - **`is_transitive`**: `True` if `n_categories == 1` — all isolates sharing this edge have the same accessory structure (including all-empty).
-    - **`is_singleton`**: `True` if exactly one isolate has a different variant from all others (`n_isolates > 1` and `n_majority_category == n_isolates - 1`).
-    - **`left_core_length`** / **`right_core_length`**: consensus length (bp) of the left and right flanking backbone blocks.
-    - **`accessory_length`**: total unique accessory content — the sum of consensus lengths of all distinct accessory block IDs appearing in any isolate's center path for this edge. Each block is counted once even if it appears in multiple isolates.
+    - `n_isolates`: number of isolates that have this junction. When `n_isolates` equals the total number of isolates in the graph, the junction is universal: the flanking backbone blocks appear consecutively in all genomes. Non-universal junctions are typically a sign of synteny breaks.
+    - `n_non_empty`: number of isolates where the junction is non-empty (carries at least one accessory block). The complement, `n_isolates - n_non_empty`, is the count of isolates where the two flanking backbone blocks sit directly adjacent with no accessory content in between.
+    - `n_categories`: number of distinct accessory path variants. A "category" is a unique sequence of accessory block IDs. All isolates with no accessory blocks (empty center) count as one category.
+    - `n_majority_category`: number of isolates in the most common variant. Together with `n_categories`, this tells you how diverse the junction is.
+    - `is_transitive`: `True` if `n_categories == 1`, i.e. all isolates sharing this edge have the same accessory structure (including all-empty).
+    - `is_singleton`: `True` if exactly one isolate has a different variant from all others (`n_isolates > 1` and `n_majority_category == n_isolates - 1`).
+    - `left_core_length` / `right_core_length`: consensus length (bp) of the left and right flanking backbone blocks.
+    - `accessory_length`: total unique accessory content, the sum of consensus lengths of all distinct accessory block IDs appearing in any isolate's center path for this edge. Each block is counted once even if it appears in multiple isolates.
 
 </details>
 
@@ -105,7 +105,7 @@ ax.legend(title="n. non-empty", loc="upper left")
 
 Reading the plot:
 
-- most variation is in junctions with a **low number of categories** (typically around 2) — loci of **limited structural variation**.
+- most variation is in junctions with a **low number of categories** (typically around 2), the loci of **limited structural variation**.
   - amongst these, we find bands of several junctions with characteristic lengths around 1500 and 1300 bp. These are junctions with very few occupied genomes (blue dots), consistent with recent and repeated activity of mobile elements such as _Insertion Sequences_.
 - At the other end of the spectrum, in the top-right corner of the plot, we find **hotspots**. These are regions with high variability (almost every genome has a unique accessory pattern) and a vast accessory repertoire (around 100kb of unique accessory genome across 15 isolates).
 
