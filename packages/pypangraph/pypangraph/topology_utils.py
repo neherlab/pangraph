@@ -33,8 +33,10 @@ class OrientedBlock:
     @staticmethod
     def from_str_id(t) -> "OrientedBlock":
         # Block ids are kept as strings internally (they are u64 hashes; see the
-        # pypangraph data-model notes), so the id token round-trips as-is.
-        bid_str, strand_str = t.split("_")
+        # pypangraph data-model notes), so the id token round-trips as-is. Split
+        # from the right so that ids containing "_" (e.g. MSU-renamed "MSU_0")
+        # round-trip correctly: only the trailing "_<f|r>" strand suffix is peeled.
+        bid_str, strand_str = t.rsplit("_", 1)
         return OrientedBlock(bid_str, strand_str == "f")
 
 

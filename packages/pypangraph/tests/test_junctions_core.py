@@ -215,6 +215,16 @@ def test_edge_is_canonical():
     assert palindrome.is_canonical()
 
 
+def test_str_id_roundtrip_underscore_ids():
+    """to_str_id / from_str_id round-trip block ids that themselves contain '_'
+    (e.g. MSU-renamed ids like 'MSU_0'); the strand suffix is peeled from the right."""
+    ob = tu.OrientedBlock("MSU_0", True)
+    assert tu.OrientedBlock.from_str_id(ob.to_str_id()) == ob
+
+    e = tu.Edge(tu.OrientedBlock("MSU_0", True), tu.OrientedBlock("MSU_12", False))
+    assert tu.Edge.from_str_id(e.to_str_id()) == e
+
+
 def test_junction_is_canonical(junction_pangraph):
     """Junction.is_canonical() reports whether the junction's natural orientation
     matches the lex-min canonical form of its flanking edge."""
