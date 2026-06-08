@@ -9,8 +9,8 @@ def core_paths(pan, L_thr):
     bdf = pan.to_blockstats_df()
     walks = tu.pangraph_to_walks(pan)
 
-    def is_core(node_id):
-        return (bdf.loc[node_id, "len"] >= L_thr) and bdf.loc[node_id, "core"]
+    def is_core(block_id):
+        return (bdf.loc[block_id, "len"] >= L_thr) and bdf.loc[block_id, "core"]
 
     return tu.filter_walks(walks, is_core)
 
