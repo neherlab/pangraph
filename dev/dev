@@ -105,7 +105,7 @@ function main() {
     bash
     ;;
   "jupyter" | "j")
-    /files/start-jupyter
+    /start-jupyter
     ;;
   esac
 
