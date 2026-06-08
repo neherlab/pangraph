@@ -144,7 +144,7 @@ Or a second, junction-specific pangraph. This is usually useful in more complex 
 
 ```bash
 pangraph build -l 100 -s 20 junction.fa -o junction.json
-pangraph export gfa junctions.json -o junctions.gfa
+pangraph export gfa junction.json -o junction.gfa
 ```
 
 ![bandage screenshot](../assets/pp_t8_bandage.png)
