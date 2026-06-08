@@ -27,12 +27,16 @@ class Junction:
     with reverse-complement symmetry.
 
     Attributes:
-        left: The core block on the left flank.
+        left: The core block on the left flank, or None for a terminal junction
+            on a linear path.
         center: A Walk of accessory blocks between the flanks.
-        right: The core block on the right flank.
+        right: The core block on the right flank, or None for a terminal junction
+            on a linear path.
     """
 
-    def __init__(self, left: OrientedBlock, center: Walk, right: OrientedBlock) -> None:
+    def __init__(
+        self, left: OrientedBlock | None, center: Walk, right: OrientedBlock | None
+    ) -> None:
         self.left = left
         self.center = center
         self.right = right
