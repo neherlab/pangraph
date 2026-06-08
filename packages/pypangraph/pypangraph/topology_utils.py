@@ -226,33 +226,45 @@ def walk_block_count(walks):
 
 
 def find_mergers(walks):
-    """Create a dictionary source -> sinks of block-ids to be merged"""
+    """Create a dictionary source -> sink of block-ids to be merged.
+
+    Two core blocks are merged when they are *always* adjacent: an edge whose
+    occurrence count equals the occurrence count of both its endpoint blocks.
+    Groups of such blocks are tracked with a union-find (disjoint-set) forest,
+    so fusing two groups is near-constant time instead of a full relabel scan.
+
+    Returns a dict mapping every block id to its group's representative block id
+    (a block in a group of one maps to itself).
+    """
     edge_ct = walk_edge_count(walks)
     block_ct = walk_block_count(walks)
 
-    mergers = {}
+    # Union-find over block ids: every block starts in its own group,
+    # represented by itself.
+    parent = {bid: bid for bid in block_ct}
+
+    def find_root(bid):
+        """Return the representative (root) of bid's group, compressing the path."""
+        # Walk up to the root of the group.
+        root = bid
+        while parent[root] != root:
+            root = parent[root]
+        # Second pass: point every node visited directly at the root,
+        # so later lookups are fast.
+        while parent[bid] != root:
+            parent[bid], bid = root, parent[bid]
+        return root
+
+    def union(a, b):
+        """Merge the groups containing blocks a and b."""
+        parent[find_root(a)] = find_root(b)
+
+    # An edge whose count equals both endpoints' block counts means the two
+    # blocks are always adjacent -> they belong to the same merger group.
     for e, ec in edge_ct.items():
         bl, br = e.left.id, e.right.id
         if (ec == block_ct[bl]) and (ec == block_ct[br]):
-            # merge
-            if bl in mergers:
-                if br in mergers:
-                    source = mergers[br]
-                    sink = mergers[bl]
-                    for k in mergers:
-                        if mergers[k] == source:
-                            mergers[k] = sink
-                else:
-                    mergers[br] = mergers[bl]
-            elif br in mergers:
-                mergers[bl] = mergers[br]
-            else:
-                mergers[br] = bl
-                mergers[bl] = bl
+            union(bl, br)
 
-    # add missing blocks that are not in a merger
-    for bid in block_ct.keys():
-        if bid not in mergers:
-            mergers[bid] = bid
-
-    return mergers
+    # Flatten: map every block directly to its group representative.
+    return {bid: find_root(bid) for bid in block_ct}
