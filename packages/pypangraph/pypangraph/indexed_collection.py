@@ -44,9 +44,11 @@ class IndexedCollection:
             pos = self.id_to_pos[str(id_)]
             return self.list[pos]
         except KeyError:
+            # `from None`: the original KeyError only carries the key, which is
+            # already in this message, so suppress it for a clean traceback.
             raise KeyError(
                 f"Id {id_} not found in collection {self.__class__.__name__}"
-            )
+            ) from None
 
     def keys(self):
         """Returns the list of ids (like a dictionary)"""
