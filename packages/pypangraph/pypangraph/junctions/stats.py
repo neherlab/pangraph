@@ -99,7 +99,6 @@ def junction_stats(edge_map, bdf):
 
         Sorted by `n_isolates` descending.
     """
-    # TODO: one could add more stats. E.g. the average non-empty accessory length.
     records = {}
     for edge_str, iso_junctions in edge_map.items():
         records[edge_str] = _edge_stats(edge_str, iso_junctions, bdf)
