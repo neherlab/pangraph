@@ -91,7 +91,7 @@ junction_pos.loc["NZ_CP022905.1", ["left_end", "right_start"]]
 # right_start    878866
 ```
 
-Inspecting [this location in NCBI's GenBank viewer](https://www.ncbi.nlm.nih.gov/nuccore/NZ_CP022905.1?report=graph&from=877542&to=878866#) reveals indeed the presence of an IS256 element, commonly found in _S. aureus_, and likely to have recently inserted and given rise to the junction.
+Inspecting [this location in NCBI's GenBank viewer](https://www.ncbi.nlm.nih.gov/nuccore/NZ_CP022905.1?report=graph&from=877542&to=878866#) reveals indeed the presence of an [IS256 element](https://doi.org/10.1099/00221287-133-11-3031), commonly found in _S. aureus_, and likely to have recently inserted and given rise to the junction.
 
 ![NCBI genome viewer screenshot](../assets/pp_t8_ncbi_viewer_IS_screenshot.png)
 
@@ -99,7 +99,7 @@ The location of an insertion is often not random. If inserted in a coding region
 
 ![NCBI genome viewer screenshot 2](../assets/pp_t8_ncbi_viewer_interrupted_gene.png)
 
-The IS element insertion truncates the _clfA_ gene, which encodes an immunogenic surface protein involved in adhesion, a known virulence factor.
+The IS element insertion truncates the _clfA_ gene, which encodes an immunogenic surface protein involved in adhesion, a [known virulence factor](https://doi.org/10.1038/nrmicro3161).
 
 ## Extracting the junction sequences
 
@@ -165,4 +165,4 @@ As a further exercise you can try to explore some more interesting junctions you
 - edge `13256234721607664913_r__7427484406751306657_f` encompasses a **highly-variable region** in these genomes.
   - draw a linear representation to compare the variation across different genomes.
   - focus on one genome, e.g. `NZ_CP022905.1`, and look at the annotations. Can you find mobile genetic elements? Can you find resistance determinants?
-  - the presence of the _mecA_ gene and recombinases suggests that this is a [SCCmec cassette](https://en.wikipedia.org/wiki/SCCmec), a known mobile genetic element of _Staphylococcus_ bacteria that confers methicillin resistance.
+  - the presence of the _mecA_ gene and recombinases suggests that this is a [SCCmec cassette](https://en.wikipedia.org/wiki/SCCmec) ([IWG-SCC 2009](https://doi.org/10.1128/AAC.00579-09)), a known mobile genetic element of _Staphylococcus_ bacteria that confers methicillin resistance.
