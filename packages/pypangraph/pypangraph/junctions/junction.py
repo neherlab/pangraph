@@ -152,7 +152,7 @@ def path_junction_split(path: Walk, is_core) -> list[Junction]:
     left_node = None
     for ob in path.oriented_blocks:
         if is_core(ob.id):
-            J = Junction(left_node, Walk(current), ob)
+            J = Junction(left_node, Walk(current, circular=False), ob)
             junctions.append(J)
             left_node = ob
             current = []
@@ -163,10 +163,10 @@ def path_junction_split(path: Walk, is_core) -> list[Junction]:
         # complete periodic boundary: merge trailing non-core nodes into the first junction
         J = junctions[0]
         J.left = left_node
-        J.center = Walk(current + J.center.oriented_blocks)
+        J.center = Walk(current + J.center.oriented_blocks, circular=False)
         junctions[0] = J
     elif current or left_node is not None:
         # trailing accessory nodes after the last core block
-        junctions.append(Junction(left_node, Walk(current), None))
+        junctions.append(Junction(left_node, Walk(current, circular=False), None))
 
     return junctions
