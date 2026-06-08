@@ -34,6 +34,16 @@ class BackboneJunctions:
         self._junctions = None  # dict[iso, list[Junction]]
         self._edge_map = None  # dict[edge_str, dict[iso, Junction]]
 
+    @property
+    def block_stats(self) -> pd.DataFrame:
+        """Block stats frame (``pan.to_blockstats_df()``) backing this analysis.
+
+        Indexed by str block id with a ``len`` and ``core`` column, among others.
+        Exposed read-only so callers (e.g. plots) need not reach into the private
+        cache.
+        """
+        return self._bdf
+
     def _is_backbone(self, bid: str) -> bool:
         """Determine if a block ID corresponds to a backbone block."""
         return self._bdf.loc[bid, "core"] and self._bdf.loc[bid, "len"] >= self.L_thr

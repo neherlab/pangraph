@@ -61,7 +61,7 @@ def linear_junction_plot(
     seed = color_map or {}
     colors = defaultdict(_random_color, seed)
 
-    block_len = bj._bdf["len"]
+    block_len = bj.block_stats["len"]
 
     for row, iso in enumerate(isolates):
         J = per_iso[iso].to_canonical()
