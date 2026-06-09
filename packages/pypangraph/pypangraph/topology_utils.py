@@ -103,6 +103,14 @@ class Walk:
             circular=self.circular,
         )
 
+    def edges(self) -> list:
+        """Edges between consecutive oriented blocks (with the circular wrap)."""
+        obs = self.oriented_blocks
+        es = [Edge(a, b) for a, b in zip(obs, obs[1:])]
+        if self.circular and len(obs) > 1:
+            es.append(Edge(obs[-1], obs[0]))
+        return es
+
 
 class Edge:
     """Oriented link between two oriented blocks."""
@@ -205,14 +213,7 @@ def walk_edge_count(walks):
     """Count internal edges of walks"""
     ct = Counter()
     for iso, w in walks.items():
-        obs = w.oriented_blocks
-        L = len(obs)
-        es = []
-        for i in range(L - 1):
-            es.append(Edge(obs[i], obs[i + 1]))
-        if w.circular:
-            es.append(Edge(obs[-1], obs[0]))
-        ct.update(es)
+        ct.update(w.edges())
     return dict(ct)
 
 
