@@ -1,4 +1,4 @@
-from .gfa import write_gfa
-from .streamlined import streamlined_gfa
+from .gfa import GFA
+from .junctions_to_gfa import junction_context_gfa
 
-__all__ = ["write_gfa", "streamlined_gfa"]
+__all__ = ["GFA", "junction_context_gfa"]

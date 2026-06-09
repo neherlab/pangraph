@@ -4,7 +4,7 @@ import re
 
 import pytest
 
-from pypangraph.export import streamlined_gfa, write_gfa
+from pypangraph.export import GFA, junction_context_gfa
 from pypangraph.junctions import BackboneJunctions
 
 ACCESSORY_RE = re.compile(r"^J\d+__\d+$")
@@ -19,13 +19,13 @@ DOMINANT_EDGES = {
 }
 
 
-def test_write_gfa_minimal(tmp_path):
-    """write_gfa emits H/S/L lines with LN/DP tags and correct orientations."""
+def test_gfa_write_minimal(tmp_path):
+    """GFA.write emits H/S/L lines with LN/DP tags and correct orientations."""
     segments = {"a": 100, "b": 50}
     links = {("a", True, "b", False)}
     depths = {"a": 3}
     out = tmp_path / "tiny.gfa"
-    write_gfa(out, segments, links, depths)
+    GFA(segments, links, depths).write(out)
 
     lines = out.read_text().splitlines()
     assert lines[0] == "H\tVN:Z:1.0"
@@ -36,11 +36,12 @@ def test_write_gfa_minimal(tmp_path):
     assert link == "L\ta\t+\tb\t-\t0M"
 
 
-def test_streamlined_consensus_structure(junction_pangraph):
+def test_consensus_gfa_structure(junction_pangraph):
     """Consensus export: core anchors single & un-prefixed, accessory prefixed,
     links well-formed, and depths reflect isolate coverage."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    segments, links, depths, prefix_map = streamlined_gfa(bj, order="consensus")
+    gfa, prefix_map = junction_context_gfa(bj, scaffold="consensus")
+    segments, links, depths = gfa.segments, gfa.links, gfa.depths
 
     core_ids = {"100", "200", "300", "400"}
     # Every core block appears once, un-prefixed.
@@ -67,46 +68,46 @@ def test_streamlined_consensus_structure(junction_pangraph):
         assert edge_str in bj
 
 
-def test_streamlined_all_is_superset_of_consensus(junction_pangraph):
-    """order='all' keeps every junction, a superset of the consensus scaffold."""
+def test_all_scaffold_is_superset_of_consensus(junction_pangraph):
+    """scaffold='all' keeps every junction, a superset of the consensus scaffold."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    _, links_c, _, pmap_c = streamlined_gfa(bj, order="consensus")
-    _, links_a, _, pmap_a = streamlined_gfa(bj, order="all")
+    gfa_c, pmap_c = junction_context_gfa(bj, scaffold="consensus")
+    gfa_a, pmap_a = junction_context_gfa(bj, scaffold="all")
 
     edges_c = set(pmap_c.values())
     edges_a = set(pmap_a.values())
     assert edges_c < edges_a  # strict superset (s3 rearrangement edges added)
-    assert len(links_a) >= len(links_c)
+    assert len(gfa_a.links) >= len(gfa_c.links)
 
 
 def test_consensus_scaffold_follows_dominant_synteny(junction_pangraph):
     """Per-edge majority keeps the s1/s2 backbone, dropping the s3 rearrangement."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    _, _, _, prefix_map = streamlined_gfa(bj, order="consensus")
+    _, prefix_map = junction_context_gfa(bj, scaffold="consensus")
     assert set(prefix_map.values()) == DOMINANT_EDGES
 
 
 def test_reference_scaffold_uses_that_genomes_edges(junction_pangraph):
-    """order=<isolate> keeps that genome's own core edges (s3 is rearranged)."""
+    """scaffold=<isolate> keeps that genome's own core edges (s3 is rearranged)."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    _, _, _, prefix_map = streamlined_gfa(bj, order="s3")
+    _, prefix_map = junction_context_gfa(bj, scaffold="s3")
     edges = set(prefix_map.values())
     # s3 visits C1-C3-C2-C4, so its core edges differ from the consensus backbone.
     assert edges != DOMINANT_EDGES
     assert "100_f__300_f" in edges
 
 
-def test_unknown_order_raises(junction_pangraph):
-    """An order that is neither 'consensus'/'all' nor a known isolate raises."""
+def test_unknown_scaffold_raises(junction_pangraph):
+    """A scaffold that is neither 'consensus'/'all' nor a known isolate raises."""
     bj = BackboneJunctions(junction_pangraph, L_thr=500)
-    with pytest.raises(ValueError, match="unknown reference isolate"):
-        streamlined_gfa(bj, order="not_a_genome")
+    with pytest.raises(ValueError, match="unknown scaffold isolate"):
+        junction_context_gfa(bj, scaffold="not_a_genome")
 
 
-def test_streamlined_runs_on_real_graph(plasmid_pangraph):
+def test_junction_context_gfa_runs_on_real_graph(plasmid_pangraph):
     """Smoke test on a real plasmid graph: non-empty, all links valid."""
     bj = BackboneJunctions(plasmid_pangraph, L_thr=500)
-    segments, links, depths, prefix_map = streamlined_gfa(bj, order="consensus")
-    assert segments and links and prefix_map
-    for a, _, b, _ in links:
-        assert a in segments and b in segments
+    gfa, prefix_map = junction_context_gfa(bj, scaffold="consensus")
+    assert gfa.segments and gfa.links and prefix_map
+    for a, _, b, _ in gfa.links:
+        assert a in gfa.segments and b in gfa.segments

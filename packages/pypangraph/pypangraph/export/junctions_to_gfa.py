@@ -1,10 +1,10 @@
-"""Junction-aware ("streamlined") GFA decomposition of a pangenome graph.
+"""Junction-context GFA decomposition of a pangenome graph.
 
-Unlike the standard whole-graph GFA export, this produces a *streamlined* graph:
-blocks are paralog-split and de-duplicated **by junction context** (the same
-block in two different junctions becomes two segments; shared core anchors stay
-single), and the topology is reduced to a chosen **core synteny** so the result
-is a clean, walkable graph instead of a tangle.
+Unlike the standard whole-graph GFA export, this disentangles the graph by
+**junction context**: blocks are paralog-split and de-duplicated per junction
+(the same block in two different junctions becomes two segments; shared core
+anchors stay single), and the topology is reduced to a chosen **core synteny**
+scaffold so the result is a clean, walkable graph instead of a tangle.
 
 Core flank blocks are emitted once globally (segment name = block id); accessory
 blocks get an enumerated per-junction prefix (``J{n}__{block_id}``) so blocks
@@ -16,6 +16,7 @@ between its two core anchors.
 from collections import Counter, defaultdict
 
 from ..minimal_synteny_units import core_paths
+from .gfa import GFA
 
 
 def _iso_core_edges(pan, L_thr):
@@ -44,53 +45,53 @@ def _consensus_edge_set(iso_edges):
     return {e for e, c in counts.items() if c > n / 2}
 
 
-def _scaffold_edges(bj, order):
-    """Return the canonical edge ids to keep for an ``order`` policy.
+def _scaffold_edges(bj, scaffold):
+    """Return the canonical edge ids to keep for a ``scaffold`` policy.
 
     The result is sorted for deterministic, stable ``J{n}`` numbering. ``"all"``
     keeps every junction (equivalently, the union of all isolate core-edge sets);
-    ``"consensus"`` keeps the per-edge majority; otherwise ``order`` is an isolate
-    name and its own core-edge set is used. Edges absent from ``bj`` are dropped.
+    ``"consensus"`` keeps the per-edge majority; otherwise ``scaffold`` is an
+    isolate name and its own core-edge set is used. Edges absent from ``bj`` are
+    dropped.
     """
     available = set(bj.edges())
-    if order == "all":
+    if scaffold == "all":
         return sorted(available)
 
     iso_edges = _iso_core_edges(bj.pan, bj.L_thr)
-    if order == "consensus":
+    if scaffold == "consensus":
         chosen = _consensus_edge_set(iso_edges)
-    elif order in iso_edges:
-        chosen = iso_edges[order]
+    elif scaffold in iso_edges:
+        chosen = iso_edges[scaffold]
     else:
         raise ValueError(
-            f"unknown reference isolate {order!r}; "
+            f"unknown scaffold isolate {scaffold!r}; "
             f"expected 'consensus', 'all', or one of {sorted(iso_edges)}"
         )
     return sorted(chosen & available)
 
 
-def streamlined_gfa(bj, order="consensus"):
-    """Build a streamlined, junction-aware GFA decomposition of a graph.
+def junction_context_gfa(bj, scaffold="consensus"):
+    """Build a junction-context GFA decomposition of a graph.
 
     Args:
         bj: A ``BackboneJunctions`` object.
-        order: Synteny-selection policy. ``"consensus"`` (default) keeps junctions
-            on the consensus core backbone; an isolate name uses that genome's
-            core order; ``"all"`` keeps every junction (tangled escape hatch).
+        scaffold: Which core-synteny scaffold defines the kept junctions.
+            ``"consensus"`` (default) keeps the per-edge majority backbone; an
+            isolate name uses that genome's own core edges; ``"all"`` keeps every
+            junction (tangled escape hatch).
 
     Returns:
-        A tuple ``(segments, links, depths, prefix_map)``:
-        - segments: dict[str, int]  segment name -> length in bp
-        - links: set[(from_name, from_strand, to_name, to_strand)]
-        - depths: dict[str, int]  segment name -> number of distinct isolates
-          traversing it across the kept junctions
-        - prefix_map: dict[str, str]  ``"J{n}"`` -> canonical edge string id
-
-        The caller writes the GFA via :func:`pypangraph.export.write_gfa` and may
-        persist ``prefix_map`` itself (e.g. as a TSV) if needed.
+        A tuple ``(gfa, prefix_map)``:
+        - gfa: a :class:`~pypangraph.export.GFA` whose segments (name -> length in
+          bp), links and per-segment depths (number of distinct isolates
+          traversing each segment across the kept junctions) describe the
+          decomposition. Serialize it with ``gfa.write(path)``.
+        - prefix_map: dict[str, str]  ``"J{n}"`` -> canonical edge string id;
+          decomposition provenance the caller may persist (e.g. as a TSV).
     """
     bdf = bj.block_stats
-    kept = _scaffold_edges(bj, order)
+    kept = _scaffold_edges(bj, scaffold)
 
     segments = {}
     links = set()
@@ -124,4 +125,4 @@ def streamlined_gfa(bj, order="consensus"):
             depths[name] = len(isos)
         else:
             depths[name] = int(bdf.loc[name, "count"])
-    return segments, links, depths, prefix_map
+    return GFA(segments, links, depths), prefix_map
