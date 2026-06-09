@@ -35,7 +35,7 @@ The output file can be visualized using [Bandage](https://rrwick.github.io/Banda
 
 ![img](../assets/t4_klebs_full_pangraph.png)
 
-Colors indicate the number of times a block occurs. Blocks that appear in red are core blocks that are found in every chromosome, while black blocks are only present in a few strains. We used the `--no-duplication` flag in the export command, which excludes duplicated blocks from the exported graph. This simplifies the visualization, which would otherwise be highly "tangled-up" by these duplications.
+Colors indicate the number of times a block occurs. Blocks that appear in red are core blocks that are found in every chromosome, while black blocks are only present in a few strains. We used the `--no-duplicated` flag in the export command, which excludes duplicated blocks from the exported graph. This simplifies the visualization, which would otherwise be highly "tangled-up" by these duplications.
 
 An even better option, based on our python library, is discussed in [a later part of the tutorial](../pypangraph/t09-untangling-with-junctions.md): rather than dropping the duplicated blocks, it disentangles them by their junction context, giving a clear graph while keeping the full accessory diversity.
 
@@ -79,7 +79,7 @@ As done for the main pangraph, we can export the marginalized pangraph in `gfa` 
 
 ```bash
 pangraph export gfa \
-    --no-duplications \
+    --no-duplicated \
     --minimum-length 150 \
     klebs_marginal_pangraph.json \
     -o klebs_marginal_pangraph.gfa

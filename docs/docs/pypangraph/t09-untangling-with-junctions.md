@@ -4,7 +4,7 @@ sidebar_position: 11
 
 # Bonus: visually untangling graph complexity using junctions
 
-When a whole pangenome graph is exported to GFA and opened in [Bandage](https://rrwick.github.io/Bandage/), the result is usually a **tangle**. As we saw in the [build tutorial](../tutorial/t01-building-pangraph.md), the same accessory or duplicated block can occur in many different genomic contexts, so a single segment ends up linked to many distant parts of the graph. These long-range links are what make the layout look like a hairball. This can be mitigated by filtering out duplicated blocks or even all accessory blocks, but at the cost of loosing visualization of the accessory diversity.
+When a whole pangenome graph is exported to GFA and opened in [Bandage](https://rrwick.github.io/Bandage/), the result is usually a **tangle**. As we saw in the [build tutorial](../tutorial/t01-building-pangraph.md), the same accessory or duplicated block can occur in many different genomic contexts, so a single segment ends up linked to many distant parts of the graph. These long-range links are what make the layout look like a hairball. This can be mitigated by filtering out duplicated blocks or even all accessory blocks, but at the cost of losing visualization of the accessory diversity.
 
 Junctions (introduced in [the junctions tutorial](t06-junctions-intro.md)) offer a better solution: we can keep the accessory blocks but **disentangle them by context**. The idea is to *paralog-split* each block according to the junction it sits in, so a block shared across several junctions becomes one segment per junction instead of one segment wired to all of them. The core blocks stay shared and act as anchors, and the accessory diversity is laid out as clean bubbles strung along the core-synteny backbone.
 
@@ -12,9 +12,9 @@ This is made more concrete in the example below:
 
 ![schematic of junction-context GFA export](../assets/pp_t9_scheme.png)
 
-Here we consider three core blocks(`X`, `Y` and `Z`) and two accessory blocks (`a` and `b`). Block `a` is found in two junction contexts (`[X|Y]` and `[Y|Z]`). As a consequence, paths need to traverse it twice, before and after core block `Y`. This generates tangles in the representation.
+Here we consider three core blocks (`X`, `Y` and `Z`) and two accessory blocks (`a` and `b`). Block `a` is found in two junction contexts (`[X|Y]` and `[Y|Z]`). As a consequence, paths need to traverse it twice, before and after core block `Y`. This generates tangles in the representation.
 
-To circumvent this, we can **make use of the junction information** to de-duplicate block `a` in two occurrences (`a1` and `a2`) that can clearly be distinguished by context. As a result of this operation, the tanlge is resolved and all core junctions are clearly separated.
+To circumvent this, we can **make use of the junction information** to de-duplicate block `a` in two occurrences (`a1` and `a2`) that can clearly be distinguished by context. As a result of this operation, the tangle is resolved and all core junctions are clearly separated.
 
 
 ## The tangled starting point
@@ -46,7 +46,7 @@ gfa, prefix_map = junction_context_gfa(junctions, scaffold="consensus")
 gfa.write("staph_untangled.gfa")
 ```
 
-This emits each block once *per junction context*: a block that occurs in several junctions becomes several segments, each prefixed by a junction tag (`J{n}__{block_id}`), while the core blocks -- the shared anchors -- their plain id and are emitted only once. Because blocks are de-duplicated by context, the export actually has **more** segments than the whole-graph GFA (1312 segments, 1742 links here) — but each one is local to a single junction, so the long-range crossings disappear and the graph reads as a clean chain of bubbles.
+This emits each block once *per junction context*: a block that occurs in several junctions becomes several segments, each prefixed by a junction tag (`J{n}__{block_id}`), while the core blocks -- the shared anchors -- keep their plain id and are emitted only once. Because blocks are de-duplicated by context, the export actually has **more** segments than the whole-graph GFA (1312 segments, 1742 links here) — but each one is local to a single junction, so the long-range crossings disappear and the graph reads as a clean chain of bubbles.
 
 ![junction-context GFA of the staph pangraph in Bandage, untangled into clean bubbles](../assets/pp_t9_untangled.png)
 
