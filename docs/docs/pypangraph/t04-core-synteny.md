@@ -71,10 +71,12 @@ From this plot we observe a strong conservation in the order of core blocks. Thi
 pangraph export gfa --no-duplicated --minimum-depth 15 plasmids.json -o plasmids_core.gfa
 ```
 
-Moreover, we can save the block colors that we used in the previous plot in a csv file, that can be loaded by Bandage to color the blocks.
+Moreover, we can save the block colors that we used in the previous plot in a csv file, that can be loaded by Bandage to color the blocks. We quote every field (`quoting=csv.QUOTE_ALL`) so that Bandage matches the long numeric block ids as strings instead of misreading them as numbers.
 
 ```python
-pd.Series(block_color, name="Colour").to_csv("block_colors.csv")
+import csv
+
+pd.Series(block_color, name="Colour").to_csv("block_colors.csv", quoting=csv.QUOTE_ALL)
 ```
 
 After loading the graph and coloring it we obtain the following picture:
@@ -151,13 +153,16 @@ pangraph export gfa \
 And then we can export the dictionary of core-block colors with:
 
 ```python
+import csv
+
 block_colors = {}
 for block_id in graph.blocks.keys():
     if block_id in MSU_mergers:
         block_colors[block_id] = mpl.colors.to_hex(colors[MSU_mergers[block_id]])
     else:
         block_colors[block_id] = mpl.colors.to_hex("lightgray")
-pd.Series(block_colors, name="Colour").to_csv("block_colors.csv")
+# quote every field so Bandage matches the long numeric block ids as strings
+pd.Series(block_colors, name="Colour").to_csv("block_colors.csv", quoting=csv.QUOTE_ALL)
 ```
 
 After loading the graph in Bandage and coloring the blocks we obtain the following picture:
