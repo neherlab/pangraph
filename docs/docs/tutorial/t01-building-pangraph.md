@@ -167,3 +167,7 @@ pangraph export gfa \
 The resulting graph is much simpler. The remaining crossings are due to changes in core-genome synteny. Each change in order of core blocks results in a crossing in the graph, as will be discussed in [a later tutorial section](../pypangraph/t04-core-synteny.md).
 
 ![img](./../assets/t1_gfa_core.png)
+
+An even better option, based on our [python library](../pypangraph/about-pypangraph.md), is discussed in [a later part of the tutorial](../pypangraph/t09-untangling-with-junctions.md): it keeps the accessory blocks but disentangles them by their core-genome context, so the graph reads clearly without sacrificing any of the accessory diversity.
+
+![img](./../assets/t1_gfa_untangled.png)
