@@ -2,7 +2,9 @@
 
 An in-memory GFA1 graph (segments + links, with optional per-segment depths)
 that knows how to serialize itself. Sequences are not stored: segment lengths are
-emitted as ``LN:i:`` tags and the sequence field is left as ``*``.
+emitted as ``LN:i:`` tags and the sequence field is left as ``*``. The real bp
+lengths can optionally be rescaled at write time (e.g. ``log`` or ``1/l``) for
+visualization — see :meth:`GFA.write`.
 """
 
 
@@ -34,17 +36,35 @@ class GFA:
         self.links = links
         self.depths = depths or {}
 
-    def write(self, filepath) -> None:
+    def write(self, filepath, length_transform=None) -> None:
         """Write this graph to a minimal GFA1 file.
 
         Emits the ``H`` header, one ``S`` line per segment (``LN:i:`` length and,
         when present in :attr:`depths`, a ``DP:f:`` depth tag, sequence ``*``),
         and one ``L`` line per link with a ``0M`` overlap.
+
+        Args:
+            filepath: Output path for the GFA1 file.
+            length_transform: optional ``Callable`` applied to each segment's real
+                bp length to rescale the emitted ``LN:i:`` value (useful for
+                visualization, since block lengths span orders of magnitude). The
+                result is rounded to the nearest integer and clamped to a minimum
+                of ``1``; ``None`` (default) emits the true length. The caller owns
+                the scaling: raw ``math.log(l)`` is tiny (~5-14) and raw ``1/l``
+                collapses everything to the ``1`` floor, so scale as needed, e.g.::
+
+                    gfa.write("out.gfa", length_transform=lambda l: 100 * math.log(l))
+                    gfa.write("out.gfa", length_transform=lambda l: 1e7 / l)
         """
         with open(filepath, "w") as f:
             f.write("H\tVN:Z:1.0\n")
             for name, length in self.segments.items():
-                line = f"S\t{name}\t*\tLN:i:{int(length)}"
+                ln = (
+                    int(length)
+                    if length_transform is None
+                    else max(1, round(length_transform(length)))
+                )
+                line = f"S\t{name}\t*\tLN:i:{ln}"
                 if name in self.depths:
                     line += f"\tDP:f:{self.depths[name]}"
                 f.write(line + "\n")

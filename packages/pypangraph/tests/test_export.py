@@ -1,5 +1,6 @@
 """Tests for the GFA writer and the streamlined junction-aware GFA export."""
 
+import math
 import re
 
 import pytest
@@ -34,6 +35,42 @@ def test_gfa_write_minimal(tmp_path):
     assert "LN:i:50" in s_lines["b"] and "DP:f:" not in s_lines["b"]
     (link,) = [ln for ln in lines if ln.startswith("L")]
     assert link == "L\ta\t+\tb\t-\t0M"
+
+
+def _segment_lengths(gfa_path):
+    """Parse a GFA file into a dict of segment name -> emitted LN:i: value."""
+    lengths = {}
+    for ln in gfa_path.read_text().splitlines():
+        if not ln.startswith("S"):
+            continue
+        fields = ln.split("\t")
+        (tag,) = [f for f in fields if f.startswith("LN:i:")]
+        lengths[fields[1]] = int(tag.removeprefix("LN:i:"))
+    return lengths
+
+
+def test_gfa_write_length_transform(tmp_path):
+    """length_transform rescales LN:i:, rounds to nearest int, clamps to >= 1."""
+    gfa = GFA({"a": 100, "b": 1000, "c": 5}, set(), {})
+
+    # Linear rescale: round(l / 10) -> exact for 100 and 1000; 5 -> round(0.5)=0
+    # clamps up to the 1 floor.
+    out = tmp_path / "scaled.gfa"
+    gfa.write(out, length_transform=lambda length: length / 10)
+    assert _segment_lengths(out) == {"a": 10, "b": 100, "c": 1}
+
+    # log-based scaling also rounds to the nearest integer.
+    out_log = tmp_path / "log.gfa"
+    gfa.write(out_log, length_transform=lambda length: 100 * math.log(length))
+    assert _segment_lengths(out_log) == {
+        name: max(1, round(100 * math.log(length)))
+        for name, length in gfa.segments.items()
+    }
+
+    # Default path is unaffected: real lengths.
+    out_real = tmp_path / "real.gfa"
+    gfa.write(out_real)
+    assert _segment_lengths(out_real) == {"a": 100, "b": 1000, "c": 5}
 
 
 def test_consensus_gfa_structure(junction_pangraph):
