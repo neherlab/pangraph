@@ -7,6 +7,10 @@ lengths can optionally be rescaled at write time (e.g. ``log`` or ``1/l``) for
 visualization — see :meth:`GFA.write`.
 """
 
+from __future__ import annotations
+
+from collections.abc import Callable, Iterable
+
 
 def _orient(strand: bool) -> str:
     """Map a strand boolean to a GFA orientation symbol (True -> '+', False -> '-')."""
@@ -21,7 +25,12 @@ class GFA:
     serialize it to a GFA1 file.
     """
 
-    def __init__(self, segments, links, depths=None) -> None:
+    def __init__(
+        self,
+        segments: dict[str, int],
+        links: Iterable[tuple[str, bool, str, bool]],
+        depths: dict[str, float] | None = None,
+    ) -> None:
         """Store the graph.
 
         Args:
@@ -36,7 +45,9 @@ class GFA:
         self.links = links
         self.depths = depths or {}
 
-    def write(self, filepath, length_transform=None) -> None:
+    def write(
+        self, filepath: str, length_transform: Callable[[int], float] | None = None
+    ) -> None:
         """Write this graph to a minimal GFA1 file.
 
         Emits the ``H`` header, one ``S`` line per segment (``LN:i:`` length and,

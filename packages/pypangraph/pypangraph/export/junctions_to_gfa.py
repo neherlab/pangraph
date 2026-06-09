@@ -13,13 +13,15 @@ co-oriented to its canonical edge direction so the junction forms a clean bubble
 between its two core anchors.
 """
 
+from __future__ import annotations
+
 from collections import Counter, defaultdict
 
 from ..minimal_synteny_units import core_paths
 from .gfa import GFA
 
 
-def _iso_core_edges(pan, L_thr):
+def _iso_core_edges(pan, L_thr: int) -> dict[str, frozenset[str]]:
     """Map each isolate to the frozenset of canonical core-edge ids on its backbone.
 
     ``core_paths`` purifies each genome to core blocks >= ``L_thr``; the canonical
@@ -33,7 +35,7 @@ def _iso_core_edges(pan, L_thr):
     }
 
 
-def _consensus_edge_set(iso_edges):
+def _consensus_edge_set(iso_edges: dict[str, frozenset[str]]) -> set[str]:
     """Core edges present in a strict majority of isolate backbones.
 
     This is the single tunable consensus-policy point: change the predicate here
@@ -45,7 +47,7 @@ def _consensus_edge_set(iso_edges):
     return {e for e, c in counts.items() if c > n / 2}
 
 
-def _scaffold_edges(bj, scaffold):
+def _scaffold_edges(bj, scaffold: str) -> list[str]:
     """Return the canonical edge ids to keep for a ``scaffold`` policy.
 
     The result is sorted for deterministic, stable ``J{n}`` numbering. ``"all"``
@@ -71,7 +73,7 @@ def _scaffold_edges(bj, scaffold):
     return sorted(chosen & available)
 
 
-def junction_context_gfa(bj, scaffold="consensus"):
+def junction_context_gfa(bj, scaffold: str = "consensus") -> tuple[GFA, dict[str, str]]:
     """Build a junction-context GFA decomposition of a graph.
 
     Args:
