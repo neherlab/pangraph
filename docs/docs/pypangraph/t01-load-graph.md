@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Loading and exploring a graph
 
-We start the tutorial by loading a pangenome graph object and exploring its properties. For this tutorial we will use the `plasmids.json` file that you can find in pypangraph repository under `tests/data/plasmids.json`
+We start the tutorial by loading a pangenome graph object and exploring its properties. For this tutorial we will use the `plasmids.json` file, a pangraph of 15 plasmid sequences. You can download it from the pypangraph repository at [`packages/pypangraph/tests/data/plasmids.json`](https://raw.githubusercontent.com/neherlab/pangraph/master/packages/pypangraph/tests/data/plasmids.json).
 
 We can load the graph object with:
 

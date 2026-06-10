@@ -19,7 +19,7 @@ class Nodes:
     """Dataset with pangraph nodes information:
     - id (str): node id. Index of the dataframe
     - block_id (str): block id
-    - path_id (str): path id
+    - path_id (int): path id
     - strand (bool): strandedness of the node
     - position (tuple): position of the node in the genome (start, end)
     """
@@ -28,7 +28,7 @@ class Nodes:
         self.df = pd.DataFrame.from_dict(
             {
                 node_id: {
-                    "block_id": node["block_id"],
+                    "block_id": str(node["block_id"]),
                     "path_id": node["path_id"],
                     "strand": parse_strandedness(node["strand"]),
                     "start": node["position"][0],
@@ -78,11 +78,14 @@ class Nodes:
         df["core"] &= ~df["duplicated"]
         return df
 
-    def node_to_block(self, node_id: int) -> tuple[int, bool]:
-        """Returns the node's block id and strandedness"""
+    def node_to_block(self, node_id: int) -> pd.Series:
+        """Returns the node's block id (str) and strandedness (bool) as a 2-element
+        pandas Series, unpackable as ``block_id, strand = node_to_block(...)``."""
         return self.df.loc[str(node_id), ["block_id", "strand"]]
 
-    def nodes_to_blocks(self, node_ids: list[int]) -> tuple[list[int], list[bool]]:
-        """Returns the block id and strandedness of a list of nodes"""
+    def nodes_to_blocks(self, node_ids: list[int]) -> np.ndarray:
+        """Returns block ids and strandedness for a list of nodes as a (2, N) numpy
+        array, unpackable as ``block_ids, strands = nodes_to_blocks(...)`` (the first
+        row holds str block ids, the second the bool strands)."""
         N = np.array(node_ids, dtype=str)
         return self.df.loc[N, ["block_id", "strand"]].values.T

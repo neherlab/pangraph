@@ -1,0 +1,176 @@
+from __future__ import annotations
+
+from ..topology_utils import OrientedBlock, Walk, Edge
+
+
+class JunctionNode(OrientedBlock):
+    """OrientedBlock that also carries the unique node_id for unambiguous sequence lookup.
+
+    Inherits equality/hashing from OrientedBlock (compares block_id + strand only),
+    so it works transparently with Walk, Edge, and Junction.
+    """
+
+    def __init__(self, bid, strand: bool, node_id: int) -> None:
+        super().__init__(bid, strand)
+        self.node_id = node_id
+
+    def invert(self) -> "JunctionNode":
+        return JunctionNode(self.id, not self.strand, self.node_id)
+
+    def __repr__(self) -> str:
+        s = "+" if self.strand else "-"
+        return f"{{block={self.id}|{s}}}"
+
+
+class Junction:
+    """A junction is a segment of accessory blocks flanked by two core blocks,
+    with reverse-complement symmetry.
+
+    Attributes:
+        left: The core block on the left flank, or None for a terminal junction
+            on a linear path.
+        center: A Walk of accessory blocks between the flanks.
+        right: The core block on the right flank, or None for a terminal junction
+            on a linear path.
+    """
+
+    def __init__(
+        self, left: OrientedBlock | None, center: Walk, right: OrientedBlock | None
+    ) -> None:
+        self.left = left
+        self.center = center
+        self.right = right
+
+    def invert(self) -> "Junction":
+        """Reverse-complement the junction, swapping and inverting the flanks.
+
+        Robust to terminal junctions: a ``None`` flank stays ``None`` (it simply
+        moves to the opposite side).
+        """
+        left = self.right.invert() if self.right is not None else None
+        right = self.left.invert() if self.left is not None else None
+        return Junction(left, self.center.invert(), right)
+
+    def flanking_edge(self) -> Edge | None:
+        """Returns the Edge connecting the two flanking core blocks.
+
+        Returns None for terminal junctions on linear paths where one flank is missing.
+        """
+        if self.left is None or self.right is None:
+            return None
+        return Edge(self.left, self.right)
+
+    def is_canonical(self) -> bool:
+        """Whether the junction's flanks are in canonical edge orientation.
+
+        Delegates to the flanking edge's own canonical-direction predicate.
+
+        Raises:
+            ValueError: if the junction has a missing flank (terminal junction on
+                a linear path), for which canonical orientation is undefined.
+        """
+        edge = self.flanking_edge()
+        if edge is None:
+            raise ValueError(
+                "is_canonical() is undefined for terminal junctions with a missing flank"
+            )
+        return edge.is_canonical()
+
+    def to_canonical(self) -> "Junction":
+        """Return this junction co-oriented to its canonical edge direction.
+
+        Returns ``self`` when already canonical, otherwise the inverted junction.
+        Raises ``ValueError`` for terminal junctions with a missing flank (see
+        ``is_canonical``).
+        """
+        return self if self.is_canonical() else self.invert()
+
+    def oriented_blocks(self) -> list[OrientedBlock]:
+        """Flatten the junction into a left-to-right list of oriented blocks.
+
+        Includes the left flank (if any), then the center walk's blocks in order,
+        then the right flank (if any). Terminal junctions on linear paths may have
+        ``left`` or ``right`` equal to None; those flanks are silently omitted.
+        """
+        blocks: list[OrientedBlock] = []
+        if self.left is not None:
+            blocks.append(self.left)
+        blocks.extend(self.center.oriented_blocks)
+        if self.right is not None:
+            blocks.append(self.right)
+        return blocks
+
+    def __side_eq__(self, o: object) -> bool:
+        return self.left == o.left and self.center == o.center and self.right == o.right
+
+    def __eq__(self, o: object) -> bool:
+        if not isinstance(o, Junction):
+            return NotImplemented
+        return self.__side_eq__(o) or self.__side_eq__(o.invert())
+
+    def __side_hash__(self) -> int:
+        return hash((self.left, self.center, self.right))
+
+    def __hash__(self) -> int:
+        return self.__side_hash__() ^ self.invert().__side_hash__()
+
+    def __repr__(self) -> str:
+        return f"{self.left} <-- {self.center} --> {self.right}"
+
+
+def path_junction_split(path: Walk, is_core) -> list[Junction]:
+    """Split a path into junctions at core block boundaries.
+
+    Given a path and a boolean predicate on node ids, splits the path into a list
+    of Junctions. Each junction has flanking core blocks (for which the predicate
+    returns True) and a center path of non-core blocks.
+
+    For circular paths, the last junction wraps around the origin, connecting the
+    last core block back to the first.
+
+    For linear paths, there may be terminal junctions at the start and/or end with
+    only one flanking core block (left=None or right=None). These terminal junctions
+    have no flanking edge.
+
+    Args:
+        path: A Walk object (circular or linear).
+        is_core: A callable taking a block id and returning True if the block is core.
+
+    Returns:
+        A list of Junction objects.
+
+    Raises:
+        ValueError: if the path has fewer than two core blocks, in which case no
+            junction can be defined (and a circular path would have no flanks at all).
+    """
+    n_core = sum(1 for ob in path.oriented_blocks if is_core(ob.id))
+    if n_core < 2:
+        raise ValueError(
+            f"path has {n_core} core block(s); at least 2 are required to define a junction"
+        )
+
+    # collect here the junctions
+    junctions = []
+
+    current = []
+    left_node = None
+    for ob in path.oriented_blocks:
+        if is_core(ob.id):
+            J = Junction(left_node, Walk(current, circular=False), ob)
+            junctions.append(J)
+            left_node = ob
+            current = []
+        else:
+            current.append(ob)
+
+    if path.circular:
+        # complete periodic boundary: merge trailing non-core nodes into the first junction
+        J = junctions[0]
+        J.left = left_node
+        J.center = Walk(current + J.center.oriented_blocks, circular=False)
+        junctions[0] = J
+    elif current or left_node is not None:
+        # trailing accessory nodes after the last core block
+        junctions.append(Junction(left_node, Walk(current, circular=False), None))
+
+    return junctions

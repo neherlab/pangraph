@@ -15,6 +15,10 @@ from .class_node import Nodes
 from .pangraph_schema import schema
 
 
+class PangraphLoadError(ValueError):
+    """Raised when a Pangraph JSON file cannot be loaded or validated."""
+
+
 class Pangraph:
     """Wrapper class to load and interact with the output of the Pangraph pipeline.
     The class has three main attributes:
@@ -53,22 +57,29 @@ class Pangraph:
         is_json = str(filename).endswith(".json")
         is_gzjson = str(filename).endswith(".json.gz")
         if not (is_json or is_gzjson):
-            raise Exception(
+            raise PangraphLoadError(
                 f"the input file {filename} should be in .json or .json.gz format"
             )
 
-        if is_gzjson:
-            with gzip.open(filename, "rt") as f:
-                pan_json = json.load(f)
-        else:
-            with open(filename, "r") as f:
-                pan_json = json.load(f)
+        try:
+            if is_gzjson:
+                with gzip.open(filename, "rt") as f:
+                    pan_json = json.load(f)
+            else:
+                with open(filename, "r") as f:
+                    pan_json = json.load(f)
+        except (OSError, gzip.BadGzipFile, json.JSONDecodeError) as ex:
+            raise PangraphLoadError(
+                f"failed to load pangraph from {filename}: {ex}"
+            ) from ex
 
         try:
             graph = {"pangraph": pan_json}
             jsonschema.validate(instance=graph, schema=schema)
         except jsonschema.exceptions.ValidationError as ex:
-            print(ex)
+            raise PangraphLoadError(
+                f"invalid pangraph JSON in {filename}: {ex.message}"
+            ) from ex
 
         pan = Pangraph(pan_json)
         return pan
@@ -92,8 +103,8 @@ class Pangraph:
         - count: n. times the block occurs
         - n. strains: number of strains in which the block is observed
         - duplicated: whether the block is duplicated in at least one strain
-        - len: average block length from pangraph.
-        - core: whether a gene occurrs exactly once per strain
+        - len: block consensus length in basepairs.
+        - core: whether a block occurs exactly once per strain
         """
         df = self.nodes.to_blockstats_df()
         df["len"] = [len(self.blocks[bid]) for bid in df.index]
@@ -159,9 +170,8 @@ class Pangraph:
         # get order of core blocks in guide strain
         if guide_strain is None:
             guide_strain = self.strains()[0]
-        assert guide_strain in strains, (
-            f"Guide strain {guide_strain} not found in the dataset"
-        )
+        if guide_strain not in strains:
+            raise ValueError(f"Guide strain {guide_strain} not found in the dataset")
         guide_path = self.paths[guide_strain]
 
         # core block ids and strandedness
@@ -177,9 +187,11 @@ class Pangraph:
         for bid, guide_strand in core_blocks:
             # get block alignment
             aln_dict = self.blocks[bid].to_alignment()
-            assert len(aln_dict) == len(strains), (
-                f"error: unexpected number of strains {bid}"
-            )
+            if len(aln_dict) != len(strains):
+                raise ValueError(
+                    f"core block {bid} has {len(aln_dict)} alignment rows but the graph "
+                    f"has {len(strains)} strains"
+                )
 
             # append alignment to the final alignment for each strain
             aln_strains = []
@@ -193,9 +205,10 @@ class Pangraph:
                 aln_strains.append(strain)
 
             # sanity check: core-blocks are present once per strain
-            assert set(strains) == set(aln_strains), (
-                f"error: strain missing in block {bid}: {set(strains)} != {set(aln_strains)}"
-            )
+            if set(strains) != set(aln_strains):
+                raise ValueError(
+                    f"strain missing in core block {bid}: {set(strains)} != {set(aln_strains)}"
+                )
 
         # convert to biopython alignment
         records = []

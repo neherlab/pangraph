@@ -1,5 +1,4 @@
 # %%
-import matplotlib.pyplot as plt
 from collections import defaultdict
 from itertools import product
 from dataclasses import dataclass
@@ -54,8 +53,8 @@ class Segment:
         Split the segment into two segments based on a fraction of the segment length
         """
         assert 0 <= f <= 1
-        l = self.length(L)
-        l1, l2 = f * l, (1 - f) * l
+        total_len = self.length(L)
+        l1, l2 = f * total_len, (1 - f) * total_len
         if flip:
             l1, l2 = l2, l1
         s1 = Segment(self.start, (self.start + l1) % L, self.strand)

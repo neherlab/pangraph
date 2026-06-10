@@ -11,13 +11,16 @@ class Block:
         class for details.
     """
 
-    def __init__(self, block_id: int, alignment: pga.Alignment):
+    def __init__(self, block_id: str, alignment: pga.Alignment):
         self.id = block_id
         self.alignment = alignment
 
     @staticmethod
     def from_dict(block: dict) -> "Block":
-        block_id = block["id"]
+        # Block ids are u64 hashes; keep them as strings internally so they never get
+        # coerced to float when used as a pandas index/column (which silently corrupts
+        # values above 2**53).
+        block_id = str(block["id"])
         alignment = pga.Alignment.from_dict(block)
         return Block(block_id, alignment)
 
@@ -39,11 +42,11 @@ class Block:
         """Returns the consensus sequence of the block"""
         return self.alignment.consensus
 
-    def to_sequences(self) -> dict[int, str]:
+    def to_sequences(self) -> dict[str, str]:
         """Returns a dictionary node_id -> sequence for the block"""
         return self.alignment.generate_sequences()
 
-    def to_alignment(self) -> dict[int, str]:
+    def to_alignment(self) -> dict[str, str]:
         """Returns a dictionary node_id -> aligned sequence for the block.
         The aligned sequence does not include insertions."""
         return self.alignment.generate_alignment()
@@ -63,6 +66,6 @@ class BlockCollection(IndexedCollection):
     """
 
     def __init__(self, pan_blocks):
-        ids = [block["id"] for block in pan_blocks.values()]
+        ids = [str(block["id"]) for block in pan_blocks.values()]
         items = [Block.from_dict(block) for block in pan_blocks.values()]
         IndexedCollection.__init__(self, ids, items)

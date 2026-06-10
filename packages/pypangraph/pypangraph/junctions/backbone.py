@@ -1,0 +1,144 @@
+import pandas as pd
+from Bio.SeqRecord import SeqRecord
+
+from ..topology_utils import Walk
+from .junction import JunctionNode, Junction, path_junction_split
+from .positions import junction_positions
+from .sequences import junction_sequences
+from .stats import junction_stats
+
+
+class BackboneJunctions:
+    """Backbone junction analysis for a pangenome graph.
+
+    Splits each path into junctions at backbone (core + above-threshold length)
+    block boundaries. Results are lazily computed and cached.
+
+    Args:
+        pan: A Pangraph object.
+        L_thr: Minimum block length to be considered backbone (default 500 bp).
+
+    Note:
+        Every genome must contain at least two backbone blocks, since a junction
+        is defined by its two flanking core blocks. A genome with fewer than two
+        (plausible with a high ``L_thr`` for a short or divergent genome) raises
+        ``ValueError`` when the split is computed, aborting the whole analysis.
+        To analyze the remaining genomes, lower ``L_thr`` or drop the offending
+        genome from ``pan`` beforehand.
+    """
+
+    def __init__(self, pan, L_thr: int = 500):
+        self.pan = pan
+        self.L_thr = L_thr
+        self._bdf = pan.to_blockstats_df()
+        self._junctions = None  # dict[iso, list[Junction]]
+        self._edge_map = None  # dict[edge_str, dict[iso, Junction]]
+
+    @property
+    def block_stats(self) -> pd.DataFrame:
+        """Block stats frame (``pan.to_blockstats_df()``) backing this analysis.
+
+        Indexed by str block id with a ``len`` and ``core`` column, among others.
+        Exposed read-only so callers (e.g. plots) need not reach into the private
+        cache.
+        """
+        return self._bdf
+
+    def _is_backbone(self, bid: str) -> bool:
+        """Determine if a block ID corresponds to a backbone block."""
+        return self._bdf.loc[bid, "core"] and self._bdf.loc[bid, "len"] >= self.L_thr
+
+    def _ensure_split(self):
+        """Ensure that paths have been split into junctions and edge maps built.
+
+        Raises:
+            ValueError: if any genome has fewer than two backbone blocks (see the
+                class docstring). The failure aborts the whole split, not just the
+                offending genome.
+        """
+        if self._junctions is not None:
+            return
+        self._junctions = {}
+        self._edge_map = {}
+        for name, path in self.pan.paths.items():
+            # create a Walk from a Path object, including accessory blocks
+            oriented_blocks = []
+            for nid in path.nodes:
+                row = self.pan.nodes.df.loc[str(nid)]
+                oriented_blocks.append(
+                    JunctionNode(row["block_id"], row["strand"], nid)
+                )
+            tu_path = Walk(oriented_blocks, path.circular)
+
+            juncs = path_junction_split(tu_path, self._is_backbone)
+            self._junctions[name] = juncs
+            for j in juncs:
+                edge = j.flanking_edge()
+                if edge is None:
+                    continue
+                edge_str = edge.to_str_id()
+                if edge_str not in self._edge_map:
+                    self._edge_map[edge_str] = {}
+                self._edge_map[edge_str][name] = j
+
+    def __getitem__(self, edge_str: str) -> dict[str, Junction]:
+        """Return the {isolate -> Junction} mapping for a core edge.
+
+        Raises:
+            KeyError: if no junction with this edge exists in the graph.
+        """
+        self._ensure_split()
+        return self._edge_map[edge_str]
+
+    def __contains__(self, edge_str: str) -> bool:
+        """Whether a core edge with this id exists in the graph."""
+        self._ensure_split()
+        return edge_str in self._edge_map
+
+    def edges(self) -> list[str]:
+        """Return list of all edge string IDs."""
+        self._ensure_split()
+        return list(self._edge_map.keys())
+
+    def stats(self) -> pd.DataFrame:
+        """Compute per-edge junction statistics.
+
+        Returns:
+            DataFrame with edge string IDs as index and columns:
+            n_isolates, n_non_empty, n_categories, n_majority_category,
+            is_transitive, is_singleton, left_core_length, right_core_length,
+            accessory_length. Sorted by `n_isolates` descending.
+        """
+        self._ensure_split()
+        return junction_stats(self._edge_map, self._bdf)
+
+    def positions(self) -> pd.DataFrame:
+        """Find genomic positions of flanking core blocks for each junction.
+
+        Returns:
+            A DataFrame with MultiIndex (edge, iso) and columns:
+            - left_start, left_end: genomic position of the left flanking block
+            - right_start, right_end: genomic position of the right flanking block
+            - strand: True if canonical orientation, False if inverted
+        """
+        self._ensure_split()
+        return junction_positions(self._edge_map, self.pan)
+
+    def sequences(self, edge_str: str) -> list[SeqRecord]:
+        """Extract co-oriented sequences spanning a junction.
+
+        For each isolate with the given junction, returns a SeqRecord spanning
+        from the start of the left core block to the end of the right one.
+        All sequences are co-oriented: core blocks are in the same orientation
+        across isolates, with accessory sequence in between. Individual blocks
+        are reverse-complemented as needed based on their strand.
+
+        Args:
+            edge_str: The canonical edge string ID (e.g. "100_f__200_f").
+
+        Returns:
+            A list of SeqRecord objects, one per isolate. The record id is
+            the isolate name, and the description contains the edge string ID.
+        """
+        self._ensure_split()
+        return junction_sequences(self._edge_map, self.pan, edge_str)

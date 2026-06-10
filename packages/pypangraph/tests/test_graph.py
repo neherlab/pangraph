@@ -20,6 +20,30 @@ def test_load_graph_gz():
     assert len(pan.strains()) == 15
 
 
+def test_load_graph_invalid_extension(tmp_path):
+    fname = tmp_path / "plasmids.txt"
+    fname.write_text("{}")
+
+    with pytest.raises(pp.PangraphLoadError, match=r"\.json or \.json\.gz"):
+        pp.Pangraph.from_json(fname)
+
+
+def test_load_graph_invalid_json(tmp_path):
+    fname = tmp_path / "broken.json"
+    fname.write_text("{this is not valid json}")
+
+    with pytest.raises(pp.PangraphLoadError, match="failed to load pangraph"):
+        pp.Pangraph.from_json(fname)
+
+
+def test_load_graph_invalid_schema(tmp_path):
+    fname = tmp_path / "invalid.json"
+    fname.write_text("{}")
+
+    with pytest.raises(pp.PangraphLoadError, match="invalid pangraph JSON"):
+        pp.Pangraph.from_json(fname)
+
+
 def test_paths(graph):
     path = graph.paths["RCS48_p1"]
     assert len(path) == 60
@@ -39,6 +63,26 @@ def test_blockstats_df(graph):
     assert df["duplicated"].sum() == 10
 
 
+def test_block_ids_are_strings(graph):
+    """Block ids are stored as strings internally, and the blockstats index is str.
+
+    Block ids are u64 hashes that overflow int64; storing them as strings keeps them
+    out of any float64 coercion (which would silently corrupt values above 2**53).
+    """
+    bdf = graph.to_blockstats_df()
+    assert bdf.index.dtype == object
+    assert all(isinstance(bid, str) for bid in bdf.index)
+    assert all(isinstance(bid, str) for bid in graph.blocks.keys())
+
+
+def test_blocks_accessor_accepts_int_or_str(graph):
+    """pan.blocks[bid] resolves the same block whether bid is passed as str or int."""
+    bid = graph.blocks.keys()[0]  # str
+    assert isinstance(bid, str)
+    assert graph.blocks[int(bid)] is graph.blocks[bid]
+    assert int(bid) in graph.blocks and bid in graph.blocks
+
+
 def test_blockcount_df(graph):
     df = graph.to_blockcount_df()
     assert df.shape[0] == 137
@@ -54,7 +98,7 @@ def test_nodes_to_blocks(graph):
     assert len(S) == len(nodes)
 
     b, s = graph.nodes.node_to_block(8533989107945450583)
-    assert b == 14710008249239879492
+    assert b == "14710008249239879492"  # block ids are strings internally
     assert s
 
 
@@ -62,6 +106,12 @@ def test_core_genome_alignment(graph):
     core_aln = graph.core_genome_alignment()
     assert len(core_aln) == 15
     assert core_aln.get_alignment_length() == 64989
+
+
+def test_core_genome_alignment_invalid_guide_strain(graph):
+    """An unknown guide strain is rejected with a ValueError (not a bare assert)."""
+    with pytest.raises(ValueError, match="Guide strain .* not found"):
+        graph.core_genome_alignment(guide_strain="does_not_exist")
 
 
 def test_pairwise_accessory_genome_comparisons(graph):

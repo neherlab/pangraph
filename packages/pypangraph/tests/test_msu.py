@@ -1,103 +1,125 @@
 import pypangraph as pp
-import pypangraph.msu as msu
 from collections import defaultdict
 import pytest
+
+from pypangraph.minimal_synteny_units import (
+    minimal_synteny_units,
+    flip_msu_to_most_common_orientation,
+)
+import pypangraph.topology_utils as tu
 
 
 class TestNode:
     def test_eq(self):
-        n1 = msu.Node("A", True)
-        n2 = msu.Node("A", True)
-        n3 = msu.Node("A", False)
-        n4 = msu.Node("B", True)
+        n1 = tu.OrientedBlock("A", True)
+        n2 = tu.OrientedBlock("A", True)
+        n3 = tu.OrientedBlock("A", False)
+        n4 = tu.OrientedBlock("B", True)
         assert n1 == n2
         assert n1 != n3
         assert n1 != n4
 
     def test_invert(self):
-        n = msu.Node("A", True)
-        assert n.invert() == msu.Node("A", False)
+        n = tu.OrientedBlock("A", True)
+        assert n.invert() == tu.OrientedBlock("A", False)
 
 
 class TestPath:
+    def test_constructor_default_nodes_are_not_shared(self):
+        p1 = tu.Walk()
+        p2 = tu.Walk()
+        p1.add_right(tu.OrientedBlock("A", True))
+        assert p1.oriented_blocks == [tu.OrientedBlock("A", True)]
+        assert p2.oriented_blocks == []
+
     def test_eq(self):
-        n1 = msu.Node("A", True)
-        n2 = msu.Node("B", True)
-        n3 = msu.Node("C", True)
-        p1 = msu.Path([n1, n2, n3], circular=True)
-        p2 = msu.Path([n1, n2, n3], circular=True)
-        p3 = msu.Path([n1, ~n2, n3], circular=True)
-        p4 = msu.Path([n1, n2], circular=True)
+        n1 = tu.OrientedBlock("A", True)
+        n2 = tu.OrientedBlock("B", True)
+        n3 = tu.OrientedBlock("C", True)
+        p1 = tu.Walk([n1, n2, n3], circular=True)
+        p2 = tu.Walk([n1, n2, n3], circular=True)
+        p3 = tu.Walk([n1, ~n2, n3], circular=True)
+        p4 = tu.Walk([n1, n2], circular=True)
         assert p1 == p2
         assert p1 != p3
         assert p1 != p4
 
     def test_invert(self):
-        n1 = msu.Node("A", True)
-        n2 = msu.Node("B", True)
-        n3 = msu.Node("C", True)
-        p = msu.Path([n1, n2, n3], circular=True)
-        assert ~p == msu.Path([~n3, ~n2, ~n1], circular=True)
+        n1 = tu.OrientedBlock("A", True)
+        n2 = tu.OrientedBlock("B", True)
+        n3 = tu.OrientedBlock("C", True)
+        p = tu.Walk([n1, n2, n3], circular=True)
+        assert ~p == tu.Walk([~n3, ~n2, ~n1], circular=True)
 
     def test_rotate_to(self):
-        n1 = msu.Node("A", True)
-        n2 = msu.Node("B", True)
-        n3 = msu.Node("C", True)
-        n4 = msu.Node("D", True)
-        p = msu.Path([n1, n2, n3, n4], circular=True)
-        assert p.rotate_to("B", True) == msu.Path([n2, n3, n4, n1], circular=True)
-        assert p.rotate_to("D", True) == msu.Path([n4, n1, n2, n3], circular=True)
-        assert p.rotate_to("B", False) == msu.Path([~n2, ~n1, ~n4, ~n3], circular=True)
-        assert p.rotate_to("D", False) == msu.Path([~n4, ~n3, ~n2, ~n1], circular=True)
+        n1 = tu.OrientedBlock("A", True)
+        n2 = tu.OrientedBlock("B", True)
+        n3 = tu.OrientedBlock("C", True)
+        n4 = tu.OrientedBlock("D", True)
+        p = tu.Walk([n1, n2, n3, n4], circular=True)
+        assert p.rotate_to("B", True) == tu.Walk([n2, n3, n4, n1], circular=True)
+        assert p.rotate_to("D", True) == tu.Walk([n4, n1, n2, n3], circular=True)
+        assert p.rotate_to("B", False) == tu.Walk([~n2, ~n1, ~n4, ~n3], circular=True)
+        assert p.rotate_to("D", False) == tu.Walk([~n4, ~n3, ~n2, ~n1], circular=True)
 
     def test_rename_bids(self):
-        n1 = msu.Node("A", True)
-        n2 = msu.Node("B", False)
-        n3 = msu.Node("C", True)
-        p = msu.Path([n1, n2, n3], circular=True)
-        assert p.rename_bids({"A": "X", "B": "Y", "C": "Z"}) == msu.Path(
-            [msu.Node("X", True), msu.Node("Y", False), msu.Node("Z", True)],
+        n1 = tu.OrientedBlock("A", True)
+        n2 = tu.OrientedBlock("B", False)
+        n3 = tu.OrientedBlock("C", True)
+        p = tu.Walk([n1, n2, n3], circular=True)
+        assert p.rename_bids({"A": "X", "B": "Y", "C": "Z"}) == tu.Walk(
+            [
+                tu.OrientedBlock("X", True),
+                tu.OrientedBlock("Y", False),
+                tu.OrientedBlock("Z", True),
+            ],
             circular=True,
         )
 
 
 class TestEdge:
     def test_invert(self):
-        n1 = msu.Node("A", True)
-        n2 = msu.Node("B", True)
-        e = msu.Edge(n1, n2)
-        assert e.invert() == msu.Edge(n2.invert(), n1.invert())
+        n1 = tu.OrientedBlock("A", True)
+        n2 = tu.OrientedBlock("B", True)
+        e = tu.Edge(n1, n2)
+        assert e.invert() == tu.Edge(n2.invert(), n1.invert())
 
     def test_eq(self):
-        n1 = msu.Node("A", True)
-        n2 = msu.Node("B", True)
-        e1 = msu.Edge(n1, n2)
-        e2 = msu.Edge(n1, n2)
-        e3 = msu.Edge(~n1, ~n2)
-        e4 = msu.Edge(n1, ~n2)
-        e5 = msu.Edge(~n2, ~n1)
+        n1 = tu.OrientedBlock("A", True)
+        n2 = tu.OrientedBlock("B", True)
+        e1 = tu.Edge(n1, n2)
+        e2 = tu.Edge(n1, n2)
+        e3 = tu.Edge(~n1, ~n2)
+        e4 = tu.Edge(n1, ~n2)
+        e5 = tu.Edge(~n2, ~n1)
         assert e1 == e2
         assert e1 != e3
         assert e1 != e4
         assert e1 == e5
 
 
+def test_new_import_paths_smoke():
+    assert callable(minimal_synteny_units)
+    assert tu.OrientedBlock("A", True).id == "A"
+    assert callable(pp.minimal_synteny_units)
+
+
 @pytest.fixture
 def generate_core_paths():
-    A = msu.Node("A", True)
-    B = msu.Node("B", True)
-    C = msu.Node("C", True)  # invert
-    D = msu.Node("D", True)  # invert
-    E = msu.Node("E", True)
-    F = msu.Node("F", True)
-    G = msu.Node("G", True)
-    H = msu.Node("H", True)  # invert
-    J = msu.Node("J", True)
+    A = tu.OrientedBlock("A", True)
+    B = tu.OrientedBlock("B", True)
+    C = tu.OrientedBlock("C", True)  # invert
+    D = tu.OrientedBlock("D", True)  # invert
+    E = tu.OrientedBlock("E", True)
+    F = tu.OrientedBlock("F", True)
+    G = tu.OrientedBlock("G", True)
+    H = tu.OrientedBlock("H", True)  # invert
+    J = tu.OrientedBlock("J", True)
 
-    p1 = msu.Path([A, B, C, D, E, F, G, H, J], circular=True)
-    p2 = msu.Path([A, B, C, D, E, F, G, H, J], circular=True)
-    p3 = msu.Path([A, B, ~D, ~C, E, F, G, H, J], circular=True)
-    p4 = msu.Path([A, B, ~D, ~C, E, F, G, ~H, J], circular=True)
+    p1 = tu.Walk([A, B, C, D, E, F, G, H, J], circular=True)
+    p2 = tu.Walk([A, B, C, D, E, F, G, H, J], circular=True)
+    p3 = tu.Walk([A, B, ~D, ~C, E, F, G, H, J], circular=True)
+    p4 = tu.Walk([A, B, ~D, ~C, E, F, G, ~H, J], circular=True)
 
     paths = {1: p1, 2: p2, 3: p3, 4: p4}
     nodes = {n.id: n for n in [A, B, C, D, E, F, G, H, J]}
@@ -108,7 +130,7 @@ def generate_core_paths():
 def test_find_mergers(generate_core_paths):
     paths, nodes = generate_core_paths
 
-    mg = msu.find_mergers(paths)
+    mg = tu.find_mergers(paths)
     mg_groups = defaultdict(set)
     for source, sink in mg.items():
         mg_groups[sink].add(source)
@@ -126,7 +148,158 @@ def load_graph():
 
 
 def test_msu(load_graph):
+    """Smoke test on the real plasmids graph with invariant checks."""
     pan = load_graph
-    MSU_mergers, MSU_paths, MSU_len = msu.minimal_synteny_units(
-        pan, L_thr=50, rotate=True
+    MSU_mergers, MSU_paths, MSU_len = minimal_synteny_units(pan, L_thr=50, rotate=True)
+
+    # one MSU walk per strain
+    assert set(MSU_paths.keys()) == set(pan.strains())
+    # every block maps to a real MSU label
+    assert all(label in MSU_len for label in MSU_mergers.values())
+    assert all(label.startswith("MSU_") for label in MSU_mergers.values())
+    # MSU_0 is the longest unit (labels are assigned by descending length)
+    assert max(MSU_len, key=MSU_len.get) == "MSU_0"
+
+
+def test_minimal_synteny_units_circular(junction_pangraph):
+    """End-to-end MSU extraction on the circular junction fixture.
+
+    Core blocks: C1=100(1000bp), C2=200(800bp), C3=300(600bp), C4=400(700bp);
+    accessory blocks are dropped by the core filter. Core orders are
+    s1/s2 = C1 C2 C3 C4 and s3 = C1 C3 C2 C4. The only edge shared by all three
+    strains is the circular wrap C4->C1, so C1 and C4 merge into a single MSU
+    (sink=400=C4); C2 and C3 stay singletons. MSUs are labelled by descending
+    length: MSU_0={C1,C4} (1700bp), MSU_1=C2 (800bp), MSU_2=C3 (600bp). All paths
+    are rotated to MSU_0 (forward); everything is forward so the flip is a no-op,
+    and s3 keeps its C2/C3 rearrangement.
+    """
+    MSU_mergers, MSU_paths, MSU_len = minimal_synteny_units(
+        junction_pangraph, L_thr=500, rotate=True
     )
+
+    assert MSU_len == {"MSU_0": 1700, "MSU_1": 800, "MSU_2": 600}
+    assert MSU_mergers == {
+        "100": "MSU_0",
+        "400": "MSU_0",
+        "200": "MSU_1",
+        "300": "MSU_2",
+    }
+
+    expected_s1 = tu.Walk(
+        [
+            tu.OrientedBlock("MSU_0", True),
+            tu.OrientedBlock("MSU_1", True),
+            tu.OrientedBlock("MSU_2", True),
+        ],
+        circular=True,
+    )
+    expected_s3 = tu.Walk(
+        [
+            tu.OrientedBlock("MSU_0", True),
+            tu.OrientedBlock("MSU_2", True),
+            tu.OrientedBlock("MSU_1", True),
+        ],
+        circular=True,
+    )
+    assert MSU_paths["s1"] == expected_s1
+    assert MSU_paths["s2"] == expected_s1
+    assert MSU_paths["s3"] == expected_s3
+    assert all(p.circular for p in MSU_paths.values())
+
+
+def test_minimal_synteny_units_no_rotate(linear_pangraph):
+    """MSU extraction with rotate=False on linear paths.
+
+    Core blocks C1=100(1000), C2=200(800), C3=300(600); both strains' core order is
+    C1 C2 C3. They form a single transitive chain, so all three merge into one MSU
+    (sink=100, 2400bp). Each path reduces to a single MSU node, unrotated.
+    """
+    MSU_mergers, MSU_paths, MSU_len = minimal_synteny_units(
+        linear_pangraph, L_thr=500, rotate=False
+    )
+
+    assert MSU_len == {"MSU_0": 2400}
+    assert MSU_mergers == {"100": "MSU_0", "200": "MSU_0", "300": "MSU_0"}
+
+    expected = tu.Walk([tu.OrientedBlock("MSU_0", True)], circular=False)
+    assert MSU_paths["s1"] == expected
+    assert MSU_paths["s2"] == expected
+    assert all(p.circular is False for p in MSU_paths.values())
+
+
+def test_minimal_synteny_units_rotate_requires_circular(linear_pangraph):
+    """rotate=True (the default) on linear paths raises a ValueError."""
+    with pytest.raises(ValueError, match="Only circular paths"):
+        minimal_synteny_units(linear_pangraph, L_thr=500)
+
+
+def test_minimal_synteny_units_rc_collapse(inversion_pangraph):
+    """A genome and its whole reverse-complement collapse onto the same canonical MSU walk.
+
+    Core blocks C1=10..C7=70; C5/C6/C7 are co-oriented neighbours of C1/C2/C3 and merge with
+    them. The universal adjacencies merge {C1,C2,C4,C5,C6} (sink 10); the s3 inversion breaks
+    C6-C3 and C7-C4, keeping {C3,C7} as a separate, invertible MSU (sink 30):
+      MSU_0 = {C1,C2,C4,C5,C6} (70bp), MSU_1 = {C3,C7} (28bp).
+    s1 and its RC s2 rotate/flip onto the identical walk (exercising rotate_to's invert branch);
+    s3's inversion survives as a flipped MSU_1 node.
+    """
+    MSU_mergers, MSU_paths, MSU_len = minimal_synteny_units(
+        inversion_pangraph, L_thr=10, rotate=True
+    )
+
+    assert MSU_len == {"MSU_0": 70, "MSU_1": 28}
+    assert MSU_mergers == {
+        "10": "MSU_0",
+        "50": "MSU_0",
+        "20": "MSU_0",
+        "60": "MSU_0",
+        "40": "MSU_0",
+        "70": "MSU_1",
+        "30": "MSU_1",
+    }
+
+    expected_ref = tu.Walk(
+        [tu.OrientedBlock("MSU_0", True), tu.OrientedBlock("MSU_1", True)],
+        circular=True,
+    )
+    expected_s3 = tu.Walk(
+        [tu.OrientedBlock("MSU_0", True), tu.OrientedBlock("MSU_1", False)],
+        circular=True,
+    )
+    assert MSU_paths["s1"] == expected_ref
+    assert MSU_paths["s2"] == expected_ref  # RC collapses onto the reference
+    assert (
+        MSU_paths["s3"] == expected_s3
+    )  # the inversion survives as a flipped MSU node
+    assert all(p.circular for p in MSU_paths.values())
+
+
+def test_flip_msu_to_most_common_orientation():
+    """Blocks predominantly on the reverse strand are flipped to forward.
+
+    X is reverse in 2 of 3 walks (net negative) so every X occurrence is flipped;
+    Y is forward throughout (net positive) and left untouched. The dict passed in is
+    mutated in place and returned.
+    """
+    paths = {
+        "a": tu.Walk(
+            [tu.OrientedBlock("X", False), tu.OrientedBlock("Y", True)], circular=True
+        ),
+        "b": tu.Walk(
+            [tu.OrientedBlock("X", False), tu.OrientedBlock("Y", True)], circular=True
+        ),
+        "c": tu.Walk(
+            [tu.OrientedBlock("X", True), tu.OrientedBlock("Y", True)], circular=True
+        ),
+    }
+
+    result = flip_msu_to_most_common_orientation(paths)
+
+    assert result is paths  # mutates in place and returns the same dict
+    # X net = (-1) + (-1) + (+1) = -1 < 0 -> every X occurrence flipped
+    assert paths["a"].oriented_blocks[0] == tu.OrientedBlock("X", True)
+    assert paths["b"].oriented_blocks[0] == tu.OrientedBlock("X", True)
+    assert paths["c"].oriented_blocks[0] == tu.OrientedBlock("X", False)
+    # Y net positive -> unchanged
+    assert paths["a"].oriented_blocks[1] == tu.OrientedBlock("Y", True)
+    assert paths["c"].oriented_blocks[1] == tu.OrientedBlock("Y", True)

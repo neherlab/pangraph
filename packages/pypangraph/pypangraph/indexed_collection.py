@@ -12,6 +12,10 @@ class IndexedCollection:
     - queried for the list of ids with the `keys` function (like a dictionary).
 
     The object's `len` is the lentgth of the list.
+
+    Ids are stored as strings, but lookups (`__getitem__`, `__contains__`) coerce the
+    key to str first, so a collection keyed by numeric ids (e.g. blocks) can be indexed
+    with either an int or a str.
     """
 
     def __init__(self, ids, items):
@@ -20,8 +24,8 @@ class IndexedCollection:
         self.id_to_pos = {id_: n for n, id_ in enumerate(ids)}
 
     def __contains__(self, id_):
-        """Returns whether the id is in the collection"""
-        return id_ in self.id_to_pos
+        """Returns whether the id is in the collection (accepts int or str)"""
+        return str(id_) in self.id_to_pos
 
     def __iter__(self):
         """Returns an iterator over the paths"""
@@ -35,14 +39,16 @@ class IndexedCollection:
         return len(self.list)
 
     def __getitem__(self, id_):
-        """Returns the item corresponding to the id"""
+        """Returns the item corresponding to the id (accepts int or str)"""
         try:
-            pos = self.id_to_pos[id_]
+            pos = self.id_to_pos[str(id_)]
             return self.list[pos]
         except KeyError:
+            # `from None`: the original KeyError only carries the key, which is
+            # already in this message, so suppress it for a clean traceback.
             raise KeyError(
                 f"Id {id_} not found in collection {self.__class__.__name__}"
-            )
+            ) from None
 
     def keys(self):
         """Returns the list of ids (like a dictionary)"""
