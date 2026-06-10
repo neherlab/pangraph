@@ -95,10 +95,16 @@ def junction_context_gfa(bj, scaffold: str = "consensus") -> tuple[GFA, dict[str
     bdf = bj.block_stats
     kept = _scaffold_edges(bj, scaffold)
 
+    # Hoist the two block-stat columns into plain dicts: otherwise a per-block
+    # pandas scalar ``.loc`` lookup runs for every oriented block of every isolate
+    # of every junction, re-fetching the same block id many times over.
+    len_map = bdf["len"].astype(int).to_dict()
+    count_map = bdf["count"].astype(int).to_dict()
+
     segments = {}
     links = set()
     prefix_map = {}
-    seg_isolates = defaultdict(set)  # segment name -> set of isolates traversing it
+    acc_isolates = defaultdict(set)  # accessory segment name -> isolates traversing it
 
     for n, edge_str in enumerate(kept):
         prefix = f"J{n}"
@@ -110,21 +116,23 @@ def junction_context_gfa(bj, scaffold: str = "consensus") -> tuple[GFA, dict[str
 
             named = []
             for ob in jc.oriented_blocks():
-                name = ob.id if ob.id in core_ids else f"{prefix}__{ob.id}"
-                segments[name] = int(bdf.loc[ob.id, "len"])
-                seg_isolates[name].add(iso)
+                if ob.id in core_ids:
+                    name = ob.id
+                else:
+                    name = f"{prefix}__{ob.id}"
+                    acc_isolates[name].add(iso)
+                segments[name] = len_map[ob.id]
                 named.append((name, ob.strand))
 
             for (n1, s1), (n2, s2) in zip(named, named[1:]):
                 links.add((n1, s1, n2, s2))
 
-    # Core anchors keep their true graph-wide occurrence depth (they are present
+    # Core anchors keep their true graph-wide occurrence count (they are present
     # in every isolate regardless of which edges survive); accessory copies are
     # per-junction, so their depth is the isolate count within that junction.
-    depths = {}
-    for name, isos in seg_isolates.items():
-        if "__" in name:
-            depths[name] = len(isos)
-        else:
-            depths[name] = int(bdf.loc[name, "count"])
+    # Membership in ``acc_isolates`` carries the core/accessory kind decided above.
+    depths = {
+        name: len(acc_isolates[name]) if name in acc_isolates else count_map[name]
+        for name in segments
+    }
     return GFA(segments, links, depths), prefix_map
