@@ -1,34 +1,27 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+  build-backend = 'setuptools.build_meta'
+  requires = ['setuptools>=61.0']
 
 [project]
-name = "pypangraph"
-version = "1.0.1"
-authors = [
-  { name="Marco Molari", email="mmolari91@gmail.com" },
-]
-description = "package to manipulate pangenomes produced by PanGraph"
-readme = "README.md"
-requires-python = ">=3.9"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-]
-dependencies = [
-  "matplotlib",
-  "numpy",
-  "pandas",
-  "biopython",
-  "jsonschema",
-]
+  classifiers = ['Programming Language :: Python :: 3', 'License :: OSI Approved :: MIT License', 'Operating System :: OS Independent']
+  dependencies = ['matplotlib', 'numpy', 'pandas', 'biopython', 'jsonschema']
+  description = 'package to manipulate pangenomes produced by PanGraph'
+  name = 'pypangraph'
+  readme = 'README.md'
+  requires-python = '>=3.9'
+  version = '1.1.0'
 
-[tool.setuptools.package-data]
-"Pangraph.schema.json" = ["Pangraph.schema.json"]
+  [[project.authors]]
+    email = 'mmolari91@gmail.com'
+    name = 'Marco Molari'
 
-[project.urls]
-Homepage = "https://docs.pangraph.org"
-Documentation = "https://docs.pangraph.org"
-Repository = "https://github.com/neherlab/pangraph"
-Issues = "https://github.com/neherlab/pangraph/issues"
+  [project.urls]
+    Documentation = 'https://docs.pangraph.org'
+    Homepage = 'https://docs.pangraph.org'
+    Issues = 'https://github.com/neherlab/pangraph/issues'
+    Repository = 'https://github.com/neherlab/pangraph'
+
+[tool]
+  [tool.setuptools]
+    [tool.setuptools.package-data]
+      'Pangraph.schema.json' = ['Pangraph.schema.json']
