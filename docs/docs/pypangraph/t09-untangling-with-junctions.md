@@ -46,7 +46,7 @@ gfa, prefix_map = junction_context_gfa(junctions, scaffold="consensus")
 gfa.write("staph_untangled.gfa")
 ```
 
-This emits each block once *per junction context*: a block that occurs in several junctions becomes several segments, each prefixed by a junction tag (`J{n}__{block_id}`), while the core blocks -- the shared anchors -- keep their plain id and are emitted only once. Because blocks are de-duplicated by context, the export actually has **more** segments than the whole-graph GFA (1312 segments, 1742 links here) — but each one is local to a single junction, so the long-range crossings disappear and the graph reads as a clean chain of bubbles.
+This emits each block once *per junction context*: a block that occurs in several junctions becomes several segments, each prefixed by a junction tag (`J{n}__{block_id}`), while the core blocks -- the shared anchors -- keep their plain id and are emitted only once. Because blocks are de-duplicated by context, the export actually has **more** segments than the whole-graph GFA (1312 segments, 1742 links here) -- but each one is local to a single junction, so the long-range crossings disappear and the graph reads as a clean chain of bubbles.
 
 ![junction-context GFA of the staph pangraph in Bandage, untangled into clean bubbles](../assets/pp_t9_untangled.png)
 
@@ -60,21 +60,21 @@ The `scaffold` argument of `junction_context_gfa` decides how this is handled, b
 
 - `"consensus"` (the default used above) keeps, for every pair of consecutive core blocks, the orientation seen in a **strict majority** of genomes. Minority rearrangements are dropped, so the synteny pinching points are smoothed out.
 - a **reference isolate name**, e.g. `scaffold="NZ_CP162433.1"`, uses that single genome's own core synteny as the backbone (useful when one assembly is your reference of record).
-- `"all"` keeps **every** junction — the union of all synteny variants seen across the dataset. This reintroduces the alternative orderings that the consensus scaffold drops, so it is slightly more tangled, but loses no synteny variation.
+- `"all"` keeps **every** junction -- the union of all synteny variants seen across the dataset. This reintroduces the alternative orderings that the consensus scaffold drops, so it is slightly more tangled, but loses no synteny variation.
 
 <details>
-    <summary>exporting every junction with <code>scaffold="all"</code></summary>
+    <summary>keeping synteny changes with <code>scaffold="all"</code></summary>
 
     ```python
     gfa_all, _ = junction_context_gfa(junctions, scaffold="all")
     gfa_all.write("staph_all.gfa")
     ```
 
-    For this graph `"all"` keeps 151 junctions versus the 143 of the consensus scaffold — the extra ones are the minority synteny rearrangements.
+    For this graph `"all"` keeps 151 junctions versus the 143 of the consensus scaffold -- the extra ones are the minority synteny rearrangements.
 
     ![junction-context GFA with scaffold="all" in Bandage](../assets/pp_t9_scaffold_all.png)
 
-    Here the core blocks are coloured by [minimal synteny unit](t04-core-synteny.md#core-genome-synteny): a change of colour along the backbone marks a **synteny breakpoint** — one of the rearrangements that the consensus scaffold smooths away.
+    Here the core blocks are coloured by [minimal synteny unit](t04-core-synteny.md#core-genome-synteny): a change of colour along the backbone marks a **synteny breakpoint** -- one of the rearrangements that the consensus scaffold smooths away.
 
 </details>
 
