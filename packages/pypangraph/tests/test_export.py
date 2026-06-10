@@ -141,6 +141,17 @@ def test_unknown_scaffold_raises(junction_pangraph):
         junction_context_gfa(bj, scaffold="not_a_genome")
 
 
+def test_accessory_depth_counts_repeats_on_same_path(tandem_accessory_pangraph):
+    """A block duplicated within a junction on the same path counts each copy.
+
+    s1 traverses accessory block 500 twice and s2 once, so the segment depth is 3
+    (total traversals), not 2 (distinct isolates carrying it)."""
+    bj = BackboneJunctions(tandem_accessory_pangraph, L_thr=500)
+    gfa, _ = junction_context_gfa(bj, scaffold="all")
+    a = next(n for n in gfa.segments if n.endswith("__500"))
+    assert gfa.depths[a] == 3
+
+
 def test_junction_context_gfa_runs_on_real_graph(plasmid_pangraph):
     """Smoke test on a real plasmid graph: non-empty, all links valid."""
     bj = BackboneJunctions(plasmid_pangraph, L_thr=500)

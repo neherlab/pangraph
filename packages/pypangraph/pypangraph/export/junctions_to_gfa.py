@@ -86,53 +86,60 @@ def junction_context_gfa(bj, scaffold: str = "consensus") -> tuple[GFA, dict[str
     Returns:
         A tuple ``(gfa, prefix_map)``:
         - gfa: a :class:`~pypangraph.export.GFA` whose segments (name -> length in
-          bp), links and per-segment depths (number of distinct isolates
-          traversing each segment across the kept junctions) describe the
-          decomposition. Serialize it with ``gfa.write(path)``.
+          bp), links and per-segment depths (coverage: the graph-wide occurrence
+          count for core anchors, the per-junction traversal count for accessory
+          copies) describe the decomposition. Serialize it with ``gfa.write(path)``.
         - prefix_map: dict[str, str]  ``"J{n}"`` -> canonical edge string id;
           decomposition provenance the caller may persist (e.g. as a TSV).
     """
     bdf = bj.block_stats
     kept = _scaffold_edges(bj, scaffold)
 
-    # Hoist the two block-stat columns into plain dicts: otherwise a per-block
-    # pandas scalar ``.loc`` lookup runs for every oriented block of every isolate
-    # of every junction, re-fetching the same block id many times over.
+    # dictionaries of block id -> length and count
     len_map = bdf["len"].astype(int).to_dict()
     count_map = bdf["count"].astype(int).to_dict()
 
     segments = {}
     links = set()
     prefix_map = {}
-    acc_isolates = defaultdict(set)  # accessory segment name -> isolates traversing it
+    acc_depth = defaultdict(int)  # accessory segment name -> number of traversals
 
+    # Cycle through all kept junctions
     for n, edge_str in enumerate(kept):
+        # junction unique prefix
         prefix = f"J{n}"
         prefix_map[prefix] = edge_str
 
-        for iso, junction in bj[edge_str].items():
+        # Cycle throught the value of the dictionary {iso -> junction path}
+        for junction in bj[edge_str].values():
+            # Co-orient to the canonical edge direction so all instances align.
             jc = junction.to_canonical()
+            # Capture the two flanking core blocks
             core_ids = {jc.left.id, jc.right.id}
 
-            named = []
+            # Build a list of (segment name, orientation)
+            segment_walk = []
             for ob in jc.oriented_blocks():
                 if ob.id in core_ids:
+                    # segment name for core blocks
                     name = ob.id
                 else:
+                    # segment name for accessory blocks. Also increase the counter.
                     name = f"{prefix}__{ob.id}"
-                    acc_isolates[name].add(iso)
-                segments[name] = len_map[ob.id]
-                named.append((name, ob.strand))
+                    acc_depth[name] += 1
 
-            for (n1, s1), (n2, s2) in zip(named, named[1:]):
+                # save segment with its length, and add it to the walk
+                segments[name] = len_map[ob.id]
+                segment_walk.append((name, ob.strand))
+
+            # Link consecutive segments, carrying each block's strand into the GFA link.
+            for (n1, s1), (n2, s2) in zip(segment_walk, segment_walk[1:]):
                 links.add((n1, s1, n2, s2))
 
-    # Core anchors keep their true graph-wide occurrence count (they are present
-    # in every isolate regardless of which edges survive); accessory copies are
-    # per-junction, so their depth is the isolate count within that junction.
-    # Membership in ``acc_isolates`` carries the core/accessory kind decided above.
+    # Depth of anchor (core) blocks is given by the graph count (equal to number of isolates)
+    # while for accessory blocks is the number of occurrences in the specific junction.
     depths = {
-        name: len(acc_isolates[name]) if name in acc_isolates else count_map[name]
+        name: acc_depth[name] if name in acc_depth else count_map[name]
         for name in segments
     }
     return GFA(segments, links, depths), prefix_map
