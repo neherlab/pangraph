@@ -149,6 +149,46 @@ def build_linear_pangraph_json():
     return {"paths": paths, "blocks": blocks, "nodes": nodes}
 
 
+def build_tandem_accessory_pangraph_json():
+    """Pangraph where an accessory block is duplicated on one path within a junction.
+
+    Two circular strains; backbone blocks C1, C2 flank a single junction whose
+    accessory content is block A:
+      s1: C1+ A+ A+ C2+   (A appears twice -- a tandem duplication)
+      s2: C1+ A+ C2+      (A appears once)
+
+    Backbone blocks (core AND >=500bp): C1=100 (1000bp), C2=200 (800bp).
+    Accessory block (<500bp): A=500 (200bp), with two copies in s1 and one in s2,
+    so the C1-C2 junction traverses A three times in total.
+    """
+    # s1 (path 0): C1+(1) A+(2) A+(3) C2+(4)
+    # s2 (path 1): C1+(5) A+(6) C2+(7)
+    nodes = {
+        # s1
+        "1": _make_node(1, 100, 0, True, 0, 1000),
+        "2": _make_node(2, 500, 0, True, 1000, 1200),
+        "3": _make_node(3, 500, 0, True, 1200, 1400),
+        "4": _make_node(4, 200, 0, True, 1400, 2200),
+        # s2
+        "5": _make_node(5, 100, 1, True, 0, 1000),
+        "6": _make_node(6, 500, 1, True, 1000, 1200),
+        "7": _make_node(7, 200, 1, True, 1200, 2000),
+    }
+
+    blocks = {
+        "100": _make_block(100, 1000, [1, 5]),
+        "200": _make_block(200, 800, [4, 7]),
+        "500": _make_block(500, 200, [2, 3, 6]),
+    }
+
+    paths = {
+        "0": _make_path(0, "s1", [1, 2, 3, 4], 2200),
+        "1": _make_path(1, "s2", [5, 6, 7], 2000),
+    }
+
+    return {"paths": paths, "blocks": blocks, "nodes": nodes}
+
+
 def _make_block_with_edits(block_id, consensus, node_edits):
     """Create a block with a custom consensus and per-node edits.
 
@@ -344,6 +384,12 @@ def sequence_pangraph():
 def junction_pangraph():
     """A synthetic Pangraph with core/accessory blocks and non-trivial junctions."""
     return pp.Pangraph(build_junction_pangraph_json())
+
+
+@pytest.fixture
+def tandem_accessory_pangraph():
+    """A Pangraph with an accessory block duplicated on one path inside a junction."""
+    return pp.Pangraph(build_tandem_accessory_pangraph_json())
 
 
 @pytest.fixture

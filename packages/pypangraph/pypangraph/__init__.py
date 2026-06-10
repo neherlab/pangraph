@@ -8,10 +8,14 @@ from .plots import dotplot
 # junction analysis
 from . import junctions
 
+# export
+from . import export
+
 __all__ = [
     "Pangraph",
     "PangraphLoadError",
     "minimal_synteny_units",
     "dotplot",
     "junctions",
+    "export",
 ]
