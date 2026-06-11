@@ -1,0 +1,6 @@
+##gff-version 3
+##sequence-region chr1 1 1000
+chr1	prokka	gene	5	30	.	+	.	ID=gene0001;Name=dnaA
+chr1	prokka	CDS	5	30	.	+	0	ID=cds0001;Parent=gene0001;product=replication initiator
+chr1	prokka	gene	50	90	.	-	.	ID=gene0002;Name=repA
+chr2	prokka	misc_feature	10	20	.	.	.	ID=feat0003;note=unstranded

@@ -65,7 +65,7 @@ log = "=0.4.28"
 maplit = "=1.0.2"
 ndarray = { version = "=0.16.1", features = ["rayon", "serde", "blas", "approx"] }
 ndarray-stats = "=0.6.0"
-noodles = { version = "=0.60.0", features = ["core", "sam"] }
+noodles = { version = "=0.60.0", features = ["core", "sam", "gff"] }
 num = "=0.4.3"
 num-traits = "=0.2.19"
 num_cpus = "=1.17.0"
