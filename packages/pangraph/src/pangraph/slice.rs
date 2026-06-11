@@ -642,6 +642,27 @@ mod tests {
   }
 
   #[test]
+  fn test_consensus_coords_from_node_shared_position_del_and_ins() {
+    // A deletion and an insertion sharing consensus position 5: the inserted base must anchor to
+    // consensus 5, so the insertion has to be processed *before* the deletion advances the
+    // consensus cursor. Node layout is [c0..c5, X, c7, c8, c9] (length 9).
+    let ed = Edit {
+      subs: vec![],
+      dels: vec![Del::new(5, 2)],
+      inss: vec![Ins::new(5, "X")],
+    };
+    let block_l = 10;
+    // The lone inserted base (node interval [5,6)) has no consensus image and collapses to the
+    // anchor 5. Were the deletion processed first, the start would wrongly jump to 7.
+    assert_eq!(consensus_coords_from_node((5, 6), &ed, block_l), (5, 5));
+    // Indel-clean endpoints either side of the shared position round-trip exactly through the gap.
+    let i = pinterval(2, 9);
+    let node = interval_node_coords(&i, &ed, block_l);
+    assert_eq!(node, (2, 8));
+    assert_eq!(consensus_coords_from_node(node, &ed, block_l), (2, 9));
+  }
+
+  #[test]
   fn test_block_slice_fwd_anchor() {
     let (b, G) = generate_block_example();
     let new_bid = BlockId(42);
