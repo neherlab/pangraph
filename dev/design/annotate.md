@@ -5,8 +5,8 @@
 
 ## 1. Motivation & use cases
 
-Most genomes fed into PanGraph come with annotations (genes, CDS, features) as **GFF** or
-**GenBank** files. Analysts want to study those annotations *on the graph* rather than on each
+Most genomes fed into PanGraph come with annotations (genes, CDS, features), most commonly as
+**GFF** files. Analysts want to study those annotations *on the graph* rather than on each
 isolated genome:
 
 - Which genes fall in **diverse / accessory** regions vs the conserved core?
@@ -18,7 +18,7 @@ graph**. There is currently no way to express an annotation — defined in genom
 **graph coordinates**.
 
 Scope of the feature: a new `pangraph annotate` command that takes an existing graph plus a set of
-GFF/GenBank files and produces **lifted annotations**, in two flavours:
+**GFF** files and produces **lifted annotations**, in two flavours:
 
 - **Node-level** — the lossless source of truth: every feature instance placed on the node(s) it
   overlaps, with consensus coordinates.
@@ -39,8 +39,9 @@ Two sub-problems, of increasing difficulty:
 Precise formats and implementations will change as we iterate. Decouple three concerns so any one
 can be swapped without touching the others:
 
-- **Parsing (input)** — normalize GFF and GenBank into **one internal `Feature` model**. The parser
-  is an implementation detail behind that model.
+- **Parsing (input)** — normalize the input (GFF) into **one internal `Feature` model**. The parser
+  is an implementation detail behind that model, and the model is deliberately format-neutral so
+  other readers (e.g. GenBank) can be added later without touching the lift (see §11).
 - **The lifted result (core)** — first-class in-memory types, e.g. `LiftedAnnotation` (node-level)
   and `BlockAnnotation` (block-level), carrying coordinates + flags + flexible metadata. The lift
   logic produces *these objects*, never format-specific rows.
@@ -49,7 +50,7 @@ can be swapped without touching the others:
   not change. **CSV is the default** impl; **JSON is one alternate** impl.
 
 ```text
-GFF / GenBank ──parse──▶ Feature (internal)
+GFF ──parse──▶ Feature (internal)
                               │
                               ▼  lift (coordinate transform)
                   LiftedAnnotation / BlockAnnotation
@@ -62,7 +63,7 @@ GFF / GenBank ──parse──▶ Feature (internal)
 
 Three coordinate frames, traversed in order:
 
-1. **Genome / path coordinate** — what the GFF/GenBank feature is defined in.
+1. **Genome / path coordinate** — what the GFF feature is defined in.
 2. **Node-local coordinate** — position within a single node's slice of that genome. Genome→node is
    a direct subtraction of the node's path offset (`node.position.0`), plus a strand flip and modular
    arithmetic for circular paths.
@@ -105,7 +106,7 @@ feature's *real* terminus or merely a *fragment* boundary introduced by a block/
 `start_is_terminus` and `end_is_terminus`. This is distinct from `segment_idx`. Example: a gene
 split across 3 blocks yields 3 segments; only the **first segment's start** and the **last segment's
 end** are true termini — every interior boundary is a fragment end. (Genome features already flagged
-partial in the source GFF/GenBank are carried through as non-termini too.)
+partial in the source GFF are carried through as non-termini too.)
 
 ## 5. Edge cases (each gets an explicit flag/field)
 
@@ -151,8 +152,8 @@ The hard part is largely solved by existing infrastructure:
   (`packages/pangraph/src/io/file.rs:45-80`) auto-handle gz/bz2/xz/zst by extension, for both
   reading and writing, and support `-` for stdin/stdout. Output compression is free.
 - **Parsing crates** — `noodles` is already a dependency (its `sam` feature is used in
-  `align/bam/cigar.rs`); enable its **`gff`** feature for GFF3. GenBank is *not* covered by noodles —
-  add **`gb-io`**. Normalize both into the internal `Feature` model immediately.
+  `align/bam/cigar.rs`); enable its **`gff`** feature for GFF3. Normalize into the internal `Feature`
+  model immediately. (GenBank parsing is deferred for v1 — see §11.)
 - **Tests** — integration tests live in `packages/pangraph/tests/itest_*.rs`, using `rstest`
   `#[case]`, `tempfile::tempdir()`, and `pretty_assertions`, against `data/test_graph.json`.
 
@@ -160,11 +161,11 @@ The hard part is largely solved by existing infrastructure:
 
 `pangraph annotate`:
 
-- **Inputs**: a graph JSON + one or more GFF/GenBank files.
+- **Inputs**: a graph JSON + one or more GFF files.
 - **Mode**: select node-level vs block-level output.
 - **Output**: path (default `-` = stdout); compression inferred from the file extension; format
   chosen by the `AnnotationWriter` (CSV default, JSON optional).
-- **`--seqid-map`** escape hatch: map GFF `seqid` / GenBank `LOCUS` to PanGraph path names.
+- **`--seqid-map`** escape hatch: map a GFF `seqid` to a PanGraph path name.
   **ID matching is the #1 failure mode** — fail loudly (error, not silent drop) on any annotation
   whose seqid does not match a path.
 
@@ -221,7 +222,7 @@ Mirror the build pipeline's "verify by reconstruction" philosophy:
 
 - **Round-trip per feature**: lift a feature to consensus coordinates, push it back through
   `Edit::apply` + strand + node offset, extract that genome subsequence, and compare to the gene
-  sequence read from the input FASTA/GenBank. A match proves the lift correct — this catches every
+  sequence read from the input FASTA used to build the graph. A match proves the lift correct — this catches every
   strand / indel / wrap bug cheaply.
 - **Unit tests** (`rstest`) for the inverse coordinate helper `consensus_coords_from_node` on
   hand-built edits: substitution-only, deletion, insertion, insertion-at-boundary, reverse strand,
@@ -231,8 +232,8 @@ Mirror the build pipeline's "verify by reconstruction" philosophy:
 
 Land incrementally, one PR/commit per phase:
 
-- **P1** — internal `Feature` model + GFF reader (noodles `gff`) + GenBank reader (`gb-io`) +
-  seqid↔path matching (with `--seqid-map`, hard error on mismatch).
+- **P1** — internal `Feature` model + GFF reader (noodles `gff`) + seqid↔path matching (with
+  `--seqid-map`, hard error on mismatch). *(GenBank reader deferred — see §11.)*
 - **P2** — inverse coordinate helper `consensus_coords_from_node` in `slice.rs` + unit tests
   (round-trip against `interval_node_coords` / `Edit::apply`).
 - **P3** — per-feature node-level lift (overlap, segmentation, strand, per-endpoint terminus flags)
@@ -247,6 +248,16 @@ Land incrementally, one PR/commit per phase:
 
 ## 11. Open questions / decisions deferred
 
+- **Input formats (v1 = GFF only)** — v1 supports **GFF** only; a GenBank reader is **deferred**.
+  Rationale: the lift uses the *graph's* sequence, so GenBank's one real advantage — bundling
+  sequence + annotation — is unused here; GenBank's compound-location model (`join`/`order`, fuzzy
+  ends) is lossy exactly where the lift is sensitive (an origin-spanning `join(…,1..N)` on a circular
+  replicon collapses to ≈ the whole genome), whereas GFF encodes multi-segment features as separate
+  clean records that fit the per-segment `Feature` model better; and the `.gbk` fixtures are large.
+  Because `Feature` is format-neutral, re-adding a GenBank reader later is a self-contained job (a new
+  `io/genbank.rs` producing `Vec<Feature>`, handling compound/origin-wrap properly rather than
+  collapsing to the outer span). Users who only have GenBank can convert to GFF3 (`bp_genbank2gff3`,
+  EMBOSS `seqret`, or re-export from bakta/prokka).
 - **Embed in graph JSON vs separate file** — default to a separate file; revisit if a single
   self-contained artifact is wanted.
 - **Block-level clustering policy** — by feature name/product, by consensus overlap, or by an
