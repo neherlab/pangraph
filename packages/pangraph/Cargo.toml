@@ -36,6 +36,7 @@ derive_more = { workspace = true }
 env_logger = { workspace = true }
 eyre = { workspace = true }
 flate2 = { workspace = true }
+gb-io = { workspace = true }
 gcollections = { workspace = true }
 getset = { workspace = true }
 indicatif = { workspace = true }
