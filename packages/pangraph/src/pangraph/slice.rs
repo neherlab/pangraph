@@ -126,6 +126,81 @@ pub fn interval_node_coords(i: &PangraphInterval, edits: &Edit, block_L: usize) 
   (s, e)
 }
 
+/// Inverse of [`interval_node_coords`]: map a node-local half-open interval `[n_s, n_e)` back to
+/// block-consensus coordinates `[c_s, c_e)`.
+///
+/// Walking from node coordinates back to consensus coordinates **adds back** deletion lengths and
+/// **subtracts** insertion lengths for edits preceding the endpoint (the exact reverse of
+/// `interval_node_coords`). Substitutions do not move coordinates.
+///
+/// Two kinds of endpoint have no exact consensus image and are resolved by convention:
+/// - an endpoint **strictly inside an insertion** (node bases absent from the consensus) snaps to
+///   that insertion's consensus anchor `ins.pos`;
+/// - an endpoint on a **deletion** (consensus bases absent from the node) excludes the gap: the
+///   start snaps to the deletion's right edge, the end to its left edge.
+///
+/// Hence `consensus_coords_from_node(interval_node_coords(i, ed, L), ed, L)` is exact only for
+/// intervals whose endpoints avoid those indel interiors.
+///
+/// This is a within-block consensus↔node transform only; the genome→node hop (path offset, strand,
+/// circular wrap) is handled separately.
+pub fn consensus_coords_from_node(node_coords: (usize, usize), edits: &Edit, block_L: usize) -> (usize, usize) {
+  let (n_s, n_e) = node_coords;
+  let (c_s, _) = endpoint_to_consensus(n_s, edits, block_L, false);
+  let (c_e, _) = endpoint_to_consensus(n_e, edits, block_L, true);
+  (c_s, c_e)
+}
+
+/// Map a single node-local coordinate back to a block-consensus coordinate, also returning whether
+/// it landed strictly inside an insertion (snapped to the insertion anchor). `is_end` selects the
+/// deletion-plateau convention: the start endpoint snaps a deletion to its right edge, the end
+/// endpoint to its left edge (both exclude the gap).
+fn endpoint_to_consensus(node_pos: usize, edits: &Edit, block_L: usize, is_end: bool) -> (usize, bool) {
+  // Merge edits into a single stream ordered by consensus position; at a shared position an
+  // insertion (which sits at the boundary) is processed before a deletion.
+  let mut events: Vec<(usize, bool, usize)> = Vec::with_capacity(edits.dels.len() + edits.inss.len());
+  events.extend(edits.dels.iter().map(|d| (d.pos, false, d.len)));
+  events.extend(edits.inss.iter().map(|i| (i.pos, true, i.seq.len())));
+  events.sort_by_key(|&(pos, is_ins, _)| (pos, !is_ins));
+
+  let mut c = 0; // consensus cursor
+  let mut n = 0; // node coordinate aligned with `c`
+
+  for (pos, is_ins, len) in events {
+    // 1:1 aligned stretch from the current consensus cursor up to this event.
+    let stretch = pos.saturating_sub(c);
+    if node_pos < n + stretch {
+      return (c + (node_pos - n), false); // strictly inside an aligned stretch: unambiguous
+    }
+    c += stretch;
+    n += stretch;
+    if node_pos == n && is_end {
+      return (c, false); // end endpoint: left edge (excludes a deletion/insertion at this position)
+    }
+    // start endpoint falls through, so a deletion here is skipped to its right edge below.
+
+    if is_ins {
+      // node jumps by `len`, consensus stays put.
+      if node_pos == n {
+        return (c, false); // low edge of the insertion
+      }
+      if node_pos < n + len {
+        return (c, true); // strictly inside: snap to the insertion anchor
+      }
+      n += len;
+    } else {
+      c += len; // deletion: consensus advances, node stays (start skips it to the right edge)
+    }
+  }
+
+  // final 1:1 stretch to the block end
+  let stretch = block_L.saturating_sub(c);
+  if node_pos <= n + stretch {
+    return (c + (node_pos - n), false);
+  }
+  (block_L, false) // node coordinate beyond the reconstructed length: clamp
+}
+
 /// given a block, an interval and the graph, it extract the slice of the block
 /// defined by the interval.
 ///
@@ -213,6 +288,7 @@ mod tests {
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use crate::utils::interval::Interval;
   use maplit::btreemap;
+  use rstest::rstest;
 
   fn generate_example() -> (String, Edit) {
     let seq = o!("ACTGGATATCCGATATTCGAG");
@@ -446,6 +522,123 @@ mod tests {
     let block_L = 100;
     let new_pos = interval_node_coords(&i, &ed, block_L);
     assert_eq!(new_pos, (11, 23));
+  }
+
+  /// Build a minimal `PangraphInterval` over `[start, end)` for coordinate-mapping tests
+  /// (the alignment-orientation fields are irrelevant to `interval_node_coords`).
+  fn pinterval(start: usize, end: usize) -> PangraphInterval {
+    PangraphInterval {
+      interval: Interval { start, end },
+      aligned: true,
+      new_block_id: BlockId(0),
+      is_anchor: None,
+      orientation: None,
+      cigar: None,
+      extend_left: None,
+      extend_right: None,
+    }
+  }
+
+  #[rstest]
+  #[case((0, 4))] // ends at the deletion's left edge
+  #[case((7, 20))] // starts at the deletion's right edge
+  #[case((0, 20))] // whole block
+  #[case((10, 20))] // starts at the insertion anchor
+  #[case((0, 10))] // ends at the insertion anchor
+  fn test_consensus_coords_from_node_round_trip(#[case] consensus: (usize, usize)) {
+    // Edits with a substitution, an internal deletion [4,7) and an insertion at consensus 10.
+    // Endpoints are chosen to avoid indel interiors, so the inverse is exact.
+    let block_l = 20;
+    let ed = Edit {
+      subs: vec![Sub::new(3, 'A'), Sub::new(15, 'C')],
+      dels: vec![Del::new(4, 3)],
+      inss: vec![Ins::new(10, "GG")],
+    };
+    let i = pinterval(consensus.0, consensus.1);
+    let node = interval_node_coords(&i, &ed, block_l);
+    assert_eq!(consensus_coords_from_node(node, &ed, block_l), consensus);
+  }
+
+  #[test]
+  fn test_consensus_coords_from_node_substitutions_are_identity() {
+    // Substitutions never move coordinates, so any interval maps to itself.
+    let ed = Edit {
+      subs: vec![Sub::new(2, 'A'), Sub::new(5, 'T')],
+      dels: vec![],
+      inss: vec![],
+    };
+    assert_eq!(consensus_coords_from_node((3, 8), &ed, 10), (3, 8));
+  }
+
+  #[test]
+  fn test_consensus_coords_from_node_snaps_inside_insertion() {
+    // Insertion of 4 bases at consensus 5 -> node bases [5,9) have no consensus image.
+    let ed = Edit {
+      subs: vec![],
+      dels: vec![],
+      inss: vec![Ins::new(5, "AAAA")],
+    };
+    let block_l = 10;
+    // both endpoints strictly inside the insertion snap to the anchor
+    assert_eq!(consensus_coords_from_node((6, 8), &ed, block_l), (5, 5));
+    // endpoints at the insertion edges also resolve to the anchor
+    assert_eq!(consensus_coords_from_node((5, 9), &ed, block_l), (5, 5));
+  }
+
+  #[test]
+  fn test_consensus_coords_from_node_collapsed_in_deletion() {
+    // A feature mapping to the empty node coordinate (4,4) sits entirely in deletion [4,7):
+    // the start snaps to the right edge (7) and the end to the left edge (4), so start > end
+    // signals an interval collapsed inside a gap.
+    let ed = Edit {
+      subs: vec![],
+      dels: vec![Del::new(4, 3)],
+      inss: vec![],
+    };
+    assert_eq!(consensus_coords_from_node((4, 4), &ed, 10), (7, 4));
+  }
+
+  #[test]
+  fn test_consensus_coords_from_node_empty_interval() {
+    // An empty node interval inside an aligned stretch maps to an empty consensus interval.
+    let ed = Edit {
+      subs: vec![],
+      dels: vec![Del::new(4, 3)],
+      inss: vec![Ins::new(8, "TT")],
+    };
+    assert_eq!(consensus_coords_from_node((2, 2), &ed, 12), (2, 2));
+  }
+
+  #[test]
+  fn test_consensus_coords_from_node_trailing_insertion_block_end() {
+    // A trailing insertion at the block end is included in the node end by the forward map;
+    // the inverse maps that node end back to block_L.
+    let ed = Edit {
+      subs: vec![],
+      dels: vec![],
+      inss: vec![Ins::new(10, "AA")],
+    };
+    let block_l = 10;
+    let i = pinterval(0, 10);
+    assert_eq!(interval_node_coords(&i, &ed, block_l), (0, 12));
+    assert_eq!(consensus_coords_from_node((0, 12), &ed, block_l), (0, 10));
+  }
+
+  #[test]
+  fn test_consensus_coords_from_node_convention_on_deletion_interior() {
+    // `test_node_coords` maps consensus [10,20) -> node (11,23); the end (20) is interior to
+    // Del{18,3}, so it is not exactly invertible: the start (10) is recovered while the end snaps
+    // to the deletion's left edge (18).
+    let ed = Edit {
+      subs: vec![Sub::new(2, 'G'), Sub::new(13, 'T'), Sub::new(24, 'T')],
+      dels: vec![Del { pos: 18, len: 3 }],
+      inss: vec![Ins::new(7, "A"), Ins::new(10, "AAAA"), Ins::new(20, "TTTTTTTT")],
+    };
+    let block_l = 100;
+    let i = pinterval(10, 20);
+    let node = interval_node_coords(&i, &ed, block_l);
+    assert_eq!(node, (11, 23));
+    assert_eq!(consensus_coords_from_node(node, &ed, block_l), (10, 18));
   }
 
   #[test]

@@ -11,7 +11,7 @@
 |---|---|---|
 | P1 | Internal `Feature` model + GFF reader + seqid↔path matching | ✅ done |
 | P1.5 | Real-data smoke tests (klebs graph + NCBI GFF annotations) | ✅ done |
-| P2 | Inverse coordinate helper `consensus_coords_from_node` (+ round-trip tests) | ⏳ todo |
+| P2 | Inverse coordinate helper `consensus_coords_from_node` (+ round-trip tests) | ✅ done |
 | P3 | Node-level lift + `AnnotationWriter` trait (CSV impl) | ⏳ todo |
 | P4 | Block-level compaction (coordinate agreement) + JSON writer | ⏳ todo |
 | P5 | `pangraph annotate` CLI command + `--seqid-map` + docs/CLI reference | ⏳ todo |
@@ -23,6 +23,8 @@
   - `feature.rs` — the format-agnostic `Feature` model + coordinate helper
   - `matching.rs` — `match_features_to_paths`
   - *(later: `lift.rs`, `writer.rs`)*
+- `packages/pangraph/src/pangraph/slice.rs` — `consensus_coords_from_node` (P2), next to its forward
+  `interval_node_coords` (within-block consensus↔node coordinate transforms)
 - `packages/pangraph/src/io/` — format readers (next to `fasta.rs`)
   - `gff.rs` — `GffReader`
 - Fixtures: `data/example.gff`
@@ -60,7 +62,36 @@ Internal `Feature.interval` is always **0-based, half-open `[start, end)`**.
   failing on the first — seqid/path-name mismatch is the #1 user failure mode, so the message lists
   every offending seqid and suggests the seqid map.
 
-## Public API introduced in P1
+## P2 decisions & behaviours (the inverse coordinate helper)
+
+`consensus_coords_from_node(node_coords, edits, block_L) -> (usize, usize)` (`slice.rs`) is the
+exact reverse of `interval_node_coords`: walking node → consensus it **adds back** deletion lengths
+and **subtracts** insertion lengths for edits preceding each endpoint. Substitutions never move
+coordinates.
+
+### Conventions for the non-invertible spots
+The forward map is not a bijection (insertion bases have no consensus image; deleted consensus bases
+have no node image), so two endpoint cases are resolved by convention:
+
+- **Endpoint strictly inside an insertion** → snap to the insertion's consensus anchor `ins.pos`.
+  (Internally the per-endpoint helper also returns an `in_insertion` flag; it is **private** in P2
+  and will be promoted in P3 when `LiftedAnnotation` gains per-endpoint flags.)
+- **Endpoint on a deletion** (node coordinate where several consensus positions collapse) → exclude
+  the gap: the **start** snaps to the deletion's **right edge**, the **end** to its **left edge**.
+  A feature that lands entirely inside a deletion therefore yields `start > end` — a signal that it
+  collapsed inside a gap (P3 will interpret/flag this).
+
+### Caveats & scope
+- **Round-trip is exact only for indel-clean endpoints.** `consensus_coords_from_node ∘
+  interval_node_coords == identity` holds when no endpoint lands interior to an indel. The existing
+  forward fixtures (`test_node_coords`, `test_interval_node_coords`) deliberately have
+  deletion-interior endpoints and are therefore *not* exactly invertible — they are reused only to
+  pin the convention result.
+- **Within-block only.** This is purely a consensus↔node transform inside one block. The genome→node
+  hop (path-offset subtraction, strand flip, circular-wrap modular arithmetic via
+  `new_position_circular`) is **not** here — it belongs to the per-feature lift (P3).
+
+## Public API introduced in P1–P2
 
 ```rust
 // annotation::feature
@@ -74,6 +105,9 @@ pub struct GffReader<'a>;          // new / from_str / from_path / read_many() -
 pub fn match_features_to_paths(
   features: Vec<Feature>, graph: &Pangraph, seqid_map: &BTreeMap<String, String>,
 ) -> Result<BTreeMap<PathId, Vec<Feature>>, Report>;
+
+// pangraph::slice (P2) — inverse of interval_node_coords
+pub fn consensus_coords_from_node(node_coords: (usize, usize), edits: &Edit, block_L: usize) -> (usize, usize);
 ```
 
 ## Real-data smoke tests & fixtures (P1.5)

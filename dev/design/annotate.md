@@ -234,8 +234,8 @@ Land incrementally, one PR/commit per phase:
 
 - **P1** — internal `Feature` model + GFF reader (noodles `gff`) + seqid↔path matching (with
   `--seqid-map`, hard error on mismatch). *(GenBank reader deferred — see §11.)*
-- **P2** — inverse coordinate helper `consensus_coords_from_node` in `slice.rs` + unit tests
-  (round-trip against `interval_node_coords` / `Edit::apply`).
+- **P2** ✅ — inverse coordinate helper `consensus_coords_from_node` in `slice.rs` + unit tests
+  (round-trip against `interval_node_coords`).
 - **P3** — per-feature node-level lift (overlap, segmentation, strand, per-endpoint terminus flags)
   producing `LiftedAnnotation` objects + the `AnnotationWriter` trait with a CSV impl + integration
   test on `data/test_graph.json`.
