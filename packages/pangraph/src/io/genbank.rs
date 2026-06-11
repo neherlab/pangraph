@@ -137,6 +137,24 @@ mod tests {
     format!("{}{q}", " ".repeat(21))
   }
 
+  // Wrap the given feature-table body lines into a minimal, parseable GenBank record.
+  fn genbank_with_features(body: &[String]) -> String {
+    let mut lines = vec![
+      "LOCUS       chr1                     120 bp    DNA     linear   BCT 01-JAN-2020".to_owned(),
+      "ACCESSION   chr1".to_owned(),
+      "VERSION     chr1.1".to_owned(),
+      "FEATURES             Location/Qualifiers".to_owned(),
+    ];
+    lines.extend_from_slice(body);
+    lines.push("ORIGIN".to_owned());
+    lines.push("        1 acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt".to_owned());
+    lines.push("       61 acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt acgtacgtac gtacgtacgt".to_owned());
+    lines.push("//".to_owned());
+    let mut text = lines.join("\n");
+    text.push('\n');
+    text
+  }
+
   fn example_genbank() -> String {
     let lines = vec![
       "LOCUS       chr1                     120 bp    DNA     linear   BCT 01-JAN-2020".to_owned(),
@@ -206,6 +224,39 @@ mod tests {
     assert_eq!(rep.interval, Interval::new(49, 90));
     assert_eq!(rep.strand, Some(Strand::Reverse));
     assert_eq!(rep.name, Some("repA".to_owned()));
+    Ok(())
+  }
+
+  #[test]
+  fn test_genbank_join_collapses_to_outer_span() -> Result<(), Report> {
+    // A compound `join` location is collapsed to its outer span: join(5..30,50..90) -> [4, 90).
+    let input = genbank_with_features(&[feat("gene", "join(5..30,50..90)"), qual("/locus_tag=\"g_join\"")]);
+    let features = GenbankReader::from_str(&input)?.read_many()?;
+    let joined = features
+      .iter()
+      .find(|f| f.id.as_deref() == Some("g_join"))
+      .expect("joined feature present");
+    assert_eq!(joined.interval, Interval::new(4, 90));
+    assert_eq!(joined.strand, Some(Strand::Forward));
+    Ok(())
+  }
+
+  #[test]
+  fn test_genbank_skips_feature_with_unresolvable_bounds() -> Result<(), Report> {
+    // `gap(...)` has no resolvable start/end, so the feature is skipped (with a warning) while
+    // well-formed features in the same record are still emitted.
+    let input = genbank_with_features(&[
+      feat("misc_feature", "gap(100)"),
+      qual("/locus_tag=\"g_gap\""),
+      feat("gene", "5..30"),
+      qual("/locus_tag=\"g_ok\""),
+    ]);
+    let features = GenbankReader::from_str(&input)?.read_many()?;
+    assert!(
+      features.iter().all(|f| f.id.as_deref() != Some("g_gap")),
+      "feature with unresolvable bounds should be skipped"
+    );
+    assert!(features.iter().any(|f| f.id.as_deref() == Some("g_ok")));
     Ok(())
   }
 
