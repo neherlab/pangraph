@@ -10,6 +10,7 @@
 | Phase | Scope | State |
 |---|---|---|
 | P1 | Internal `Feature` model + GFF/GenBank readers + seqid↔path matching | ✅ done |
+| P1.5 | Real-data smoke tests (klebs graph + NCBI annotations) | ✅ done |
 | P2 | Inverse coordinate helper `consensus_coords_from_node` (+ round-trip tests) | ⏳ todo |
 | P3 | Node-level lift + `AnnotationWriter` trait (CSV impl) | ⏳ todo |
 | P4 | Block-level compaction (coordinate agreement) + JSON writer | ⏳ todo |
@@ -65,6 +66,10 @@ Internal `Feature.interval` is always **0-based, half-open `[start, end)`**.
 - `id` ← `ID` attribute; `name` ← `Name` attribute; `source` `.` → `None`.
 - `records()` automatically skips directives/comments and stops at any trailing `##FASTA` section.
 - All attributes are carried into `attributes` (multi-value GFF arrays rendered via their `Display`).
+- **Blank-line tolerance (real-world fix):** noodles-gff 0.26 parses a blank line as a record and
+  errors (`missing field: Source`), but real NCBI GFF trails a blank line. `read_many` now reads the
+  whole input and drops whitespace-only lines before parsing (annotation files are small enough to
+  buffer). Found via the klebs smoke test, not the synthetic fixtures.
 
 ### Matching (`match_features_to_paths`)
 - Builds a path-name → `PathId` lookup **once** (O(features + paths)); paths without a name skipped.
@@ -92,7 +97,33 @@ pub fn match_features_to_paths(
 ) -> Result<BTreeMap<PathId, Vec<Feature>>, Report>;
 ```
 
+## Real-data smoke tests & fixtures (P1.5)
+
+`packages/pangraph/tests/itest_klebs_annotations.rs` exercises the readers + matcher on real NCBI
+data:
+
+- **`data/klebs_graph.json.gz`** — pangraph built from all 9 genomes in `data/klebs.fa.gz`
+  (`pangraph build -c`, ~2m20s, 9 paths / 1378 blocks). Paths are named by the **bare** RefSeq
+  accession (the FASTA record id), e.g. `NZ_CP013711`.
+- **`data/klebs_annotations/{NZ_CP013711,NC_017540}.{gff,gbk}.gz`** — RefSeq annotations for two of
+  those genomes (GFF via NCBI sviewer `report=gff3`; GenBank via efetch `gbwithparts`). Only 2 kept
+  to bound fixture size (~8 MB).
+- Tests: parse each GFF/GenBank (thousands of features, CDS/strand/name present) and **match both
+  against the graph**, building the seqid map from the files themselves.
+
+**Key real-world finding — seqid version mismatch.** Annotation seqids are the **versioned**
+accession (`NZ_CP013711.1`); graph path names are the **bare** accession (`NZ_CP013711`). The smoke
+test bridges this with a `version → bare` seqid map. This strongly motivates **version-insensitive
+matching** (or a documented `--seqid-map`) in P5, since it is the default situation for NCBI data.
+
 ## Carried-forward items for later phases / user docs
 - Document the `--seqid-map` file format (P5) and the "seqids must match FASTA record names" rule.
+- **Version-insensitive seqid matching (P5):** strongly consider auto-stripping the `.N` version so
+  `NZ_CP013711.1` matches a `NZ_CP013711` path without an explicit map (see finding above).
+- **Sequence-version drift affects the lift (P2/P3), not matching:** when an annotation's source
+  record differs in length from the graph's genome (observed with the earlier russian-doll plasmid
+  attempt: e.g. `NZ_CP011582` 43433 bp vs graph 45279 bp), coordinates past the divergence lift
+  incorrectly. Annotations should come from the *same* sequence used to build the graph; worth a
+  user-doc warning and possibly a length/identity sanity check.
 - Decide handling of features wholly inside an insertion relative to consensus (P3 open question).
 - Note the GenBank compound-location collapse and unstranded-GFF handling in user-facing docs.
