@@ -4,22 +4,20 @@ use crate::pangraph::strand::Strand;
 use eyre::{Report, WrapErr};
 use noodles::gff;
 use noodles::gff::record::Strand as GffStrand;
-use std::io::BufRead;
+use std::io::{BufRead, Read};
 use std::path::Path;
 
 /// Reads GFF3 annotations and normalizes each record into a format-agnostic [`Feature`].
 ///
 /// Directives, comments and any trailing `##FASTA` section are skipped automatically.
 pub struct GffReader<'a> {
-  reader: gff::Reader<Box<dyn BufRead + 'a>>,
+  reader: Box<dyn BufRead + 'a>,
 }
 
 impl<'a> GffReader<'a> {
   /// Wrap an already-opened buffered reader.
   pub fn new(reader: Box<dyn BufRead + 'a>) -> Self {
-    Self {
-      reader: gff::Reader::new(reader),
-    }
+    Self { reader }
   }
 
   /// Read GFF3 from an in-memory string (handy for tests).
@@ -35,8 +33,24 @@ impl<'a> GffReader<'a> {
 
   /// Parse and normalize every GFF record into a [`Feature`].
   pub fn read_many(mut self) -> Result<Vec<Feature>, Report> {
+    // noodles-gff 0.26 parses a blank line as a record and errors ("missing field: Source"),
+    // but real-world GFF (e.g. from NCBI) can contain or trail blank lines. Read the whole
+    // input (annotation files are modest in size) and drop whitespace-only lines before parsing.
+    let mut raw = Vec::new();
+    self.reader.read_to_end(&mut raw).wrap_err("When reading GFF input")?;
+
+    let mut filtered = Vec::with_capacity(raw.len());
+    for line in raw.split(|&b| b == b'\n') {
+      if line.iter().all(|&b| matches!(b, b' ' | b'\t' | b'\r')) {
+        continue; // skip empty / whitespace-only lines
+      }
+      filtered.extend_from_slice(line);
+      filtered.push(b'\n');
+    }
+
+    let mut reader = gff::Reader::new(filtered.as_slice());
     let mut features = Vec::new();
-    for (i, result) in self.reader.records().enumerate() {
+    for (i, result) in reader.records().enumerate() {
       let record = result.wrap_err_with(|| format!("When parsing GFF record #{}", i + 1))?;
       features.push(feature_from_gff_record(&record));
     }
@@ -131,6 +145,24 @@ mod tests {
     assert_eq!(features[1].strand, None);
     assert_eq!(features[1].id, Some("g3".to_owned()));
     assert_eq!(features[1].name, None);
+    Ok(())
+  }
+
+  #[test]
+  fn test_gff_reader_tolerates_blank_lines() -> Result<(), Report> {
+    // Real GFF (e.g. from NCBI) can contain interspersed and trailing blank lines.
+    let input = gff(&[
+      "##gff-version 3",
+      "",
+      "chr1\t.\tgene\t5\t30\t.\t+\t.\tID=g1",
+      "   ",
+      "chr1\t.\tgene\t40\t50\t.\t-\t.\tID=g2",
+      "",
+    ]);
+    let features = GffReader::from_str(&input)?.read_many()?;
+    assert_eq!(features.len(), 2);
+    assert_eq!(features[0].id, Some("g1".to_owned()));
+    assert_eq!(features[1].id, Some("g2".to_owned()));
     Ok(())
   }
 
