@@ -13,9 +13,15 @@
 | P1.5 | Real-data smoke tests (klebs graph + NCBI GFF annotations) | ✅ done |
 | P2 | Inverse coordinate helper `consensus_coords_from_node` (+ round-trip tests) | ✅ done |
 | P3 | Node-level lift + `AnnotationWriter` trait (CSV impl) | ✅ done |
-| P4 | Block-level compaction (coordinate agreement) + JSON writer | ⏳ todo |
-| P5 | `pangraph annotate` CLI command + `--seqid-map` + docs/CLI reference | ⏳ todo |
+| P5.1 | `pangraph annotate` CLI (node-level output, **exact** seqid matching) | ✅ done |
+| P4 | Block-level compaction (coordinate agreement, CLI refinement level) + JSON writer | ⏳ todo (after P5.1) |
+| P5.2 | Wire block-level output into the `annotate` command | ⏳ todo |
+| P5.3 | Docs page + CLI reference regeneration (both output levels) | ⏳ todo |
 | P6 | pypangraph consumer + visualization example | ⏳ todo |
+
+> **Ordering note (2026-06-12):** P4 (block compaction) is **deferred until after** a working
+> node-level CLI (P5.1), so the still-undecided compaction policy can be designed against real
+> node-level output. See the roadmap in [`annotate.md`](./annotate.md) §10.
 
 ## Module layout
 
@@ -142,6 +148,36 @@ origin-wrapping node in both strands) and asserting the reassembled segment base
 substring. Unit tests in `lift.rs` pin exact coordinates for each edge case (strand, deletion,
 insertion, in-insertion, multi-segment termini, circular wrap, unstranded).
 
+## P5.1 decisions & behaviours (the `annotate` command)
+
+The `annotate` command (`packages/pangraph/src/commands/annotate/`, mirroring `simplify`) is pure
+wiring over the P1–P3 library API — no lift-logic changes. `annotate_run` does: `Pangraph::from_path`
+→ for each `--gff` file `GffReader::from_path(..).read_many()` →
+`match_features_to_paths(.., &BTreeMap::new())` → `lift_features` →
+`CsvAnnotationWriter::new(out, b',').write_node_annotations(..)`.
+
+### CLI surface (intentionally minimal)
+- **Graph**: positional `input` (`Option<PathBuf>`, stdin if omitted), like `simplify`.
+- **GFF(s)**: repeatable `--gff <FILE>`, `required = true` (≥1); one path per occurrence; transparent
+  decompression by extension.
+- **Output**: `-o/--output` (default `-` = stdout); CSV only; compression inferred from extension.
+- **No `--seqid-map`, no `--output-level`, no `--format`/`--delimiter`** — deferred to later phases
+  (§12 / P4 / P5.2). The CSV delimiter is hard-wired to `,`.
+
+### seqid matching = exact (decision)
+Matching passes an **empty** `seqid_map`, so `match_features_to_paths` matches `seqid == path.name`
+exactly and aggregates **all** unmatched seqids into one hard error (existing P1 behaviour). On real
+NCBI data (versioned `NZ_*.1` seqids vs bare `NZ_*` paths) this **errors by design** — the concrete
+signal motivating the §12 relaxation decision. (Gotcha: the P1 error text still mentions "provide an
+explicit seqid-to-path mapping", a capability not yet exposed on the CLI; reconcile when §12 lands.)
+
+### Tests
+`packages/pangraph/tests/itest_annotate_cli.rs` drives `annotate_run` end-to-end against
+`data/test_graph.json` with a GFF written at test time using a **real** path name (exercising the
+`GffReader` path that `itest_annotate_lift.rs` skips): asserts the CSV header + that both features
+lift + the genome column; a mismatch case (`data/example.gff`, seqids `chr1`/`chr2`) asserts the loud
+error; and a `.csv.gz` output is read back through transparent decompression.
+
 ## Public API introduced in P1–P3
 
 ```rust
@@ -196,6 +232,11 @@ test bridges this with a `version → bare` seqid map. This strongly motivates *
 matching** (or a documented `--seqid-map`) in P5, since it is the default situation for NCBI data.
 
 ## Carried-forward items for later phases / user docs
+
+> Several of these are now consolidated into the **post-prototype, pre-docs punch list** in
+> [`annotate.md`](./annotate.md) §12 (notably seqid↔path matching and the sequence-version-drift
+> guard) — settle them there before P5.3.
+
 - Document the `--seqid-map` file format (P5) and the "seqids must match FASTA record names" rule.
 - **Version-insensitive seqid matching (P5):** strongly consider auto-stripping the `.N` version so
   `NZ_CP013711.1` matches a `NZ_CP013711` path without an explicit map (see finding above).
