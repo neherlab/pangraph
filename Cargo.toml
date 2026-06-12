@@ -54,7 +54,6 @@ ctor = "=0.5.0"
 derive_more = { version = "=2.0.1", features = ["full"] }
 env_logger = "=0.11.8"
 eyre = "=0.6.12"
-gb-io = "=0.9.0"
 gcollections = "=1.5.0"
 getset = "=0.1.6"
 indicatif = "0.18.0"

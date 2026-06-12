@@ -4,7 +4,6 @@ pub mod csv;
 pub mod fasta;
 pub mod file;
 pub mod fs;
-pub mod genbank;
 pub mod gfa;
 pub mod gff;
 pub mod json;

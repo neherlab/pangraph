@@ -9,9 +9,9 @@
 
 | Phase | Scope | State |
 |---|---|---|
-| P1 | Internal `Feature` model + GFF/GenBank readers + seqid↔path matching | ✅ done |
-| P1.5 | Real-data smoke tests (klebs graph + NCBI annotations) | ✅ done |
-| P2 | Inverse coordinate helper `consensus_coords_from_node` (+ round-trip tests) | ⏳ todo |
+| P1 | Internal `Feature` model + GFF reader + seqid↔path matching | ✅ done |
+| P1.5 | Real-data smoke tests (klebs graph + NCBI GFF annotations) | ✅ done |
+| P2 | Inverse coordinate helper `consensus_coords_from_node` (+ round-trip tests) | ✅ done |
 | P3 | Node-level lift + `AnnotationWriter` trait (CSV impl) | ⏳ todo |
 | P4 | Block-level compaction (coordinate agreement) + JSON writer | ⏳ todo |
 | P5 | `pangraph annotate` CLI command + `--seqid-map` + docs/CLI reference | ⏳ todo |
@@ -23,17 +23,17 @@
   - `feature.rs` — the format-agnostic `Feature` model + coordinate helper
   - `matching.rs` — `match_features_to_paths`
   - *(later: `lift.rs`, `writer.rs`)*
+- `packages/pangraph/src/pangraph/slice.rs` — `consensus_coords_from_node` (P2), next to its forward
+  `interval_node_coords` (within-block consensus↔node coordinate transforms)
 - `packages/pangraph/src/io/` — format readers (next to `fasta.rs`)
   - `gff.rs` — `GffReader`
-  - `genbank.rs` — `GenbankReader`
-- Fixtures: `data/example.gff`, `data/example.gbk`
+- Fixtures: `data/example.gff`
 
 ## Dependencies added
 
 - `noodles` gained the **`gff`** feature (root `Cargo.toml`); resolves to **noodles-gff 0.26.0**
   (via noodles `=0.60.0`). This is the older eager-record API: `gff::Reader::new(bufread).records()`
   yields `io::Result<gff::Record>`.
-- **`gb-io = "=0.9.0"`** for GenBank: `SeqReader::new(read)` iterates `Result<Seq, _>`.
 
 ## P1 decisions & behaviours (these should surface in user docs)
 
@@ -42,25 +42,9 @@ Internal `Feature.interval` is always **0-based, half-open `[start, end)`**.
 
 - **GFF** is 1-based, fully-closed → converted with
   `annotation::feature::interval_from_one_based_inclusive` (`(1, 3)` → `[0, 3)`).
-- **gb-io is already 0-based half-open** — a single GenBank position `1` is `Range((0,..),(1,..))`,
-  so GenBank needs **no** conversion. (Easy to get wrong — gb-io does the 1-based→0-based shift for us.)
 
 ### Strand is `Option<Strand>`
 - GFF `+`/`-` → `Some(Forward/Reverse)`; GFF `.`/`?` (unstranded) → `None`.
-- GenBank features are always stranded → `Some(...)`; `complement(...)` location → `Reverse`,
-  otherwise `Forward`.
-
-### GenBank specifics
-- **seqid precedence:** `VERSION` (accession.version) → `ACCESSION` → `LOCUS` name. Mismatches with
-  FASTA/path names are expected and handled by the (future) `--seqid-map` override.
-- **Compound locations** (`join`/`order`) are collapsed to their **outer span** via
-  `Location::find_bounds()` — one `Feature` per GenBank feature. Adequate for bacterial genomes
-  (no introns); documented limitation, revisit if spliced features matter.
-- Features whose location bounds cannot be resolved are **skipped with a `warn!`** (not a hard error).
-- All features are emitted, including the whole-record `source` feature; callers filter by
-  `feature_type` if they want only genes/CDS.
-- `id` ← `locus_tag`; `name` ← `gene` then falls back to `product`; all qualifiers are kept in
-  `attributes` (order- and duplicate-preserving `Vec<(String, String)>`).
 
 ### GFF specifics
 - `id` ← `ID` attribute; `name` ← `Name` attribute; `source` `.` → `None`.
@@ -78,7 +62,36 @@ Internal `Feature.interval` is always **0-based, half-open `[start, end)`**.
   failing on the first — seqid/path-name mismatch is the #1 user failure mode, so the message lists
   every offending seqid and suggests the seqid map.
 
-## Public API introduced in P1
+## P2 decisions & behaviours (the inverse coordinate helper)
+
+`consensus_coords_from_node(node_coords, edits, block_L) -> (usize, usize)` (`slice.rs`) is the
+exact reverse of `interval_node_coords`: walking node → consensus it **adds back** deletion lengths
+and **subtracts** insertion lengths for edits preceding each endpoint. Substitutions never move
+coordinates.
+
+### Conventions for the non-invertible spots
+The forward map is not a bijection (insertion bases have no consensus image; deleted consensus bases
+have no node image), so two endpoint cases are resolved by convention:
+
+- **Endpoint strictly inside an insertion** → snap to the insertion's consensus anchor `ins.pos`.
+  (Internally the per-endpoint helper also returns an `in_insertion` flag; it is **private** in P2
+  and will be promoted in P3 when `LiftedAnnotation` gains per-endpoint flags.)
+- **Endpoint on a deletion** (node coordinate where several consensus positions collapse) → exclude
+  the gap: the **start** snaps to the deletion's **right edge**, the **end** to its **left edge**.
+  A feature that lands entirely inside a deletion therefore yields `start > end` — a signal that it
+  collapsed inside a gap (P3 will interpret/flag this).
+
+### Caveats & scope
+- **Round-trip is exact only for indel-clean endpoints.** `consensus_coords_from_node ∘
+  interval_node_coords == identity` holds when no endpoint lands interior to an indel. The existing
+  forward fixtures (`test_node_coords`, `test_interval_node_coords`) deliberately have
+  deletion-interior endpoints and are therefore *not* exactly invertible — they are reused only to
+  pin the convention result.
+- **Within-block only.** This is purely a consensus↔node transform inside one block. The genome→node
+  hop (path-offset subtraction, strand flip, circular-wrap modular arithmetic via
+  `new_position_circular`) is **not** here — it belongs to the per-feature lift (P3).
+
+## Public API introduced in P1–P2
 
 ```rust
 // annotation::feature
@@ -88,13 +101,13 @@ pub fn interval_from_one_based_inclusive(start: usize, end: usize) -> Interval;
 // io::gff
 pub struct GffReader<'a>;          // new / from_str / from_path / read_many() -> Vec<Feature>
 
-// io::genbank
-pub struct GenbankReader<'a>;      // new / from_str / from_path / read_many() -> Vec<Feature>
-
 // annotation::matching
 pub fn match_features_to_paths(
   features: Vec<Feature>, graph: &Pangraph, seqid_map: &BTreeMap<String, String>,
 ) -> Result<BTreeMap<PathId, Vec<Feature>>, Report>;
+
+// pangraph::slice (P2) — inverse of interval_node_coords
+pub fn consensus_coords_from_node(node_coords: (usize, usize), edits: &Edit, block_L: usize) -> (usize, usize);
 ```
 
 ## Real-data smoke tests & fixtures (P1.5)
@@ -105,11 +118,10 @@ data:
 - **`data/klebs_graph.json.gz`** — pangraph built from all 9 genomes in `data/klebs.fa.gz`
   (`pangraph build -c`, ~2m20s, 9 paths / 1378 blocks). Paths are named by the **bare** RefSeq
   accession (the FASTA record id), e.g. `NZ_CP013711`.
-- **`data/klebs_annotations/{NZ_CP013711,NC_017540}.{gff,gbk}.gz`** — RefSeq annotations for two of
-  those genomes (GFF via NCBI sviewer `report=gff3`; GenBank via efetch `gbwithparts`). Only 2 kept
-  to bound fixture size (~8 MB).
-- Tests: parse each GFF/GenBank (thousands of features, CDS/strand/name present) and **match both
-  against the graph**, building the seqid map from the files themselves.
+- **`data/klebs_annotations/{NZ_CP013711,NC_017540}.gff.gz`** — RefSeq GFF annotations for two of
+  those genomes (NCBI sviewer `report=gff3`). Only 2 kept to bound fixture size.
+- Tests: parse each GFF (thousands of features, CDS/strand/name present) and **match both against
+  the graph**, building the seqid map from the files themselves.
 
 **Key real-world finding — seqid version mismatch.** Annotation seqids are the **versioned**
 accession (`NZ_CP013711.1`); graph path names are the **bare** accession (`NZ_CP013711`). The smoke
@@ -126,4 +138,21 @@ matching** (or a documented `--seqid-map`) in P5, since it is the default situat
   incorrectly. Annotations should come from the *same* sequence used to build the graph; worth a
   user-doc warning and possibly a length/identity sanity check.
 - Decide handling of features wholly inside an insertion relative to consensus (P3 open question).
-- Note the GenBank compound-location collapse and unstranded-GFF handling in user-facing docs.
+- Note unstranded-GFF handling in user-facing docs.
+
+## GenBank support deferred (v1 decision)
+
+v1 ships **GFF only**; the GenBank reader (the `gb-io` dependency, ~225 lines, and the `.gbk`
+fixtures) was **removed** after an initial implementation. Why:
+
+- The lift uses the **graph's** sequence, so GenBank's bundled sequence is unused in this workflow.
+- GenBank's compound-location model (`join`/`order`, fuzzy ends) is lossy precisely where the lift is
+  sensitive: collapsing to the outer span mis-places an origin-spanning `join(…,1..N)` on a circular
+  replicon (≈ the whole genome). GFF encodes multi-segment features as separate clean records — a
+  better fit for the per-segment `Feature` model.
+- The `.gbk.gz` fixtures dominated the annotation fixture footprint (~7 MB).
+
+**Re-adding it later is cheap** thanks to the format-neutral `Feature`: add a new `io/genbank.rs`
+reader producing `Vec<Feature>`, re-add `gb-io`, and handle compound/origin-wrap locations properly
+(not a naive outer-span collapse). **User workaround:** convert GenBank → GFF3 with `bp_genbank2gff3`,
+EMBOSS `seqret`, or by re-exporting from bakta/prokka.
