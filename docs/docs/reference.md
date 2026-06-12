@@ -31,6 +31,7 @@ If you have Pangraph CLI installed, you can type `pangraph --help` to read the l
 * [`pangraph export core-genome`↴](#pangraph-export-core-genome)
 * [`pangraph simplify`↴](#pangraph-simplify)
 * [`pangraph reconstruct`↴](#pangraph-reconstruct)
+* [`pangraph annotate`↴](#pangraph-annotate)
 * [`pangraph schema`↴](#pangraph-schema)
 * [`pangraph completions`↴](#pangraph-completions)
 * [`pangraph help-markdown`↴](#pangraph-help-markdown)
@@ -58,6 +59,7 @@ Questions, ideas, bug reports: https://github.com/neherlab/pangraph/issues
 * `export` — Export a pangraph to a chosen file format(s)
 * `simplify` — Generates a simplified graph that only contains a subset of the input genomes
 * `reconstruct` — Reconstruct all input fasta sequences from graph
+* `annotate` — Lift genome annotations onto the pangenome graph
 * `schema` — Generate JSON schema for Pangraph file format
 * `completions` — Generate shell completions
 * `help-markdown` — Print command-line reference documentation in Markdown format
@@ -326,6 +328,33 @@ Reconstruct all input fasta sequences from graph
    Accepts plain or compressed FASTA files. If a compressed fasta file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension. If there's multiple input files, then different files can have different compression formats.
 
    Use "-" to read uncompressed FASTA from standard input (stdin).
+
+
+
+## `pangraph annotate`
+
+Lift genome annotations onto the pangenome graph
+
+**Usage:** `pangraph annotate [OPTIONS] --gff <GFF> [INPUT]`
+
+###### **Arguments:**
+
+* `<INPUT>` — Path to Pangraph JSON.
+
+   Accepts plain or compressed file. If a compressed file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension.
+
+   If no input file provided, the uncompressed input is read from standard input (stdin).
+
+###### **Options:**
+
+* `--gff <GFF>` — Path to a GFF3 annotation file. Repeat the flag to provide multiple files.
+
+   Accepts plain or compressed files (`gz`, `bz2`, `xz`, `zstd`), chosen by file extension. At least one file is required. Annotation `seqid`s must match the graph path names exactly.
+* `-o`, `--output <OUTPUT>` — Path to the output node-level annotation table (CSV).
+
+   Will be created if it does not exist. The output is compressed if the path ends in a known compression extension (`gz`, `bz2`, `xz`, `zstd`). Use `-` to write uncompressed CSV to standard output (stdout).
+
+  Default value: `-`
 
 
 

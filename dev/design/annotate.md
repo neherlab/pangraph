@@ -114,8 +114,12 @@ partial in the source GFF are carried through as non-termini too.)
 - **Deletions** — consensus positions absent from the node are skipped by the inverse map.
 - **Substitutions** — do not move coordinates (identity differs, position does not); irrelevant to the lift.
 - **Reverse strand** — offset flip + feature-strand flip (§4 step 3).
-- **Circular wrap** — feature and/or node crossing the origin; use `PangraphPath.tot_len` +
-  `circular` and the modular pattern from `new_position_circular`.
+- **Circular wrap** — both nodes and features may cross the origin. NCBI encodes an origin-spanning
+  feature as a single record with `end > tot_len` (it wraps into `[f_s, tot_len) ∪ [0, f_e−tot_len)`,
+  [NCBI ref](https://www.ncbi.nlm.nih.gov/datasets/docs/v2/reference-docs/file-formats/annotation-files/about-ncbi-gff3/#origin-spanning-features)).
+  On a **circular** path it is decomposed into arc pieces and lifted as a **single feature** — landing
+  on one origin-wrapping node it stays **one** segment (no head/tail split). A wrap on a non-circular
+  path, a feature longer than the genome, or a start beyond the genome is **skipped with a `warn!`**.
 - **Multi-block features** — split into segments with `parent_feature_id` + `segment_idx`; interior
   boundaries are fragment ends.
 - **Partial / truncated features** — recorded via the per-endpoint terminus flags and `frac_covered`.
@@ -159,15 +163,19 @@ The hard part is largely solved by existing infrastructure:
 
 ## 7. Command interface
 
-`pangraph annotate`:
+`pangraph annotate` (P5.1 as-built; the surface grows in later phases):
 
-- **Inputs**: a graph JSON + one or more GFF files.
-- **Mode**: select node-level vs block-level output.
-- **Output**: path (default `-` = stdout); compression inferred from the file extension; format
-  chosen by the `AnnotationWriter` (CSV default, JSON optional).
-- **`--seqid-map`** escape hatch: map a GFF `seqid` to a PanGraph path name.
-  **ID matching is the #1 failure mode** — fail loudly (error, not silent drop) on any annotation
-  whose seqid does not match a path.
+- **Inputs**: a graph JSON as the **positional** argument (stdin if omitted) + one or more GFF files
+  via a **repeatable `--gff`** flag.
+- **Output**: `-o/--output` path (default `-` = stdout); compression inferred from the file
+  extension; format chosen by the `AnnotationWriter` (CSV is the only impl in P5.1; JSON arrives with
+  P4).
+- **Mode**: P5.1 emits **node-level** only. The node-vs-block output-level selector arrives in P5.2,
+  once block-level output exists.
+- **seqid → path matching**: P5.1 matches a GFF `seqid` to a path name by **exact** string equality.
+  **ID matching is the #1 failure mode** — fail loudly (one error listing every offending seqid, not
+  a silent drop). The `--seqid-map` escape hatch and any version-insensitive relaxation are
+  **deferred** to the §12 post-prototype decision.
 
 Wire it by mirroring `simplify` (args/run), then register in `root_args.rs` + `main.rs`.
 
@@ -216,6 +224,16 @@ coordinate distribution. Clustering "the same annotation" across genomes (by nam
 consensus overlap) is **opinionated** — keep it a clearly documented, configurable layer **on top
 of** the node-level lift, never baked into it.
 
+**Compaction refinement level (CLI-selectable, tentative).** How strictly the genomes carrying a
+feature must *agree* on its consensus coordinates before that coordinate is reported is an input
+choice, not a fixed policy. Envisioned levels, chosen by a CLI flag: emit a consensus coordinate only
+where **all** supporting genomes agree, where **at least a fraction** agree (a threshold), or **all**
+observed placements with no agreement filter — with room for further options. The `coords_agree`,
+`n_support`, and `n_total` fields above are the raw material; the refinement level only decides what
+is emitted, never how the underlying lift is computed. The exact set of levels and the fraction
+semantics are **to be decided** — the P5.1 node-level prototype run on real data is meant to inform
+this choice (see §10).
+
 ## 9. Validation strategy
 
 Mirror the build pipeline's "verify by reconstruction" philosophy:
@@ -239,10 +257,27 @@ Land incrementally, one PR/commit per phase:
 - **P3** ✅ — per-feature node-level lift (overlap, segmentation, strand, per-endpoint terminus flags)
   producing `LiftedAnnotation` objects + the `AnnotationWriter` trait with a CSV impl + integration
   test on `data/test_graph.json`.
+The original "P4 then P5" ordering is **deliberately inverted** below: we land a working node-level
+CLI **first** (P5.1) so we can run `pangraph annotate` on real data and use the actual node-level
+output to inform the still-undecided block-compaction policy (P4). Block CLI wiring (P5.2) and a
+single documentation pass (P5.3) follow once both output levels exist. Execution order is therefore
+**P5.1 → P4 → P5.2 → P5.3 → P6**.
+
+- **P5.1** ✅ — `annotate` command wiring for the **node-level** lift (args/run/register/dispatch,
+  mirroring `simplify`): graph as the positional input, GFF(s) via a repeatable `--gff` flag,
+  `-o/--output` with transparent compression, CSV output. seqid→path matching is **exact** with a
+  hard error on any mismatch; `--seqid-map` and version-insensitive relaxation are **deferred** to
+  the §12 decision. A working prototype: the lossless node-level table on real graphs. Also the
+  **first end-to-end real-data exercise of the P3 lift** (P1.5 only matched features to paths, never
+  lifted them). The output-level selector is **not** shipped yet — it arrives in P5.2 with block
+  output.
 - **P4** — block-level compaction (clustering + coordinate-agreement) into `BlockAnnotation` objects
-  + a second writer impl (CSV default, JSON optional) over the same trait + tests.
-- **P5** — `annotate` command wiring (args/run/register/dispatch), Docusaurus docs page, CLI
-  reference regeneration.
+  + a second writer impl (CSV default, JSON optional) over the same trait + tests. The compaction
+  **refinement level is CLI-selectable** (see §8). Designed against what the P5.1 prototype reveals.
+- **P5.2** — wire the block-level output into the `annotate` command (the `block` output level over
+  the same args).
+- **P5.3** — Docusaurus docs page + CLI reference regeneration, covering **both** output levels.
+  Resolve the §12 punch list first so the docs describe final behaviour.
 - **P6 (future)** — pypangraph consumer (load the tables; feature→node→block→path joins) + a
   visualization example. Out of scope for this Rust manifesto beyond this forward pointer.
 
@@ -262,7 +297,48 @@ Land incrementally, one PR/commit per phase:
   self-contained artifact is wanted.
 - **Block-level clustering policy** — by feature name/product, by consensus overlap, or by an
   external ortholog grouping; make it configurable.
+- **Block-level refinement level** — how strictly supporting genomes must agree on a coordinate
+  before it is emitted (all / fraction / none), exposed as a CLI flag; see §8. Distinct from the
+  clustering policy above. Set of levels and fraction semantics TBD, informed by the P5.1 prototype.
 - **Features wholly inside an insertion** — drop, or keep node-level-only with no consensus
   coordinate? Lean towards keep-and-flag.
 - **Coordinate convention** — 0-based half-open internally; convert only at GFF I/O (GFF is 1-based
   closed) to avoid off-by-one creep.
+
+## 12. Punch list — decide after the P5.1 prototype, before docs (P5.3)
+
+Improvements and design decisions to settle once the node-level prototype has been **run and tested
+on real data**, but **before** the user-facing documentation is written — so the docs describe final
+behaviour, not a moving target. These make the §11 open questions concrete; record the chosen
+behaviour in the implementation notes as each is resolved.
+
+- **seqid ↔ path identity matching** — *how do we connect an annotation file's `seqid` to a graph
+  path name?* This is the **#1 user failure mode**: P1.5 found NCBI annotation seqids carry the
+  **versioned** accession (`NZ_CP013711.1`) while graph paths use the **bare** accession
+  (`NZ_CP013711`). **P5.1 ships the exact-match baseline** (hard error on any mismatch, no
+  `--seqid-map`); this item decides how — and whether — to relax it. Options, not mutually exclusive:
+  - **Exact match only** — require `seqid == path.name`, hard error otherwise. Most predictable and
+    explicit; breaks out-of-the-box on the common NCBI version-suffix case.
+  - **Relaxed / version-insensitive** — normalize before comparing, e.g. strip the trailing `.N`
+    accession version (possibly other canonicalizations) so `NZ_CP013711.1` matches `NZ_CP013711`.
+    Convenient default for NCBI data; must define behaviour when two seqids normalize to the **same**
+    path (ambiguity → error) and accept that it can mask a genuine wrong-file mismatch.
+  - **Explicit `--seqid-map`** — user-supplied mapping; always available as the escape hatch.
+
+  *Decisions:* is relaxation **opt-out (default on)** or **opt-in (a flag)**? In what **order** are
+  the strategies tried (explicit map → relaxed → exact)? Keep the existing "aggregate all unmatched
+  seqids into one hard error" behaviour regardless. *Lean:* explicit map first, then
+  version-insensitive matching on by default, falling back to a loud aggregated error — but confirm
+  against what the prototype shows on real files.
+
+- **Sequence-version drift guard** — same accession but **different length** between the annotation's
+  source record and the graph's genome silently mis-lifts coordinates past the divergence point
+  (P1.5: `NZ_CP011582` 43433 bp vs graph 45279 bp). Decide whether `annotate` runs a length/identity
+  sanity check, and whether a mismatch is a **warning** or a **hard error**.
+
+- **Unstranded / partial features in the output** — confirm and document how `strand = None` (GFF
+  `.`/`?`) and any source-`partial` features render in the node-level table.
+
+- **Output ergonomics** — once real output has been eyeballed: decide the default column set/order,
+  whether the `attributes` JSON-string flattening is configurable, and whether a column selector is
+  worth adding. Only act on this if the default proves unwieldy in practice.
