@@ -145,10 +145,27 @@ pub fn interval_node_coords(i: &PangraphInterval, edits: &Edit, block_L: usize) 
 /// This is a within-block consensus↔node transform only; the genome→node hop (path offset, strand,
 /// circular wrap) is handled separately.
 pub fn consensus_coords_from_node(node_coords: (usize, usize), edits: &Edit, block_L: usize) -> (usize, usize) {
-  let (n_s, n_e) = node_coords;
-  let (c_s, _) = endpoint_to_consensus(n_s, edits, block_L, false);
-  let (c_e, _) = endpoint_to_consensus(n_e, edits, block_L, true);
+  let ((c_s, _), (c_e, _)) = consensus_coords_from_node_flagged(node_coords, edits, block_L);
   (c_s, c_e)
+}
+
+/// Like [`consensus_coords_from_node`], but additionally reports, **per endpoint**, whether it
+/// landed strictly inside an insertion (node bases with no consensus image, snapped to the
+/// insertion's consensus anchor `ins.pos`). Returns `((c_s, start_in_insertion), (c_e,
+/// end_in_insertion))`.
+///
+/// This promotes the per-endpoint `in_insertion` flag that [`consensus_coords_from_node`]
+/// discards; the node-level annotation lift uses it to flag feature endpoints falling inside an
+/// insertion (and a whole feature inside an insertion, where `c_s == c_e` with both flags set).
+pub fn consensus_coords_from_node_flagged(
+  node_coords: (usize, usize),
+  edits: &Edit,
+  block_L: usize,
+) -> ((usize, bool), (usize, bool)) {
+  let (n_s, n_e) = node_coords;
+  let start = endpoint_to_consensus(n_s, edits, block_L, false);
+  let end = endpoint_to_consensus(n_e, edits, block_L, true);
+  (start, end)
 }
 
 /// Map a single node-local coordinate back to a block-consensus coordinate, also returning whether
@@ -583,6 +600,27 @@ mod tests {
     assert_eq!(consensus_coords_from_node((6, 8), &ed, block_l), (5, 5));
     // endpoints at the insertion edges also resolve to the anchor
     assert_eq!(consensus_coords_from_node((5, 9), &ed, block_l), (5, 5));
+  }
+
+  #[test]
+  fn test_consensus_coords_from_node_flagged_reports_in_insertion() {
+    // Insertion of 4 bases at consensus 5 -> node bases [5,9) have no consensus image.
+    let ed = Edit {
+      subs: vec![],
+      dels: vec![],
+      inss: vec![Ins::new(5, "AAAA")],
+    };
+    let block_l = 10;
+    // Endpoints strictly inside the insertion snap to the anchor and set the flag.
+    assert_eq!(
+      consensus_coords_from_node_flagged((6, 8), &ed, block_l),
+      ((5, true), (5, true))
+    );
+    // Indel-clean endpoints either side of the insertion are flagged false.
+    assert_eq!(
+      consensus_coords_from_node_flagged((3, 9), &ed, block_l),
+      ((3, false), (5, false))
+    );
   }
 
   #[test]
