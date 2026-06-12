@@ -108,10 +108,9 @@ coordinate. `lift_features(grouped, graph)` runs it over the `match_features_to_
 - `node_start`/`node_end` are **consensus-oriented** node-local coordinates (already strand-flipped),
   i.e. exactly the input to `consensus_coords_from_node`; `cons_start`/`cons_end` are block-consensus
   coordinates. All half-open, 0-based.
-- A feature interval is assumed **non-wrapping** (`f_s < f_e`); origin-spanning features are separate
-  GFF records. **Nodes**, however, may wrap the circular origin and that is handled
-  (`node_coverage_pieces` splits a wrapping node into its `[p0, tot_len)` and `[0, p1)` pieces, and a
-  whole-circle node `p0 == p1`).
+- Both **nodes** and **features** may wrap the circular origin. Nodes are split by
+  `node_coverage_pieces` (`[p0, tot_len)` + `[0, p1)`, or a whole-circle node `p0 == p1`); features
+  by `feature_pieces` (see the origin-spanning section below).
 
 ### Per-endpoint flags use the **consensus-endpoint frame** (decision)
 `start_*` / `end_*` flags refer to the row's `cons_start` / `cons_end` endpoints, **not** the genome
@@ -178,6 +177,31 @@ and now simply states that seqids must match the path names.)
 `GffReader` path that `itest_annotate_lift.rs` skips): asserts the CSV header + that both features
 lift + the genome column; a mismatch case (`data/example.gff`, seqids `chr1`/`chr2`) asserts the loud
 error; and a `.csv.gz` output is read back through transparent decompression.
+
+## Origin-spanning features (circular paths)
+
+Real NCBI GFF encodes a feature crossing the replicon origin as a **single record with
+`end > sequence length`** (e.g. `5278484..5279188` on a 5,278,493-bp chromosome → wraps to
+`[0, 695)`), per
+<https://www.ncbi.nlm.nih.gov/datasets/docs/v2/reference-docs/file-formats/annotation-files/about-ncbi-gff3/#origin-spanning-features>.
+The P5.1 verification on real klebs data found exactly two such features (the chromosome's origin
+gene + its CDS); every other feature was already byte-exact (20,935 / 20,937).
+
+**Behaviour (`lift.rs`):**
+- A feature with `f_e > tot_len` on a **circular** path is decomposed by `feature_pieces` into its
+  arc pieces `[f_s, tot_len)` + `[0, f_e − tot_len)` (each tagged with an `arc_off`), intersected with
+  the node pieces, and emitted as a **single feature** (shared `parent_feature_id`).
+- `merge_wrapped_segments` folds consecutive same-node, node-contiguous raw segments back together, so
+  a wrap landing on **one** origin-wrapping (or whole-circle) node yields **one** segment — not an
+  artificial head/tail split. A genuine multi-block wrap stays multiple segments, ordered 5'→3'.
+- Terminus flags and `frac_covered` are computed from **arc position** along the feature
+  (`arc_start == 0` / `arc_end == len`), identical to the old genome-coordinate test for non-wrapping
+  features.
+- **Skipped with a `warn!`** (returns no segments, so the user is told): a wrap on a **non-circular**
+  path, a feature **longer than the genome**, or a **start beyond the genome**. Warnings go through the
+  `log` crate, surfaced by `--verbosity`.
+
+Re-running the (throwaway) klebs verification after this change: **20,937 / 20,937 OK, 0 skipped**.
 
 ## Public API introduced in P1–P3
 

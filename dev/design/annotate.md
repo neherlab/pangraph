@@ -114,8 +114,12 @@ partial in the source GFF are carried through as non-termini too.)
 - **Deletions** — consensus positions absent from the node are skipped by the inverse map.
 - **Substitutions** — do not move coordinates (identity differs, position does not); irrelevant to the lift.
 - **Reverse strand** — offset flip + feature-strand flip (§4 step 3).
-- **Circular wrap** — feature and/or node crossing the origin; use `PangraphPath.tot_len` +
-  `circular` and the modular pattern from `new_position_circular`.
+- **Circular wrap** — both nodes and features may cross the origin. NCBI encodes an origin-spanning
+  feature as a single record with `end > tot_len` (it wraps into `[f_s, tot_len) ∪ [0, f_e−tot_len)`,
+  [NCBI ref](https://www.ncbi.nlm.nih.gov/datasets/docs/v2/reference-docs/file-formats/annotation-files/about-ncbi-gff3/#origin-spanning-features)).
+  On a **circular** path it is decomposed into arc pieces and lifted as a **single feature** — landing
+  on one origin-wrapping node it stays **one** segment (no head/tail split). A wrap on a non-circular
+  path, a feature longer than the genome, or a start beyond the genome is **skipped with a `warn!`**.
 - **Multi-block features** — split into segments with `parent_feature_id` + `segment_idx`; interior
   boundaries are fragment ends.
 - **Partial / truncated features** — recorded via the per-endpoint terminus flags and `frac_covered`.

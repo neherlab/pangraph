@@ -7,6 +7,7 @@ use crate::pangraph::pangraph_path::{PangraphPath, PathId};
 use crate::pangraph::slice::consensus_coords_from_node_flagged;
 use crate::pangraph::strand::Strand;
 use eyre::Report;
+use log::warn;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -86,15 +87,15 @@ pub struct LiftedAnnotation {
   pub attributes: Vec<(String, String)>,
 }
 
-/// A feature's overlap with one node, in genome-oriented coordinates, before strand handling.
+/// A feature's overlap with one node, before strand handling.
 struct RawSegment {
   node_id: NodeId,
-  /// Genome coordinates of the overlap `[genome_start, genome_end)`.
-  genome_start: usize,
-  genome_end: usize,
   /// Genome-oriented node-local coordinates of the overlap `[node_a, node_b)`.
   node_a: usize,
   node_b: usize,
+  /// Offset of this overlap along the feature (5'→3' from `f_s`), `[arc_start, arc_end)`.
+  arc_start: usize,
+  arc_end: usize,
 }
 
 /// Genome coverage piece(s) of a node on its path, each as `(genome_start, genome_end,
@@ -121,13 +122,53 @@ fn node_coverage_pieces(p0: usize, p1: usize, tot_len: usize, circular: bool) ->
   pieces
 }
 
-/// Build the per-segment `feature_id` from the parent id (or a coordinate-based fallback when
-/// the source had no `ID`), suffixing multi-segment features so each row is unique.
-fn make_feature_id(parent: Option<&str>, feature: &Feature, segment_idx: usize, n_segments: usize) -> String {
-  let base = parent.map_or_else(
-    || format!("{}:{}-{}", feature.seqid, feature.interval.start, feature.interval.end),
-    ToOwned::to_owned,
-  );
+/// Genome piece(s) of a feature `[f_s, f_e)` on its path, each as `(genome_start, genome_end,
+/// arc_off)` where `arc_off` is the offset along the feature (5'→3' from `f_s`) at `genome_start`.
+///
+/// A feature normally has a single non-wrapping piece. An **origin-spanning** feature on a circular
+/// path is encoded by NCBI as one record with `f_e > tot_len`; it wraps into `[f_s, tot_len)` then
+/// `[0, f_e - tot_len)`. Callers must validate circularity/length first (see `lift_feature`).
+fn feature_pieces(f_s: usize, f_e: usize, tot_len: usize) -> Vec<(usize, usize, usize)> {
+  if f_e <= tot_len {
+    return vec![(f_s, f_e, 0)];
+  }
+  vec![(f_s, tot_len, 0), (0, f_e - tot_len, tot_len - f_s)]
+}
+
+/// Merge consecutive (arc-ordered) raw segments on the same node that are contiguous in node-local
+/// coordinates. An origin wrap staying within a single (origin-wrapping or whole-circle) node must
+/// remain one segment, not an artificial head/tail split at the origin.
+fn merge_wrapped_segments(segments: Vec<RawSegment>) -> Vec<RawSegment> {
+  let mut merged: Vec<RawSegment> = Vec::with_capacity(segments.len());
+  for seg in segments {
+    let extend = merged.last().is_some_and(|last| {
+      let same_node = last.node_id == seg.node_id;
+      let abuts = last.node_b == seg.node_a; // prev node-local end meets next node-local start
+      same_node && abuts
+    });
+    if extend {
+      let last = merged.last_mut().unwrap();
+      last.node_b = seg.node_b;
+      last.arc_end = seg.arc_end;
+    } else {
+      merged.push(seg);
+    }
+  }
+  merged
+}
+
+/// A human-readable label for a feature in log messages: its `ID`, else `seqid:start-end`.
+fn feature_label(feature: &Feature) -> String {
+  feature
+    .id
+    .clone()
+    .unwrap_or_else(|| format!("{}:{}-{}", feature.seqid, feature.interval.start, feature.interval.end))
+}
+
+/// Build the per-segment `feature_id` (the [`feature_label`], suffixed for multi-segment features so
+/// each row is unique).
+fn make_feature_id(feature: &Feature, segment_idx: usize, n_segments: usize) -> String {
+  let base = feature_label(feature);
   if n_segments > 1 {
     format!("{base}.seg{segment_idx}")
   } else {
@@ -137,10 +178,13 @@ fn make_feature_id(parent: Option<&str>, feature: &Feature, segment_idx: usize, 
 
 /// Lift a single annotation [`Feature`] onto the nodes of the path it belongs to.
 ///
-/// Returns one [`LiftedAnnotation`] per node the feature overlaps, in genome (low→high
-/// coordinate) order. The feature interval is assumed to be a non-wrapping `[start, end)`
-/// (origin-spanning features are encoded as separate GFF records); nodes, however, may wrap the
-/// circular origin, which is handled here.
+/// Returns one [`LiftedAnnotation`] per node the feature overlaps, ordered 5'→3' along the feature.
+/// An **origin-spanning** feature on a *circular* path — encoded by NCBI as a single record whose
+/// `end` exceeds the sequence length, so `[f_s, f_e)` wraps through the origin — is supported and
+/// stays a single feature: if its wrapped span lands on one origin-wrapping node it yields one
+/// segment, not an artificial head/tail split. Features that cannot be placed (a wrap on a
+/// non-circular path, a feature longer than the genome, or a start beyond the genome) are skipped
+/// with a `warn!` so the user is aware.
 pub fn lift_feature(feature: &Feature, path: &PangraphPath, graph: &Pangraph) -> Result<Vec<LiftedAnnotation>, Report> {
   let tot_len = path.tot_len();
   let circular = path.circular();
@@ -152,7 +196,37 @@ pub fn lift_feature(feature: &Feature, path: &PangraphPath, graph: &Pangraph) ->
     return Ok(vec![]); // empty feature: nothing to lift
   }
 
-  // 1+2. Collect the feature's overlap with each node, then order by genome coordinate.
+  // Validate placement; skip-and-warn on features we cannot put on this path.
+  if f_s >= tot_len {
+    warn!(
+      "Skipping feature {} on path {genome}: start {f_s} is beyond genome length {tot_len}",
+      feature_label(feature)
+    );
+    return Ok(vec![]);
+  }
+  let len = f_e - f_s;
+  let wraps = f_e > tot_len; // NCBI encodes an origin-spanning feature as end > sequence length
+  if wraps {
+    if !circular {
+      warn!(
+        "Skipping origin-spanning feature {} on non-circular path {genome}: [{f_s}, {f_e}) exceeds genome length {tot_len}",
+        feature_label(feature)
+      );
+      return Ok(vec![]);
+    }
+    if len > tot_len {
+      warn!(
+        "Skipping feature {} on path {genome}: length {len} exceeds genome length {tot_len}",
+        feature_label(feature)
+      );
+      return Ok(vec![]);
+    }
+  }
+
+  // 1+2. Collect the feature's overlap with each node — decomposing both the feature and the nodes
+  // into genome pieces so an origin wrap is handled on each side — ordered 5'→3' along the feature;
+  // then merge an origin wrap that stays within a single node back into one segment.
+  let f_pieces = feature_pieces(f_s, f_e, tot_len);
   let mut raw_segments: Vec<RawSegment> = Vec::new();
   for &node_id in path.nodes() {
     let node = graph
@@ -160,25 +234,30 @@ pub fn lift_feature(feature: &Feature, path: &PangraphPath, graph: &Pangraph) ->
       .get(&node_id)
       .ok_or_else(|| make_internal_report!("When lifting feature: node {node_id} not found in graph"))?;
     let (p0, p1) = node.position();
-    for (g_start, g_end, node_off) in node_coverage_pieces(p0, p1, tot_len, circular) {
-      let ov_s = f_s.max(g_start);
-      let ov_e = f_e.min(g_end);
-      if ov_s < ov_e {
-        raw_segments.push(RawSegment {
-          node_id,
-          genome_start: ov_s,
-          genome_end: ov_e,
-          node_a: node_off + (ov_s - g_start),
-          node_b: node_off + (ov_e - g_start),
-        });
+    let node_pieces = node_coverage_pieces(p0, p1, tot_len, circular);
+    for &(fp_s, fp_e, arc_off) in &f_pieces {
+      for &(g_start, g_end, node_off) in &node_pieces {
+        let ov_s = fp_s.max(g_start);
+        let ov_e = fp_e.min(g_end);
+        if ov_s < ov_e {
+          raw_segments.push(RawSegment {
+            node_id,
+            node_a: node_off + (ov_s - g_start),
+            node_b: node_off + (ov_e - g_start),
+            arc_start: arc_off + (ov_s - fp_s),
+            arc_end: arc_off + (ov_e - fp_s),
+          });
+        }
       }
     }
   }
-  raw_segments.sort_by_key(|s| s.genome_start);
+  raw_segments.sort_by_key(|s| s.arc_start);
+  if wraps {
+    raw_segments = merge_wrapped_segments(raw_segments);
+  }
 
   let n_segments = raw_segments.len();
-  let feature_len = (f_e - f_s) as f64;
-  let parent = feature.id.as_deref();
+  let feature_len = len as f64;
 
   let mut out = Vec::with_capacity(n_segments);
   for (segment_idx, seg) in raw_segments.into_iter().enumerate() {
@@ -206,19 +285,19 @@ pub fn lift_feature(feature: &Feature, path: &PangraphPath, graph: &Pangraph) ->
     let ((cons_start, start_in_insertion), (cons_end, end_in_insertion)) =
       consensus_coords_from_node_flagged((node_start, node_end), edits, block_l);
 
-    // Terminus flags, in the consensus-endpoint frame. The genome-low feature end (f_s) lives in
-    // the segment whose genome overlap starts at f_s; the genome-high end (f_e) in the segment
-    // whose overlap ends at f_e. Reverse-strand nodes swap which consensus endpoint each maps to.
-    let holds_feature_start = seg.genome_start == f_s;
-    let holds_feature_end = seg.genome_end == f_e;
+    // Terminus flags, in the consensus-endpoint frame, by arc position along the feature: the
+    // feature's 5' end is in the segment at arc 0, its 3' end in the segment ending at arc `len`.
+    // Reverse-strand nodes swap which consensus endpoint each maps to.
+    let holds_feature_start = seg.arc_start == 0;
+    let holds_feature_end = seg.arc_end == len;
     let (start_is_terminus, end_is_terminus) = if reverse {
       (holds_feature_end, holds_feature_start)
     } else {
       (holds_feature_start, holds_feature_end)
     };
 
-    let frac_covered = (seg.genome_end - seg.genome_start) as f64 / feature_len;
-    let feature_id = make_feature_id(parent, feature, segment_idx, n_segments);
+    let frac_covered = (seg.arc_end - seg.arc_start) as f64 / feature_len;
+    let feature_id = make_feature_id(feature, segment_idx, n_segments);
 
     out.push(LiftedAnnotation {
       feature_id,
@@ -630,5 +709,131 @@ mod tests {
     let grouped = btreemap! { path.id() => vec![feat(1, 4, Some(Forward)), feat(5, 9, Some(Forward))] };
     let lifted = lift_features(&grouped, &graph).unwrap();
     assert_eq!(lifted.len(), 2);
+  }
+
+  #[test]
+  fn test_lift_origin_spanning_single_wrapping_node_one_segment() {
+    // Origin-spanning feature [18,23) (end > tot_len) on a circular path lands entirely on the
+    // origin-wrapping node 0 -> a single merged segment, not a head/tail split at the origin.
+    let (graph, path) = wrapping_graph();
+    let lifted = lift_feature(&feat(18, 23, Some(Forward)), &path, &graph).unwrap();
+    assert_eq!(lifted.len(), 1);
+    let a = &lifted[0];
+    assert_eq!(a.node_id, NodeId(0));
+    assert_eq!((a.segment_idx, a.n_segments), (0, 1));
+    assert_eq!(a.feature_id, "g1");
+    assert_seg(a, (3, 8), (3, 8), Some(Forward), (true, true), (false, false));
+    assert!((a.frac_covered - 1.0).abs() < 1e-9);
+  }
+
+  #[test]
+  fn test_lift_origin_spanning_reverse_single_node_one_segment() {
+    // Same wrap on a reverse-strand origin-wrapping node: one segment, strand flipped, node coords
+    // measured from the other end (genome-oriented [3,8) -> reverse flip on len_node 10 -> [2,7)).
+    let (graph, path) = build_graph(
+      "p",
+      20,
+      true,
+      vec![
+        NodeSpec {
+          consensus: "ACGTACGTAC",
+          edits: Edit::empty(),
+          strand: Reverse,
+          position: (15, 5),
+        },
+        NodeSpec {
+          consensus: "TGCATGCATG",
+          edits: Edit::empty(),
+          strand: Forward,
+          position: (5, 15),
+        },
+      ],
+    );
+    let lifted = lift_feature(&feat(18, 23, Some(Forward)), &path, &graph).unwrap();
+    assert_eq!(lifted.len(), 1);
+    let a = &lifted[0];
+    assert_eq!((a.segment_idx, a.n_segments), (0, 1));
+    assert_seg(a, (2, 7), (2, 7), Some(Reverse), (true, true), (false, false));
+    assert!((a.frac_covered - 1.0).abs() < 1e-9);
+  }
+
+  #[test]
+  fn test_lift_origin_spanning_across_two_nodes_two_segments() {
+    // Origin at a node boundary: feature [18,23) wraps across node 1 (high side) then node 0 (low
+    // side) -> two segments in arc (5'->3') order; only the outer endpoints are termini.
+    let (graph, path) = build_graph(
+      "p",
+      20,
+      true,
+      vec![
+        NodeSpec {
+          consensus: "ACGTACGTAC",
+          edits: Edit::empty(),
+          strand: Forward,
+          position: (0, 10),
+        },
+        NodeSpec {
+          consensus: "TGCATGCATG",
+          edits: Edit::empty(),
+          strand: Forward,
+          position: (10, 20),
+        },
+      ],
+    );
+    let lifted = lift_feature(&feat(18, 23, Some(Forward)), &path, &graph).unwrap();
+    assert_eq!(lifted.len(), 2);
+
+    let s0 = &lifted[0];
+    assert_eq!(s0.node_id, NodeId(1));
+    assert_eq!((s0.segment_idx, s0.n_segments), (0, 2));
+    assert_eq!(s0.feature_id, "g1.seg0");
+    assert_seg(s0, (8, 10), (8, 10), Some(Forward), (true, false), (false, false));
+    assert!((s0.frac_covered - 0.4).abs() < 1e-9);
+
+    let s1 = &lifted[1];
+    assert_eq!(s1.node_id, NodeId(0));
+    assert_eq!((s1.segment_idx, s1.n_segments), (1, 2));
+    assert_eq!(s1.feature_id, "g1.seg1");
+    assert_seg(s1, (0, 3), (0, 3), Some(Forward), (false, true), (false, false));
+    assert!((s1.frac_covered - 0.6).abs() < 1e-9);
+  }
+
+  #[test]
+  fn test_lift_wrapping_feature_on_noncircular_path_is_skipped() {
+    let (graph, path) = build_graph(
+      "p",
+      20,
+      false,
+      vec![
+        NodeSpec {
+          consensus: "ACGTACGTAC",
+          edits: Edit::empty(),
+          strand: Forward,
+          position: (0, 10),
+        },
+        NodeSpec {
+          consensus: "TGCATGCATG",
+          edits: Edit::empty(),
+          strand: Forward,
+          position: (10, 20),
+        },
+      ],
+    );
+    let lifted = lift_feature(&feat(18, 23, Some(Forward)), &path, &graph).unwrap();
+    assert!(lifted.is_empty(), "wrap on a non-circular path is skipped");
+  }
+
+  #[test]
+  fn test_lift_feature_longer_than_genome_is_skipped() {
+    let (graph, path) = wrapping_graph(); // tot_len 20, circular
+    let lifted = lift_feature(&feat(5, 30, Some(Forward)), &path, &graph).unwrap();
+    assert!(lifted.is_empty(), "feature longer than the genome is skipped");
+  }
+
+  #[test]
+  fn test_lift_feature_start_beyond_genome_is_skipped() {
+    let (graph, path) = wrapping_graph(); // tot_len 20
+    let lifted = lift_feature(&feat(25, 28, Some(Forward)), &path, &graph).unwrap();
+    assert!(lifted.is_empty(), "start beyond the genome is skipped");
   }
 }
