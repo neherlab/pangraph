@@ -41,8 +41,8 @@ pub fn match_features_to_paths(
     let names = unmatched.iter().cloned().collect::<Vec<_>>().join(", ");
     return make_error!(
       "Could not match {} annotation sequence id(s) to any pangraph path: {names}. \
-       Check that annotation seqids correspond to the FASTA record names used to build the \
-       graph, or provide an explicit seqid-to-path mapping.",
+       Annotation seqids must exactly match the FASTA record names (the pangraph path names) \
+       used to build the graph.",
       unmatched.len()
     );
   }
