@@ -12,7 +12,7 @@
 | P1 | Internal `Feature` model + GFF reader + seqid↔path matching | ✅ done |
 | P1.5 | Real-data smoke tests (klebs graph + NCBI GFF annotations) | ✅ done |
 | P2 | Inverse coordinate helper `consensus_coords_from_node` (+ round-trip tests) | ✅ done |
-| P3 | Node-level lift + `AnnotationWriter` trait (CSV impl) | ⏳ todo |
+| P3 | Node-level lift + `AnnotationWriter` trait (CSV impl) | ✅ done |
 | P4 | Block-level compaction (coordinate agreement) + JSON writer | ⏳ todo |
 | P5 | `pangraph annotate` CLI command + `--seqid-map` + docs/CLI reference | ⏳ todo |
 | P6 | pypangraph consumer + visualization example | ⏳ todo |
@@ -22,7 +22,8 @@
 - `packages/pangraph/src/annotation/` — domain logic
   - `feature.rs` — the format-agnostic `Feature` model + coordinate helper
   - `matching.rs` — `match_features_to_paths`
-  - *(later: `lift.rs`, `writer.rs`)*
+  - `lift.rs` — `LiftedAnnotation` + `lift_feature` / `lift_features` (P3)
+  - `writer.rs` — `AnnotationWriter` trait + `CsvAnnotationWriter` (P3)
 - `packages/pangraph/src/pangraph/slice.rs` — `consensus_coords_from_node` (P2), next to its forward
   `interval_node_coords` (within-block consensus↔node coordinate transforms)
 - `packages/pangraph/src/io/` — format readers (next to `fasta.rs`)
@@ -91,7 +92,57 @@ have no node image), so two endpoint cases are resolved by convention:
   hop (path-offset subtraction, strand flip, circular-wrap modular arithmetic via
   `new_position_circular`) is **not** here — it belongs to the per-feature lift (P3).
 
-## Public API introduced in P1–P2
+## P3 decisions & behaviours (the node-level lift)
+
+`lift_feature(feature, path, graph)` performs the genome→node→consensus transform of §4 of the
+manifesto and returns one `LiftedAnnotation` per overlapped node (a *segment*), ordered by genome
+coordinate. `lift_features(grouped, graph)` runs it over the `match_features_to_paths` output.
+
+### Coordinate frames in the output
+- `node_start`/`node_end` are **consensus-oriented** node-local coordinates (already strand-flipped),
+  i.e. exactly the input to `consensus_coords_from_node`; `cons_start`/`cons_end` are block-consensus
+  coordinates. All half-open, 0-based.
+- A feature interval is assumed **non-wrapping** (`f_s < f_e`); origin-spanning features are separate
+  GFF records. **Nodes**, however, may wrap the circular origin and that is handled
+  (`node_coverage_pieces` splits a wrapping node into its `[p0, tot_len)` and `[0, p1)` pieces, and a
+  whole-circle node `p0 == p1`).
+
+### Per-endpoint flags use the **consensus-endpoint frame** (decision)
+`start_*` / `end_*` flags refer to the row's `cons_start` / `cons_end` endpoints, **not** the genome
+5'/3' ends. On a reverse-strand node the feature's genome-start maps to `cons_end`; `strand_on_consensus`
+(the source strand flipped on reverse nodes; `None` stays `None`) lets a consumer map back.
+- `start_is_terminus`/`end_is_terminus` — the endpoint is a real feature terminus vs a fragment
+  boundary from a node/block split. A fully-covered feature has exactly two real termini (its genome
+  start and end); interior segment boundaries are non-termini. (GFF source-`partial` carry-through is
+  a later refinement; nodes tile a path with no gaps, so within-graph clipping does not arise.)
+- `start_in_insertion`/`end_in_insertion` — the endpoint snapped inside an insertion (no consensus
+  image). **Policy: keep-and-flag** (decision), per the manifesto lean. A feature wholly inside an
+  insertion is kept with `cons_start == cons_end` and both flags set. (The deletion-collapse case
+  `start > end` cannot occur for a real, length>0 feature, since deleted positions have no node bases.)
+
+### `feature_id` / `parent_feature_id`
+`parent_feature_id` is the source GFF `ID` (shared across a feature's segments; `None` if absent).
+`feature_id` is per-row unique: the parent (or a `"{seqid}:{start}-{end}"` fallback when there is no
+`ID`), suffixed `.seg{idx}` for multi-segment features. `n_segments` and `frac_covered` (genome-length
+fraction of the feature in this segment) are also emitted.
+
+### Writer
+`AnnotationWriter` is a trait (`write_node_annotations(&[LiftedAnnotation])`); the default impl
+`CsvAnnotationWriter` writes long-format CSV via the `csv` crate over `create_file_or_stdout` (so `-`
+= stdout and `.gz/.bz2/.xz/.zst` compress transparently). **Headers are on** (the shared
+`CsvStructFileWriter` forces them off, so the writer uses the `csv` builder directly). `attributes`
+renders as one JSON-string column (a JSON array of `[key, value]` pairs, order/duplicate-preserving);
+`Option`s render as empty cells; ids as plain numbers; `frac_covered` formatted to 4 decimals.
+
+### Validation
+`packages/pangraph/tests/itest_annotate_lift.rs` round-trips on `data/test_graph.json` by
+**reconstructing** each genome from the graph (`commands::reconstruct::reconstruct_run::reconstruct`,
+no new fixtures), lifting synthetic features (single-node, cross-block, and ones overlapping the
+origin-wrapping node in both strands) and asserting the reassembled segment bases equal the genome
+substring. Unit tests in `lift.rs` pin exact coordinates for each edge case (strand, deletion,
+insertion, in-insertion, multi-segment termini, circular wrap, unstranded).
+
+## Public API introduced in P1–P3
 
 ```rust
 // annotation::feature
@@ -108,6 +159,22 @@ pub fn match_features_to_paths(
 
 // pangraph::slice (P2) — inverse of interval_node_coords
 pub fn consensus_coords_from_node(node_coords: (usize, usize), edits: &Edit, block_L: usize) -> (usize, usize);
+
+// pangraph::slice (P3) — same map, exposing per-endpoint in-insertion flags
+pub fn consensus_coords_from_node_flagged(
+  node_coords: (usize, usize), edits: &Edit, block_L: usize,
+) -> ((usize, bool), (usize, bool));
+
+// annotation::lift (P3)
+pub struct LiftedAnnotation { /* feature_id, parent_feature_id, segment_idx, n_segments, genome,
+  block_id, node_id, strand_on_consensus, node_start/_end, cons_start/_end, start/end_is_terminus,
+  start/end_in_insertion, frac_covered, feature_type, name, attributes */ }
+pub fn lift_feature(feature: &Feature, path: &PangraphPath, graph: &Pangraph) -> Result<Vec<LiftedAnnotation>, Report>;
+pub fn lift_features(grouped: &BTreeMap<PathId, Vec<Feature>>, graph: &Pangraph) -> Result<Vec<LiftedAnnotation>, Report>;
+
+// annotation::writer (P3)
+pub trait AnnotationWriter { fn write_node_annotations(&mut self, annotations: &[LiftedAnnotation]) -> Result<(), Report>; }
+pub struct CsvAnnotationWriter;    // new(filepath, delimiter) ; the default CSV impl
 ```
 
 ## Real-data smoke tests & fixtures (P1.5)

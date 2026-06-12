@@ -236,7 +236,7 @@ Land incrementally, one PR/commit per phase:
   `--seqid-map`, hard error on mismatch). *(GenBank reader deferred — see §11.)*
 - **P2** ✅ — inverse coordinate helper `consensus_coords_from_node` in `slice.rs` + unit tests
   (round-trip against `interval_node_coords`).
-- **P3** — per-feature node-level lift (overlap, segmentation, strand, per-endpoint terminus flags)
+- **P3** ✅ — per-feature node-level lift (overlap, segmentation, strand, per-endpoint terminus flags)
   producing `LiftedAnnotation` objects + the `AnnotationWriter` trait with a CSV impl + integration
   test on `data/test_graph.json`.
 - **P4** — block-level compaction (clustering + coordinate-agreement) into `BlockAnnotation` objects
