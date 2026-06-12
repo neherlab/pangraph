@@ -168,8 +168,9 @@ wiring over the P1–P3 library API — no lift-logic changes. `annotate_run` do
 Matching passes an **empty** `seqid_map`, so `match_features_to_paths` matches `seqid == path.name`
 exactly and aggregates **all** unmatched seqids into one hard error (existing P1 behaviour). On real
 NCBI data (versioned `NZ_*.1` seqids vs bare `NZ_*` paths) this **errors by design** — the concrete
-signal motivating the §12 relaxation decision. (Gotcha: the P1 error text still mentions "provide an
-explicit seqid-to-path mapping", a capability not yet exposed on the CLI; reconcile when §12 lands.)
+signal motivating the §12 relaxation decision. (The P1 matcher error text was reworded to drop the
+"provide an explicit seqid-to-path mapping" suggestion — a capability the CLI does not expose yet —
+and now simply states that seqids must match the path names.)
 
 ### Tests
 `packages/pangraph/tests/itest_annotate_cli.rs` drives `annotate_run` end-to-end against
@@ -223,13 +224,16 @@ data:
   accession (the FASTA record id), e.g. `NZ_CP013711`.
 - **`data/klebs_annotations/{NZ_CP013711,NC_017540}.gff.gz`** — RefSeq GFF annotations for two of
   those genomes (NCBI sviewer `report=gff3`). Only 2 kept to bound fixture size.
-- Tests: parse each GFF (thousands of features, CDS/strand/name present) and **match both against
-  the graph**, building the seqid map from the files themselves.
+- Tests: parse each GFF (thousands of features, CDS/strand/name present) and **match + lift both
+  against the graph** by **exact** seqid equality (no seqid map), asserting the lifted segments stay
+  in-bounds (P5.1 real-data lift smoke).
 
-**Key real-world finding — seqid version mismatch.** Annotation seqids are the **versioned**
-accession (`NZ_CP013711.1`); graph path names are the **bare** accession (`NZ_CP013711`). The smoke
-test bridges this with a `version → bare` seqid map. This strongly motivates **version-insensitive
-matching** (or a documented `--seqid-map`) in P5, since it is the default situation for NCBI data.
+**Key real-world finding — seqid version mismatch.** As downloaded, annotation seqids are the
+**versioned** accession (`NZ_CP013711.1`) while graph path names are the **bare** accession
+(`NZ_CP013711`). The committed fixtures have since been **normalized** (the `.N` version stripped from
+the seqid column only, leaving attribute values intact), so the smoke test matches by exact equality
+without a map. The underlying NCBI reality still holds for *user* data, so it remains the motivation
+for the §12 version-insensitive-matching decision — it is the default situation for NCBI downloads.
 
 ## Carried-forward items for later phases / user docs
 
