@@ -148,6 +148,9 @@ fn merge_wrapped_segments(segments: Vec<RawSegment>) -> Vec<RawSegment> {
     });
     if extend {
       let last = merged.last_mut().unwrap();
+      // Node-contiguity (the `extend` check) implies arc-contiguity given how `feature_pieces`
+      // and `node_coverage_pieces` decompose the wrap; pin that invariant in debug builds.
+      debug_assert_eq!(last.arc_end, seg.arc_start, "merged wrapped segments must be arc-contiguous");
       last.node_b = seg.node_b;
       last.arc_end = seg.arc_end;
     } else {
