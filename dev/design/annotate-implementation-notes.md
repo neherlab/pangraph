@@ -13,9 +13,15 @@
 | P1.5 | Real-data smoke tests (klebs graph + NCBI GFF annotations) | ✅ done |
 | P2 | Inverse coordinate helper `consensus_coords_from_node` (+ round-trip tests) | ✅ done |
 | P3 | Node-level lift + `AnnotationWriter` trait (CSV impl) | ✅ done |
-| P4 | Block-level compaction (coordinate agreement) + JSON writer | ⏳ todo |
-| P5 | `pangraph annotate` CLI command + `--seqid-map` + docs/CLI reference | ⏳ todo |
+| P5.1 | `pangraph annotate` CLI (node-level output, **exact** seqid matching) | ✅ done |
+| P4 | Block-level compaction (coordinate agreement, CLI refinement level) + JSON writer | ⏳ todo (after P5.1) |
+| P5.2 | Wire block-level output into the `annotate` command | ⏳ todo |
+| P5.3 | Docs page + CLI reference regeneration (both output levels) | ⏳ todo |
 | P6 | pypangraph consumer + visualization example | ⏳ todo |
+
+> **Ordering note (2026-06-12):** P4 (block compaction) is **deferred until after** a working
+> node-level CLI (P5.1), so the still-undecided compaction policy can be designed against real
+> node-level output. See the roadmap in [`annotate.md`](./annotate.md) §10.
 
 ## Module layout
 
@@ -102,10 +108,9 @@ coordinate. `lift_features(grouped, graph)` runs it over the `match_features_to_
 - `node_start`/`node_end` are **consensus-oriented** node-local coordinates (already strand-flipped),
   i.e. exactly the input to `consensus_coords_from_node`; `cons_start`/`cons_end` are block-consensus
   coordinates. All half-open, 0-based.
-- A feature interval is assumed **non-wrapping** (`f_s < f_e`); origin-spanning features are separate
-  GFF records. **Nodes**, however, may wrap the circular origin and that is handled
-  (`node_coverage_pieces` splits a wrapping node into its `[p0, tot_len)` and `[0, p1)` pieces, and a
-  whole-circle node `p0 == p1`).
+- Both **nodes** and **features** may wrap the circular origin. Nodes are split by
+  `node_coverage_pieces` (`[p0, tot_len)` + `[0, p1)`, or a whole-circle node `p0 == p1`); features
+  by `feature_pieces` (see the origin-spanning section below).
 
 ### Per-endpoint flags use the **consensus-endpoint frame** (decision)
 `start_*` / `end_*` flags refer to the row's `cons_start` / `cons_end` endpoints, **not** the genome
@@ -141,6 +146,62 @@ no new fixtures), lifting synthetic features (single-node, cross-block, and ones
 origin-wrapping node in both strands) and asserting the reassembled segment bases equal the genome
 substring. Unit tests in `lift.rs` pin exact coordinates for each edge case (strand, deletion,
 insertion, in-insertion, multi-segment termini, circular wrap, unstranded).
+
+## P5.1 decisions & behaviours (the `annotate` command)
+
+The `annotate` command (`packages/pangraph/src/commands/annotate/`, mirroring `simplify`) is pure
+wiring over the P1–P3 library API — no lift-logic changes. `annotate_run` does: `Pangraph::from_path`
+→ for each `--gff` file `GffReader::from_path(..).read_many()` →
+`match_features_to_paths(.., &BTreeMap::new())` → `lift_features` →
+`CsvAnnotationWriter::new(out, b',').write_node_annotations(..)`.
+
+### CLI surface (intentionally minimal)
+- **Graph**: positional `input` (`Option<PathBuf>`, stdin if omitted), like `simplify`.
+- **GFF(s)**: repeatable `--gff <FILE>`, `required = true` (≥1); one path per occurrence; transparent
+  decompression by extension.
+- **Output**: `-o/--output` (default `-` = stdout); CSV only; compression inferred from extension.
+- **No `--seqid-map`, no `--output-level`, no `--format`/`--delimiter`** — deferred to later phases
+  (§12 / P4 / P5.2). The CSV delimiter is hard-wired to `,`.
+
+### seqid matching = exact (decision)
+Matching passes an **empty** `seqid_map`, so `match_features_to_paths` matches `seqid == path.name`
+exactly and aggregates **all** unmatched seqids into one hard error (existing P1 behaviour). On real
+NCBI data (versioned `NZ_*.1` seqids vs bare `NZ_*` paths) this **errors by design** — the concrete
+signal motivating the §12 relaxation decision. (The P1 matcher error text was reworded to drop the
+"provide an explicit seqid-to-path mapping" suggestion — a capability the CLI does not expose yet —
+and now simply states that seqids must match the path names.)
+
+### Tests
+`packages/pangraph/tests/itest_annotate_cli.rs` drives `annotate_run` end-to-end against
+`data/test_graph.json` with a GFF written at test time using a **real** path name (exercising the
+`GffReader` path that `itest_annotate_lift.rs` skips): asserts the CSV header + that both features
+lift + the genome column; a mismatch case (`data/example.gff`, seqids `chr1`/`chr2`) asserts the loud
+error; and a `.csv.gz` output is read back through transparent decompression.
+
+## Origin-spanning features (circular paths)
+
+Real NCBI GFF encodes a feature crossing the replicon origin as a **single record with
+`end > sequence length`** (e.g. `5278484..5279188` on a 5,278,493-bp chromosome → wraps to
+`[0, 695)`), per
+<https://www.ncbi.nlm.nih.gov/datasets/docs/v2/reference-docs/file-formats/annotation-files/about-ncbi-gff3/#origin-spanning-features>.
+The P5.1 verification on real klebs data found exactly two such features (the chromosome's origin
+gene + its CDS); every other feature was already byte-exact (20,935 / 20,937).
+
+**Behaviour (`lift.rs`):**
+- A feature with `f_e > tot_len` on a **circular** path is decomposed by `feature_pieces` into its
+  arc pieces `[f_s, tot_len)` + `[0, f_e − tot_len)` (each tagged with an `arc_off`), intersected with
+  the node pieces, and emitted as a **single feature** (shared `parent_feature_id`).
+- `merge_wrapped_segments` folds consecutive same-node, node-contiguous raw segments back together, so
+  a wrap landing on **one** origin-wrapping (or whole-circle) node yields **one** segment — not an
+  artificial head/tail split. A genuine multi-block wrap stays multiple segments, ordered 5'→3'.
+- Terminus flags and `frac_covered` are computed from **arc position** along the feature
+  (`arc_start == 0` / `arc_end == len`), identical to the old genome-coordinate test for non-wrapping
+  features.
+- **Skipped with a `warn!`** (returns no segments, so the user is told): a wrap on a **non-circular**
+  path, a feature **longer than the genome**, or a **start beyond the genome**. Warnings go through the
+  `log` crate, surfaced by `--verbosity`.
+
+Re-running the (throwaway) klebs verification after this change: **20,937 / 20,937 OK, 0 skipped**.
 
 ## Public API introduced in P1–P3
 
@@ -187,15 +248,23 @@ data:
   accession (the FASTA record id), e.g. `NZ_CP013711`.
 - **`data/klebs_annotations/{NZ_CP013711,NC_017540}.gff.gz`** — RefSeq GFF annotations for two of
   those genomes (NCBI sviewer `report=gff3`). Only 2 kept to bound fixture size.
-- Tests: parse each GFF (thousands of features, CDS/strand/name present) and **match both against
-  the graph**, building the seqid map from the files themselves.
+- Tests: parse each GFF (thousands of features, CDS/strand/name present) and **match + lift both
+  against the graph** by **exact** seqid equality (no seqid map), asserting the lifted segments stay
+  in-bounds (P5.1 real-data lift smoke).
 
-**Key real-world finding — seqid version mismatch.** Annotation seqids are the **versioned**
-accession (`NZ_CP013711.1`); graph path names are the **bare** accession (`NZ_CP013711`). The smoke
-test bridges this with a `version → bare` seqid map. This strongly motivates **version-insensitive
-matching** (or a documented `--seqid-map`) in P5, since it is the default situation for NCBI data.
+**Key real-world finding — seqid version mismatch.** As downloaded, annotation seqids are the
+**versioned** accession (`NZ_CP013711.1`) while graph path names are the **bare** accession
+(`NZ_CP013711`). The committed fixtures have since been **normalized** (the `.N` version stripped from
+the seqid column only, leaving attribute values intact), so the smoke test matches by exact equality
+without a map. The underlying NCBI reality still holds for *user* data, so it remains the motivation
+for the §12 version-insensitive-matching decision — it is the default situation for NCBI downloads.
 
 ## Carried-forward items for later phases / user docs
+
+> Several of these are now consolidated into the **post-prototype, pre-docs punch list** in
+> [`annotate.md`](./annotate.md) §12 (notably seqid↔path matching and the sequence-version-drift
+> guard) — settle them there before P5.3.
+
 - Document the `--seqid-map` file format (P5) and the "seqids must match FASTA record names" rule.
 - **Version-insensitive seqid matching (P5):** strongly consider auto-stripping the `.N` version so
   `NZ_CP013711.1` matches a `NZ_CP013711` path without an explicit map (see finding above).
