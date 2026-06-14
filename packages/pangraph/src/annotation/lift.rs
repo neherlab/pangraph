@@ -150,7 +150,10 @@ fn merge_wrapped_segments(segments: Vec<RawSegment>) -> Vec<RawSegment> {
       let last = merged.last_mut().unwrap();
       // Node-contiguity (the `extend` check) implies arc-contiguity given how `feature_pieces`
       // and `node_coverage_pieces` decompose the wrap; pin that invariant in debug builds.
-      debug_assert_eq!(last.arc_end, seg.arc_start, "merged wrapped segments must be arc-contiguous");
+      debug_assert_eq!(
+        last.arc_end, seg.arc_start,
+        "merged wrapped segments must be arc-contiguous"
+      );
       last.node_b = seg.node_b;
       last.arc_end = seg.arc_end;
     } else {
@@ -536,25 +539,7 @@ mod tests {
   fn test_lift_multi_node_segments_termini_and_frac() {
     // A feature spanning two forward nodes splits into two segments; only the outer endpoints are
     // termini and frac_covered sums to 1.
-    let (graph, path) = build_graph(
-      "p",
-      20,
-      false,
-      vec![
-        NodeSpec {
-          consensus: "ACGTACGTAC",
-          edits: Edit::empty(),
-          strand: Forward,
-          position: (0, 10),
-        },
-        NodeSpec {
-          consensus: "TGCATGCATG",
-          edits: Edit::empty(),
-          strand: Forward,
-          position: (10, 20),
-        },
-      ],
-    );
+    let (graph, path) = two_node_forward_graph(false);
     let lifted = lift_feature(&feat(5, 15, Some(Forward)), &path, &graph).unwrap();
     assert_eq!(lifted.len(), 2);
 
@@ -652,6 +637,30 @@ mod tests {
           edits: Edit::empty(),
           strand: Forward,
           position: (5, 15),
+        },
+      ],
+    )
+  }
+
+  /// Path of length 20 split at the midpoint into two forward nodes: node 0 `(0,10)` and node 1
+  /// `(10,20)`. `circular` toggles origin wrapping.
+  fn two_node_forward_graph(circular: bool) -> (Pangraph, PangraphPath) {
+    build_graph(
+      "p",
+      20,
+      circular,
+      vec![
+        NodeSpec {
+          consensus: "ACGTACGTAC",
+          edits: Edit::empty(),
+          strand: Forward,
+          position: (0, 10),
+        },
+        NodeSpec {
+          consensus: "TGCATGCATG",
+          edits: Edit::empty(),
+          strand: Forward,
+          position: (10, 20),
         },
       ],
     )
@@ -764,25 +773,7 @@ mod tests {
   fn test_lift_origin_spanning_across_two_nodes_two_segments() {
     // Origin at a node boundary: feature [18,23) wraps across node 1 (high side) then node 0 (low
     // side) -> two segments in arc (5'->3') order; only the outer endpoints are termini.
-    let (graph, path) = build_graph(
-      "p",
-      20,
-      true,
-      vec![
-        NodeSpec {
-          consensus: "ACGTACGTAC",
-          edits: Edit::empty(),
-          strand: Forward,
-          position: (0, 10),
-        },
-        NodeSpec {
-          consensus: "TGCATGCATG",
-          edits: Edit::empty(),
-          strand: Forward,
-          position: (10, 20),
-        },
-      ],
-    );
+    let (graph, path) = two_node_forward_graph(true);
     let lifted = lift_feature(&feat(18, 23, Some(Forward)), &path, &graph).unwrap();
     assert_eq!(lifted.len(), 2);
 
@@ -803,25 +794,7 @@ mod tests {
 
   #[test]
   fn test_lift_wrapping_feature_on_noncircular_path_is_skipped() {
-    let (graph, path) = build_graph(
-      "p",
-      20,
-      false,
-      vec![
-        NodeSpec {
-          consensus: "ACGTACGTAC",
-          edits: Edit::empty(),
-          strand: Forward,
-          position: (0, 10),
-        },
-        NodeSpec {
-          consensus: "TGCATGCATG",
-          edits: Edit::empty(),
-          strand: Forward,
-          position: (10, 20),
-        },
-      ],
-    );
+    let (graph, path) = two_node_forward_graph(false);
     let lifted = lift_feature(&feat(18, 23, Some(Forward)), &path, &graph).unwrap();
     assert!(lifted.is_empty(), "wrap on a non-circular path is skipped");
   }
