@@ -39,11 +39,16 @@ pub struct AnnotateCommonArgs {
   #[clap(display_order = 1)]
   pub input: Option<PathBuf>,
 
-  /// Path to a GFF3 annotation file. Repeat the flag to provide multiple files.
+  /// Path(s) to GFF3 annotation file(s).
+  ///
+  /// Pass several files after a single flag (`--gff a.gff b.gff`, so shell globs like `--gff
+  /// *.gff` work), and/or repeat the flag (`--gff a.gff --gff b.gff`); the values accumulate. To
+  /// avoid the positional graph being slurped as an extra GFF, give it before the flag (`annotate
+  /// nodes graph.json --gff *.gff`) or pipe it via stdin.
   ///
   /// Accepts plain or compressed files (`gz`, `bz2`, `xz`, `zstd`), chosen by file extension. At
   /// least one file is required. Annotation `seqid`s must match the graph path names exactly.
-  #[clap(long = "gff", required = true, value_hint = ValueHint::FilePath)]
+  #[clap(long = "gff", required = true, num_args = 1.., value_hint = ValueHint::FilePath)]
   #[clap(display_order = 2)]
   pub gff: Vec<PathBuf>,
 
@@ -109,7 +114,73 @@ fn parse_fraction(s: &str) -> Result<f64, String> {
 
 #[cfg(test)]
 mod tests {
-  use super::parse_fraction;
+  use super::{AnnotateCommonArgs, parse_fraction};
+  use crate::commands::root_args::{PangraphArgs, PangraphCommands};
+  use clap::Parser;
+  use std::path::PathBuf;
+
+  /// Parse a full `pangraph annotate nodes …` invocation and return its common args (graph, GFFs,
+  /// output), so the `--gff` parsing behaviour is exercised through clap rather than constructed by
+  /// hand.
+  fn parse_nodes_common(argv: &[&str]) -> Result<AnnotateCommonArgs, clap::Error> {
+    let args = PangraphArgs::try_parse_from(argv)?;
+    match args.command {
+      PangraphCommands::Annotate {
+        args: super::PangraphAnnotateArgs::Nodes(nodes),
+      } => Ok(nodes.common),
+      other => panic!("expected `annotate nodes`, got {other:?}"),
+    }
+  }
+
+  #[test]
+  fn gff_accepts_multiple_values_after_one_flag() {
+    let common = parse_nodes_common(&["pangraph", "annotate", "nodes", "graph.json", "--gff", "a.gff", "b.gff"])
+      .expect("space-separated GFFs parse");
+    assert_eq!(common.input, Some(PathBuf::from("graph.json")));
+    assert_eq!(common.gff, vec![PathBuf::from("a.gff"), PathBuf::from("b.gff")]);
+  }
+
+  #[test]
+  fn gff_flag_is_still_repeatable_and_accumulates() {
+    let common = parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "--gff",
+      "b.gff",
+    ])
+    .expect("repeated GFF flags parse");
+    assert_eq!(common.gff, vec![PathBuf::from("a.gff"), PathBuf::from("b.gff")]);
+  }
+
+  #[test]
+  fn gff_list_does_not_swallow_the_positional_graph_or_output() {
+    // The graph given before the flag stays bound to the positional input, and a flag (`-o`)
+    // terminates the variadic so the GFF list does not absorb the output path.
+    let common = parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "b.gff",
+      "-o",
+      "out.csv",
+    ])
+    .expect("graph-first invocation parses");
+    assert_eq!(common.input, Some(PathBuf::from("graph.json")));
+    assert_eq!(common.gff, vec![PathBuf::from("a.gff"), PathBuf::from("b.gff")]);
+    assert_eq!(common.output, PathBuf::from("out.csv"));
+  }
+
+  #[test]
+  fn gff_is_required() {
+    parse_nodes_common(&["pangraph", "annotate", "nodes", "graph.json"]).unwrap_err();
+  }
 
   #[test]
   fn parse_fraction_accepts_closed_unit_interval() {

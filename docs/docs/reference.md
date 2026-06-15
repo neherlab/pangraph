@@ -350,7 +350,7 @@ Lift genome annotations onto the pangenome graph
 
 Lift annotations to per-node block-consensus coordinates (lossless, long-format CSV)
 
-**Usage:** `pangraph annotate nodes [OPTIONS] --gff <GFF> [INPUT]`
+**Usage:** `pangraph annotate nodes [OPTIONS] --gff <GFF>... [INPUT]`
 
 ###### **Arguments:**
 
@@ -362,7 +362,9 @@ Lift annotations to per-node block-consensus coordinates (lossless, long-format 
 
 ###### **Options:**
 
-* `--gff <GFF>` — Path to a GFF3 annotation file. Repeat the flag to provide multiple files.
+* `--gff <GFF>` — Path(s) to GFF3 annotation file(s).
+
+   Pass several files after a single flag (`--gff a.gff b.gff`, so shell globs like `--gff *.gff` work), and/or repeat the flag (`--gff a.gff --gff b.gff`); the values accumulate. To avoid the positional graph being slurped as an extra GFF, give it before the flag (`annotate nodes graph.json --gff *.gff`) or pipe it via stdin.
 
    Accepts plain or compressed files (`gz`, `bz2`, `xz`, `zstd`), chosen by file extension. At least one file is required. Annotation `seqid`s must match the graph path names exactly.
 * `-o`, `--output <OUTPUT>` — Path to the output annotation table (CSV).
@@ -377,7 +379,7 @@ Lift annotations to per-node block-consensus coordinates (lossless, long-format 
 
 Compact node-level annotations into block-level consensus features (CSV)
 
-**Usage:** `pangraph annotate blocks [OPTIONS] --gff <GFF> [INPUT]`
+**Usage:** `pangraph annotate blocks [OPTIONS] --gff <GFF>... [INPUT]`
 
 ###### **Arguments:**
 
@@ -389,7 +391,9 @@ Compact node-level annotations into block-level consensus features (CSV)
 
 ###### **Options:**
 
-* `--gff <GFF>` — Path to a GFF3 annotation file. Repeat the flag to provide multiple files.
+* `--gff <GFF>` — Path(s) to GFF3 annotation file(s).
+
+   Pass several files after a single flag (`--gff a.gff b.gff`, so shell globs like `--gff *.gff` work), and/or repeat the flag (`--gff a.gff --gff b.gff`); the values accumulate. To avoid the positional graph being slurped as an extra GFF, give it before the flag (`annotate nodes graph.json --gff *.gff`) or pipe it via stdin.
 
    Accepts plain or compressed files (`gz`, `bz2`, `xz`, `zstd`), chosen by file extension. At least one file is required. Annotation `seqid`s must match the graph path names exactly.
 * `-o`, `--output <OUTPUT>` — Path to the output annotation table (CSV).

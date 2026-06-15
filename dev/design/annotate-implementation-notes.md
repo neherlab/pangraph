@@ -157,8 +157,11 @@ wiring over the P1–P3 library API — no lift-logic changes. `annotate_run` do
 
 ### CLI surface (intentionally minimal)
 - **Graph**: positional `input` (`Option<PathBuf>`, stdin if omitted), like `simplify`.
-- **GFF(s)**: repeatable `--gff <FILE>`, `required = true` (≥1); one path per occurrence; transparent
-  decompression by extension.
+- **GFF(s)**: `--gff <FILE>...`, `required = true` (≥1), `num_args = 1..` — accepts several paths
+  after one flag (`--gff a.gff b.gff`, so shell globs `--gff *.gff` work) and/or the flag repeated
+  (`--gff a --gff b`); values accumulate into one `Vec<PathBuf>`. Because the graph is the
+  positional arg, give it before the flag (or via stdin) so the variadic does not slurp it as an
+  extra GFF; a following flag such as `-o` terminates the list. Transparent decompression by extension.
 - **Output**: `-o/--output` (default `-` = stdout); CSV only; compression inferred from extension.
 - **No `--seqid-map`, no `--output-level`, no `--format`/`--delimiter`** — deferred to later phases
   (§12 / P4 / P5.2). The CSV delimiter is hard-wired to `,`.
