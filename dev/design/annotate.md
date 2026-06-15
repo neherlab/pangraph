@@ -217,32 +217,38 @@ feature's node-level lift to just its two real termini — the 5' start and the 
 `(block_id, cons_coord)` pairs (the endpoints whose `*_is_terminus` flag is set). The **internal**
 fragment boundaries where a multi-segment feature crosses node/block boundaries are **ignored**: only
 the outer start and end define identity. Two genomes carry "the same" feature when these endpoint
-pairs match exactly:
+pairs match exactly **and** the feature type and consensus strand agree (**as-built, P4**: the key
+was extended with `feature_type` + `strand_on_consensus` so a gene vs CDS, or opposite strands, at
+identical coordinates stay distinct; the two endpoints are stored in canonical sorted order):
 
 ```
-key = (start_block_id, cons_start, end_block_id, cons_end)
+key = (feature_type, strand_on_consensus, start_block_id, cons_start, end_block_id, cons_end)
 ```
 
 For the common single-block feature `start_block_id == end_block_id`, so this is effectively **one
-entry per (block, start, end)**.
+entry per (type, strand, block, start, end)**.
 
-**M-of-N consensus.** Let N be the genomes contributing a candidate placement for a cluster (they
-carry a feature whose termini fall on that block region) and M the number sharing the exact key. If
+**M-of-N consensus.** Let N be the genomes **traversing the cluster's block(s)** (**as-built, P4**:
+the intersection of the per-block path sets, via `PangraphBlock::isolates` — *not* the total genome
+count, so a gene is not penalised for genomes that lack the block) and M the number sharing the exact
+key. If
 `M >= threshold`, the cluster is emitted as a single consensus annotation: a **consensus name** (the
 majority feature name among the M supporters) and **only** the agreed block-consensus `cons_start` /
 `cons_end` — the node-level detail is intentionally dropped. Clusters below threshold are not
 promoted; they remain available in the node-level table.
 
 ```
-block_id,                         # single-block case; a multi-block feature carries both endpoints
-consensus_name,                   # majority feature name across supporters
-cons_start, cons_end,             # the agreed block-consensus coordinates
-n_support,                        # M — genomes sharing this exact start/end
-n_total                           # N — genomes carrying a candidate placement here
+feature_type, strand_on_consensus, # part of the cluster identity (as-built, P4)
+start_block_id, cons_start,        # canonical lower endpoint (single-block: == end_block_id)
+end_block_id, cons_end,            # canonical higher endpoint
+consensus_name,                    # majority feature name across supporters (>= property threshold)
+consensus_attributes,              # per-key majority attribute values (e.g. product) clearing threshold
+n_support,                         # M — genomes sharing this exact key
+n_total                            # N — genomes traversing the cluster's block(s)
 ```
 
-Default output is **long-format CSV**; an **optional nested JSON** can carry the per-genome
-supporters behind each consensus row.
+Default output is **long-format CSV** (the only writer shipped in P4); a nested-JSON writer carrying
+the per-genome supporters behind each consensus row is **deferred** to a later phase.
 
 **Refinement level = the M-of-N threshold (CLI-selectable, tentative).** How strictly supporting
 genomes must agree before a coordinate is emitted is just the threshold `M` — an input choice, not a
@@ -290,10 +296,12 @@ single documentation pass (P5.3) follow once both output levels exist. Execution
   **first end-to-end real-data exercise of the P3 lift** (P1.5 only matched features to paths, never
   lifted them). The output-level selector is **not** shipped yet — it arrives in P5.2 with block
   output.
-- **P4** — block-level compaction into `BlockAnnotation` objects: cluster placements by their
-  block-consensus terminus endpoints and emit one **consensus feature** per cluster reaching the
-  **M-of-N threshold** (CLI-selectable; see §8), plus a second writer impl (CSV default, JSON
-  optional) over the same trait + tests. Designed against what the P5.1 prototype reveals.
+- **P4** ✅ — block-level compaction into `BlockAnnotation` objects via a modular
+  `BlockCompactionStrategy` trait (first impl: `CoordinateConsensusStrategy`): cluster placements by
+  their block-consensus terminus endpoints (+ type + strand) and emit one **consensus feature** per
+  cluster reaching the **M-of-N threshold** (see §8), plus a **block CSV writer** over the same
+  `AnnotationWriter` trait + tests. A library layer only — the threshold/strategy CLI flags land in
+  P5.2; the JSON writer is deferred.
 - **P5.2** — wire the block-level output into the `annotate` command (the `block` output level over
   the same args).
 - **P5.3** — Docusaurus docs page + CLI reference regeneration, covering **both** output levels.
@@ -315,14 +323,16 @@ single documentation pass (P5.3) follow once both output levels exist. Execution
   EMBOSS `seqret`, or re-export from bakta/prokka).
 - **Embed in graph JSON vs separate file** — default to a separate file; revisit if a single
   self-contained artifact is wanted.
-- **Block-level clustering policy** — current lean (§8) is **coordinate-exact identity**: cluster by
-  the feature's block-consensus terminus endpoints `(start_block, cons_start, end_block, cons_end)`,
-  using the feature **name only to label** the consensus, not to cluster. Name/product- or
-  ortholog-based clustering stays a possible alternative/extension; keep it configurable.
-- **Block-level refinement level** — the **M-of-N threshold** on identical-coordinate support before
-  a consensus feature is emitted (all / fraction / any), exposed as a CLI flag; see §8. Distinct from
-  the clustering policy above. Threshold semantics and whether to allow a small coordinate tolerance
-  are TBD, informed by the P5.1 prototype.
+- **Block-level clustering policy** — **as-built (P4):** **coordinate-exact identity** keyed by the
+  feature's block-consensus terminus endpoints **plus `feature_type` + `strand_on_consensus`**, with
+  the feature name used **only to label** the consensus. Implemented behind the modular
+  `BlockCompactionStrategy` trait (`CoordinateConsensusStrategy`), so name/product- or ortholog-based
+  clustering can be added as alternative strategies later.
+- **Block-level refinement level** — **as-built (P4):** the **M-of-N threshold**
+  `M >= max(1, ceil(min_frequency · N))`, with `N` = genomes traversing the cluster's block(s).
+  Currently a library config field (`min_frequency`); the CLI flag exposing it (all / fraction / any)
+  lands in P5.2. Whether to allow a small coordinate **tolerance** (to absorb a terminus nudged by a
+  nearby indel) is still open.
 - **Features wholly inside an insertion** — drop, or keep node-level-only with no consensus
   coordinate? Lean towards keep-and-flag.
 - **Coordinate convention** — 0-based half-open internally; convert only at GFF I/O (GFF is 1-based

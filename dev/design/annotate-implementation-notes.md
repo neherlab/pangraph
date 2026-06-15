@@ -14,7 +14,7 @@
 | P2 | Inverse coordinate helper `consensus_coords_from_node` (+ round-trip tests) | ✅ done |
 | P3 | Node-level lift + `AnnotationWriter` trait (CSV impl) | ✅ done |
 | P5.1 | `pangraph annotate` CLI (node-level output, **exact** seqid matching) | ✅ done |
-| P4 | Block-level compaction (coordinate agreement, CLI refinement level) + JSON writer | ⏳ todo (after P5.1) |
+| P4 | Block-level compaction (coordinate agreement) + block CSV writer | ✅ done |
 | P5.2 | Wire block-level output into the `annotate` command | ⏳ todo |
 | P5.3 | Docs page + CLI reference regeneration (both output levels) | ⏳ todo |
 | P6 | pypangraph consumer + visualization example | ⏳ todo |
@@ -203,7 +203,64 @@ gene + its CDS); every other feature was already byte-exact (20,935 / 20,937).
 
 Re-running the (throwaway) klebs verification after this change: **20,937 / 20,937 OK, 0 skipped**.
 
-## Public API introduced in P1–P3
+## P4 decisions & behaviours (block-level compaction)
+
+`annotation/compact.rs` adds the **block-level** view: collapsing the redundant node-level table into
+one **consensus feature** per recurring placement. It is a configurable, **modular** layer built on
+top of the node-level lift — never baked into it.
+
+### Modular strategy trait
+`BlockCompactionStrategy::compact(&[LiftedAnnotation], &Pangraph) -> Vec<BlockAnnotation>` is the
+single entry point. The one P4 impl is `CoordinateConsensusStrategy { min_frequency,
+property_threshold }`; future name-/ortholog-based strategies implement the same trait. Provisional
+config defaults live on `Default` (`min_frequency = 0.9`, `property_threshold = 0.5`) — the
+user-facing defaults are owned by the CLI in **P5.2**.
+
+### Clustering = coordinate-consensus (decisions locked with the user)
+- **Cluster key** = the feature's two block-consensus **terminus** endpoints **+ `feature_type` +
+  `strand_on_consensus`**. A gene vs CDS, or opposite strands, at identical coordinates stay distinct
+  (the manifesto §8's coordinate-only key was extended with type + strand on the user's call).
+- Each genome's feature instance is recovered by grouping node-level rows on
+  `(genome, feature_type, base id)` (`base id` = `parent_feature_id`, else the `feature_id` with its
+  `.seg{idx}` suffix stripped), then **reduced to exactly two terminus endpoints** via the
+  `*_is_terminus` flags. Instances not yielding exactly two termini (e.g. partial features) are
+  **excluded** from compaction — they remain in the node-level table. The two endpoints are stored in
+  **canonical sorted order** (`start` = lower `(block, coord)`, not necessarily the genome 5');
+  `strand_on_consensus` disambiguates orientation.
+- **Consequence:** a block traversed in **mixed orientations** across genomes splits the same
+  biological gene into a `+` and a `-` cluster (strand is part of the identity). Acceptable: the
+  consensus frame genuinely differs, and most blocks are traversed one way.
+
+### M-of-N threshold (frequency)
+- `M` = number of distinct genomes sharing the exact key (a genome counts once even if duplicated).
+- `N` = number of distinct genomes **traversing the cluster's block(s)** — the intersection of the
+  per-block path sets (just the one block for the common single-block case), via
+  `PangraphBlock::isolates`. *Not* the total number of genomes in the graph: a gene is not penalised
+  for being absent in genomes that lack the block entirely.
+- A cluster is emitted when `M >= max(1, ceil(min_frequency * N))`.
+
+### Consensus metadata
+Over the `M` supporters, `consensus_name` is the majority `name` and `consensus_attributes` are the
+per-key majority attribute values, each emitted only when its support clears
+`ceil(property_threshold * M)` (default 0.5). Ties break deterministically to the smaller string;
+output is key-sorted. Resolved generically over **all** attribute keys, so `product` etc. fall out
+for free.
+
+### Writer
+The `AnnotationWriter` trait gained `write_block_annotations(&[BlockAnnotation])`, implemented on
+`CsvAnnotationWriter` with a `BlockAnnotationCsvRow` mirroring the node-level row (`consensus_attributes`
+as one JSON-string column, strand as `+`/`-`/empty, ids as numbers, headers on). **CSV only** this
+phase; JSON / GFF-on-consensus writers are deferred. CLI wiring (`--output-level block`, threshold/
+strategy flags) is **P5.2**.
+
+### Validation
+Unit tests in `compact.rs` pin each behaviour (all-agree, below-threshold, type split, strand split,
+name/attribute thresholds, multi-block endpoints, `N` = paths-traversing-block, partial-feature
+exclusion). `tests/itest_annotate_compact.rs` lifts whole-core-block-node features across every
+genome of `data/test_graph.json` and asserts they collapse to consensus feature(s) at `[0, L)` whose
+supporters sum to all genomes, then round-trips the block CSV writer.
+
+## Public API introduced in P1–P4
 
 ```rust
 // annotation::feature
@@ -233,9 +290,20 @@ pub struct LiftedAnnotation { /* feature_id, parent_feature_id, segment_idx, n_s
 pub fn lift_feature(feature: &Feature, path: &PangraphPath, graph: &Pangraph) -> Result<Vec<LiftedAnnotation>, Report>;
 pub fn lift_features(grouped: &BTreeMap<PathId, Vec<Feature>>, graph: &Pangraph) -> Result<Vec<LiftedAnnotation>, Report>;
 
-// annotation::writer (P3)
-pub trait AnnotationWriter { fn write_node_annotations(&mut self, annotations: &[LiftedAnnotation]) -> Result<(), Report>; }
-pub struct CsvAnnotationWriter;    // new(filepath, delimiter) ; the default CSV impl
+// annotation::compact (P4)
+pub struct BlockAnnotation { /* feature_type, strand_on_consensus, start_block_id, cons_start,
+  end_block_id, cons_end, consensus_name, consensus_attributes, n_support (M), n_total (N) */ }
+pub trait BlockCompactionStrategy {
+  fn compact(&self, node_annotations: &[LiftedAnnotation], graph: &Pangraph) -> Result<Vec<BlockAnnotation>, Report>;
+}
+pub struct CoordinateConsensusStrategy { pub min_frequency: f64, pub property_threshold: f64 } // + Default
+
+// annotation::writer (P3 trait, P4 block method)
+pub trait AnnotationWriter {
+  fn write_node_annotations(&mut self, annotations: &[LiftedAnnotation]) -> Result<(), Report>;
+  fn write_block_annotations(&mut self, annotations: &[BlockAnnotation]) -> Result<(), Report>; // P4
+}
+pub struct CsvAnnotationWriter;    // new(filepath, delimiter) ; the default CSV impl (node + block)
 ```
 
 ## Real-data smoke tests & fixtures (P1.5)

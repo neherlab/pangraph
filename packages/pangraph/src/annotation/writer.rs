@@ -1,3 +1,4 @@
+use crate::annotation::compact::BlockAnnotation;
 use crate::annotation::lift::LiftedAnnotation;
 use crate::io::file::create_file_or_stdout;
 use crate::pangraph::pangraph_block::BlockId;
@@ -17,6 +18,9 @@ use std::path::Path;
 pub trait AnnotationWriter {
   /// Serialize a batch of node-level lifted annotations.
   fn write_node_annotations(&mut self, annotations: &[LiftedAnnotation]) -> Result<(), Report>;
+
+  /// Serialize a batch of block-level (compacted) annotations.
+  fn write_block_annotations(&mut self, annotations: &[BlockAnnotation]) -> Result<(), Report>;
 }
 
 /// One CSV row per [`LiftedAnnotation`].
@@ -77,6 +81,43 @@ impl<'a> LiftedAnnotationCsvRow<'a> {
   }
 }
 
+/// One CSV row per [`BlockAnnotation`].
+///
+/// Mirrors [`LiftedAnnotationCsvRow`]: borrows from the source, renders `consensus_attributes` as a
+/// single JSON-string column (a JSON array of `[key, value]` pairs), `strand_on_consensus` as
+/// `+`/`-`/empty, ids as plain numbers, and `Option`s as empty cells.
+#[derive(Serialize)]
+struct BlockAnnotationCsvRow<'a> {
+  #[serde(rename = "type")]
+  feature_type: &'a str,
+  strand_on_consensus: Option<Strand>,
+  start_block_id: BlockId,
+  cons_start: usize,
+  end_block_id: BlockId,
+  cons_end: usize,
+  consensus_name: Option<&'a str>,
+  consensus_attributes: String,
+  n_support: usize,
+  n_total: usize,
+}
+
+impl<'a> BlockAnnotationCsvRow<'a> {
+  fn from_block(a: &'a BlockAnnotation) -> Result<Self, Report> {
+    Ok(Self {
+      feature_type: &a.feature_type,
+      strand_on_consensus: a.strand_on_consensus,
+      start_block_id: a.start_block_id,
+      cons_start: a.cons_start,
+      end_block_id: a.end_block_id,
+      cons_end: a.cons_end,
+      consensus_name: a.consensus_name.as_deref(),
+      consensus_attributes: serde_json::to_string(&a.consensus_attributes)?,
+      n_support: a.n_support,
+      n_total: a.n_total,
+    })
+  }
+}
+
 /// The default [`AnnotationWriter`]: long-format CSV, one row per lifted segment.
 ///
 /// Backed by [`create_file_or_stdout`], so `-` writes to stdout and the output is transparently
@@ -102,6 +143,15 @@ impl AnnotationWriter for CsvAnnotationWriter {
   fn write_node_annotations(&mut self, annotations: &[LiftedAnnotation]) -> Result<(), Report> {
     for ann in annotations {
       let row = LiftedAnnotationCsvRow::from_lifted(ann)?;
+      self.writer.serialize(&row)?;
+    }
+    self.writer.flush()?;
+    Ok(())
+  }
+
+  fn write_block_annotations(&mut self, annotations: &[BlockAnnotation]) -> Result<(), Report> {
+    for ann in annotations {
+      let row = BlockAnnotationCsvRow::from_block(ann)?;
       self.writer.serialize(&row)?;
     }
     self.writer.flush()?;
@@ -202,6 +252,65 @@ mod tests {
     assert_eq!(r.frac_covered, "0.5000");
     assert_eq!(r.feature_type, "CDS");
     assert_eq!(r.attributes, r#"[["ID","g1"],["Name","geneA"]]"#);
+  }
+
+  /// Minimal owned mirror of the block-level CSV row.
+  #[allow(dead_code)]
+  #[derive(Debug, Deserialize, PartialEq)]
+  struct BlockRow {
+    #[serde(rename = "type")]
+    feature_type: String,
+    strand_on_consensus: Option<String>,
+    start_block_id: usize,
+    cons_start: usize,
+    end_block_id: usize,
+    cons_end: usize,
+    consensus_name: Option<String>,
+    consensus_attributes: String,
+    n_support: usize,
+    n_total: usize,
+  }
+
+  fn sample_block() -> BlockAnnotation {
+    BlockAnnotation {
+      feature_type: "CDS".to_owned(),
+      strand_on_consensus: Some(Strand::Reverse),
+      start_block_id: BlockId(7),
+      cons_start: 3,
+      end_block_id: BlockId(7),
+      cons_end: 120,
+      consensus_name: Some("geneA".to_owned()),
+      consensus_attributes: vec![("product".to_owned(), "widget".to_owned())],
+      n_support: 18,
+      n_total: 21,
+    }
+  }
+
+  #[test]
+  fn test_csv_writer_round_trips_block_rows() {
+    let dir = tempdir().unwrap();
+    let path = dir.path().join("block_annotations.csv");
+
+    let anns = vec![sample_block()];
+    {
+      let mut writer = CsvAnnotationWriter::new(&path, b',').unwrap();
+      writer.write_block_annotations(&anns).unwrap();
+    }
+
+    let contents = read_to_string(&path).unwrap();
+    assert!(contents.starts_with("type,strand_on_consensus,start_block_id"));
+    assert!(contents.contains(r#"[[""product"",""widget""]]"#));
+
+    let rows: Vec<BlockRow> = parse_csv(&contents).unwrap();
+    assert_eq!(rows.len(), 1);
+    let r = &rows[0];
+    assert_eq!(r.feature_type, "CDS");
+    assert_eq!(r.strand_on_consensus.as_deref(), Some("-"));
+    assert_eq!((r.start_block_id, r.end_block_id), (7, 7));
+    assert_eq!((r.cons_start, r.cons_end), (3, 120));
+    assert_eq!(r.consensus_name.as_deref(), Some("geneA"));
+    assert_eq!((r.n_support, r.n_total), (18, 21));
+    assert_eq!(r.consensus_attributes, r#"[["product","widget"]]"#);
   }
 
   #[test]
