@@ -163,15 +163,19 @@ The hard part is largely solved by existing infrastructure:
 
 ## 7. Command interface
 
-`pangraph annotate` (P5.1 as-built; the surface grows in later phases):
+`pangraph annotate` (P5.2 as-built; the surface grows in later phases):
 
+- **Mode = subcommand**: `annotate nodes` (node-level table) and `annotate blocks` (block-level
+  consensus features), mirroring `export`. Shared options below live in a flattened
+  `AnnotateCommonArgs` embedded by both (**as-built, P5.2**; P5.1 shipped only the node-level
+  command, with the selector deferred).
 - **Inputs**: a graph JSON as the **positional** argument (stdin if omitted) + one or more GFF files
   via a **repeatable `--gff`** flag.
 - **Output**: `-o/--output` path (default `-` = stdout); compression inferred from the file
-  extension; format chosen by the `AnnotationWriter` (CSV is the only impl in P5.1; JSON arrives with
-  P4).
-- **Mode**: P5.1 emits **node-level** only. The node-vs-block output-level selector arrives in P5.2,
-  once block-level output exists.
+  extension; format chosen by the `AnnotationWriter` (CSV is the only impl so far; JSON deferred).
+- **Block tuning** (`annotate blocks` only): `--min-frequency` (default 0.9) and `--property-threshold`
+  (default 0.5), kept in sync with `CoordinateConsensusStrategy::default()`. A `--strategy` selector
+  is **deferred** to a future phase (only one strategy exists today).
 - **seqid → path matching**: P5.1 matches a GFF `seqid` to a path name by **exact** string equality.
   **ID matching is the #1 failure mode** — fail loudly (one error listing every offending seqid, not
   a silent drop). The `--seqid-map` escape hatch and any version-insensitive relaxation are
@@ -302,8 +306,11 @@ single documentation pass (P5.3) follow once both output levels exist. Execution
   cluster reaching the **M-of-N threshold** (see §8), plus a **block CSV writer** over the same
   `AnnotationWriter` trait + tests. A library layer only — the threshold/strategy CLI flags land in
   P5.2; the JSON writer is deferred.
-- **P5.2** — wire the block-level output into the `annotate` command (the `block` output level over
-  the same args).
+- **P5.2** ✅ — wire the block-level output into the `annotate` command. Implemented as **subcommands**
+  (`annotate nodes` / `annotate blocks`, mirroring `export`) rather than an `--output-level` flag, so
+  block-only tuning flags (`--min-frequency`, `--property-threshold`) stay out of node-mode help;
+  shared options live in a flattened `AnnotateCommonArgs`. A `--strategy` selector is deferred until a
+  second strategy exists.
 - **P5.3** — Docusaurus docs page + CLI reference regeneration, covering **both** output levels.
   Resolve the §12 punch list first so the docs describe final behaviour.
 - **P6 (future)** — pypangraph consumer (load the tables; feature→node→block→path joins) + a
@@ -330,9 +337,9 @@ single documentation pass (P5.3) follow once both output levels exist. Execution
   clustering can be added as alternative strategies later.
 - **Block-level refinement level** — **as-built (P4):** the **M-of-N threshold**
   `M >= max(1, ceil(min_frequency · N))`, with `N` = genomes traversing the cluster's block(s).
-  Currently a library config field (`min_frequency`); the CLI flag exposing it (all / fraction / any)
-  lands in P5.2. Whether to allow a small coordinate **tolerance** (to absorb a terminus nudged by a
-  nearby indel) is still open.
+  Exposed on the CLI as `annotate blocks --min-frequency` (default 0.9), with `--property-threshold`
+  (default 0.5) gating consensus name/attribute promotion (**as-built, P5.2**). Whether to allow a
+  small coordinate **tolerance** (to absorb a terminus nudged by a nearby indel) is still open.
 - **Features wholly inside an insertion** — drop, or keep node-level-only with no consensus
   coordinate? Lean towards keep-and-flag.
 - **Coordinate convention** — 0-based half-open internally; convert only at GFF I/O (GFF is 1-based

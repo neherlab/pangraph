@@ -15,7 +15,7 @@
 | P3 | Node-level lift + `AnnotationWriter` trait (CSV impl) | ✅ done |
 | P5.1 | `pangraph annotate` CLI (node-level output, **exact** seqid matching) | ✅ done |
 | P4 | Block-level compaction (coordinate agreement) + block CSV writer | ✅ done |
-| P5.2 | Wire block-level output into the `annotate` command | ⏳ todo |
+| P5.2 | Wire block-level output into the `annotate` command | ✅ done |
 | P5.3 | Docs page + CLI reference regeneration (both output levels) | ⏳ todo |
 | P6 | pypangraph consumer + visualization example | ⏳ todo |
 
@@ -250,8 +250,7 @@ for free.
 The `AnnotationWriter` trait gained `write_block_annotations(&[BlockAnnotation])`, implemented on
 `CsvAnnotationWriter` with a `BlockAnnotationCsvRow` mirroring the node-level row (`consensus_attributes`
 as one JSON-string column, strand as `+`/`-`/empty, ids as numbers, headers on). **CSV only** this
-phase; JSON / GFF-on-consensus writers are deferred. CLI wiring (`--output-level block`, threshold/
-strategy flags) is **P5.2**.
+phase; JSON / GFF-on-consensus writers are deferred. CLI wiring is **P5.2** (below).
 
 ### Validation
 Unit tests in `compact.rs` pin each behaviour (all-agree, below-threshold, type split, strand split,
@@ -260,7 +259,40 @@ exclusion). `tests/itest_annotate_compact.rs` lifts whole-core-block-node featur
 genome of `data/test_graph.json` and asserts they collapse to consensus feature(s) at `[0, L)` whose
 supporters sum to all genomes, then round-trips the block CSV writer.
 
-## Public API introduced in P1–P4
+## P5.2 decisions & behaviours (block output on the CLI)
+
+P5.2 exposes compaction on the `annotate` command. Following the `export` precedent (one command,
+several output shapes as subcommands), `annotate` became a **subcommand group**:
+
+- `pangraph annotate nodes` — the P5.1 node-level table (unchanged behaviour).
+- `pangraph annotate blocks` — runs `CoordinateConsensusStrategy::compact` then
+  `write_block_annotations`.
+
+### CLI surface (decisions locked with the user)
+- **Subcommands, not a `--output-level` flag** — keeps block-only flags out of node-mode `--help`,
+  and matches `export`. Bare `annotate` requires a subcommand (no default mode; acceptable while
+  `annotate` is unreleased on the integration branch).
+- **Names** = `nodes` / `blocks` (plural, consistent).
+- **Shared options** (`input`, `--gff`, `-o/--output`) live in a flattened `AnnotateCommonArgs`;
+  both subcommands embed it via `#[clap(flatten)]` (DRY vs `export`'s per-variant duplication).
+- **Block-only flags**: `--min-frequency` (default 0.9) and `--property-threshold` (default 0.5),
+  whose defaults are kept in sync with `CoordinateConsensusStrategy::default()`. Both are validated at
+  parse time by a `parse_fraction` `value_parser` rejecting anything outside `[0, 1]` (incl. `NaN`/
+  `inf`) with a clap error, rather than silently emitting nothing / promoting everything downstream.
+  A `--strategy` selector is **deferred** until a second strategy exists — a one-option flag is noise,
+  and the trait already provides the modularity internally.
+
+### Wiring
+`annotate_run` matches the `PangraphAnnotateArgs` enum and dispatches to `annotate_run_nodes` /
+`annotate_run_blocks`. Both share `load_and_lift(&AnnotateCommonArgs) -> (Pangraph, Vec<LiftedAnnotation>)`
+(graph load → per-`--gff` `read_many` → `match_features_to_paths` → `lift_features`); the graph is
+returned because block compaction needs it for per-cluster path totals. `tests/itest_annotate_cli.rs`
+exercises both subcommands (`annotate blocks --min-frequency 0` emits the block-level header + rows)
+and pins the threshold wiring: with a single annotated genome, `--min-frequency 1.0` drops the
+single-support clusters that `0.0` keeps (a field swap would surface as the lenient run coming back
+empty).
+
+## Public API introduced in P1–P5.2
 
 ```rust
 // annotation::feature
@@ -304,6 +336,12 @@ pub trait AnnotationWriter {
   fn write_block_annotations(&mut self, annotations: &[BlockAnnotation]) -> Result<(), Report>; // P4
 }
 pub struct CsvAnnotationWriter;    // new(filepath, delimiter) ; the default CSV impl (node + block)
+
+// commands::annotate::annotate_args (P5.1 → P5.2)
+pub enum PangraphAnnotateArgs { Nodes(PangraphAnnotateNodesArgs), Blocks(PangraphAnnotateBlocksArgs) }
+pub struct AnnotateCommonArgs { input: Option<PathBuf>, gff: Vec<PathBuf>, output: PathBuf }
+pub struct PangraphAnnotateNodesArgs { common: AnnotateCommonArgs }
+pub struct PangraphAnnotateBlocksArgs { common: AnnotateCommonArgs, min_frequency: f64, property_threshold: f64 }
 ```
 
 ## Real-data smoke tests & fixtures (P1.5)

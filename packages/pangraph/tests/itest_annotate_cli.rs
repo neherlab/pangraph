@@ -1,7 +1,9 @@
 #[cfg(test)]
 mod tests {
   use eyre::Report;
-  use pangraph::commands::annotate::annotate_args::PangraphAnnotateArgs;
+  use pangraph::commands::annotate::annotate_args::{
+    AnnotateCommonArgs, PangraphAnnotateArgs, PangraphAnnotateBlocksArgs, PangraphAnnotateNodesArgs,
+  };
   use pangraph::commands::annotate::annotate_run::annotate_run;
   use pangraph::io::csv::parse_csv;
   use pangraph::io::file::open_file_or_stdin;
@@ -13,7 +15,8 @@ mod tests {
   use tempfile::tempdir;
 
   const GRAPH: &str = "../../data/test_graph.json";
-  const CSV_HEADER_PREFIX: &str = "feature_id,parent_feature_id,segment_idx";
+  const NODE_HEADER_PREFIX: &str = "feature_id,parent_feature_id,segment_idx";
+  const BLOCK_HEADER_PREFIX: &str = "type,strand_on_consensus,start_block_id";
 
   /// Subset of the node-level CSV columns; remaining columns are ignored on deserialization.
   #[derive(Deserialize)]
@@ -42,6 +45,42 @@ mod tests {
     Ok(path)
   }
 
+  /// Build `annotate nodes` args against the test graph for the given GFFs and output path.
+  fn nodes_args(gff: Vec<PathBuf>, output: PathBuf) -> PangraphAnnotateArgs {
+    PangraphAnnotateArgs::Nodes(PangraphAnnotateNodesArgs {
+      common: AnnotateCommonArgs {
+        input: Some(PathBuf::from(GRAPH)),
+        gff,
+        output,
+      },
+    })
+  }
+
+  /// Build `annotate blocks` args against the test graph; `property_threshold` is fixed at 0.5.
+  fn blocks_args(gff: Vec<PathBuf>, output: PathBuf, min_frequency: f64) -> PangraphAnnotateArgs {
+    PangraphAnnotateArgs::Blocks(PangraphAnnotateBlocksArgs {
+      common: AnnotateCommonArgs {
+        input: Some(PathBuf::from(GRAPH)),
+        gff,
+        output,
+      },
+      min_frequency,
+      property_threshold: 0.5,
+    })
+  }
+
+  /// Count block-level data rows in a written CSV: non-empty lines minus the header (the writer
+  /// omits the header entirely for a zero-row result, so an empty file counts as zero rows).
+  fn block_row_count(path: &Path) -> Result<usize, Report> {
+    let contents = read_to_string(path)?;
+    let non_empty = contents.lines().filter(|l| !l.is_empty()).count();
+    Ok(if contents.starts_with(BLOCK_HEADER_PREFIX) {
+      non_empty - 1
+    } else {
+      non_empty
+    })
+  }
+
   #[test]
   fn itest_annotate_cli_node_level_csv() -> Result<(), Report> {
     let name = first_path_name()?;
@@ -49,14 +88,10 @@ mod tests {
     let gff = write_gff(dir.path(), &name)?;
     let out = dir.path().join("lifted.csv");
 
-    annotate_run(PangraphAnnotateArgs {
-      input: Some(PathBuf::from(GRAPH)),
-      gff: vec![gff],
-      output: out.clone(),
-    })?;
+    annotate_run(nodes_args(vec![gff], out.clone()))?;
 
     let contents = read_to_string(&out)?;
-    assert!(contents.starts_with(CSV_HEADER_PREFIX), "header row present");
+    assert!(contents.starts_with(NODE_HEADER_PREFIX), "header row present");
 
     let rows: Vec<Row> = parse_csv(&contents)?;
     assert!(!rows.is_empty(), "at least one lifted segment");
@@ -71,18 +106,62 @@ mod tests {
   }
 
   #[test]
+  fn itest_annotate_cli_blocks_csv() -> Result<(), Report> {
+    let name = first_path_name()?;
+    let dir = tempdir()?;
+    let gff = write_gff(dir.path(), &name)?;
+    let out = dir.path().join("blocks.csv");
+
+    // `min_frequency: 0.0` keeps every cluster, so the single annotated genome still produces rows.
+    annotate_run(blocks_args(vec![gff], out.clone(), 0.0))?;
+
+    let contents = read_to_string(&out)?;
+    assert!(
+      contents.starts_with(BLOCK_HEADER_PREFIX),
+      "block-level header row present"
+    );
+    // At least one consensus feature emitted (header line plus one or more data lines).
+    assert!(
+      contents.lines().filter(|l| !l.is_empty()).count() >= 2,
+      "at least one block-level annotation row"
+    );
+    Ok(())
+  }
+
+  #[test]
+  fn itest_annotate_cli_blocks_min_frequency_filters() -> Result<(), Report> {
+    // Only one genome is annotated, so every cluster has support `M = 1` against `N` (> 1) genomes
+    // traversing its block(s). The threshold must therefore actually reach the strategy: a permissive
+    // `min_frequency` keeps the clusters, while requiring unanimity drops them. (This also pins the
+    // wiring: were the two threshold fields swapped, the lenient run would already come back empty.)
+    let name = first_path_name()?;
+    let dir = tempdir()?;
+    let gff = write_gff(dir.path(), &name)?;
+
+    let lenient = dir.path().join("lenient.csv");
+    annotate_run(blocks_args(vec![gff.clone()], lenient.clone(), 0.0))?;
+    let lenient_rows = block_row_count(&lenient)?;
+    assert!(lenient_rows >= 1, "min_frequency 0.0 keeps single-support clusters");
+
+    let strict = dir.path().join("strict.csv");
+    annotate_run(blocks_args(vec![gff], strict.clone(), 1.0))?;
+    let strict_rows = block_row_count(&strict)?;
+
+    assert!(
+      strict_rows < lenient_rows,
+      "a higher --min-frequency emits strictly fewer clusters ({strict_rows} vs {lenient_rows})"
+    );
+    Ok(())
+  }
+
+  #[test]
   fn itest_annotate_cli_unmatched_seqid_errors() -> Result<(), Report> {
     // `example.gff` has seqids `chr1`/`chr2`, which match no path in the test graph: exact-match
     // policy must fail loudly and name every offending seqid.
     let dir = tempdir()?;
     let out = dir.path().join("lifted.csv");
 
-    let err = annotate_run(PangraphAnnotateArgs {
-      input: Some(PathBuf::from(GRAPH)),
-      gff: vec![PathBuf::from("../../data/example.gff")],
-      output: out,
-    })
-    .unwrap_err();
+    let err = annotate_run(nodes_args(vec![PathBuf::from("../../data/example.gff")], out)).unwrap_err();
 
     let msg = err.to_string();
     assert!(msg.contains("chr1"), "error names chr1: {msg}");
@@ -97,17 +176,13 @@ mod tests {
     let gff = write_gff(dir.path(), &name)?;
     let out = dir.path().join("lifted.csv.gz");
 
-    annotate_run(PangraphAnnotateArgs {
-      input: Some(PathBuf::from(GRAPH)),
-      gff: vec![gff],
-      output: out.clone(),
-    })?;
+    annotate_run(nodes_args(vec![gff], out.clone()))?;
 
     // The `.gz` output is real gzip: read it back through transparent decompression.
     let mut decompressed = String::new();
     open_file_or_stdin(&Some(&out))?.read_to_string(&mut decompressed)?;
     assert!(
-      decompressed.starts_with(CSV_HEADER_PREFIX),
+      decompressed.starts_with(NODE_HEADER_PREFIX),
       "decompressed header present"
     );
     Ok(())
