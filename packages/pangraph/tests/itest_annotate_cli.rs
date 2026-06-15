@@ -69,6 +69,18 @@ mod tests {
     })
   }
 
+  /// Count block-level data rows in a written CSV: non-empty lines minus the header (the writer
+  /// omits the header entirely for a zero-row result, so an empty file counts as zero rows).
+  fn block_row_count(path: &Path) -> Result<usize, Report> {
+    let contents = read_to_string(path)?;
+    let non_empty = contents.lines().filter(|l| !l.is_empty()).count();
+    Ok(if contents.starts_with(BLOCK_HEADER_PREFIX) {
+      non_empty - 1
+    } else {
+      non_empty
+    })
+  }
+
   #[test]
   fn itest_annotate_cli_node_level_csv() -> Result<(), Report> {
     let name = first_path_name()?;
@@ -112,6 +124,32 @@ mod tests {
     assert!(
       contents.lines().filter(|l| !l.is_empty()).count() >= 2,
       "at least one block-level annotation row"
+    );
+    Ok(())
+  }
+
+  #[test]
+  fn itest_annotate_cli_blocks_min_frequency_filters() -> Result<(), Report> {
+    // Only one genome is annotated, so every cluster has support `M = 1` against `N` (> 1) genomes
+    // traversing its block(s). The threshold must therefore actually reach the strategy: a permissive
+    // `min_frequency` keeps the clusters, while requiring unanimity drops them. (This also pins the
+    // wiring: were the two threshold fields swapped, the lenient run would already come back empty.)
+    let name = first_path_name()?;
+    let dir = tempdir()?;
+    let gff = write_gff(dir.path(), &name)?;
+
+    let lenient = dir.path().join("lenient.csv");
+    annotate_run(blocks_args(vec![gff.clone()], lenient.clone(), 0.0))?;
+    let lenient_rows = block_row_count(&lenient)?;
+    assert!(lenient_rows >= 1, "min_frequency 0.0 keeps single-support clusters");
+
+    let strict = dir.path().join("strict.csv");
+    annotate_run(blocks_args(vec![gff], strict.clone(), 1.0))?;
+    let strict_rows = block_row_count(&strict)?;
+
+    assert!(
+      strict_rows < lenient_rows,
+      "a higher --min-frequency emits strictly fewer clusters ({strict_rows} vs {lenient_rows})"
     );
     Ok(())
   }

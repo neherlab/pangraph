@@ -276,16 +276,21 @@ several output shapes as subcommands), `annotate` became a **subcommand group**:
 - **Shared options** (`input`, `--gff`, `-o/--output`) live in a flattened `AnnotateCommonArgs`;
   both subcommands embed it via `#[clap(flatten)]` (DRY vs `export`'s per-variant duplication).
 - **Block-only flags**: `--min-frequency` (default 0.9) and `--property-threshold` (default 0.5),
-  whose defaults are kept in sync with `CoordinateConsensusStrategy::default()`. A `--strategy`
-  selector is **deferred** until a second strategy exists — a one-option flag is noise, and the
-  trait already provides the modularity internally.
+  whose defaults are kept in sync with `CoordinateConsensusStrategy::default()`. Both are validated at
+  parse time by a `parse_fraction` `value_parser` rejecting anything outside `[0, 1]` (incl. `NaN`/
+  `inf`) with a clap error, rather than silently emitting nothing / promoting everything downstream.
+  A `--strategy` selector is **deferred** until a second strategy exists — a one-option flag is noise,
+  and the trait already provides the modularity internally.
 
 ### Wiring
 `annotate_run` matches the `PangraphAnnotateArgs` enum and dispatches to `annotate_run_nodes` /
 `annotate_run_blocks`. Both share `load_and_lift(&AnnotateCommonArgs) -> (Pangraph, Vec<LiftedAnnotation>)`
 (graph load → per-`--gff` `read_many` → `match_features_to_paths` → `lift_features`); the graph is
 returned because block compaction needs it for per-cluster path totals. `tests/itest_annotate_cli.rs`
-exercises both subcommands (`annotate blocks --min-frequency 0` emits the block-level header + rows).
+exercises both subcommands (`annotate blocks --min-frequency 0` emits the block-level header + rows)
+and pins the threshold wiring: with a single annotated genome, `--min-frequency 1.0` drops the
+single-support clusters that `0.0` keeps (a field swap would surface as the lenient run coming back
+empty).
 
 ## Public API introduced in P1–P5.2
 

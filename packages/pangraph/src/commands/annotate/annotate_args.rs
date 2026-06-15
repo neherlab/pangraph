@@ -78,7 +78,7 @@ pub struct PangraphAnnotateBlocksArgs {
   /// A cluster is kept when the number of supporting genomes `M >= ceil(min_frequency * N)`, where
   /// `N` is the number of paths traversing the cluster's block(s) (so a gene is not penalised for
   /// being absent in genomes that lack the block entirely).
-  #[clap(long, default_value_t = 0.9)]
+  #[clap(long, default_value_t = 0.9, value_parser = parse_fraction)]
   #[clap(value_hint = ValueHint::Other)]
   pub min_frequency: f64,
 
@@ -86,7 +86,44 @@ pub struct PangraphAnnotateBlocksArgs {
   ///
   /// For each cluster, a `name`/attribute value is written only if at least this fraction of the
   /// supporting genomes agree on it; otherwise the field is left empty.
-  #[clap(long, default_value_t = 0.5)]
+  #[clap(long, default_value_t = 0.5, value_parser = parse_fraction)]
   #[clap(value_hint = ValueHint::Other)]
   pub property_threshold: f64,
+}
+
+/// Parse a threshold given as a fraction in the closed unit interval `[0, 1]`.
+///
+/// Both `annotate blocks` thresholds are fractions; a value outside `[0, 1]` is always a mistake (it
+/// would silently emit nothing, or promote every value), so it is rejected at parse time rather than
+/// failing quietly downstream. `NaN` and infinities fall outside the range and are rejected too.
+fn parse_fraction(s: &str) -> Result<f64, String> {
+  let value: f64 = s.parse().map_err(|err| format!("`{s}` is not a valid number: {err}"))?;
+  if (0.0..=1.0).contains(&value) {
+    Ok(value)
+  } else {
+    Err(format!(
+      "must be a fraction between 0 and 1 (inclusive), but got `{value}`"
+    ))
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::parse_fraction;
+
+  #[test]
+  fn parse_fraction_accepts_closed_unit_interval() {
+    parse_fraction("0").unwrap();
+    parse_fraction("0.5").unwrap();
+    parse_fraction("1").unwrap();
+  }
+
+  #[test]
+  fn parse_fraction_rejects_out_of_range_and_non_numeric() {
+    parse_fraction("-0.01").unwrap_err();
+    parse_fraction("1.01").unwrap_err();
+    parse_fraction("NaN").unwrap_err();
+    parse_fraction("inf").unwrap_err();
+    parse_fraction("abc").unwrap_err();
+  }
 }
