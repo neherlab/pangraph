@@ -52,6 +52,24 @@ pub struct AnnotateCommonArgs {
   #[clap(display_order = 2)]
   pub gff: Vec<PathBuf>,
 
+  /// Keep only annotations of these feature type(s) (GFF `type` column); drop all others.
+  ///
+  /// Comma-separated list (`--only-type gene,CDS`) and/or repeat the flag; values accumulate.
+  /// Matching is exact and case-sensitive (`CDS`, `gene`, `region`). Mutually exclusive with
+  /// `--exclude-type`.
+  #[clap(long = "only-type", value_delimiter = ',', value_hint = ValueHint::Other)]
+  #[clap(conflicts_with = "exclude_type")]
+  #[clap(display_order = 3)]
+  pub only_type: Vec<String>,
+
+  /// Drop annotations of these feature type(s) (GFF `type` column); keep all others.
+  ///
+  /// e.g. `--exclude-type region` removes whole-contig `region` declarations. Same comma-separated
+  /// syntax as `--only-type`; mutually exclusive with it.
+  #[clap(long = "exclude-type", value_delimiter = ',', value_hint = ValueHint::Other)]
+  #[clap(display_order = 4)]
+  pub exclude_type: Vec<String>,
+
   /// Path to the output annotation table (CSV).
   ///
   /// Will be created if it does not exist. The output is compressed if the path ends in a known
@@ -180,6 +198,83 @@ mod tests {
   #[test]
   fn gff_is_required() {
     parse_nodes_common(&["pangraph", "annotate", "nodes", "graph.json"]).unwrap_err();
+  }
+
+  #[test]
+  fn only_type_splits_on_commas() {
+    let common = parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "--only-type",
+      "gene,CDS",
+    ])
+    .expect("comma-separated --only-type parses");
+    assert_eq!(common.only_type, vec!["gene".to_owned(), "CDS".to_owned()]);
+    assert!(common.exclude_type.is_empty());
+  }
+
+  #[test]
+  fn type_filters_accumulate_across_repeated_flags() {
+    let common = parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "--only-type",
+      "gene",
+      "--only-type",
+      "CDS",
+    ])
+    .expect("repeated --only-type accumulates");
+    assert_eq!(common.only_type, vec!["gene".to_owned(), "CDS".to_owned()]);
+  }
+
+  #[test]
+  fn exclude_type_parses() {
+    let common = parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "--exclude-type",
+      "region",
+    ])
+    .expect("--exclude-type parses");
+    assert_eq!(common.exclude_type, vec!["region".to_owned()]);
+    assert!(common.only_type.is_empty());
+  }
+
+  #[test]
+  fn only_type_and_exclude_type_conflict() {
+    parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "--only-type",
+      "gene",
+      "--exclude-type",
+      "region",
+    ])
+    .expect_err("--only-type and --exclude-type are mutually exclusive");
+  }
+
+  #[test]
+  fn type_filters_default_to_empty() {
+    let common = parse_nodes_common(&["pangraph", "annotate", "nodes", "graph.json", "--gff", "a.gff"])
+      .expect("no type filters parses");
+    assert!(common.only_type.is_empty());
+    assert!(common.exclude_type.is_empty());
   }
 
   #[test]

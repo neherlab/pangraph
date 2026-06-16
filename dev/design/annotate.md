@@ -171,6 +171,12 @@ The hard part is largely solved by existing infrastructure:
   command, with the selector deferred).
 - **Inputs**: a graph JSON as the **positional** argument (stdin if omitted) + one or more GFF files
   via a **repeatable `--gff`** flag.
+- **Type filtering** (shared, both subcommands): `--only-type` (whitelist) / `--exclude-type`
+  (blacklist) restrict the input by GFF `type` column. Each takes a **comma-separated** list
+  (`--only-type gene,CDS`) and/or repeats; the two are **mutually exclusive**. Matching is **exact
+  and case-sensitive**, and the filter runs **before** seqid→path matching (so excluding a type also
+  sidesteps any seqid errors it would raise). Motivation: whole-contig `region` records (one per
+  genome) otherwise dominate the block-level output as giant clusters.
 - **Output**: `-o/--output` path (default `-` = stdout); compression inferred from the file
   extension; format chosen by the `AnnotationWriter` (CSV is the only impl so far; JSON deferred).
 - **Block tuning** (`annotate blocks` only): `--min-frequency` (default 0.9) and `--property-threshold`

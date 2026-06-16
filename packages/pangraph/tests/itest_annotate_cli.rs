@@ -45,12 +45,38 @@ mod tests {
     Ok(path)
   }
 
+  /// Like [`write_gff`] but prepends a whole-contig `region` feature, so the type filters have a
+  /// third type (`region`) to keep or drop alongside the `gene` and `CDS`.
+  fn write_gff_with_region(dir: &Path, seqid: &str) -> Result<PathBuf, Report> {
+    let gff = format!(
+      "##gff-version 3\n\
+       {seqid}\ttest\tregion\t1\t500\t.\t+\t.\tID=reg1;Name=r1\n\
+       {seqid}\ttest\tgene\t1001\t1200\t.\t+\t.\tID=gene1;Name=g1\n\
+       {seqid}\ttest\tCDS\t101\t5000\t.\t-\t0\tID=cds1;Name=c1\n"
+    );
+    let path = dir.join("ann_region.gff");
+    write(&path, gff)?;
+    Ok(path)
+  }
+
   /// Build `annotate nodes` args against the test graph for the given GFFs and output path.
   fn nodes_args(gff: Vec<PathBuf>, output: PathBuf) -> PangraphAnnotateArgs {
+    nodes_args_with_filter(gff, output, vec![], vec![])
+  }
+
+  /// Like [`nodes_args`], with explicit `--only-type` / `--exclude-type` filter lists.
+  fn nodes_args_with_filter(
+    gff: Vec<PathBuf>,
+    output: PathBuf,
+    only_type: Vec<String>,
+    exclude_type: Vec<String>,
+  ) -> PangraphAnnotateArgs {
     PangraphAnnotateArgs::Nodes(PangraphAnnotateNodesArgs {
       common: AnnotateCommonArgs {
         input: Some(PathBuf::from(GRAPH)),
         gff,
+        only_type,
+        exclude_type,
         output,
       },
     })
@@ -62,6 +88,8 @@ mod tests {
       common: AnnotateCommonArgs {
         input: Some(PathBuf::from(GRAPH)),
         gff,
+        only_type: vec![],
+        exclude_type: vec![],
         output,
       },
       min_frequency,
@@ -150,6 +178,55 @@ mod tests {
     assert!(
       strict_rows < lenient_rows,
       "a higher --min-frequency emits strictly fewer clusters ({strict_rows} vs {lenient_rows})"
+    );
+    Ok(())
+  }
+
+  #[test]
+  fn itest_annotate_cli_only_type_keeps_whitelisted() -> Result<(), Report> {
+    // `--only-type gene` keeps the gene and drops the CDS and the whole-contig region.
+    let name = first_path_name()?;
+    let dir = tempdir()?;
+    let gff = write_gff_with_region(dir.path(), &name)?;
+    let out = dir.path().join("only.csv");
+
+    annotate_run(nodes_args_with_filter(
+      vec![gff],
+      out.clone(),
+      vec!["gene".to_owned()],
+      vec![],
+    ))?;
+
+    let rows: Vec<Row> = parse_csv(&read_to_string(&out)?)?;
+    assert!(!rows.is_empty(), "the gene survives the whitelist");
+    assert!(
+      rows.iter().all(|r| r.parent_feature_id == "gene1"),
+      "only the gene is lifted; CDS and region are filtered out"
+    );
+    Ok(())
+  }
+
+  #[test]
+  fn itest_annotate_cli_exclude_type_drops_blacklisted() -> Result<(), Report> {
+    // `--exclude-type region` removes the whole-contig declaration but keeps gene and CDS.
+    let name = first_path_name()?;
+    let dir = tempdir()?;
+    let gff = write_gff_with_region(dir.path(), &name)?;
+    let out = dir.path().join("exclude.csv");
+
+    annotate_run(nodes_args_with_filter(
+      vec![gff],
+      out.clone(),
+      vec![],
+      vec!["region".to_owned()],
+    ))?;
+
+    let rows: Vec<Row> = parse_csv(&read_to_string(&out)?)?;
+    assert!(rows.iter().any(|r| r.parent_feature_id == "gene1"), "gene kept");
+    assert!(rows.iter().any(|r| r.parent_feature_id == "cds1"), "cds kept");
+    assert!(
+      rows.iter().all(|r| r.parent_feature_id != "reg1"),
+      "the excluded region produces no rows"
     );
     Ok(())
   }

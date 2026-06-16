@@ -1,4 +1,5 @@
 use crate::annotation::compact::{BlockCompactionStrategy, CoordinateConsensusStrategy};
+use crate::annotation::feature::filter_features_by_type;
 use crate::annotation::lift::{LiftedAnnotation, lift_features};
 use crate::annotation::matching::match_features_to_paths;
 use crate::annotation::writer::{AnnotationWriter, CsvAnnotationWriter};
@@ -35,6 +36,9 @@ fn load_and_lift(common: &AnnotateCommonArgs) -> Result<(Pangraph, Vec<LiftedAnn
       .wrap_err_with(|| format!("When reading GFF file: {}", path.display()))?;
     features.extend(read);
   }
+
+  // Drop unwanted feature types before matching, so excluded types never trigger seqid errors.
+  let features = filter_features_by_type(features, &common.only_type, &common.exclude_type);
 
   let grouped = match_features_to_paths(features, &graph, &BTreeMap::new())?;
   let lifted = lift_features(&grouped, &graph)?;

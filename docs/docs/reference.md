@@ -367,6 +367,12 @@ Lift annotations to per-node block-consensus coordinates (lossless, long-format 
    Pass several files after a single flag (`--gff a.gff b.gff`, so shell globs like `--gff *.gff` work), and/or repeat the flag (`--gff a.gff --gff b.gff`); the values accumulate. To avoid the positional graph being slurped as an extra GFF, give it before the flag (`annotate nodes graph.json --gff *.gff`) or pipe it via stdin.
 
    Accepts plain or compressed files (`gz`, `bz2`, `xz`, `zstd`), chosen by file extension. At least one file is required. Annotation `seqid`s must match the graph path names exactly.
+* `--only-type <ONLY_TYPE>` — Keep only annotations of these feature type(s) (GFF `type` column); drop all others.
+
+   Comma-separated list (`--only-type gene,CDS`) and/or repeat the flag; values accumulate. Matching is exact and case-sensitive (`CDS`, `gene`, `region`). Mutually exclusive with `--exclude-type`.
+* `--exclude-type <EXCLUDE_TYPE>` — Drop annotations of these feature type(s) (GFF `type` column); keep all others.
+
+   e.g. `--exclude-type region` removes whole-contig `region` declarations. Same comma-separated syntax as `--only-type`; mutually exclusive with it.
 * `-o`, `--output <OUTPUT>` — Path to the output annotation table (CSV).
 
    Will be created if it does not exist. The output is compressed if the path ends in a known compression extension (`gz`, `bz2`, `xz`, `zstd`). Use `-` to write uncompressed CSV to standard output (stdout).
@@ -396,6 +402,12 @@ Compact node-level annotations into block-level consensus features (CSV)
    Pass several files after a single flag (`--gff a.gff b.gff`, so shell globs like `--gff *.gff` work), and/or repeat the flag (`--gff a.gff --gff b.gff`); the values accumulate. To avoid the positional graph being slurped as an extra GFF, give it before the flag (`annotate nodes graph.json --gff *.gff`) or pipe it via stdin.
 
    Accepts plain or compressed files (`gz`, `bz2`, `xz`, `zstd`), chosen by file extension. At least one file is required. Annotation `seqid`s must match the graph path names exactly.
+* `--only-type <ONLY_TYPE>` — Keep only annotations of these feature type(s) (GFF `type` column); drop all others.
+
+   Comma-separated list (`--only-type gene,CDS`) and/or repeat the flag; values accumulate. Matching is exact and case-sensitive (`CDS`, `gene`, `region`). Mutually exclusive with `--exclude-type`.
+* `--exclude-type <EXCLUDE_TYPE>` — Drop annotations of these feature type(s) (GFF `type` column); keep all others.
+
+   e.g. `--exclude-type region` removes whole-contig `region` declarations. Same comma-separated syntax as `--only-type`; mutually exclusive with it.
 * `-o`, `--output <OUTPUT>` — Path to the output annotation table (CSV).
 
    Will be created if it does not exist. The output is compressed if the path ends in a known compression extension (`gz`, `bz2`, `xz`, `zstd`). Use `-` to write uncompressed CSV to standard output (stdout).

@@ -311,6 +311,20 @@ What changed:
   tests were updated to the per-segment shape and the block CSV header is now
   `type,cluster_id,segment_idx,…`.
 
+### Feature-type filtering (`--only-type` / `--exclude-type`)
+Motivated by the same E. coli run: whole-contig `region` records (one per genome) expanded to ~30k of
+~65k block rows — correct output, but noise. Rather than special-case any type in the compactor, the
+input is filtered by GFF `type` up front. Two **shared** `AnnotateCommonArgs` flags
+(`packages/pangraph/src/commands/annotate/annotate_args.rs`), so both `nodes` and `blocks` inherit
+them: `--only-type` (whitelist) and `--exclude-type` (blacklist), each `value_delimiter = ','`
+(comma-separated and/or repeatable, accumulating into a `Vec<String>`) and `conflicts_with` each other
+(mutually exclusive). Matching is **exact and case-sensitive**. The filter — `filter_features_by_type`
+in `annotation/feature.rs`, a pure `Vec<Feature> -> Vec<Feature>` — runs in `load_and_lift` **after**
+GFF reading but **before** `match_features_to_paths`, so an excluded type never triggers a
+seqid-mismatch error and never reaches the lift. Empty lists (the default) are a no-op, so existing
+behaviour is unchanged. Unknown type names are silently no-ops (whitelisting an absent type yields an
+empty result; excluding one keeps everything).
+
 ## P5.2 decisions & behaviours (block output on the CLI)
 
 P5.2 exposes compaction on the `annotate` command. Following the `export` precedent (one command,
