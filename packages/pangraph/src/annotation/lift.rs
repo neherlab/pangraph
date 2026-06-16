@@ -55,6 +55,12 @@ pub struct LiftedAnnotation {
   /// node is on the reverse strand). `None` when the source feature was unstranded.
   pub strand_on_consensus: Option<Strand>,
 
+  /// The feature's original genome strand, straight from the GFF (`None` when unstranded). Unlike
+  /// `strand_on_consensus`, this is *not* flipped on reverse nodes, so it is identical across a
+  /// feature's segments; `strand_on_consensus` is this XOR the node orientation. Block-level
+  /// compaction uses it to order a multi-segment feature's segments 5'→3'.
+  pub feature_strand: Option<Strand>,
+
   /// Consensus-oriented node-local coordinates `[node_start, node_end)`.
   pub node_start: usize,
   pub node_end: usize,
@@ -314,6 +320,7 @@ pub fn lift_feature(feature: &Feature, path: &PangraphPath, graph: &Pangraph) ->
       block_id,
       node_id: seg.node_id,
       strand_on_consensus,
+      feature_strand: feature.strand,
       node_start,
       node_end,
       cons_start,
@@ -595,6 +602,10 @@ mod tests {
       (true, false),
       (false, false),
     );
+    // `feature_strand` keeps the original genome strand (Forward), un-flipped by the reverse nodes
+    // and identical across both segments, even though `strand_on_consensus` is Reverse.
+    assert_eq!(lifted[0].feature_strand, Some(Forward));
+    assert_eq!(lifted[1].feature_strand, Some(Forward));
   }
 
   #[test]
@@ -683,6 +694,7 @@ mod tests {
     let lifted = lift_feature(&feat(2, 5, None), &path, &graph).unwrap();
     assert_eq!(lifted.len(), 1);
     assert_eq!(lifted[0].strand_on_consensus, None);
+    assert_eq!(lifted[0].feature_strand, None);
   }
 
   #[test]

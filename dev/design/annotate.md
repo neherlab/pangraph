@@ -194,7 +194,8 @@ Fields:
 ```
 feature_id, parent_feature_id, segment_idx,
 genome (path name), block_id, node_id,
-strand_on_consensus,
+strand_on_consensus,             # feature strand vs block consensus (flips with node orientation)
+feature_strand,                  # original GFF genome strand (= strand_on_consensus XOR node orientation)
 node_start, node_end,            # node-local coordinates
 cons_start, cons_end,            # block-consensus coordinates
 start_is_terminus, end_is_terminus,   # real terminus vs fragment boundary (per endpoint)
@@ -211,47 +212,64 @@ them nested.
 
 ### Block-level annotation (`BlockAnnotation`) — compacted by coordinate consensus
 
-One entry per **consensus feature**: a placement that recurs, at the *same* block-consensus
-coordinates, across enough of the genomes that carry it. The node-level table stays the lossless
-source of truth; this layer is an opinionated, configurable summary built **on top of** it, never
-baked into the lift.
+One entry per **segment** of a **consensus feature**: a crossing that recurs, at the *same*
+block-consensus coordinates and per-block strands, across enough of the genomes that carry it. The
+node-level table stays the lossless source of truth; this layer is an opinionated, configurable
+summary built **on top of** it, never baked into the lift.
 
-**Cluster key = the feature's block-consensus terminus endpoints.** For each genome, reduce a
-feature's node-level lift to just its two real termini — the 5' start and the 3' end — as
-`(block_id, cons_coord)` pairs (the endpoints whose `*_is_terminus` flag is set). The **internal**
-fragment boundaries where a multi-segment feature crosses node/block boundaries are **ignored**: only
-the outer start and end define identity. Two genomes carry "the same" feature when these endpoint
-pairs match exactly **and** the feature type and consensus strand agree (**as-built, P4**: the key
-was extended with `feature_type` + `strand_on_consensus` so a gene vs CDS, or opposite strands, at
-identical coordinates stay distinct; the two endpoints are stored in canonical sorted order):
-
-```
-key = (feature_type, strand_on_consensus, start_block_id, cons_start, end_block_id, cons_end)
-```
-
-For the common single-block feature `start_block_id == end_block_id`, so this is effectively **one
-entry per (type, strand, block, start, end)**.
-
-**M-of-N consensus.** Let N be the genomes **traversing the cluster's block(s)** (**as-built, P4**:
-the intersection of the per-block path sets, via `PangraphBlock::isolates` — *not* the total genome
-count, so a gene is not penalised for genomes that lack the block) and M the number sharing the exact
-key. If
-`M >= threshold`, the cluster is emitted as a single consensus annotation: a **consensus name** (the
-majority feature name among the M supporters) and **only** the agreed block-consensus `cons_start` /
-`cons_end` — the node-level detail is intentionally dropped. Clusters below threshold are not
-promoted; they remain available in the node-level table.
+**Cluster key = the feature's whole crossing, as a canonical ordered multiset.** For each genome,
+reduce a feature's node-level lift to the 5'→3'-ordered list of its per-segment placements
+`(block_id, cons_start, cons_end, strand_on_consensus)`. Two genomes carry "the same" feature when
+their `(feature_type, crossing)` match **exactly** — every block, both coordinates, and the per-block
+strand agree along the whole crossing (and, for a duplicated block crossed twice, the multiplicity
+agrees too). A feature must be bounded by exactly two real termini (its 5' and 3' ends) to be
+compacted; partial/truncated crossings stay only in the node-level table.
 
 ```
-feature_type, strand_on_consensus, # part of the cluster identity (as-built, P4)
-start_block_id, cons_start,        # canonical lower endpoint (single-block: == end_block_id)
-end_block_id, cons_end,            # canonical higher endpoint
+key = (feature_type, [ (block_id, cons_start, cons_end, strand_on_consensus), … ])   # ordered 5'→3'
+```
+
+**Why the whole crossing, and why per-block strand** (**as-built, the crossing-identity fix**): the
+earlier design keyed only on the two *outer* terminus endpoints plus a single representative strand.
+That single strand was sampled from the genome-lowest segment, which **flips with the genome's global
+orientation** for a feature crossing an inversion boundary — so genomes with an *identical* placement
+were split into `+` and `-` clusters (the yjeM bug). Per-block `strand_on_consensus` is invariant
+across genomes (the genome's `+/-` is absorbed by node orientation), so making strand a *per-segment*
+property of the whole crossing is both correct and stable. Keying on the whole crossing also
+distinguishes `X→Y→X` from `X→Y`, which the two-endpoint key could not.
+
+**Ordering.** Node-level `segment_idx` is genome (low→high coordinate) order, already 5'→3' for a
+forward feature. A reverse feature is reversed (using `feature_strand`); an **unstranded** feature
+(no reading direction) is canonicalized by the lexicographically smaller of the two orders, so
+homologous instances still collapse.
+
+**M-of-N consensus.** Let N be the genomes **structurally capable** of the crossing — those
+traversing every block in it at least as many times as the crossing uses **distinct nodes** of that
+block (the multiplicity-aware intersection of the per-block isolate sets, via
+`PangraphBlock::isolates`; *not* the total genome count). Counting distinct nodes rather than
+segments keeps an origin-spanning node — which the lift splits into two coverage pieces — from being
+mistaken for a duplication. M is the genomes producing the exact crossing. If `M >= ceil(min_frequency · N)` (≥ 1) the cluster is emitted
+as **one row per segment**, sharing a `cluster_id` and ordered 5'→3' by `segment_idx`. A feature whose
+body is shared but whose tail differs fragments into several confident clusters (one per tail), each
+scored only against the genomes that could carry it — so each variant is promoted at its true
+support rather than penalised by the others.
+
+```
+feature_type, cluster_id,          # cluster_id links the segments of one crossing
+segment_idx, n_segments,           # 5'→3' position within the feature, and total segments
+block_id, cons_start, cons_end,    # this segment's block and block-consensus coordinates
+strand_on_consensus,               # this segment's strand vs its block consensus
 consensus_name,                    # majority feature name across supporters (>= property threshold)
 consensus_attributes,              # per-key majority attribute values (e.g. product) clearing threshold
-n_support,                         # M — genomes sharing this exact key
-n_total                            # N — genomes traversing the cluster's block(s)
+n_support, n_total,                # M / N — crossing-level (same on every row of the cluster)
+n_support_segment, n_total_segment # M_seg / N_seg — this segment's reproducibility on its own block
 ```
 
-Default output is **long-format CSV** (the only writer shipped in P4); a nested-JSON writer carrying
+`n_support_segment / n_total_segment` are computed over the whole node-level table independently of
+clustering, so a body segment shared by several crossings reports the same support in each. A
+duplicated block crossed twice yields two rows, distinguished by `segment_idx`.
+
+Default output is **long-format CSV** (the only writer shipped so far); a nested-JSON writer carrying
 the per-genome supporters behind each consensus row is **deferred** to a later phase.
 
 **Refinement level = the M-of-N threshold (CLI-selectable, tentative).** How strictly supporting
@@ -302,10 +320,14 @@ single documentation pass (P5.3) follow once both output levels exist. Execution
   output.
 - **P4** ✅ — block-level compaction into `BlockAnnotation` objects via a modular
   `BlockCompactionStrategy` trait (first impl: `CoordinateConsensusStrategy`): cluster placements by
-  their block-consensus terminus endpoints (+ type + strand) and emit one **consensus feature** per
-  cluster reaching the **M-of-N threshold** (see §8), plus a **block CSV writer** over the same
+  their whole block-consensus crossing (+ type) and emit one row **per segment** for each cluster
+  reaching the **M-of-N threshold** (see §8), plus a **block CSV writer** over the same
   `AnnotationWriter` trait + tests. A library layer only — the threshold/strategy CLI flags land in
-  P5.2; the JSON writer is deferred.
+  P5.2; the JSON writer is deferred. *(Initially shipped a two-outer-endpoint key with a single
+  representative strand; **superseded by the crossing-identity fix** — see §8 — after the yjeM bug
+  showed that key splits identical placements across an inversion. The fix also added per-segment
+  output, `feature_strand` on the node-level lift, structural-capability `N`, and per-segment
+  support.)*
 - **P5.2** ✅ — wire the block-level output into the `annotate` command. Implemented as **subcommands**
   (`annotate nodes` / `annotate blocks`, mirroring `export`) rather than an `--output-level` flag, so
   block-only tuning flags (`--min-frequency`, `--property-threshold`) stay out of node-mode help;
@@ -330,16 +352,20 @@ single documentation pass (P5.3) follow once both output levels exist. Execution
   EMBOSS `seqret`, or re-export from bakta/prokka).
 - **Embed in graph JSON vs separate file** — default to a separate file; revisit if a single
   self-contained artifact is wanted.
-- **Block-level clustering policy** — **as-built (P4):** **coordinate-exact identity** keyed by the
-  feature's block-consensus terminus endpoints **plus `feature_type` + `strand_on_consensus`**, with
-  the feature name used **only to label** the consensus. Implemented behind the modular
-  `BlockCompactionStrategy` trait (`CoordinateConsensusStrategy`), so name/product- or ortholog-based
-  clustering can be added as alternative strategies later.
-- **Block-level refinement level** — **as-built (P4):** the **M-of-N threshold**
-  `M >= max(1, ceil(min_frequency · N))`, with `N` = genomes traversing the cluster's block(s).
-  Exposed on the CLI as `annotate blocks --min-frequency` (default 0.9), with `--property-threshold`
-  (default 0.5) gating consensus name/attribute promotion (**as-built, P5.2**). Whether to allow a
-  small coordinate **tolerance** (to absorb a terminus nudged by a nearby indel) is still open.
+- **Block-level clustering policy** — **as-built:** **coordinate-exact identity** keyed by the
+  feature's *whole crossing* — `feature_type` + the 5'→3'-ordered multiset of per-segment
+  `(block_id, cons_start, cons_end, strand_on_consensus)` — with the feature name used **only to
+  label** the consensus. (Superseded the original two-outer-endpoint key; see §8 and the P4 note in
+  §10.) Implemented behind the modular `BlockCompactionStrategy` trait (`CoordinateConsensusStrategy`),
+  so name/product- or ortholog-based clustering can be added as alternative strategies later.
+- **Block-level refinement level** — **as-built:** the **M-of-N threshold**
+  `M >= max(1, ceil(min_frequency · N))`, with `N` = genomes **structurally capable** of the crossing
+  (traversing every block with the required multiplicity). Exposed on the CLI as
+  `annotate blocks --min-frequency` (default 0.9), with `--property-threshold` (default 0.5) gating
+  consensus name/attribute promotion (**as-built, P5.2**). Per-segment support
+  (`n_support_segment / n_total_segment`) is reported alongside but does not gate. Whether to allow a
+  small coordinate **tolerance** (to absorb a terminus nudged by a nearby indel), or to gate
+  per-segment rather than per-crossing, is still open.
 - **Features wholly inside an insertion** — drop, or keep node-level-only with no consensus
   coordinate? Lean towards keep-and-flag.
 - **Coordinate convention** — 0-based half-open internally; convert only at GFF I/O (GFF is 1-based

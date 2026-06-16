@@ -39,6 +39,7 @@ struct LiftedAnnotationCsvRow<'a> {
   block_id: BlockId,
   node_id: NodeId,
   strand_on_consensus: Option<Strand>,
+  feature_strand: Option<Strand>,
   node_start: usize,
   node_end: usize,
   cons_start: usize,
@@ -65,6 +66,7 @@ impl<'a> LiftedAnnotationCsvRow<'a> {
       block_id: a.block_id,
       node_id: a.node_id,
       strand_on_consensus: a.strand_on_consensus,
+      feature_strand: a.feature_strand,
       node_start: a.node_start,
       node_end: a.node_end,
       cons_start: a.cons_start,
@@ -81,39 +83,48 @@ impl<'a> LiftedAnnotationCsvRow<'a> {
   }
 }
 
-/// One CSV row per [`BlockAnnotation`].
+/// One CSV row per [`BlockAnnotation`] — i.e. one segment of a compacted crossing.
 ///
 /// Mirrors [`LiftedAnnotationCsvRow`]: borrows from the source, renders `consensus_attributes` as a
 /// single JSON-string column (a JSON array of `[key, value]` pairs), `strand_on_consensus` as
-/// `+`/`-`/empty, ids as plain numbers, and `Option`s as empty cells.
+/// `+`/`-`/empty, ids as plain numbers, and `Option`s as empty cells. Rows of one crossing share a
+/// `cluster_id` and are ordered 5'→3' by `segment_idx`.
 #[derive(Serialize)]
 struct BlockAnnotationCsvRow<'a> {
   #[serde(rename = "type")]
   feature_type: &'a str,
-  strand_on_consensus: Option<Strand>,
-  start_block_id: BlockId,
+  cluster_id: usize,
+  segment_idx: usize,
+  n_segments: usize,
+  block_id: BlockId,
   cons_start: usize,
-  end_block_id: BlockId,
   cons_end: usize,
+  strand_on_consensus: Option<Strand>,
   consensus_name: Option<&'a str>,
   consensus_attributes: String,
   n_support: usize,
   n_total: usize,
+  n_support_segment: usize,
+  n_total_segment: usize,
 }
 
 impl<'a> BlockAnnotationCsvRow<'a> {
   fn from_block(a: &'a BlockAnnotation) -> Result<Self, Report> {
     Ok(Self {
       feature_type: &a.feature_type,
-      strand_on_consensus: a.strand_on_consensus,
-      start_block_id: a.start_block_id,
+      cluster_id: a.cluster_id,
+      segment_idx: a.segment_idx,
+      n_segments: a.n_segments,
+      block_id: a.block_id,
       cons_start: a.cons_start,
-      end_block_id: a.end_block_id,
       cons_end: a.cons_end,
+      strand_on_consensus: a.strand_on_consensus,
       consensus_name: a.consensus_name.as_deref(),
       consensus_attributes: serde_json::to_string(&a.consensus_attributes)?,
       n_support: a.n_support,
       n_total: a.n_total,
+      n_support_segment: a.n_support_segment,
+      n_total_segment: a.n_total_segment,
     })
   }
 }
@@ -180,6 +191,7 @@ mod tests {
     block_id: usize,
     node_id: usize,
     strand_on_consensus: Option<String>,
+    feature_strand: Option<String>,
     node_start: usize,
     node_end: usize,
     cons_start: usize,
@@ -205,6 +217,7 @@ mod tests {
       block_id: BlockId(7),
       node_id: NodeId(42),
       strand_on_consensus: Some(Strand::Reverse),
+      feature_strand: Some(Strand::Forward),
       node_start: 3,
       node_end: 8,
       cons_start: 3,
@@ -246,6 +259,7 @@ mod tests {
     assert_eq!(r.parent_feature_id.as_deref(), Some("g1"));
     assert_eq!((r.block_id, r.node_id), (7, 42));
     assert_eq!(r.strand_on_consensus.as_deref(), Some("-"));
+    assert_eq!(r.feature_strand.as_deref(), Some("+"));
     assert_eq!((r.cons_start, r.cons_end), (3, 9));
     assert_eq!((r.start_is_terminus, r.end_is_terminus), (true, false));
     assert_eq!((r.start_in_insertion, r.end_in_insertion), (false, true));
@@ -260,29 +274,37 @@ mod tests {
   struct BlockRow {
     #[serde(rename = "type")]
     feature_type: String,
-    strand_on_consensus: Option<String>,
-    start_block_id: usize,
+    cluster_id: usize,
+    segment_idx: usize,
+    n_segments: usize,
+    block_id: usize,
     cons_start: usize,
-    end_block_id: usize,
     cons_end: usize,
+    strand_on_consensus: Option<String>,
     consensus_name: Option<String>,
     consensus_attributes: String,
     n_support: usize,
     n_total: usize,
+    n_support_segment: usize,
+    n_total_segment: usize,
   }
 
   fn sample_block() -> BlockAnnotation {
     BlockAnnotation {
       feature_type: "CDS".to_owned(),
-      strand_on_consensus: Some(Strand::Reverse),
-      start_block_id: BlockId(7),
+      cluster_id: 4,
+      segment_idx: 1,
+      n_segments: 2,
+      block_id: BlockId(7),
       cons_start: 3,
-      end_block_id: BlockId(7),
       cons_end: 120,
+      strand_on_consensus: Some(Strand::Reverse),
       consensus_name: Some("geneA".to_owned()),
       consensus_attributes: vec![("product".to_owned(), "widget".to_owned())],
       n_support: 18,
       n_total: 21,
+      n_support_segment: 19,
+      n_total_segment: 25,
     }
   }
 
@@ -298,18 +320,20 @@ mod tests {
     }
 
     let contents = read_to_string(&path).unwrap();
-    assert!(contents.starts_with("type,strand_on_consensus,start_block_id"));
+    assert!(contents.starts_with("type,cluster_id,segment_idx"));
     assert!(contents.contains(r#"[[""product"",""widget""]]"#));
 
     let rows: Vec<BlockRow> = parse_csv(&contents).unwrap();
     assert_eq!(rows.len(), 1);
     let r = &rows[0];
     assert_eq!(r.feature_type, "CDS");
-    assert_eq!(r.strand_on_consensus.as_deref(), Some("-"));
-    assert_eq!((r.start_block_id, r.end_block_id), (7, 7));
+    assert_eq!((r.cluster_id, r.segment_idx, r.n_segments), (4, 1, 2));
+    assert_eq!(r.block_id, 7);
     assert_eq!((r.cons_start, r.cons_end), (3, 120));
+    assert_eq!(r.strand_on_consensus.as_deref(), Some("-"));
     assert_eq!(r.consensus_name.as_deref(), Some("geneA"));
     assert_eq!((r.n_support, r.n_total), (18, 21));
+    assert_eq!((r.n_support_segment, r.n_total_segment), (19, 25));
     assert_eq!(r.consensus_attributes, r#"[["product","widget"]]"#);
   }
 

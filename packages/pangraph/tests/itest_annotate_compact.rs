@@ -82,10 +82,7 @@ mod tests {
     }
 
     // The core-block placement(s): one per traversal strand, together supported by all genomes.
-    let for_block: Vec<_> = blocks
-      .iter()
-      .filter(|b| b.start_block_id == bid && b.end_block_id == bid)
-      .collect();
+    let for_block: Vec<_> = blocks.iter().filter(|b| b.block_id == bid).collect();
     assert!(!for_block.is_empty(), "core block produced a consensus annotation");
     let total_support: usize = for_block.iter().map(|b| b.n_support).sum();
     assert_eq!(total_support, n_paths, "every genome supports the core-block placement");
@@ -114,7 +111,7 @@ mod tests {
     }
     let contents = read_to_string(&out)?;
     assert!(
-      contents.starts_with("type,strand_on_consensus,start_block_id"),
+      contents.starts_with("type,cluster_id,segment_idx"),
       "block CSV header present"
     );
     Ok(())

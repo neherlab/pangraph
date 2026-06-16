@@ -115,7 +115,9 @@ coordinate. `lift_features(grouped, graph)` runs it over the `match_features_to_
 ### Per-endpoint flags use the **consensus-endpoint frame** (decision)
 `start_*` / `end_*` flags refer to the row's `cons_start` / `cons_end` endpoints, **not** the genome
 5'/3' ends. On a reverse-strand node the feature's genome-start maps to `cons_end`; `strand_on_consensus`
-(the source strand flipped on reverse nodes; `None` stays `None`) lets a consumer map back.
+(the source strand flipped on reverse nodes; `None` stays `None`) lets a consumer map back. (A
+companion `feature_strand` field — the *un-flipped* GFF genome strand — was added later by the
+crossing-identity fix; see the P4 notes.)
 - `start_is_terminus`/`end_is_terminus` — the endpoint is a real feature terminus vs a fragment
   boundary from a node/block split. A fully-covered feature has exactly two real termini (its genome
   start and end); interior segment boundaries are non-termini. (GFF source-`partial` carry-through is
@@ -220,6 +222,11 @@ config defaults live on `Default` (`min_frequency = 0.9`, `property_threshold = 
 user-facing defaults are owned by the CLI in **P5.2**.
 
 ### Clustering = coordinate-consensus (decisions locked with the user)
+> **Superseded by the crossing-identity fix (2026-06-16)** — the two-endpoint key and its
+> mixed-orientation consequence below describe the *original* P4 design; the current behaviour is the
+> whole-crossing multiset described in **"Crossing-identity fix"** further down. The bullets are kept
+> for history.
+
 - **Cluster key** = the feature's two block-consensus **terminus** endpoints **+ `feature_type` +
   `strand_on_consensus`**. A gene vs CDS, or opposite strands, at identical coordinates stay distinct
   (the manifesto §8's coordinate-only key was extended with type + strand on the user's call).
@@ -261,6 +268,48 @@ name/attribute thresholds, multi-block endpoints, `N` = paths-traversing-block, 
 exclusion). `tests/itest_annotate_compact.rs` lifts whole-core-block-node features across every
 genome of `data/test_graph.json` and asserts they collapse to consensus feature(s) at `[0, L)` whose
 supporters sum to all genomes, then round-trips the block CSV writer.
+
+### Crossing-identity fix (2026-06-16, supersedes the two-endpoint key)
+Running `annotate blocks` on real *E. coli* graphs surfaced a bug on the gene `yjeM` (see the
+investigation in the PR): a feature whose body sits on a core block and whose 37 bp tail sits on an
+**inverted** block was split into separate `+` and `-` clusters even though the placement was
+*identical* across genomes — and one genome was dropped below threshold. Root cause: the cluster key
+sampled a single representative strand from `segment_idx 0` (the genome-lowest segment), and that
+segment flips with the genome's global orientation across an inversion boundary. Strand was being
+treated as one per-feature value when it is really **per-segment**.
+
+What changed:
+- **Identity = the whole crossing.** The cluster key is now `(feature_type, Vec<Segment>)` where
+  `Segment = (BlockId, cons_start, cons_end, strand_on_consensus)`, ordered **5'→3'**. Per-block
+  `strand_on_consensus` is invariant across genomes (the genome's `+/-` is absorbed by node
+  orientation), so the whole-crossing multiset is stable. This also distinguishes `X→Y→X` from `X→Y`.
+- **Ordering** uses the new node-level `feature_strand` field (the original GFF genome strand,
+  un-flipped) to reverse the genome-ordered segments for reverse-strand features; unstranded features
+  (no reading direction) are canonicalized by the lexicographically smaller of the two orders. We
+  chose to **add `feature_strand`** rather than recompute `strand_on_consensus XOR node.strand()` at
+  compaction, because it keeps compaction independent of graph-consistent `node_id`s (its unit tests
+  build `LiftedAnnotation`s directly) and makes the node-level CSV self-document the GFF strand.
+- **Output is one row per segment**, sharing a `cluster_id` and numbered 5'→3' by `segment_idx`
+  (`n_segments` total). A **duplicated block crossed twice** keeps both occurrences as separate rows,
+  distinguished by `segment_idx`.
+- **`N` is structural capability** — genomes traversing every block in the crossing with the required
+  **multiplicity**, where multiplicity is the crossing's count of **distinct nodes** per block (not
+  segments), reduced to the element-wise minimum over the supporters so `N >= M` always holds.
+  Counting by node, not segment, matters: a whole-genome `region` feature crosses an **origin-spanning
+  node** that the lift splits into two coverage pieces — two segments on **one** node — so a
+  segment-count requirement of 2 against a genome with one such node gave `N = 0` while `M = 1` (an
+  `M > N` contract violation found on the E. coli data). `block_genome_counts` supplies per-genome
+  node counts; `reduce_instance` records per-block distinct-node use. A body-shared/tail-different
+  feature thus fragments into several clusters, each scored only against the genomes that could carry
+  it, so every variant is promoted at its true support.
+- **Per-segment support** `n_support_segment / n_total_segment` is reported per row, computed over the
+  whole node-level table independently of clustering (`segment_support_sets`), so a body segment
+  shared by several crossings reports the same value in each. It is informational; gating stays
+  per-crossing.
+- New unit tests: `test_inversion_crossing_collapses_to_one_cluster` (the regression),
+  `test_duplicated_block_crossed_twice`, `test_shared_body_three_tails_each_confident`; the existing
+  tests were updated to the per-segment shape and the block CSV header is now
+  `type,cluster_id,segment_idx,…`.
 
 ## P5.2 decisions & behaviours (block output on the CLI)
 

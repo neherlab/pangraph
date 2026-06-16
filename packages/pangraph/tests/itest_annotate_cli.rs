@@ -16,7 +16,7 @@ mod tests {
 
   const GRAPH: &str = "../../data/test_graph.json";
   const NODE_HEADER_PREFIX: &str = "feature_id,parent_feature_id,segment_idx";
-  const BLOCK_HEADER_PREFIX: &str = "type,strand_on_consensus,start_block_id";
+  const BLOCK_HEADER_PREFIX: &str = "type,cluster_id,segment_idx";
 
   /// Subset of the node-level CSV columns; remaining columns are ignored on deserialization.
   #[derive(Deserialize)]
