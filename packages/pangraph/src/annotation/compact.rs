@@ -372,8 +372,13 @@ fn segment_support_sets(node_annotations: &[LiftedAnnotation]) -> BTreeMap<Segme
 }
 
 /// Minimum supporter count to clear a fraction `f` of `n`: `ceil(f * n)`.
+///
+/// The product is nudged down by a tiny epsilon before rounding up: a value that is mathematically
+/// an integer can land just above it in `f64` (e.g. `0.55 * 100` is `55.000000000000007`), which a
+/// naive `.ceil()` would round up, spuriously demanding one extra supporter.
 fn min_count(fraction: f64, n: usize) -> usize {
-  (fraction * n as f64).ceil() as usize
+  const EPS: f64 = 1e-9;
+  (fraction * n as f64 - EPS).ceil().max(0.0) as usize
 }
 
 /// The majority feature name across the supporters, when its support clears `threshold * M`.
@@ -566,6 +571,21 @@ mod tests {
       min_frequency,
       property_threshold,
     }
+  }
+
+  #[test]
+  fn test_min_count_avoids_float_ceil_off_by_one() {
+    // Pairs where `f * n` lands just above an integer in `f64` (`0.55 * 100` is
+    // `55.000000000000007`), which a naive `.ceil()` would round up to one supporter too many.
+    assert_eq!(min_count(0.55, 100), 55);
+    assert_eq!(min_count(0.56, 25), 14);
+    assert_eq!(min_count(0.14, 50), 7);
+    // Genuinely fractional products still round up.
+    assert_eq!(min_count(0.5, 3), 2);
+    assert_eq!(min_count(0.9, 10), 9);
+    // Exact integers and the degenerate zero case are unchanged.
+    assert_eq!(min_count(1.0, 7), 7);
+    assert_eq!(min_count(0.0, 5), 0);
   }
 
   #[test]
