@@ -1,7 +1,7 @@
 use crate::annotation::lift::LiftedAnnotation;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::BlockId;
-use crate::pangraph::pangraph_path::PangraphPath;
+use crate::pangraph::pangraph_path::PathId;
 use crate::pangraph::strand::Strand;
 use eyre::Report;
 use serde::{Deserialize, Serialize};
@@ -126,7 +126,7 @@ impl BlockCompactionStrategy for CoordinateConsensusStrategy {
       let agg = clusters.entry(inst.key).or_default();
       agg
         .supporters
-        .entry(inst.genome)
+        .entry(inst.path_id)
         .or_insert((inst.name, inst.attributes));
       for (block_id, req) in inst.node_req {
         agg
@@ -189,7 +189,7 @@ impl BlockCompactionStrategy for CoordinateConsensusStrategy {
 /// metadata compaction needs (representative `name`/`attributes`, identical across a feature's
 /// segments) and the **distinct nodes used per block** (for the structural-capability denominator).
 struct FeatureInstance {
-  genome: String,
+  path_id: PathId,
   key: ClusterKey,
   /// Distinct nodes the crossing uses on each block — *not* segment count, so an origin-spanning
   /// node split into two coverage pieces still requires only one node of its block.
@@ -201,8 +201,8 @@ struct FeatureInstance {
 /// Aggregated supporters of one cluster, plus the per-block node requirement reduced across them.
 #[derive(Default)]
 struct ClusterAgg {
-  /// Supporters keyed by genome (a genome counts once), each with its representative metadata.
-  supporters: BTreeMap<String, SupporterMeta>,
+  /// Supporters keyed by genome path id (a genome counts once), each with its representative metadata.
+  supporters: BTreeMap<PathId, SupporterMeta>,
   /// Per-block minimum distinct-node requirement over the supporters — the loosest hosting, so
   /// every supporter satisfies it and `N >= M` always holds.
   node_req: BTreeMap<BlockId, usize>,
@@ -210,19 +210,20 @@ struct ClusterAgg {
 
 /// Group node-level rows into per-genome feature instances and reduce each to its cluster key.
 ///
-/// Rows are grouped by `(genome, feature_type, base feature id)`; instances that are not bounded by
-/// exactly two real termini (e.g. partial / truncated features) are dropped from compaction and
-/// remain in the node-level table.
+/// Rows are grouped by `(path_id, feature_type, base feature id)` — keying the genome on its stable
+/// `PathId`, not the display name, so paths that share a name never merge; instances that are not
+/// bounded by exactly two real termini (e.g. partial / truncated features) are dropped from
+/// compaction and remain in the node-level table.
 fn feature_instances(node_annotations: &[LiftedAnnotation]) -> Vec<FeatureInstance> {
-  let mut groups: BTreeMap<(String, String, String), Vec<&LiftedAnnotation>> = BTreeMap::new();
+  let mut groups: BTreeMap<(PathId, String, String), Vec<&LiftedAnnotation>> = BTreeMap::new();
   for a in node_annotations {
-    let group_key = (a.genome.clone(), a.feature_type.clone(), base_feature_id(a));
+    let group_key = (a.path_id, a.feature_type.clone(), base_feature_id(a));
     groups.entry(group_key).or_default().push(a);
   }
 
   groups
     .into_iter()
-    .filter_map(|((genome, feature_type, _base), rows)| reduce_instance(genome, feature_type, &rows))
+    .filter_map(|((path_id, feature_type, _base), rows)| reduce_instance(path_id, feature_type, &rows))
     .collect()
 }
 
@@ -234,7 +235,7 @@ fn feature_instances(node_annotations: &[LiftedAnnotation]) -> Vec<FeatureInstan
 /// (low→high coordinate) order, which is already 5'→3' for a forward feature; a reverse feature is
 /// reversed, and an unstranded feature (no reading direction) is canonicalized by the
 /// lexicographically smaller of the two orders so homologous instances still collapse.
-fn reduce_instance(genome: String, feature_type: String, rows: &[&LiftedAnnotation]) -> Option<FeatureInstance> {
+fn reduce_instance(path_id: PathId, feature_type: String, rows: &[&LiftedAnnotation]) -> Option<FeatureInstance> {
   // A clean feature is bounded by exactly two real termini (its 5' and 3' ends); the internal
   // boundaries where it crosses node/block splits are not termini. Anything else is partial.
   let terminus_count: usize = rows
@@ -275,7 +276,7 @@ fn reduce_instance(genome: String, feature_type: String, rows: &[&LiftedAnnotati
   // Name/attributes are identical across a feature's segments; take them from the 5'-most.
   let rep = rows_sorted[0];
   Some(FeatureInstance {
-    genome,
+    path_id,
     key: (feature_type, segments),
     node_req,
     name: rep.name.clone(),
@@ -298,25 +299,18 @@ fn base_feature_id(a: &LiftedAnnotation) -> String {
   a.feature_id.clone()
 }
 
-/// The genome label for a path, matching the `genome` field the node-level lift produces (the path
-/// name, or its id when unnamed).
-fn genome_label(path: &PangraphPath) -> String {
-  path.name().clone().unwrap_or_else(|| path.id().to_string())
-}
-
-/// Per block, the number of nodes (block instances) each genome carries of it. A genome appears with
-/// a count > 1 exactly when the block is duplicated on its path; `map.len()` is the block's depth
-/// (distinct genomes traversing it). Drives both crossing-level `N` and per-segment `N_seg`.
-fn block_genome_counts(graph: &Pangraph) -> BTreeMap<BlockId, BTreeMap<String, usize>> {
+/// Per block, the number of nodes (block instances) each genome carries of it, keyed on the genome's
+/// stable `PathId`. A genome appears with a count > 1 exactly when the block is duplicated on its
+/// path; `map.len()` is the block's depth (distinct genomes traversing it). Drives both crossing-level
+/// `N` and per-segment `N_seg`.
+fn block_genome_counts(graph: &Pangraph) -> BTreeMap<BlockId, BTreeMap<PathId, usize>> {
   graph
     .blocks
     .iter()
     .map(|(&bid, block)| {
-      let mut counts: BTreeMap<String, usize> = BTreeMap::new();
+      let mut counts: BTreeMap<PathId, usize> = BTreeMap::new();
       for pid in block.isolates(graph) {
-        if let Some(path) = graph.paths.get(&pid) {
-          *counts.entry(genome_label(path)).or_default() += 1;
-        }
+        *counts.entry(pid).or_default() += 1;
       }
       (bid, counts)
     })
@@ -329,7 +323,7 @@ fn block_genome_counts(graph: &Pangraph) -> BTreeMap<BlockId, BTreeMap<String, u
 /// per-block genome sets. `required` is reduced to its element-wise min over the supporters, so every
 /// supporter is capable and `N >= M` holds.
 fn crossing_n_total(
-  block_depths: &BTreeMap<BlockId, BTreeMap<String, usize>>,
+  block_depths: &BTreeMap<BlockId, BTreeMap<PathId, usize>>,
   required: &BTreeMap<BlockId, usize>,
 ) -> usize {
   let empty = BTreeMap::new();
@@ -338,26 +332,26 @@ fn crossing_n_total(
     return 0;
   };
   // Genomes carrying the first block enough times, then narrowed by every remaining block.
-  let mut candidates: BTreeSet<&String> = block_depths
+  let mut candidates: BTreeSet<PathId> = block_depths
     .get(first_block)
     .unwrap_or(&empty)
     .iter()
     .filter(|&(_, &count)| count >= first_mult)
-    .map(|(genome, _)| genome)
+    .map(|(&pid, _)| pid)
     .collect();
   for (block_id, &mult) in blocks {
     let counts = block_depths.get(block_id).unwrap_or(&empty);
-    candidates.retain(|genome| counts.get(*genome).is_some_and(|&count| count >= mult));
+    candidates.retain(|pid| counts.get(pid).is_some_and(|&count| count >= mult));
   }
   candidates.len()
 }
 
 /// Per-segment support across the whole node-level table: for each distinct placement
-/// `(feature_type, block, cons_start, cons_end, strand)`, the set of genomes that place a
-/// feature-segment there. Independent of clustering, so a body segment shared by several crossings
+/// `(feature_type, block, cons_start, cons_end, strand)`, the set of genomes (by `PathId`) that place
+/// a feature-segment there. Independent of clustering, so a body segment shared by several crossings
 /// reports the same support in each.
-fn segment_support_sets(node_annotations: &[LiftedAnnotation]) -> BTreeMap<SegmentKey, BTreeSet<String>> {
-  let mut map: BTreeMap<SegmentKey, BTreeSet<String>> = BTreeMap::new();
+fn segment_support_sets(node_annotations: &[LiftedAnnotation]) -> BTreeMap<SegmentKey, BTreeSet<PathId>> {
+  let mut map: BTreeMap<SegmentKey, BTreeSet<PathId>> = BTreeMap::new();
   for a in node_annotations {
     let key = (
       a.feature_type.clone(),
@@ -366,7 +360,7 @@ fn segment_support_sets(node_annotations: &[LiftedAnnotation]) -> BTreeMap<Segme
       a.cons_end,
       a.strand_on_consensus,
     );
-    map.entry(key).or_default().insert(a.genome.clone());
+    map.entry(key).or_default().insert(a.path_id);
   }
   map
 }
@@ -383,7 +377,7 @@ fn min_count(fraction: f64, n: usize) -> usize {
 
 /// The majority feature name across the supporters, when its support clears `threshold * M`.
 /// Ties break to the lexicographically smallest name for determinism.
-fn majority_name(per_genome: &BTreeMap<String, SupporterMeta>, m: usize, threshold: f64) -> Option<String> {
+fn majority_name(per_genome: &BTreeMap<PathId, SupporterMeta>, m: usize, threshold: f64) -> Option<String> {
   let mut counts: BTreeMap<String, usize> = BTreeMap::new();
   for (name, _) in per_genome.values() {
     if let Some(name) = name {
@@ -402,7 +396,7 @@ fn majority_name(per_genome: &BTreeMap<String, SupporterMeta>, m: usize, thresho
 /// A supporter contributes each of its `(key, value)` pairs once (duplicates within a supporter are
 /// collapsed). Per key, the value with the most support wins; ties break to the smaller value.
 fn majority_attributes(
-  per_genome: &BTreeMap<String, SupporterMeta>,
+  per_genome: &BTreeMap<PathId, SupporterMeta>,
   m: usize,
   threshold: f64,
 ) -> Vec<(String, String)> {
@@ -436,7 +430,7 @@ mod tests {
   use crate::pangraph::edits::Edit;
   use crate::pangraph::pangraph_block::PangraphBlock;
   use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
-  use crate::pangraph::pangraph_path::PathId;
+  use crate::pangraph::pangraph_path::PangraphPath;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use pretty_assertions::assert_eq;
 
@@ -483,9 +477,10 @@ mod tests {
     }
   }
 
-  /// A single-segment lifted annotation (both endpoints are termini).
+  /// A single-segment lifted annotation (both endpoints are termini). `path` is the genome's path
+  /// index — it must match the `PathId` the genome has in the graph, since compaction keys on it.
   fn lifted(
-    genome: &str,
+    path: usize,
     block: usize,
     cons: (usize, usize),
     strand: Option<Strand>,
@@ -499,7 +494,8 @@ mod tests {
       parent_feature_id: Some(id.to_owned()),
       segment_idx: 0,
       n_segments: 1,
-      genome: genome.to_owned(),
+      genome: format!("g{path}"),
+      path_id: PathId(path),
       block_id: BlockId(block),
       node_id: NodeId(0),
       strand_on_consensus: strand,
@@ -525,7 +521,7 @@ mod tests {
   /// across all its segments). A reverse `fstrand` means the gene reads 5'→3' against genome order.
   #[allow(clippy::too_many_arguments)]
   fn seg(
-    genome: &str,
+    path: usize,
     base: &str,
     idx: usize,
     n: usize,
@@ -544,7 +540,8 @@ mod tests {
       parent_feature_id: Some(base.to_owned()),
       segment_idx: idx,
       n_segments: n,
-      genome: genome.to_owned(),
+      genome: format!("g{path}"),
+      path_id: PathId(path),
       block_id: BlockId(block),
       // Distinct per segment so a block crossed at two segments counts as two nodes (a duplication),
       // matching how the lift assigns a node per crossed block instance.
@@ -592,9 +589,9 @@ mod tests {
   fn test_all_agree_single_block() {
     let graph = graph_with(&["g0", "g1", "g2"], &[(1, &[0, 1, 2])]);
     let anns = vec![
-      lifted("g0", 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f0", &[]),
-      lifted("g1", 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f1", &[]),
-      lifted("g2", 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f2", &[]),
+      lifted(0, 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f0", &[]),
+      lifted(1, 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f1", &[]),
+      lifted(2, 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f2", &[]),
     ];
     let out = strat(1.0, 0.5).compact(&anns, &graph).unwrap();
     assert_eq!(out.len(), 1);
@@ -611,8 +608,8 @@ mod tests {
   fn test_below_threshold_dropped_but_kept_when_lenient() {
     let graph = graph_with(&["g0", "g1", "g2", "g3"], &[(1, &[0, 1, 2, 3])]);
     let anns = vec![
-      lifted("g0", 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f0", &[]),
-      lifted("g1", 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f1", &[]),
+      lifted(0, 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f0", &[]),
+      lifted(1, 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f1", &[]),
     ];
     // 2 of 4 -> ceil(0.9*4)=4 required -> dropped.
     assert!(strat(0.9, 0.5).compact(&anns, &graph).unwrap().is_empty());
@@ -626,10 +623,10 @@ mod tests {
   fn test_feature_type_splits_clusters() {
     let graph = graph_with(&["g0", "g1"], &[(1, &[0, 1])]);
     let anns = vec![
-      lifted("g0", 1, (10, 200), Some(Forward), "gene", Some("geneA"), "gene0", &[]),
-      lifted("g0", 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "cds0", &[]),
-      lifted("g1", 1, (10, 200), Some(Forward), "gene", Some("geneA"), "gene1", &[]),
-      lifted("g1", 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "cds1", &[]),
+      lifted(0, 1, (10, 200), Some(Forward), "gene", Some("geneA"), "gene0", &[]),
+      lifted(0, 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "cds0", &[]),
+      lifted(1, 1, (10, 200), Some(Forward), "gene", Some("geneA"), "gene1", &[]),
+      lifted(1, 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "cds1", &[]),
     ];
     let out = strat(1.0, 0.5).compact(&anns, &graph).unwrap();
     assert_eq!(out.len(), 2);
@@ -642,8 +639,8 @@ mod tests {
   fn test_strand_splits_clusters() {
     let graph = graph_with(&["g0", "g1"], &[(1, &[0, 1])]);
     let anns = vec![
-      lifted("g0", 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f0", &[]),
-      lifted("g1", 1, (10, 200), Some(Reverse), "CDS", Some("geneA"), "f1", &[]),
+      lifted(0, 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f0", &[]),
+      lifted(1, 1, (10, 200), Some(Reverse), "CDS", Some("geneA"), "f1", &[]),
     ];
     let out = strat(0.0, 0.5).compact(&anns, &graph).unwrap();
     assert_eq!(out.len(), 2);
@@ -657,7 +654,7 @@ mod tests {
     let graph = graph_with(&["g0", "g1", "g2"], &[(1, &[0, 1, 2])]);
     let anns = vec![
       lifted(
-        "g0",
+        0,
         1,
         (10, 200),
         Some(Forward),
@@ -667,7 +664,7 @@ mod tests {
         &[("product", "widget")],
       ),
       lifted(
-        "g1",
+        1,
         1,
         (10, 200),
         Some(Forward),
@@ -677,7 +674,7 @@ mod tests {
         &[("product", "widget")],
       ),
       lifted(
-        "g2",
+        2,
         1,
         (10, 200),
         Some(Forward),
@@ -705,7 +702,7 @@ mod tests {
   fn test_multi_block_feature_emits_one_row_per_segment() {
     let graph = graph_with(&["g0", "g1"], &[(1, &[0, 1]), (2, &[0, 1])]);
     let mut anns = Vec::new();
-    for (g, base) in [("g0", "f0"), ("g1", "f1")] {
+    for (g, base) in [(0, "f0"), (1, "f1")] {
       anns.push(seg(
         g,
         base,
@@ -749,8 +746,8 @@ mod tests {
     // Block 1 is accessory: present only in g0, g1 (not g2, g3).
     let graph = graph_with(&["g0", "g1", "g2", "g3"], &[(1, &[0, 1])]);
     let anns = vec![
-      lifted("g0", 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f0", &[]),
-      lifted("g1", 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f1", &[]),
+      lifted(0, 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f0", &[]),
+      lifted(1, 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f1", &[]),
     ];
     let out = strat(1.0, 0.5).compact(&anns, &graph).unwrap();
     assert_eq!(out.len(), 1);
@@ -760,7 +757,7 @@ mod tests {
   #[test]
   fn test_partial_feature_without_two_termini_is_excluded() {
     let graph = graph_with(&["g0"], &[(1, &[0])]);
-    let mut a = lifted("g0", 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f0", &[]);
+    let mut a = lifted(0, 1, (10, 200), Some(Forward), "CDS", Some("geneA"), "f0", &[]);
     a.end_is_terminus = false; // only one real terminus remains
     assert!(strat(0.0, 0.5).compact(&[a], &graph).unwrap().is_empty());
   }
@@ -776,7 +773,7 @@ mod tests {
     let anns = vec![
       // Forward genome: gene reads 5'→3' with genome order, B1 then B3.
       seg(
-        "gplus",
+        0,
         "fp",
         0,
         2,
@@ -787,7 +784,7 @@ mod tests {
         Some(Forward),
       ),
       seg(
-        "gplus",
+        0,
         "fp",
         1,
         2,
@@ -799,7 +796,7 @@ mod tests {
       ),
       // Reverse genome: arc order is B3 then B1; feature_strand Reverse flips it back to 5'→3'.
       seg(
-        "gminus",
+        1,
         "fm",
         0,
         2,
@@ -810,7 +807,7 @@ mod tests {
         Some(Reverse),
       ),
       seg(
-        "gminus",
+        1,
         "fm",
         1,
         2,
@@ -857,7 +854,7 @@ mod tests {
   fn test_duplicated_block_crossed_twice() {
     let graph = graph_with(&["g0", "g1", "g2"], &[(5, &[0, 0, 1, 1, 2]), (6, &[0, 1, 2])]);
     let mut anns = Vec::new();
-    for (g, base) in [("g0", "f0"), ("g1", "f1")] {
+    for (g, base) in [(0, "f0"), (1, "f1")] {
       anns.push(seg(
         g,
         base,
@@ -915,18 +912,8 @@ mod tests {
   #[test]
   fn test_origin_split_same_node_not_double_counted() {
     let graph = graph_with(&["g0"], &[(7, &[0])]); // block 7 present once on g0
-    let mut s0 = seg(
-      "g0",
-      "f",
-      0,
-      2,
-      7,
-      (100, 150),
-      (true, false),
-      Some(Forward),
-      Some(Forward),
-    );
-    let mut s1 = seg("g0", "f", 1, 2, 7, (0, 40), (false, true), Some(Forward), Some(Forward));
+    let mut s0 = seg(0, "f", 0, 2, 7, (100, 150), (true, false), Some(Forward), Some(Forward));
+    let mut s1 = seg(0, "f", 1, 2, 7, (0, 40), (false, true), Some(Forward), Some(Forward));
     s0.node_id = NodeId(0);
     s1.node_id = NodeId(0); // same node as s0: origin-split, not a duplication
     let out = strat(1.0, 0.5).compact(&[s0, s1], &graph).unwrap();
@@ -946,12 +933,12 @@ mod tests {
     );
     let mut anns = Vec::new();
     for (g, base, tail) in [
-      ("g0", "a0", 2),
-      ("g1", "a1", 2),
-      ("g2", "a2", 2),
-      ("g3", "a3", 3),
-      ("g4", "a4", 3),
-      ("g5", "a5", 4),
+      (0, "a0", 2),
+      (1, "a1", 2),
+      (2, "a2", 2),
+      (3, "a3", 3),
+      (4, "a4", 3),
+      (5, "a5", 4),
     ] {
       anns.push(seg(
         g,

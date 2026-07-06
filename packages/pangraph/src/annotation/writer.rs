@@ -174,6 +174,7 @@ impl AnnotationWriter for CsvAnnotationWriter {
 mod tests {
   use super::*;
   use crate::io::csv::parse_csv;
+  use crate::pangraph::pangraph_path::PathId;
   use serde::Deserialize;
   use std::fs::read_to_string;
   use tempfile::tempdir;
@@ -214,6 +215,7 @@ mod tests {
       segment_idx,
       n_segments: 2,
       genome: "genomeA".to_owned(),
+      path_id: PathId(2),
       block_id: BlockId(7),
       node_id: NodeId(42),
       strand_on_consensus: Some(Strand::Reverse),

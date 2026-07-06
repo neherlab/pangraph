@@ -358,6 +358,96 @@ and pins the threshold wiring: with a single annotated genome, `--min-frequency 
 single-support clusters that `0.0` keeps (a field swap would surface as the lenient run coming back
 empty).
 
+## Block-compaction open-question resolutions
+
+Settling the provisional reconciliation policy enumerated in
+[`annotate-block-compaction-open-questions.md`](./annotate-block-compaction-open-questions.md) before
+P5.3 freezes the behaviour in user docs. Each subsection records the **as-built call** and its evidence.
+
+### Issue 1 — coordinate-exact identity vs. a tolerance → **ship exact-only for v1** (resolved 2026-07-06)
+
+The crux question (does exact-coordinate clustering under-report support by fragmenting one biological
+gene into several near-identical clusters when a boundary indel nudges a consensus endpoint?) was
+settled by the **real-data fragmentation study** the doc called for (`tmp/block-annotations/`,
+gitignored Snakemake pipeline; write-up in `notes/n00_block_compaction_fragmentation.typ`).
+
+Method: for genes shared by ≥2 genomes (grouped by **protein identity** — CDS `parent_feature_id`, so
+the same protein across genomes is one biological gene), count those that fragment into >1 exact
+block-level cluster *purely* from boundary coordinate wobble (same blocks + strand, differing coords —
+"coordinate fragmentation") vs. legitimately different blocks ("structural"); and of the genes that
+would clear the 0.9 threshold as a single merged crossing, how many exact-only **drops** below it. The
+analysis re-implements `CoordinateConsensusStrategy` in Python and was validated to reproduce the Rust
+output cluster-for-cluster (10 368 == 10 368 on ecoli-15, 6 318 == 6 318 on saureus-50 at `--min-frequency 0`).
+
+Result across **five species spanning four phyla** (2.8–6.3 Mb; monomorphic → open pangenome) —
+`coord-frag% / dropped@0.9%`: ecoli-15 0.8/1.0, saureus-50 1.1/1.4, klebsiella-50 0.8/0.9,
+paeruginosa-30 1.1/1.1, mtb-30 1.0/0.3. Coordinate fragmentation is **~1% everywhere and does not grow
+with divergence.** The reason is mechanistic: because genes are grouped by protein identity, divergence
+surfaces as *different proteins* (different clusters, correctly) or *different blocks* (structural
+fragmentation, legitimate), **not** as coordinate wobble of a fixed protein — the boundary-indel
+mechanism is intrinsically rare. The Klebsiella open pangenome, named in the doc as the divergence
+stress test, showed the *same* ~1%, not more.
+
+**Decision: exact-only for v1**, with the limitation documented (the node-level table remains the
+lossless source of truth; the block summary can look marginally fragmented). A tolerance is a
+characterized, cheap **fallback** if ever needed — δ ≈ 15–20 bp (single-linkage merge of clusters whose
+termini agree within δ, *per structural group* so distinct crossings never chain) recovers ~65–95% of
+coordinate fragments while wrongly merging ≤ 4 genuinely-distinct loci even at δ = 50. That is ~30 lines
+in one strategy, exactly as the design anticipated; deferring it costs nothing because the node table
+loses nothing.
+
+### Issue 2 — per-segment support pools look-alike placements → **document as intended** (resolved 2026-07-06)
+
+`n_support_segment` is tallied over `segment_support_sets`, keyed on
+`(feature_type, block_id, cons_start, cons_end, strand_on_consensus)` with **no feature identity**, so
+two genuinely different genes of the same type that place a segment at identical block-consensus
+coordinates are counted together. The study's issue-2 side-check confirmed this is **rare** (≤ 20
+placements pool > 1 distinct CDS id across all five datasets, and those are overwhelmingly same-locus
+variants, not distinct loci). The value is **informational** — gating is per-crossing, never per-segment
+— so the coincidence cannot change which clusters are emitted, only an advisory column.
+
+**Decision: keep the key as-is** and document the semantics: *per-segment support is a property of a
+placement, not of a feature.* This preserves the intended "a shared body reports the same support in
+every crossing it appears in" behaviour that motivated the coordinate-only `SegmentKey`. The
+rare-coincidence caveat is a doc line, not a code change.
+
+### Issue 3 — no per-genome provenance in the block output → **defer, document drill-down** (resolved 2026-07-06)
+
+A block row reports `M`/`N` and a consensus name/attributes but not *which* genomes support or dissent,
+so the "where do genomes disagree about this feature?" use case can't be answered from the CSV alone.
+
+**Decision: acceptable for v1.** Drill-down means going back to the **node-level table** (the lossless
+source of truth, joinable on `cluster_id`/block+coords). The nested-JSON writer carrying per-genome
+supporters behind each consensus row (already deferred in [`annotate.md`](./annotate.md) §8) lands
+**before** the feature is advertised as covering the disagreement use case. The P5.3 docs must state the
+node-table drill-down explicitly rather than implying the block CSV answers disagreement.
+
+### Issue 4 — genome identity is a display string, not a `PathId` → **key on `PathId`** (resolved 2026-07-06)
+
+Compaction previously keyed every genome on a `String` label (`path.name()` → `path.id()` fallback),
+so two paths sharing a name (or both unnamed) would silently merge into one genome, and the label was
+cloned per row at genome scale.
+
+**Fix (as-built):** the node-level lift now records the stable path identity on each row, and
+compaction keys its whole internal pipeline on it:
+- `LiftedAnnotation` gained a `path_id: PathId` field (`lift.rs`), populated from `path.id()` alongside
+  the existing `genome` display name. `genome` is retained purely for the **node-level CSV** (the
+  output still shows the path name, resolved by the lift), so the node schema is unchanged — the CSV
+  writer projects an explicit `LiftedAnnotationCsvRow` that does not include `path_id`.
+- In `compact.rs`, `FeatureInstance`, the supporter map (`ClusterAgg.supporters`), the feature-instance
+  grouping key, `block_genome_counts`, `crossing_n_total`, and `segment_support_sets` all key on
+  `PathId` instead of `String`. `PathId` is `Copy`, so this also drops the per-row `String` clones and
+  the `&String` borrows in the `N` intersection. `block_genome_counts` now takes the `PathId` straight
+  from `PangraphBlock::isolates` (no name lookup), and the `genome_label` helper was deleted.
+- Compaction is therefore independent of the display name entirely; `M`/`N` join on identity. This
+  keeps the crossing-identity design's property that compaction does not depend on graph-consistent
+  `node_id`s — the unit tests still build `LiftedAnnotation`s directly, now passing a path index that
+  becomes both the `path_id` and the (irrelevant-to-logic) `genome` string.
+
+Behaviour is unchanged on well-formed graphs (distinct path names); the collision risk on
+duplicate/empty names is removed. Full annotation unit + integration suite (incl. the klebs real-data
+smoke) green.
+
 ## Public API introduced in P1–P5.2
 
 ```rust
@@ -383,8 +473,8 @@ pub fn consensus_coords_from_node_flagged(
 
 // annotation::lift (P3)
 pub struct LiftedAnnotation { /* feature_id, parent_feature_id, segment_idx, n_segments, genome,
-  block_id, node_id, strand_on_consensus, node_start/_end, cons_start/_end, start/end_is_terminus,
-  start/end_in_insertion, frac_covered, feature_type, name, attributes */ }
+  path_id, block_id, node_id, strand_on_consensus, node_start/_end, cons_start/_end,
+  start/end_is_terminus, start/end_in_insertion, frac_covered, feature_type, name, attributes */ }
 pub fn lift_feature(feature: &Feature, path: &PangraphPath, graph: &Pangraph) -> Result<Vec<LiftedAnnotation>, Report>;
 pub fn lift_features(grouped: &BTreeMap<PathId, Vec<Feature>>, graph: &Pangraph) -> Result<Vec<LiftedAnnotation>, Report>;
 

@@ -45,6 +45,11 @@ pub struct LiftedAnnotation {
   /// Name of the genome (pangraph path) the feature belongs to.
   pub genome: String,
 
+  /// Stable identity of the genome (pangraph path). Unlike `genome` — a display name that can
+  /// collide when two paths share a name (or are both unnamed) — this uniquely keys the path.
+  /// Block-level compaction groups genomes on this rather than on the name string.
+  pub path_id: PathId,
+
   /// Block whose consensus this segment is placed on.
   pub block_id: BlockId,
 
@@ -317,6 +322,7 @@ pub fn lift_feature(feature: &Feature, path: &PangraphPath, graph: &Pangraph) ->
       segment_idx,
       n_segments,
       genome: genome.clone(),
+      path_id: path.id(),
       block_id,
       node_id: seg.node_id,
       strand_on_consensus,
