@@ -21,7 +21,7 @@ pub fn pangraph_main() -> Result<(), Report> {
     PangraphCommands::Export { args } => export_run(args),
     PangraphCommands::Simplify(args) => simplify_run(args),
     PangraphCommands::Reconstruct(args) => reconstruct_run(&args),
-    PangraphCommands::Annotate(args) => annotate_run(args),
+    PangraphCommands::Annotate { args } => annotate_run(args),
     PangraphCommands::Schema(args) => generate_schema(&args),
     PangraphCommands::HelpMarkdown => print_help_markdown(),
     PangraphCommands::Completions { shell } => generate_shell_completions(&shell),

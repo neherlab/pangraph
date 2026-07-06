@@ -76,7 +76,10 @@ pub enum PangraphCommands {
   Reconstruct(PangraphReconstructArgs),
 
   /// Lift genome annotations onto the pangenome graph.
-  Annotate(PangraphAnnotateArgs),
+  Annotate {
+    #[clap(subcommand)]
+    args: PangraphAnnotateArgs,
+  },
 
   /// Generate JSON schema for Pangraph file format
   Schema(PangraphGenerateSchemaArgs),

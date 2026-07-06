@@ -1,18 +1,33 @@
-use clap::{Parser, ValueHint};
+use clap::{Parser, Subcommand, ValueHint};
 use std::fmt::Debug;
 use std::path::PathBuf;
 
 /// Lift genome annotations onto the pangenome graph.
 ///
 /// Reads one or more GFF3 annotation files and places each feature on the graph node(s) it overlaps,
-/// translating its coordinates into block-consensus coordinates. The result is a long-format,
-/// node-level table (the lossless source of truth), written as CSV.
+/// translating its coordinates into block-consensus coordinates. Choose the granularity of the
+/// output with a subcommand:
+///
+/// - `nodes`  — the lossless, long-format node-level table (one row per feature/overlapped node).
+/// - `blocks` — block-level consensus features, collapsing the redundant per-node placements that
+///   most genomes share into one row per cluster.
 ///
 /// Annotation `seqid`s are matched to graph path names by exact string equality; any `seqid` that
 /// does not correspond to a path is a hard error (annotation seqids must match the FASTA record
 /// names used to build the graph).
+#[derive(Subcommand, Debug)]
+#[clap(verbatim_doc_comment)]
+pub enum PangraphAnnotateArgs {
+  /// Lift annotations to per-node block-consensus coordinates (lossless, long-format CSV).
+  Nodes(PangraphAnnotateNodesArgs),
+
+  /// Compact node-level annotations into block-level consensus features (CSV).
+  Blocks(PangraphAnnotateBlocksArgs),
+}
+
+/// Options shared by every `annotate` subcommand: the graph, the GFF inputs, and the output path.
 #[derive(Parser, Debug)]
-pub struct PangraphAnnotateArgs {
+pub struct AnnotateCommonArgs {
   /// Path to Pangraph JSON.
   ///
   /// Accepts plain or compressed file. If a compressed file is provided, it will be transparently
@@ -24,15 +39,38 @@ pub struct PangraphAnnotateArgs {
   #[clap(display_order = 1)]
   pub input: Option<PathBuf>,
 
-  /// Path to a GFF3 annotation file. Repeat the flag to provide multiple files.
+  /// Path(s) to GFF3 annotation file(s).
+  ///
+  /// Pass several files after a single flag (`--gff a.gff b.gff`, so shell globs like `--gff
+  /// *.gff` work), and/or repeat the flag (`--gff a.gff --gff b.gff`); the values accumulate. To
+  /// avoid the positional graph being slurped as an extra GFF, give it before the flag (`annotate
+  /// nodes graph.json --gff *.gff`) or pipe it via stdin.
   ///
   /// Accepts plain or compressed files (`gz`, `bz2`, `xz`, `zstd`), chosen by file extension. At
   /// least one file is required. Annotation `seqid`s must match the graph path names exactly.
-  #[clap(long = "gff", required = true, value_hint = ValueHint::FilePath)]
+  #[clap(long = "gff", required = true, num_args = 1.., value_hint = ValueHint::FilePath)]
   #[clap(display_order = 2)]
   pub gff: Vec<PathBuf>,
 
-  /// Path to the output node-level annotation table (CSV).
+  /// Keep only annotations of these feature type(s) (GFF `type` column); drop all others.
+  ///
+  /// Comma-separated list (`--only-type gene,CDS`) and/or repeat the flag; values accumulate.
+  /// Matching is exact and case-sensitive (`CDS`, `gene`, `region`). Mutually exclusive with
+  /// `--exclude-type`.
+  #[clap(long = "only-type", value_delimiter = ',', value_hint = ValueHint::Other)]
+  #[clap(conflicts_with = "exclude_type")]
+  #[clap(display_order = 3)]
+  pub only_type: Vec<String>,
+
+  /// Drop annotations of these feature type(s) (GFF `type` column); keep all others.
+  ///
+  /// e.g. `--exclude-type region` removes whole-contig `region` declarations. Same comma-separated
+  /// syntax as `--only-type`; mutually exclusive with it.
+  #[clap(long = "exclude-type", value_delimiter = ',', value_hint = ValueHint::Other)]
+  #[clap(display_order = 4)]
+  pub exclude_type: Vec<String>,
+
+  /// Path to the output annotation table (CSV).
   ///
   /// Will be created if it does not exist. The output is compressed if the path ends in a known
   /// compression extension (`gz`, `bz2`, `xz`, `zstd`). Use `-` to write uncompressed CSV to
@@ -40,4 +78,218 @@ pub struct PangraphAnnotateArgs {
   #[clap(long, short = 'o', default_value = "-")]
   #[clap(value_hint = ValueHint::AnyPath)]
   pub output: PathBuf,
+}
+
+/// Arguments for `annotate nodes`: produce the lossless node-level table.
+#[derive(Parser, Debug)]
+pub struct PangraphAnnotateNodesArgs {
+  #[clap(flatten)]
+  pub common: AnnotateCommonArgs,
+}
+
+/// Arguments for `annotate blocks`: compact the node-level table into block-level consensus features.
+///
+/// The two thresholds mirror the fields of `CoordinateConsensusStrategy`; their defaults are kept in
+/// sync with that type's `Default` (0.9 / 0.5).
+#[derive(Parser, Debug)]
+pub struct PangraphAnnotateBlocksArgs {
+  #[clap(flatten)]
+  pub common: AnnotateCommonArgs,
+
+  /// Minimum frequency required to emit a block-level cluster.
+  ///
+  /// A cluster is kept when the number of supporting genomes `M >= ceil(min_frequency * N)`, where
+  /// `N` is the number of paths traversing the cluster's block(s) (so a gene is not penalised for
+  /// being absent in genomes that lack the block entirely).
+  #[clap(long, default_value_t = 0.9, value_parser = parse_fraction)]
+  #[clap(value_hint = ValueHint::Other)]
+  pub min_frequency: f64,
+
+  /// Minimum supporter agreement required to promote a consensus name or attribute value.
+  ///
+  /// For each cluster, a `name`/attribute value is written only if at least this fraction of the
+  /// supporting genomes agree on it; otherwise the field is left empty.
+  #[clap(long, default_value_t = 0.5, value_parser = parse_fraction)]
+  #[clap(value_hint = ValueHint::Other)]
+  pub property_threshold: f64,
+}
+
+/// Parse a threshold given as a fraction in the closed unit interval `[0, 1]`.
+///
+/// Both `annotate blocks` thresholds are fractions; a value outside `[0, 1]` is always a mistake (it
+/// would silently emit nothing, or promote every value), so it is rejected at parse time rather than
+/// failing quietly downstream. `NaN` and infinities fall outside the range and are rejected too.
+fn parse_fraction(s: &str) -> Result<f64, String> {
+  let value: f64 = s.parse().map_err(|err| format!("`{s}` is not a valid number: {err}"))?;
+  if (0.0..=1.0).contains(&value) {
+    Ok(value)
+  } else {
+    Err(format!(
+      "must be a fraction between 0 and 1 (inclusive), but got `{value}`"
+    ))
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::{AnnotateCommonArgs, parse_fraction};
+  use crate::commands::root_args::{PangraphArgs, PangraphCommands};
+  use clap::Parser;
+  use std::path::PathBuf;
+
+  /// Parse a full `pangraph annotate nodes …` invocation and return its common args (graph, GFFs,
+  /// output), so the `--gff` parsing behaviour is exercised through clap rather than constructed by
+  /// hand.
+  fn parse_nodes_common(argv: &[&str]) -> Result<AnnotateCommonArgs, clap::Error> {
+    let args = PangraphArgs::try_parse_from(argv)?;
+    match args.command {
+      PangraphCommands::Annotate {
+        args: super::PangraphAnnotateArgs::Nodes(nodes),
+      } => Ok(nodes.common),
+      other => panic!("expected `annotate nodes`, got {other:?}"),
+    }
+  }
+
+  #[test]
+  fn gff_accepts_multiple_values_after_one_flag() {
+    let common = parse_nodes_common(&["pangraph", "annotate", "nodes", "graph.json", "--gff", "a.gff", "b.gff"])
+      .expect("space-separated GFFs parse");
+    assert_eq!(common.input, Some(PathBuf::from("graph.json")));
+    assert_eq!(common.gff, vec![PathBuf::from("a.gff"), PathBuf::from("b.gff")]);
+  }
+
+  #[test]
+  fn gff_flag_is_still_repeatable_and_accumulates() {
+    let common = parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "--gff",
+      "b.gff",
+    ])
+    .expect("repeated GFF flags parse");
+    assert_eq!(common.gff, vec![PathBuf::from("a.gff"), PathBuf::from("b.gff")]);
+  }
+
+  #[test]
+  fn gff_list_does_not_swallow_the_positional_graph_or_output() {
+    // The graph given before the flag stays bound to the positional input, and a flag (`-o`)
+    // terminates the variadic so the GFF list does not absorb the output path.
+    let common = parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "b.gff",
+      "-o",
+      "out.csv",
+    ])
+    .expect("graph-first invocation parses");
+    assert_eq!(common.input, Some(PathBuf::from("graph.json")));
+    assert_eq!(common.gff, vec![PathBuf::from("a.gff"), PathBuf::from("b.gff")]);
+    assert_eq!(common.output, PathBuf::from("out.csv"));
+  }
+
+  #[test]
+  fn gff_is_required() {
+    parse_nodes_common(&["pangraph", "annotate", "nodes", "graph.json"]).unwrap_err();
+  }
+
+  #[test]
+  fn only_type_splits_on_commas() {
+    let common = parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "--only-type",
+      "gene,CDS",
+    ])
+    .expect("comma-separated --only-type parses");
+    assert_eq!(common.only_type, vec!["gene".to_owned(), "CDS".to_owned()]);
+    assert!(common.exclude_type.is_empty());
+  }
+
+  #[test]
+  fn type_filters_accumulate_across_repeated_flags() {
+    let common = parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "--only-type",
+      "gene",
+      "--only-type",
+      "CDS",
+    ])
+    .expect("repeated --only-type accumulates");
+    assert_eq!(common.only_type, vec!["gene".to_owned(), "CDS".to_owned()]);
+  }
+
+  #[test]
+  fn exclude_type_parses() {
+    let common = parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "--exclude-type",
+      "region",
+    ])
+    .expect("--exclude-type parses");
+    assert_eq!(common.exclude_type, vec!["region".to_owned()]);
+    assert!(common.only_type.is_empty());
+  }
+
+  #[test]
+  fn only_type_and_exclude_type_conflict() {
+    parse_nodes_common(&[
+      "pangraph",
+      "annotate",
+      "nodes",
+      "graph.json",
+      "--gff",
+      "a.gff",
+      "--only-type",
+      "gene",
+      "--exclude-type",
+      "region",
+    ])
+    .expect_err("--only-type and --exclude-type are mutually exclusive");
+  }
+
+  #[test]
+  fn type_filters_default_to_empty() {
+    let common = parse_nodes_common(&["pangraph", "annotate", "nodes", "graph.json", "--gff", "a.gff"])
+      .expect("no type filters parses");
+    assert!(common.only_type.is_empty());
+    assert!(common.exclude_type.is_empty());
+  }
+
+  #[test]
+  fn parse_fraction_accepts_closed_unit_interval() {
+    parse_fraction("0").unwrap();
+    parse_fraction("0.5").unwrap();
+    parse_fraction("1").unwrap();
+  }
+
+  #[test]
+  fn parse_fraction_rejects_out_of_range_and_non_numeric() {
+    parse_fraction("-0.01").unwrap_err();
+    parse_fraction("1.01").unwrap_err();
+    parse_fraction("NaN").unwrap_err();
+    parse_fraction("inf").unwrap_err();
+    parse_fraction("abc").unwrap_err();
+  }
 }

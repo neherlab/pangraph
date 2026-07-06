@@ -32,6 +32,8 @@ If you have Pangraph CLI installed, you can type `pangraph --help` to read the l
 * [`pangraph simplify`↴](#pangraph-simplify)
 * [`pangraph reconstruct`↴](#pangraph-reconstruct)
 * [`pangraph annotate`↴](#pangraph-annotate)
+* [`pangraph annotate nodes`↴](#pangraph-annotate-nodes)
+* [`pangraph annotate blocks`↴](#pangraph-annotate-blocks)
 * [`pangraph schema`↴](#pangraph-schema)
 * [`pangraph completions`↴](#pangraph-completions)
 * [`pangraph help-markdown`↴](#pangraph-help-markdown)
@@ -335,7 +337,20 @@ Reconstruct all input fasta sequences from graph
 
 Lift genome annotations onto the pangenome graph
 
-**Usage:** `pangraph annotate [OPTIONS] --gff <GFF> [INPUT]`
+**Usage:** `pangraph annotate <COMMAND>`
+
+###### **Subcommands:**
+
+* `nodes` — Lift annotations to per-node block-consensus coordinates (lossless, long-format CSV)
+* `blocks` — Compact node-level annotations into block-level consensus features (CSV)
+
+
+
+## `pangraph annotate nodes`
+
+Lift annotations to per-node block-consensus coordinates (lossless, long-format CSV)
+
+**Usage:** `pangraph annotate nodes [OPTIONS] --gff <GFF>... [INPUT]`
 
 ###### **Arguments:**
 
@@ -347,14 +362,67 @@ Lift genome annotations onto the pangenome graph
 
 ###### **Options:**
 
-* `--gff <GFF>` — Path to a GFF3 annotation file. Repeat the flag to provide multiple files.
+* `--gff <GFF>` — Path(s) to GFF3 annotation file(s).
+
+   Pass several files after a single flag (`--gff a.gff b.gff`, so shell globs like `--gff *.gff` work), and/or repeat the flag (`--gff a.gff --gff b.gff`); the values accumulate. To avoid the positional graph being slurped as an extra GFF, give it before the flag (`annotate nodes graph.json --gff *.gff`) or pipe it via stdin.
 
    Accepts plain or compressed files (`gz`, `bz2`, `xz`, `zstd`), chosen by file extension. At least one file is required. Annotation `seqid`s must match the graph path names exactly.
-* `-o`, `--output <OUTPUT>` — Path to the output node-level annotation table (CSV).
+* `--only-type <ONLY_TYPE>` — Keep only annotations of these feature type(s) (GFF `type` column); drop all others.
+
+   Comma-separated list (`--only-type gene,CDS`) and/or repeat the flag; values accumulate. Matching is exact and case-sensitive (`CDS`, `gene`, `region`). Mutually exclusive with `--exclude-type`.
+* `--exclude-type <EXCLUDE_TYPE>` — Drop annotations of these feature type(s) (GFF `type` column); keep all others.
+
+   e.g. `--exclude-type region` removes whole-contig `region` declarations. Same comma-separated syntax as `--only-type`; mutually exclusive with it.
+* `-o`, `--output <OUTPUT>` — Path to the output annotation table (CSV).
 
    Will be created if it does not exist. The output is compressed if the path ends in a known compression extension (`gz`, `bz2`, `xz`, `zstd`). Use `-` to write uncompressed CSV to standard output (stdout).
 
   Default value: `-`
+
+
+
+## `pangraph annotate blocks`
+
+Compact node-level annotations into block-level consensus features (CSV)
+
+**Usage:** `pangraph annotate blocks [OPTIONS] --gff <GFF>... [INPUT]`
+
+###### **Arguments:**
+
+* `<INPUT>` — Path to Pangraph JSON.
+
+   Accepts plain or compressed file. If a compressed file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension.
+
+   If no input file provided, the uncompressed input is read from standard input (stdin).
+
+###### **Options:**
+
+* `--gff <GFF>` — Path(s) to GFF3 annotation file(s).
+
+   Pass several files after a single flag (`--gff a.gff b.gff`, so shell globs like `--gff *.gff` work), and/or repeat the flag (`--gff a.gff --gff b.gff`); the values accumulate. To avoid the positional graph being slurped as an extra GFF, give it before the flag (`annotate nodes graph.json --gff *.gff`) or pipe it via stdin.
+
+   Accepts plain or compressed files (`gz`, `bz2`, `xz`, `zstd`), chosen by file extension. At least one file is required. Annotation `seqid`s must match the graph path names exactly.
+* `--only-type <ONLY_TYPE>` — Keep only annotations of these feature type(s) (GFF `type` column); drop all others.
+
+   Comma-separated list (`--only-type gene,CDS`) and/or repeat the flag; values accumulate. Matching is exact and case-sensitive (`CDS`, `gene`, `region`). Mutually exclusive with `--exclude-type`.
+* `--exclude-type <EXCLUDE_TYPE>` — Drop annotations of these feature type(s) (GFF `type` column); keep all others.
+
+   e.g. `--exclude-type region` removes whole-contig `region` declarations. Same comma-separated syntax as `--only-type`; mutually exclusive with it.
+* `-o`, `--output <OUTPUT>` — Path to the output annotation table (CSV).
+
+   Will be created if it does not exist. The output is compressed if the path ends in a known compression extension (`gz`, `bz2`, `xz`, `zstd`). Use `-` to write uncompressed CSV to standard output (stdout).
+
+  Default value: `-`
+* `--min-frequency <MIN_FREQUENCY>` — Minimum frequency required to emit a block-level cluster.
+
+   A cluster is kept when the number of supporting genomes `M >= ceil(min_frequency * N)`, where `N` is the number of paths traversing the cluster's block(s) (so a gene is not penalised for being absent in genomes that lack the block entirely).
+
+  Default value: `0.9`
+* `--property-threshold <PROPERTY_THRESHOLD>` — Minimum supporter agreement required to promote a consensus name or attribute value.
+
+   For each cluster, a `name`/attribute value is written only if at least this fraction of the supporting genomes agree on it; otherwise the field is left empty.
+
+  Default value: `0.5`
 
 
 
