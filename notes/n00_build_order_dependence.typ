@@ -38,7 +38,9 @@ argument order. All six permutations now agree, with or without a guide tree.
 Two claims in the first draft of this note did not survive measurement, and are corrected in place:
 the mmseqs backend did #emph[not] share the defect, and neighbor-joining ties are not rare. The
 first of those led to a simpler alternative --- enabling minimap2's dual mappings --- which was
-tested, works, and is compared against the landed fix in the final section.
+tested, works, and is benchmarked against the landed fix in the final section. That benchmark in
+turn corrected a third claim of this note's own: the apparent quality advantage of dual mappings was
+a confounded comparison, and disappears once only one variable is changed.
 
 == Evidence
 
@@ -675,30 +677,76 @@ names, `BlockId` ordering, reference-wins-ties anchor selection, input-order nei
 This is a genuinely simpler fix. It needs one wrapper change: split `X: bool` into `X` plus a
 separate `dual` option, since nothing currently exposes `--dual`.
 
-=== What it costs, and what it does not buy
+=== A confounded comparison, corrected
 
-#table(
-  columns: (auto, auto, auto),
-  stroke: none,
-  table.header(
-    [], [*canonical naming (landed)*], [*dual mappings*],
-  ),
-  table.hline(),
-  [blocks, three genomes], [512], [459],
-  [wall time, three genomes], [17.0--17.8 s], [23.0--23.5 s (#sym.plus 33%)],
-  [code footprint], [new module, threaded through \~6 call sites], [\~1 line, plus exposing a flag],
-  [neighbor-joining fix still needed], [yes], [yes],
+An earlier version of this section reported that dual mappings gave 459 blocks against 512 for the
+landed fix, and reasoned from that gap that dual mappings produce a better-consolidated graph. That
+comparison was #emph[confounded]: it set pre-fix code #sym.plus dual mappings against canonical
+naming #sym.plus `-X`, changing two things at once. The 459 was a property of the pre-fix anchor
+tie-break, not of dual mappings.
+
+Holding canonical naming fixed and toggling only dual mappings, the same three genomes give 512
+blocks against 514 --- a difference of two blocks, not fifty-three. The quality argument built on
+the larger gap does not survive.
+
+=== Benchmark across the bundled datasets
+
+Both variants were run over every dataset in `data/`, plus the three-genome reproducer, with
+canonical naming held fixed so that dual mapping is the only variable. Graph metrics are computed
+from the JSON directly; the definitions were cross-checked against
+`pypangraph.to_blockstats_df()` on `data/test_graph.json` and agree exactly (14 blocks, 6 core,
+33 611 core bp, 50 791 pangenome bp). A block counts as #emph[core] when every path crosses it
+exactly once.
+
+#figure(
+  image("assets/n00/dual_quality.png", width: 92%),
+  caption: [Graph metrics are unchanged on seven of ten datasets --- `example`, `flu-h1`, `flu-h3`,
+  `ges-1`, `mpox`, `russian_doll_plasmids` and `sc2` are bit-identical. Where they do move, every
+  change is under 1%, and not consistently signed.],
 )
 
-The overhead is #sym.plus 33%, not the 2#sym.times one might assume: alignment is not the whole
-pipeline.
+#figure(
+  image("assets/n00/dual_runtime.png", width: 92%),
+  caption: [Runtime overhead of dual mappings. Datasets completing in under a second are omitted as
+  timing noise. Measured with nothing else running on the machine.],
+)
 
-There is a quality argument #emph[for] dual mappings, independent of determinism. The direction
-probe in the evidence section showed the two directions genuinely find different homology --- 147
-versus 146 hits, 263 139 versus 266 047 matched bases. Under `-X` one of those is discarded
-arbitrarily; with dual mappings `filter_matches` sees both and keeps the better-scoring one. The
-lower block count (459 versus 512) is consistent with better alignment evidence producing fewer
-spurious splits, though which graph is biologically preferable has not been assessed.
+Absolute values for the datasets where anything changed:
+
+#table(
+  columns: (auto, auto, auto, auto, auto),
+  stroke: none,
+  table.header(
+    [*dataset*], [*variant*], [*blocks*], [*core bp*], [*pangenome bp*],
+  ),
+  table.hline(),
+  [klebs (9 genomes)],   [`-X`],   [1 381], [4 458 249], [7 644 985],
+  [],                    [dual],   [1 372], [4 457 866], [7 644 453],
+  [ecoli (10 genomes)],  [`-X`],   [2 914], [3 782 006], [7 830 290],
+  [],                    [dual],   [2 908], [3 782 120], [7 827 250],
+  [campylobacter (3)],   [`-X`],   [512],   [102 659],   [3 445 626],
+  [],                    [dual],   [514],   [102 867],   [3 445 993],
+)
+
+Two things follow. Dual mappings are close to free in graph terms --- seven of ten datasets are
+bit-identical, and the three that move do so by well under 1%. And the direction of the change is
+inconsistent: dual mappings #emph[reduce] the block count on klebs (#sym.minus 0.65%) and ecoli
+(#sym.minus 0.21%) but #emph[increase] it on Campylobacter (#sym.plus 0.39%). There is no evidence
+here that either variant consolidates the graph better; they simply make marginally different
+choices at a handful of boundaries.
+
+The cost, by contrast, is real and consistent: every dataset gets slower, by 5% (`ges-1`) to 26%
+(Campylobacter), with the two large bacterial pangenomes at #sym.plus 11% and #sym.plus 19%. That is
+well short of the 2#sym.times one might assume --- alignment is not the whole pipeline --- but it is
+a uniform tax for no measured graph benefit.
+
+The remaining argument for dual mappings is therefore the one from evidence rather than from
+outcome: the direction probe showed the two directions genuinely find different homology (147 versus
+146 hits, 263 139 versus 266 047 matched bases), and under `-X` one of them is discarded
+arbitrarily. Using both is more principled. It just does not, on these datasets, produce a
+measurably different graph.
+
+=== What it does not buy
 
 The decisive distinction is elsewhere. Dual mappings do not remove the order-sensitive tie-breaks;
 they merely stop them being reached. The energy sort still falls through to vector order on exact
@@ -709,9 +757,17 @@ the code.] If two mirror alignments ever scored equal, the order dependence woul
 
 === Recommendation
 
-Keep the canonical naming as the guarantee, and treat dual mappings as a separate question about
-alignment #emph[quality] --- which is how they were first raised in this note. The two compose:
-dual mappings supply better evidence, canonical naming keeps invariance structural, and the
-tie-break hardening stays cheap insurance under either. Adopting dual mappings alone is defensible
-if the smaller change is preferred, but it trades a structural guarantee for a contingent one, and
-the 512-versus-459 difference should be understood on quality grounds before choosing.
+Keep the canonical naming, and do not adopt dual mappings on the strength of this evidence.
+
+The case for dual mappings rested on two claims, and the benchmark removes both. It was to be the
+simpler fix --- but it is not sufficient on its own, since the neighbor-joining ordering still has
+to be fixed separately, and it only makes invariance contingent on mirror alignments never tying.
+And it was to produce a better graph --- but across ten datasets it produces the #emph[same] graph
+seven times, sub-1% differences three times, in no consistent direction, at a uniform 5--26% runtime
+cost.
+
+What remains is a principled objection to `-X`: discarding one direction of a pairwise alignment
+throws away real signal. That objection stands, and if the alignment stage is ever revisited for
+quality reasons, dual mappings are the right thing to reach for --- ideally with a quality metric
+better than block counts to judge by. On present evidence it is a cost with no measured benefit,
+and the canonical naming already delivers the guarantee it was meant to provide.
