@@ -28,9 +28,15 @@ Argument order therefore decides, for every pair of blocks, which one is the que
 is the reference. That choice is not neutral: the alignment is asymmetric, and downstream the
 reference is privileged when choosing the consensus that the merged block inherits.
 
-The proposed fix is to make the aligner boundary #emph[canonical]: order and name blocks by a hash
-of their consensus sequence, so that everything the aligner sees is a pure function of the block
-content, independent of input order, tree order and identifier assignment.
+The fix, now implemented, is to make the aligner boundary #emph[canonical]: order and name blocks by
+a hash of their consensus sequence, so that everything the aligner sees is a pure function of the
+block content, independent of input order, tree order and identifier assignment. A second, initially
+underestimated defect had to be fixed alongside it - neighbor joining resolves its Q-matrix ties by
+matrix row order, which for three taxa is always tied, so the inferred topology itself followed the
+argument order. All six permutations now agree, with or without a guide tree.
+
+Two claims in the first draft of this note did not survive measurement, and are corrected in place:
+the mmseqs backend did #emph[not] share the defect, and neighbor-joining ties are not rare.
 
 == Evidence
 
@@ -331,19 +337,19 @@ An obvious alternative is to assign singleton identifiers in tree-leaf order rat
 order when `--guide-tree` is given. It does achieve argument-order independence, but it is
 strictly weaker:
 
-- It only covers the `--guide-tree` path. The neighbour-joining path has its own order dependence:
-  `pair()` uses `Q.argmin()` (`tree/neighbor_joining.rs:64`), which returns the first minimum in
-  row-major order, tie-broken by input position.
+- It only covers the `--guide-tree` path, leaving the default invocation broken. The
+  neighbor-joining path has its own, independent order dependence, addressed separately below.
 - It trades one arbitrary convention for another. `((A,B),C)` and `((B,A),C)` are the same topology
   but would still give different graphs.
 - It has an implementation trap: `PathId.0` is used as a direct index into the FASTA vector
   (`reconstruct/reconstruct_run.rs:62` together with `build/build_run.rs:44`), so renumbering
   without permuting the records silently verifies against the wrong sequences.
 
-By contrast, canonicalising the aligner boundary removes the dependence on #emph[all] of these at
-once. Because `graph_join` is symmetric (`map_merge` over `BTreeMap`s) and `merge_graphs` uses
-left/right only for debug logging, sibling order in the tree also stops mattering once the aligner
-input is canonical.
+By contrast, canonicalising the aligner boundary removes the dependence on the first two at once.
+Because `graph_join` is symmetric (`map_merge` over `BTreeMap`s) and `merge_graphs` uses left/right
+only for debug logging, sibling order in the tree also stops mattering once the aligner input is
+canonical --- confirmed by measurement. The neighbor-joining path needs its own fix, which is the
+one place where this approach is not sufficient on its own.
 
 == Problems this could introduce
 
@@ -408,14 +414,39 @@ first appears:
   per `self_merge` iteration. Hashing all consensuses costs one pass over the block sequence set
   --- a few Mbp at `XxHash64` throughput, i.e. milliseconds against multi-second alignment stages.
 
-=== The mmseqs backend needs the same treatment
+=== The mmseqs backend did *not* carry the defect
 
-`align_with_mmseqs` (`align/mmseqs/align_with_mmseqs.rs:33`) writes its FASTA in `BTreeMap` order
-under `id.to_string()` names, so it carries the identical defect by a different route. It does not
-pass `-X`, so it returns both directions; `filter_matches` then accepts one and rejects its mirror
-as overlapping, with the choice again falling to sort ties. Building `BlockNames` at the
-`find_matches` level rather than inside the minimap2 backend fixes both backends at once and keeps
-them consistent.
+An earlier draft of this note claimed that `align_with_mmseqs` carried the identical defect by a
+different route, since it also writes its FASTA in `BTreeMap` order under `id.to_string()` names.
+Measurement contradicts that. On the same three *Campylobacter* genomes that swing minimap2 from
+508 to 462 blocks, the mmseqs backend was already order-invariant before any change:
+
+#table(
+  columns: (auto, auto, auto),
+  stroke: none,
+  table.header(
+    [*backend / argument order*], [*blocks (before fix)*], [*consensus-set digest*],
+  ),
+  table.hline(),
+  [mmseqs, `ERS AP NZ`], [297], [`865e8320ea1d72b1`],
+  [mmseqs, `NZ ERS AP`], [297], [`865e8320ea1d72b1`],
+)
+
+The reason is precisely the `-X` flag. mmseqs does *not* pass it, so it computes both directions of
+every pair and the resulting alignment set is symmetric - independent of which sequence is nominally
+the query. `filter_matches` then ranks by energy, and the ranking is itself order-independent, so no
+tie-break is ever reached. `MM_F_NO_DUAL` is not merely one mechanism among several: it is *the*
+mechanism, and only the minimap2 path used it.
+
+The canonicalization is still applied to mmseqs, for two reasons: it removes the backend's residual
+reliance on vector-order tie-breaking in `filter_matches` (latent rather than observed), and it keeps
+the two backends behaving identically rather than accidentally-equivalently. But it should be
+recorded as hardening, not as a bug fix.
+
+It is not free, though. Because the anchor tie-break changed, mmseqs output *moves*: 297 blocks
+before, 317 after, order-invariant in both cases. That is a different-but-equally-valid anchor
+choice on a backend that was not broken, and anyone comparing mmseqs graphs across this change
+should expect the shift.
 
 === Downstream fixtures and `pypangraph`
 
@@ -466,12 +497,47 @@ stable across runs with different input order.
 - *No performance regression.* `-X` still halves the pair count; the index size and mapping work are
   unchanged; the parallel stage gets marginally better splitting.
 
+=== Neighbor-joining ties are not rare, and had to be fixed too
+
+An earlier draft listed the neighbor-joining tie-break as an out-of-scope residual, on the
+assumption that exact ties in the Q matrix are rare with real-valued mash distances. That reasoning
+was wrong, and for the commonest small case it is wrong by construction.
+
+For three taxa, write $S_k$ for the sum of row $k$ of the distance matrix. With $n = 3$ the code
+computes $Q_(i j) = D_(i j) - S_i - S_j$, so
+
+$ Q_12 = D_12 - (D_12 + D_13) - (D_12 + D_23) = -(D_12 + D_13 + D_23) $
+
+and the same value comes out for $Q_13$ and $Q_23$. #emph[Every] off-diagonal entry is identical,
+regardless of the data. `Q.argmin()` therefore always returns `(0, 1)`, and the tree is always
+`((first, second), third)` in argument order. This is exactly what the reproducer shows: the same
+three genomes give `((ERS990151,AP025961),NZ_CP035927)` in one order and
+`((NZ_CP035927,ERS990151),AP025961)` in another - genuinely different topologies, not sibling swaps.
+
+Since a different topology legitimately yields a different graph, canonicalizing the aligner
+boundary cannot help here; the tree itself has to stop depending on argument order. The fix is to
+order the leaves handed to neighbor joining by a content-derived key, so that the row order the
+tie-break falls back on is a property of the sequences rather than of the command line:
+
+```rust
+fn graph_content_key(graph: &Pangraph) -> Vec<u64> {
+  graph.blocks.values().map(consensus_hash).sorted().collect()
+}
+
+pub fn build_tree_using_neighbor_joining(graphs: Vec<Pangraph>) -> Result<...> {
+  let mut graphs = graphs;
+  graphs.sort_by_cached_key(graph_content_key);
+  // ...
+}
+```
+
+Without this, the default invocation - no `--guide-tree` - remains order-dependent, so a fix that
+stopped at the aligner boundary would have left the common case broken.
+
 === Residual order dependence after the fix
 
 Honesty about what is #emph[not] fixed:
 
-+ Neighbour-joining tie-breaks (`Q.argmin()`) still resolve by input position. With real-valued mash
-  distances exact ties are rare, but this remains and deserves a separate content-derived tie-break.
 + Identical-consensus blocks, as discussed, retain identifier-level (not sequence-level) order
   dependence.
 + `BlockId` values themselves still derive from `fasta.index`, so the identifiers appearing in
@@ -483,16 +549,71 @@ With those caveats, the guarantee becomes: #emph[the graph structure is a pure f
 sequence set, the tree topology, and the alignment parameters] --- independent of argument order and
 of sibling order within the tree.
 
-== Validation plan
+== Validation results
 
-+ Re-run the six-permutation matrix from `tmp/pangraph_order_bug/run.sh`; block counts and block
-  consensus sets must collapse to a single value.
-+ Add a regression test asserting that a permuted FASTA argument list yields identical block
-  consensus multisets, both with and without `--guide-tree`.
-+ Add a test that a sibling-swapped guide tree (`((A,B),C)` vs `((B,A),C)`) yields identical output.
-+ Add a unit test with two blocks sharing an identical consensus, asserting they still merge ---
-  this is the collision hazard, and it would fail under naive content-hash naming.
-+ Confirm the mmseqs backend agrees with minimap2 on direction selection.
-+ Confirm no fixture is regenerated as a side effect: `data/test_graph.json` and
-  `packages/pypangraph/tests/data/plasmids.json` must be byte-identical after the change, so that
-  the test suites verify the fix rather than absorb it.
+Implemented on branch `debug/order-dependence` across five commits: `BlockNames` and its unit tests,
+the aligner boundary, the downstream tie-breaks, the neighbor-joining leaf ordering, and the
+invariance regression tests.
+
+=== The reproducer collapses
+
+All six permutations of the three *Campylobacter* genomes, `--circular --guide-tree`:
+
+#table(
+  columns: (auto, auto, auto),
+  stroke: none,
+  table.header(
+    [*argument order*], [*blocks before*], [*blocks after*],
+  ),
+  table.hline(),
+  [`ERS AP NZ`], [508], [512],
+  [`ERS NZ AP`], [462], [512],
+  [`AP ERS NZ`], [497], [512],
+  [`AP NZ ERS`], [452], [512],
+  [`NZ ERS AP`], [462], [512],
+  [`NZ AP ERS`], [452], [512],
+)
+
+The consensus multisets are byte-identical across all six (SHA-256 `5495a5963cd3b2b8`), as are the
+depth multisets. A sibling-swapped guide tree gives the same digest, and the neighbor-joining path
+(no `--guide-tree`) likewise collapses to a single answer across all six orders - 522 blocks, which
+differs from 512 only because it infers a different topology, as it should.
+
+The JSON is *not* byte-identical between orders, exactly as predicted: `BlockId` still derives from
+`fasta.index`, so identifiers move even when structure does not.
+
+=== The regression tests discriminate
+
+`packages/pangraph/tests/itest_build_order_invariance.rs` asserts invariance over six argument
+permutations under three topologies, plus sibling-swap invariance. Each assertion was checked
+against deliberately reverted code:
+
+#table(
+  columns: (auto, auto),
+  stroke: none,
+  table.header(
+    [*reverted component*], [*failing case*],
+  ),
+  table.hline(),
+  [canonical names + anchor tie-break], [`balanced_guide_tree`, order `[3,2,1,0]`],
+  [neighbor-joining leaf ordering], [`no_guide_tree`, order `[3,2,1,0]`],
+)
+
+One lesson is worth recording, because the first version of this test was worthless. A
+#emph[three]-genome fixture cannot detect the anchor defect: the final merge joins a depth-2 clade
+with a depth-1 leaf, so depth decides and the tie-break never runs. The test passed with the fix
+fully reverted. It needs four genomes and a balanced topology, so that the top merge is depth-2
+against depth-2 - a genuine tie. Any future fixture for this class of bug must be checked against
+reverted code before it is trusted.
+
+=== Fixtures are untouched
+
+`data/test_graph.json` and `packages/pypangraph/tests/data/plasmids.json` are byte-identical after
+the change, so both suites verify the fix rather than absorb it. All 327 unit tests and all
+integration tests pass; `clippy --all-targets -Dwarnings` is clean.
+
+=== Still unverified
+
+The two-identical-consensus-blocks merge case is covered only at the naming level
+(`identical_consensus_blocks_get_distinct_names`), not end to end through a real alignment. The
+collision hazard argument in the corresponding section is therefore reasoned, not measured.
