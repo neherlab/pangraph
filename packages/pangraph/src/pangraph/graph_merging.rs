@@ -1,5 +1,6 @@
 use crate::align::alignment::Alignment;
 use crate::align::alignment_args::AlignmentArgs;
+use crate::align::block_names::BlockNames;
 use crate::align::energy::alignment_energy2;
 use crate::align::minimap2_lib::align_with_minimap2_lib::align_with_minimap2_lib;
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
@@ -93,9 +94,14 @@ pub fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
 }
 
 pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, bool), Report> {
+  // Canonical, content-derived names and ordering for this round of alignment. Everything the
+  // aligner sees - and every tie-break that consumes its output - is keyed on these rather than
+  // on `BlockId`s, which carry the input order.
+  let names = BlockNames::from_blocks(&graph.blocks);
+
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
-  let matches = find_matches(&graph.blocks, args)?;
+  let matches = find_matches(&graph.blocks, &names, args)?;
   debug!("Found matches: {}", matches.len());
   trace!("{matches:#?}");
 
@@ -118,7 +124,7 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
   // - calculate energy and keep only matches with E < 0
   // - sort them by energy
   // - discard incompatible matches (the ones that have overlapping regions)
-  let mut matches = filter_matches(&matches, &args.aln_args);
+  let mut matches = filter_matches(&matches, &names, &args.aln_args);
   debug!("Matches after filtering: {}", matches.len());
   trace!("{matches:#?}");
 
@@ -139,7 +145,7 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
   // - adding the blocks that do not need merging to the preliminary graph
   // - return the set of blocks that should be merged
   let (mut graph, mergers) =
-    reweave(&mut matches, graph, args.aln_args.indel_len_threshold).wrap_err("During reweave")?;
+    reweave(&mut matches, graph, &names, args.aln_args.indel_len_threshold).wrap_err("During reweave")?;
 
   let mut merged_blocks: Vec<PangraphBlock> = mergers
     .into_par_iter()
@@ -175,16 +181,17 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
 // Returns a list of alignment objects.
 pub fn find_matches(
   blocks: &BTreeMap<BlockId, PangraphBlock>,
+  names: &BlockNames,
   args: &PangraphBuildArgs,
 ) -> Result<Vec<Alignment>, Report> {
   match args.alignment_kernel {
-    AlignmentBackend::Minimap2 => align_with_minimap2_lib(blocks, &args.aln_args),
-    AlignmentBackend::Mmseqs => align_with_mmseqs(blocks, &args.aln_args),
+    AlignmentBackend::Minimap2 => align_with_minimap2_lib(blocks, names, &args.aln_args),
+    AlignmentBackend::Mmseqs => align_with_mmseqs(blocks, names, &args.aln_args),
   }
   .wrap_err_with(|| format!("When trying to align sequences using {}", &args.alignment_kernel))
 }
 
-pub fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
+pub fn filter_matches(alns: &[Alignment], names: &BlockNames, args: &AlignmentArgs) -> Vec<Alignment> {
   // - evaluates the energy of the alignments
   // - keeps only matches with E < 0
   // - sorts them by energy
@@ -192,11 +199,22 @@ pub fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment
 
   // TODO: energy is calculated for each alignment.
   // Consider calculating it earlier and making it a property to simplify filtering and sorting.
+  //
+  // Equal-energy matches are broken on a content-derived key rather than left to the order the
+  // aligner happened to emit them in: acceptance below is greedy, so the tie order decides which
+  // of two overlapping matches survives.
   let alns = alns
     .iter()
     .map(|aln| (aln, alignment_energy2(aln, args)))
     .filter(|(_, energy)| energy < &0.0)
-    .sorted_by_key(|(_, energy)| OrderedFloat(*energy))
+    .sorted_by(|(a, ea), (b, eb)| {
+      OrderedFloat(*ea)
+        .cmp(&OrderedFloat(*eb))
+        .then_with(|| names.sort_key(a.qry.name).cmp(&names.sort_key(b.qry.name)))
+        .then_with(|| a.qry.interval.start.cmp(&b.qry.interval.start))
+        .then_with(|| names.sort_key(a.reff.name).cmp(&names.sort_key(b.reff.name)))
+        .then_with(|| a.reff.interval.start.cmp(&b.reff.interval.start))
+    })
     .map(|(aln, _)| aln)
     .collect_vec();
 
@@ -246,7 +264,9 @@ mod tests {
   use super::*;
   use crate::align::alignment::Hit;
   use crate::align::bam::cigar::parse_cigar_str;
+  use crate::pangraph::pangraph_node::NodeId;
   use crate::pangraph::strand::Strand;
+  use crate::representation::seq::Seq;
   use eyre::Report;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
@@ -369,7 +389,18 @@ mod tests {
 
     let alns = [aln_0.clone(), aln_1.clone(), aln_2, aln_3];
 
-    assert_eq!(filter_matches(&alns, &args), vec![aln_1, aln_0]);
+    // `filter_matches` keys its tie-breaking on block content, so it needs the blocks the
+    // alignments refer to. Distinct consensuses keep the ordering well-defined.
+    let blocks = (0..=6)
+      .map(|i| {
+        let bid = BlockId(i);
+        let consensus = Seq::from_str(&"ACGT".repeat(i + 1));
+        (bid, PangraphBlock::from_consensus(consensus, bid, NodeId(i)))
+      })
+      .collect();
+    let names = BlockNames::from_blocks(&blocks);
+
+    assert_eq!(filter_matches(&alns, &names, &args), vec![aln_1, aln_0]);
 
     Ok(())
   }

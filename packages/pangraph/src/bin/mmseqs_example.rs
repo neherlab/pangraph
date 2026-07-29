@@ -3,6 +3,7 @@ use ctor::ctor;
 use eyre::Report;
 use maplit::btreemap;
 use pangraph::align::alignment_args::AlignmentArgs;
+use pangraph::align::block_names::BlockNames;
 use pangraph::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use pangraph::io::fasta::FastaReader;
 use pangraph::pangraph::pangraph_block::{BlockId, PangraphBlock};
@@ -42,7 +43,8 @@ fn main() -> Result<(), Report> {
     .map(|block| (block.id(), block))
     .collect();
 
-  let result = align_with_mmseqs(&blocks, &params)?;
+  let names = BlockNames::from_blocks(&blocks);
+  let result = align_with_mmseqs(&blocks, &names, &params)?;
   println!("{:#?}", &result);
 
   Ok(())

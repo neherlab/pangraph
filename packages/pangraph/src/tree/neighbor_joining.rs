@@ -1,5 +1,6 @@
 #![allow(non_snake_case)]
 
+use crate::align::block_names::consensus_hash;
 use crate::distance::mash::mash_distance::mash_distance;
 use crate::distance::mash::minimizer::MinimizersParams;
 use crate::pangraph::pangraph::Pangraph;
@@ -12,8 +13,21 @@ use itertools::Itertools;
 use ndarray::{Array1, Array2, Axis, s};
 use ndarray_stats::QuantileExt;
 
+/// Content-derived key for ordering the leaves fed to neighbor joining.
+///
+/// `Q.argmin()` returns the *first* minimum in row-major order, so the row order of the distance
+/// matrix silently decides which pair is joined whenever the Q matrix ties. Keying the order on
+/// block content instead of on input position keeps that choice independent of the order the input
+/// FASTA files were listed in.
+fn graph_content_key(graph: &Pangraph) -> Vec<u64> {
+  graph.blocks.values().map(consensus_hash).sorted().collect()
+}
+
 /// Generate guide tree using neighbor joining method.
 pub fn build_tree_using_neighbor_joining(graphs: Vec<Pangraph>) -> Result<Lock<Clade<Option<Pangraph>>>, Report> {
+  let mut graphs = graphs;
+  graphs.sort_by_cached_key(graph_content_key);
+
   let mut distances = calculate_distances(&graphs);
 
   let mut nodes = graphs
