@@ -37,11 +37,18 @@ pub struct BlockNames {
   order: Vec<BlockId>,
 }
 
-/// Computes the content-derived ordering key of a block.
-fn consensus_key(id: BlockId, block: &PangraphBlock) -> BlockKey {
+/// Hashes a block's consensus sequence.
+///
+/// Content-derived, and therefore independent of how `BlockId`s were assigned.
+pub fn consensus_hash(block: &PangraphBlock) -> u64 {
   let mut hasher = XxHash64::with_seed(0);
   block.consensus().hash(&mut hasher);
-  (hasher.finish(), id)
+  hasher.finish()
+}
+
+/// Computes the content-derived ordering key of a block.
+fn consensus_key(id: BlockId, block: &PangraphBlock) -> BlockKey {
+  (consensus_hash(block), id)
 }
 
 /// Renders a canonical, fixed-width name for a block.
