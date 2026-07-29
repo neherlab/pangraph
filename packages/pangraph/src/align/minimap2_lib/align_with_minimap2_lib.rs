@@ -1,10 +1,11 @@
 use crate::align::alignment::{Alignment, Hit};
 use crate::align::alignment_args::AlignmentArgs;
+use crate::align::block_names::BlockNames;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::strand::Strand;
 use crate::{make_error, make_internal_error};
 use eyre::{Report, WrapErr};
-use itertools::{Itertools, izip};
+use itertools::Itertools;
 use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset, Minimap2Result};
 use noodles::sam::record::Cigar;
 use num_traits::clamp_min;
@@ -12,23 +13,33 @@ use rayon::prelude::*;
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+/// Aligns the consensus sequences of `blocks` against each other, all-vs-all.
+///
+/// Blocks are fed in canonical (content-derived) order under canonical names, so that neither the
+/// set of alignments nor the query/reference role of each pair depends on how `BlockId`s were
+/// assigned - and therefore on the order the input FASTA files were listed. See [`BlockNames`].
 pub fn align_with_minimap2_lib(
   blocks: &BTreeMap<BlockId, PangraphBlock>,
+  names: &BlockNames,
   params: &AlignmentArgs,
 ) -> Result<Vec<Alignment>, Report> {
-  let (names, seqs): (Vec<String>, Vec<&str>) = blocks
-    .iter()
-    .map(|(id, block)| (id.to_string(), block.consensus().as_str()))
+  let (seq_names, seqs): (Vec<&str>, Vec<&str>) = names
+    .canonical_order()
+    .map(|id| (names.name(id), blocks[&id].consensus().as_str()))
     .unzip();
 
-  let alns: Vec<Alignment> = align_with_minimap2_lib_impl(&seqs, &names, params)?;
+  let alns: Vec<Alignment> = align_with_minimap2_lib_impl(&seqs, &seq_names, &|n| names.id_of(n), params)?;
 
   Ok(alns)
 }
 
+/// Aligner mechanics, decoupled from how sequence names map back to blocks.
+///
+/// `resolve` recovers the [`BlockId`] a name refers to; the caller decides the naming scheme.
 fn align_with_minimap2_lib_impl(
   seqs: &[impl AsRef<str>],
   names: &[impl AsRef<str>],
+  resolve: &(dyn Fn(&str) -> Result<BlockId, Report> + Sync),
   params: &AlignmentArgs,
 ) -> Result<Vec<Alignment>, Report> {
   if names.len() != seqs.len() {
@@ -61,11 +72,15 @@ fn align_with_minimap2_lib_impl(
 
   let idx = Minimap2Index::new(&seqs, &names, &args)?;
 
-  let results: Vec<Minimap2Result> = izip!(&seqs, &names)
-    .par_bridge()
+  // `par_iter().zip()` over slices is an indexed parallel iterator, for which `collect` preserves
+  // input order by construction. `par_bridge()` does not guarantee order, which would leave the
+  // energy-sort tie-breaking in `filter_matches` at the mercy of thread scheduling.
+  let results: Vec<Minimap2Result> = seqs
+    .par_iter()
+    .zip(names.par_iter())
     .map_init(
       || Minimap2Mapper::new(&idx).unwrap(),
-      move |mapper, (seq, name)| {
+      |mapper, (seq, name)| {
         mapper
           .run_map(seq, name)
           .wrap_err_with(|| format!("When aligning sequence '{name}'"))
@@ -75,7 +90,7 @@ fn align_with_minimap2_lib_impl(
 
   let alns = results
     .into_iter()
-    .map(Alignment::from_minimap_paf_obj)
+    .map(|res| Alignment::from_minimap_paf_obj(res, resolve))
     .collect::<Result<Vec<Vec<_>>, Report>>()?
     .into_iter()
     .flatten()
@@ -86,7 +101,10 @@ fn align_with_minimap2_lib_impl(
 
 #[allow(clippy::multiple_inherent_impl)]
 impl Alignment {
-  pub fn from_minimap_paf_obj(res: Minimap2Result) -> Result<Vec<Self>, Report> {
+  pub fn from_minimap_paf_obj(
+    res: Minimap2Result,
+    resolve: &(dyn Fn(&str) -> Result<BlockId, Report> + Sync),
+  ) -> Result<Vec<Self>, Report> {
     let Minimap2Result { pafs, .. } = res;
     pafs
       .into_iter()
@@ -94,12 +112,12 @@ impl Alignment {
         if let Some(cg) = &paf.cg {
           Ok(Alignment {
             qry: Hit::new(
-              BlockId::from_str(&paf.q.name)?,
+              resolve(&paf.q.name)?,
               paf.q.len,
               (paf.q.start as usize, paf.q.end as usize),
             ),
             reff: Hit::new(
-              BlockId::from_str(&paf.t.name)?,
+              resolve(&paf.t.name)?,
               paf.t.len,
               (paf.t.start as usize, paf.t.end as usize),
             ),
@@ -183,7 +201,8 @@ mod tests {
       ..AlignmentArgs::default()
     };
 
-    let actual = align_with_minimap2_lib_impl(&seqs, &names, &params)?;
+    // Names here are the FASTA record ids, so resolve them as plain integers.
+    let actual = align_with_minimap2_lib_impl(&seqs, &names, &|n| BlockId::from_str(&n.to_owned()), &params)?;
 
     let expected = vec![Alignment {
       qry: Hit::new(BlockId(0), 998, (0, 996)),

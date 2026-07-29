@@ -178,7 +178,8 @@ mod tests {
   fn unknown_name_is_rejected() {
     let blocks = blocks_of(&[(0, "ACGT")]);
     let names = BlockNames::from_blocks(&blocks);
-    assert!(names.id_of("not-a-name").is_err());
+    let err = names.id_of("not-a-name").unwrap_err();
+    assert!(err.to_string().contains("unknown sequence name"));
   }
 
   /// Blocks sharing a consensus must still receive distinct names: identical names would make

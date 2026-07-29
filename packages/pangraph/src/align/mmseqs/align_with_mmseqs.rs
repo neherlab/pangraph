@@ -1,5 +1,6 @@
 use crate::align::alignment::Alignment;
 use crate::align::alignment_args::AlignmentArgs;
+use crate::align::block_names::BlockNames;
 use crate::align::mmseqs::paf::PafTsvRecord;
 use crate::io::fasta::FastaWriter;
 use crate::io::file::open_file_or_stdin;
@@ -15,8 +16,14 @@ use std::io::Read;
 use std::process::Command;
 use tempfile::Builder as TempDirBuilder;
 
+/// Aligns the consensus sequences of `blocks` against each other using mmseqs.
+///
+/// Like the minimap2 backend, blocks are written in canonical (content-derived) order under
+/// canonical names, so the result does not depend on how `BlockId`s were assigned. See
+/// [`BlockNames`].
 pub fn align_with_mmseqs(
   blocks: &BTreeMap<BlockId, PangraphBlock>,
+  names: &BlockNames,
   params: &AlignmentArgs,
 ) -> Result<Vec<Alignment>, Report> {
   // TODO: This uses a global resource - filesystem.
@@ -29,9 +36,9 @@ pub fn align_with_mmseqs(
 
   {
     let mut writer = FastaWriter::from_path(&input_path)?;
-    blocks
-      .iter()
-      .try_for_each(|(id, block)| writer.write(id.to_string(), &None, block.consensus()))?;
+    names
+      .canonical_order()
+      .try_for_each(|id| writer.write(names.name(id), &None, blocks[&id].consensus()))?;
   }
 
   let output_column_names = PafTsvRecord::fields_names().join(",");
@@ -66,7 +73,7 @@ pub fn align_with_mmseqs(
   let mut paf_str = String::new();
   open_file_or_stdin(&Some(output_path))?.read_to_string(&mut paf_str)?;
 
-  Alignment::from_paf_str(&paf_str)
+  Alignment::from_paf_str(&paf_str, &|n| names.id_of(n))
 }
 
 // FIXME: This test is failing after commit a62b19b018b4b2f9602bc75335d4ab5ddbc7abf5

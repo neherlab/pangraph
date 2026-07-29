@@ -12,12 +12,15 @@ use std::io::Cursor;
 #[allow(dead_code)]
 #[derive(Clone, Debug, Deserialize)]
 pub struct PafTsvRecord {
-  /* 01 */ query: BlockId,
+  // `query` and `target` are sequence *names*, resolved to `BlockId`s by the caller. They cannot
+  // be deserialized as `BlockId` directly, since canonical names are not bare integers.
+  /* 01 */
+  query: String,
   /* 02 */ qlen: usize,
   /* 03 */ qstart: usize,
   /* 04 */ qend: usize,
   /* 05 */ empty: String,
-  /* 06 */ target: BlockId,
+  /* 06 */ target: String,
   /* 07 */ tlen: usize,
   /* 08 */ tstart: usize,
   /* 09 */ tend: usize,
@@ -37,7 +40,11 @@ impl PafTsvRecord {
 
 #[allow(clippy::multiple_inherent_impl)]
 impl Alignment {
-  pub fn from_paf_str(paf_str: impl AsRef<str>) -> Result<Vec<Self>, Report> {
+  /// Parses mmseqs PAF output, mapping sequence names back to blocks through `resolve`.
+  pub fn from_paf_str(
+    paf_str: impl AsRef<str>,
+    resolve: &(dyn Fn(&str) -> Result<BlockId, Report> + Sync),
+  ) -> Result<Vec<Self>, Report> {
     let mut rdr = CsvReaderBuilder::new()
       .delimiter(b'\t')
       .has_headers(false)
@@ -53,8 +60,8 @@ impl Alignment {
         let (tstart, tend, _) = order_range(paf.tstart, paf.tend);
 
         Ok(Alignment {
-          qry: Hit::new(paf.query, paf.qlen, (qstart, qend)),
-          reff: Hit::new(paf.target, paf.tlen, (tstart, tend)),
+          qry: Hit::new(resolve(&paf.query)?, paf.qlen, (qstart, qend)),
+          reff: Hit::new(resolve(&paf.target)?, paf.tlen, (tstart, tend)),
           matches: paf.nident,
           length: paf.alnlen,
           quality: paf.bits,
@@ -107,7 +114,10 @@ mod tests {
       divergence: Some(0.134),
       align: Some(693.0),
     }];
-    assert_eq!(Alignment::from_paf_str(paf_content).unwrap(), aln);
+    assert_eq!(
+      Alignment::from_paf_str(paf_content, &|n| BlockId::from_str(&n.to_owned())).unwrap(),
+      aln
+    );
   }
 
   #[rstest]
@@ -127,6 +137,9 @@ mod tests {
       divergence: Some(0.134),
       align: Some(693.0),
     }];
-    assert_eq!(Alignment::from_paf_str(paf_content).unwrap(), aln);
+    assert_eq!(
+      Alignment::from_paf_str(paf_content, &|n| BlockId::from_str(&n.to_owned())).unwrap(),
+      aln
+    );
   }
 }

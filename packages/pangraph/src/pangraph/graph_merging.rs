@@ -1,5 +1,6 @@
 use crate::align::alignment::Alignment;
 use crate::align::alignment_args::AlignmentArgs;
+use crate::align::block_names::BlockNames;
 use crate::align::energy::alignment_energy2;
 use crate::align::minimap2_lib::align_with_minimap2_lib::align_with_minimap2_lib;
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
@@ -93,9 +94,14 @@ pub fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
 }
 
 pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, bool), Report> {
+  // Canonical, content-derived names and ordering for this round of alignment. Everything the
+  // aligner sees - and every tie-break that consumes its output - is keyed on these rather than
+  // on `BlockId`s, which carry the input order.
+  let names = BlockNames::from_blocks(&graph.blocks);
+
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
-  let matches = find_matches(&graph.blocks, args)?;
+  let matches = find_matches(&graph.blocks, &names, args)?;
   debug!("Found matches: {}", matches.len());
   trace!("{matches:#?}");
 
@@ -175,11 +181,12 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
 // Returns a list of alignment objects.
 pub fn find_matches(
   blocks: &BTreeMap<BlockId, PangraphBlock>,
+  names: &BlockNames,
   args: &PangraphBuildArgs,
 ) -> Result<Vec<Alignment>, Report> {
   match args.alignment_kernel {
-    AlignmentBackend::Minimap2 => align_with_minimap2_lib(blocks, &args.aln_args),
-    AlignmentBackend::Mmseqs => align_with_mmseqs(blocks, &args.aln_args),
+    AlignmentBackend::Minimap2 => align_with_minimap2_lib(blocks, names, &args.aln_args),
+    AlignmentBackend::Mmseqs => align_with_mmseqs(blocks, names, &args.aln_args),
   }
   .wrap_err_with(|| format!("When trying to align sequences using {}", &args.alignment_kernel))
 }
