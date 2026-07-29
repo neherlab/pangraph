@@ -24,3 +24,6 @@ Thumbs.db
 __pycache__/
 ehthumbs.db
 /debug
+
+# compiled typst notes (source .typ is tracked)
+/notes/*.pdf
