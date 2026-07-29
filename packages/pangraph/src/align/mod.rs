@@ -1,6 +1,7 @@
 pub mod alignment;
 pub mod alignment_args;
 pub mod bam;
+pub mod block_names;
 pub mod energy;
 pub mod map_variations;
 pub mod minimap2_lib;
