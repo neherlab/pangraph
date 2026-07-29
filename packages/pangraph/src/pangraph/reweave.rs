@@ -1,5 +1,6 @@
 use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
 use crate::align::bam::cigar::{Side, add_flanking_indel, cigar_switch_ref_qry, invert_cigar};
+use crate::align::block_names::BlockNames;
 use crate::align::map_variations::{BandParameters, map_variations};
 use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::io::seq::reverse_complement;
@@ -11,12 +12,14 @@ use crate::pangraph::pangraph_interval::extract_intervals;
 use crate::pangraph::slice::block_slice;
 use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
+use crate::utils::interval::Interval;
 use color_eyre::{Section, SectionExt};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use noodles::sam::record::Cigar;
 use noodles::sam::record::cigar::op::Kind;
 use rayon::prelude::*;
+use std::cmp::Ordering;
 use std::collections::BTreeMap;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -139,35 +142,35 @@ fn assign_new_block_ids(mergers: &mut [Alignment]) {
   }
 }
 
-/// Assigns the anchor block for each merger
-/// based on the depth of the reference and query blocks.
-fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph) {
+/// Assigns the anchor block for each merger, based on the depth of the reference and query blocks.
+///
+/// The anchor's consensus is the one the merged block inherits, so this choice must not depend on
+/// which side the aligner happened to call "reference". Deeper block wins; then fewer ambiguous
+/// bases in the aligned interval; then a content-derived key. The final arm replaces a
+/// `ref_n <= qry_n` test that privileged the reference and so leaked the input order into the
+/// surviving consensus.
+fn assign_anchor_block(mergers: &mut [Alignment], graph: &Pangraph, names: &BlockNames) {
   for m in mergers.iter_mut() {
     let ref_block = &graph.blocks[&m.reff.name];
     let qry_block = &graph.blocks[&m.qry.name];
-    let anchor = if ref_block.depth() != qry_block.depth() {
-      if ref_block.depth() > qry_block.depth() {
-        AnchorBlock::Ref
-      } else {
-        AnchorBlock::Qry
-      }
-    } else {
-      // Equal depth: prefer fewer Ns in the aligned interval (ref wins ties via <=)
-      let ref_n = ref_block.consensus()[m.reff.interval.to_range()]
+
+    let n_count = |block: &PangraphBlock, interval: &Interval| {
+      block.consensus()[interval.to_range()]
         .iter()
         .filter(|c| c.0 == b'N')
-        .count();
-      let qry_n = qry_block.consensus()[m.qry.interval.to_range()]
-        .iter()
-        .filter(|c| c.0 == b'N')
-        .count();
-      if ref_n <= qry_n {
-        AnchorBlock::Ref
-      } else {
-        AnchorBlock::Qry
-      }
+        .count()
     };
-    m.anchor_block = Some(anchor);
+
+    let ordering = ref_block
+      .depth()
+      .cmp(&qry_block.depth())
+      .then_with(|| n_count(qry_block, &m.qry.interval).cmp(&n_count(ref_block, &m.reff.interval)))
+      .then_with(|| names.sort_key(m.qry.name).cmp(&names.sort_key(m.reff.name)));
+
+    m.anchor_block = Some(match ordering {
+      Ordering::Less => AnchorBlock::Qry,
+      _ => AnchorBlock::Ref,
+    });
   }
 }
 
@@ -408,13 +411,14 @@ fn split_block(
 pub fn reweave(
   mergers: &mut [Alignment],
   mut graph: Pangraph,
+  names: &BlockNames,
   thr_len: usize,
 ) -> Result<(Pangraph, Vec<MergePromise>), Report> {
   // for each merger, assign a new block id (hash of original block ids and alignment intervals)
   assign_new_block_ids(mergers);
-  // and decide which block is the anchor, based on depth and n. of ambiguous nucleotides
-  // (ref block wins ties)
-  assign_anchor_block(mergers, &graph);
+  // and decide which block is the anchor, based on depth, n. of ambiguous nucleotides
+  // and a content-derived tie-break
+  assign_anchor_block(mergers, &graph, names);
 
   // dictionary of BlockId -> alignments. Nb: each alignment is present twice.
   // this is done to quickly access all alignments for a given block
@@ -631,7 +635,8 @@ mod tests {
     };
 
     let mut mergers = vec![new_aln(1, 2), new_aln(3, 4), new_aln(4, 1)];
-    assign_anchor_block(&mut mergers, &pangraph);
+    let names = BlockNames::from_blocks(&pangraph.blocks);
+    assign_anchor_block(&mut mergers, &pangraph, &names);
 
     assert_eq!(mergers[0].anchor_block, Some(AnchorBlock::Qry));
     assert_eq!(mergers[1].anchor_block, Some(AnchorBlock::Ref));
@@ -1005,7 +1010,8 @@ mod tests {
     let (G, mut M) = generate_example();
     let O = G.clone();
     let thr_len = 90;
-    let (G, P) = reweave(&mut M, G, thr_len)?;
+    let names = BlockNames::from_blocks(&G.blocks);
+    let (G, P) = reweave(&mut M, G, &names, thr_len)?;
 
     // new paths
     let p1 = &G.paths[&PathId(100)];
@@ -1117,17 +1123,21 @@ mod tests {
     // CIGAR modified by right 50 bp overhang in ref
     assert_eq!(p3.cigar, Cigar::from_str("100M50D")?);
 
+    // Blocks 30 and 50 have equal depth (2) and no ambiguous bases, so this merger is a full tie.
+    // The anchor is therefore picked on a content-derived key rather than defaulting to the
+    // reference, and here it resolves to the query side (block 30). The alignment was recorded as
+    // qry=30 -> ref=50, so anchoring on the query inverts the cigar: insertions become deletions.
     let bid50_2 = G.nodes[&nid_100_2].block_id();
     let p4 = &p_dict[&bid50_2];
     assert_eq!(p4.orientation, Forward);
     assert_eq!(p4.anchor_block.id(), bid50_2);
+    assert_eq!(p4.anchor_block.consensus(), &O.blocks[&BlockId(30)].consensus()[0..100]);
+    assert_eq!(p4.append_block.id(), G.nodes[&nid_300_5].block_id());
     assert_eq!(
-      p4.anchor_block.consensus(),
+      p4.append_block.consensus(),
       &O.blocks[&BlockId(50)].consensus()[150..250]
     );
-    assert_eq!(p4.append_block.id(), G.nodes[&nid_300_5].block_id());
-    assert_eq!(p4.append_block.consensus(), &O.blocks[&BlockId(30)].consensus()[0..100]);
-    assert_eq!(p4.cigar, Cigar::from_str("80M10I10M10D")?);
+    assert_eq!(p4.cigar, Cigar::from_str("80M10D10M10I")?);
 
     // assert_eq!(p1.append_block.id(), p1.anchor_block.id());
     // assert_eq!(p2.append_block.id(), p2.anchor_block.id());
@@ -1211,8 +1221,9 @@ mod tests {
   // -- N count tie-breaker (equal depth) --
   #[case::equal_depth_ref_fewer_ns    (("ATCG",           2),          ("NNCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
   #[case::equal_depth_qry_fewer_ns    (("ATCG",           2),          ("NNCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
-  #[case::equal_depth_equal_ns_ref_wins(("ANCG",          2),          ("TNCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
-  #[case::equal_depth_zero_ns_ref_wins(("ATCG",           2),          ("GCTA",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Ref)]
+  // Fully-tied cases (equal depth, equal N count) are covered by
+  // `test_assign_anchor_block_tie_is_invariant_under_role_swap`: they no longer have a fixed
+  // Ref/Qry answer, since the tie-break is now content-derived rather than reference-first.
   #[case::equal_depth_many_ns_qry_wins(("NNNG",           2),          ("NNCG",          2),           (2,   (0, 4),       1,   (0, 4)),        AnchorBlock::Qry)]
   // -- depth wins over N count --
   #[case::qry_deeper_wins             (("NNCG",           3),          ("ATCG",          2),           (1,   (0, 4),       2,   (0, 4)),        AnchorBlock::Qry)]
@@ -1268,7 +1279,65 @@ mod tests {
       align: None,
     }];
 
-    assign_anchor_block(&mut mergers, &pangraph);
+    let names = BlockNames::from_blocks(&pangraph.blocks);
+    assign_anchor_block(&mut mergers, &pangraph, &names);
     assert_eq!(mergers[0].anchor_block, Some(expected));
+  }
+
+  /// When depth and ambiguous-base count are both tied, the anchor must be chosen from the block
+  /// contents, not from which side the aligner happened to call "reference". Swapping the
+  /// query/reference roles must therefore still select the *same* block.
+  ///
+  /// This is the defect that made `pangraph build` sensitive to the order of its input FASTA
+  /// arguments: `minimap2 -X` picks the direction of each pair by comparing sequence names, which
+  /// were block ids derived from input position, and the old tie-break then always kept the
+  /// reference consensus.
+  #[rstest]
+  #[case::equal_ns("ANCG", "TNCG")]
+  #[case::zero_ns("ATCG", "GCTA")]
+  #[trace]
+  fn test_assign_anchor_block_tie_is_invariant_under_role_swap(#[case] seq1: &str, #[case] seq2: &str) {
+    let edits =
+      |offset: usize| -> BTreeMap<NodeId, Edit> { (0..2).map(|i| (NodeId(offset + i), Edit::empty())).collect() };
+
+    let pangraph = Pangraph {
+      blocks: btreemap! {
+        BlockId(1) => PangraphBlock::new(BlockId(1), seq1, edits(0)),
+        BlockId(2) => PangraphBlock::new(BlockId(2), seq2, edits(100)),
+      },
+      paths: btreemap! {},
+      nodes: btreemap! {},
+    };
+    let names = BlockNames::from_blocks(&pangraph.blocks);
+
+    let hit = |id: usize| Hit {
+      name: BlockId(id),
+      length: seq1.len().max(seq2.len()),
+      interval: Interval::new(0, 4),
+    };
+    let aln = |qry_id: usize, ref_id: usize| Alignment {
+      qry: hit(qry_id),
+      reff: hit(ref_id),
+      matches: 0,
+      length: 0,
+      quality: 0,
+      orientation: Forward,
+      new_block_id: None,
+      anchor_block: None,
+      cigar: Cigar::default(),
+      divergence: None,
+      align: None,
+    };
+
+    // The same pair of blocks, with the roles swapped.
+    let mut mergers = vec![aln(2, 1), aln(1, 2)];
+    assign_anchor_block(&mut mergers, &pangraph, &names);
+
+    // Resolve each choice back to the block it actually selected.
+    let anchor_of = |m: &Alignment| match m.anchor_block.unwrap() {
+      AnchorBlock::Ref => m.reff.name,
+      AnchorBlock::Qry => m.qry.name,
+    };
+    assert_eq!(anchor_of(&mergers[0]), anchor_of(&mergers[1]));
   }
 }
