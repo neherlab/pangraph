@@ -2,19 +2,22 @@ use crate::io::fasta::FastaRecord;
 use crate::io::file::open_file_or_stdin;
 use crate::io::fs::read_reader_to_string;
 use crate::io::json::json_read_str;
-use crate::make_internal_report;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
 use crate::pangraph::pangraph_path::{PangraphPath, PathId};
 use crate::pangraph::strand::Strand;
 use crate::representation::seq::Seq;
 use crate::tree::clade::WithNewickName;
+use crate::utils::id::id;
 use crate::utils::map_merge::{ConflictResolution, map_merge};
+use crate::{make_internal_error, make_internal_report};
 use eyre::{Report, WrapErr};
+use log::warn;
 use maplit::btreemap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use std::mem::take;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -63,6 +66,115 @@ impl Pangraph {
 
   pub fn consensuses(&self) -> impl Iterator<Item = &Seq> {
     self.blocks.values().map(|block| block.consensus())
+  }
+
+  /// Re-derives every block, node and path id of this graph, in place.
+  ///
+  /// Block and node ids become `id((salt, old_id))`; path ids are renumbered contiguously from
+  /// `path_id_offset`, preserving their relative order (path ids double as the ordering index of
+  /// the genomes, so they are kept small and sequential rather than hashed).
+  ///
+  /// Consensuses, edits, names, descriptions, strands and positions are left untouched: the
+  /// relabeled graph describes exactly the same sequences as the original one.
+  pub fn relabel_in_place(&mut self, salt: usize, path_id_offset: usize) -> Result<(), Report> {
+    let (n_blocks, n_nodes, n_paths) = (self.blocks.len(), self.nodes.len(), self.paths.len());
+
+    let block_map: BTreeMap<BlockId, BlockId> =
+      self.blocks.keys().map(|&bid| (bid, BlockId(id((salt, bid))))).collect();
+
+    let node_map: BTreeMap<NodeId, NodeId> = self.nodes.keys().map(|&nid| (nid, NodeId(id((salt, nid))))).collect();
+
+    let path_map: BTreeMap<PathId, PathId> = self
+      .paths
+      .keys()
+      .enumerate()
+      .map(|(rank, &pid)| (pid, PathId(path_id_offset + rank)))
+      .collect();
+
+    self.blocks = take(&mut self.blocks)
+      .into_values()
+      .map(|block| {
+        let new_block_id = block_map[&block.id()];
+        let mut block = block.with_id(new_block_id);
+        let alignments = take(block.alignments_mut())
+          .into_iter()
+          .map(|(nid, edit)| (node_map[&nid], edit))
+          .collect();
+        *block.alignments_mut() = alignments;
+        (block.id(), block)
+      })
+      .collect();
+
+    self.nodes = take(&mut self.nodes)
+      .into_iter()
+      .map(|(nid, node)| {
+        let node = PangraphNode::new(
+          Some(node_map[&nid]),
+          block_map[&node.block_id()],
+          path_map[&node.path_id()],
+          node.strand(),
+          node.position(),
+        );
+        (node.id(), node)
+      })
+      .collect();
+
+    self.paths = take(&mut self.paths)
+      .into_values()
+      .map(|mut path| {
+        path.id = path_map[&path.id];
+        for nid in &mut path.nodes {
+          *nid = node_map[nid];
+        }
+        (path.id, path)
+      })
+      .collect();
+
+    // An injective relabeling cannot change the number of entities. If it did, two distinct ids
+    // were mapped onto the same one and entities were silently dropped.
+    if (self.blocks.len(), self.nodes.len(), self.paths.len()) != (n_blocks, n_nodes, n_paths) {
+      return make_internal_error!(
+        "When relabeling graph ids: expected {n_blocks} blocks, {n_nodes} nodes and {n_paths} paths, but got {} blocks, {} nodes and {} paths",
+        self.blocks.len(),
+        self.nodes.len(),
+        self.paths.len(),
+      );
+    }
+
+    Ok(())
+  }
+
+  /// Returns true if this graph shares no block, node or path id with `other`.
+  pub fn is_id_disjoint_from(&self, other: &Self) -> bool {
+    self.blocks.keys().all(|bid| !other.blocks.contains_key(bid))
+      && self.nodes.keys().all(|nid| !other.nodes.contains_key(nid))
+      && self.paths.keys().all(|pid| !other.paths.contains_key(pid))
+  }
+
+  /// Relabels this graph so that it shares no identifier with `other`, which is left untouched.
+  ///
+  /// Two graphs built independently always collide: `Pangraph::singleton` labels the first genome
+  /// of every build with path, block and node id `0`, and blocks that never merge keep that id all
+  /// the way to the final graph. Merging therefore requires namespacing one of the two graphs
+  /// first.
+  pub fn make_disjoint_from(&mut self, other: &Self) -> Result<(), Report> {
+    const MAX_ATTEMPTS: usize = 16;
+
+    let path_id_offset = other.paths.keys().map(|pid| pid.0 + 1).max().unwrap_or(0);
+
+    for salt in 1..=MAX_ATTEMPTS {
+      self.relabel_in_place(salt, path_id_offset)?;
+      if self.is_id_disjoint_from(other) {
+        return Ok(());
+      }
+      // Relabeling is a composition of injective maps, so retrying on top of the previous attempt
+      // is safe. Reaching this point at all is astronomically unlikely.
+      warn!("Hash collision when relabeling graph ids with salt {salt}; retrying");
+    }
+
+    make_internal_error!(
+      "When making graphs id-disjoint: no collision-free relabeling found after {MAX_ATTEMPTS} attempts"
+    )
   }
 
   pub fn update(&mut self, u: &GraphUpdate) {
@@ -303,10 +415,13 @@ mod tests {
   #![allow(non_snake_case, clippy::redundant_clone)]
 
   use super::*;
+  use crate::commands::reconstruct::reconstruct_run::reconstruct;
+  use crate::o;
   use crate::pangraph::edits::Edit;
   use crate::pangraph::pangraph_node::PangraphNode;
   use crate::pangraph::pangraph_path::PangraphPath;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use itertools::Itertools;
   use maplit::btreemap;
   use rstest::rstest;
 
@@ -447,5 +562,95 @@ mod tests {
   fn test_newick_name(#[case] names: &[Option<&str>], #[case] expected: Option<String>) {
     let g = pangraph_with_named_paths(names);
     assert_eq!(g.newick_name(), expected);
+  }
+
+  /// Builds a two-genome graph whose ids are the small sequential integers that `build` assigns to
+  /// blocks that never merge. Two such graphs collide on every single id.
+  fn colliding_graph(names: [&str; 2]) -> Pangraph {
+    let blocks = btreemap! {
+      BlockId(0) => PangraphBlock::new(BlockId(0), "ACGTACGT", btreemap!{ NodeId(0) => Edit::empty() }),
+      BlockId(1) => PangraphBlock::new(BlockId(1), "TTTTGGGG", btreemap!{ NodeId(1) => Edit::empty() }),
+    };
+    let nodes = btreemap! {
+      NodeId(0) => PangraphNode::new(Some(NodeId(0)), BlockId(0), PathId(0), Forward, (0, 8)),
+      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(1), PathId(1), Reverse, (0, 8)),
+    };
+    let paths = btreemap! {
+      PathId(0) => PangraphPath::new(Some(PathId(0)), [NodeId(0)], 8, false, Some(names[0].to_owned()), None),
+      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 8, false, Some(names[1].to_owned()), None),
+    };
+    Pangraph { paths, blocks, nodes }
+  }
+
+  #[rstest]
+  fn test_relabel_keeps_graph_consistent() {
+    let mut graph = colliding_graph(["a", "b"]);
+    graph.relabel_in_place(1, 7).unwrap();
+
+    graph.sanity_check().unwrap();
+    assert_eq!(graph.blocks.len(), 2);
+    assert_eq!(graph.nodes.len(), 2);
+    assert_eq!(graph.paths.len(), 2);
+
+    // path ids are renumbered contiguously from the offset, in their original order
+    assert_eq!(graph.path_ids().collect_vec(), vec![PathId(7), PathId(8)]);
+    assert_eq!(
+      graph.paths.values().map(|p| p.name.clone()).collect_vec(),
+      vec![Some(o!("a")), Some(o!("b"))]
+    );
+
+    // block and node ids are re-derived, and no longer the original small integers
+    assert!(graph.block_ids().all(|bid| bid.0 > 1));
+    assert!(graph.node_ids().all(|nid| nid.0 > 1));
+  }
+
+  #[rstest]
+  fn test_relabel_preserves_sequences() {
+    let original = colliding_graph(["a", "b"]);
+    let mut relabeled = original.clone();
+    relabeled.relabel_in_place(3, 0).unwrap();
+
+    let seqs = |g: &Pangraph| {
+      reconstruct(g)
+        .map(|r| r.map(|r| (r.seq_name, r.seq)))
+        .collect::<Result<BTreeMap<_, _>, Report>>()
+        .unwrap()
+    };
+
+    assert_eq!(seqs(&original), seqs(&relabeled));
+  }
+
+  #[rstest]
+  fn test_relabel_is_deterministic() {
+    let mut first = colliding_graph(["a", "b"]);
+    let mut second = colliding_graph(["a", "b"]);
+    first.relabel_in_place(2, 5).unwrap();
+    second.relabel_in_place(2, 5).unwrap();
+    assert_eq!(first, second);
+  }
+
+  #[rstest]
+  fn test_make_disjoint_from() {
+    let left = colliding_graph(["a", "b"]);
+    let mut right = colliding_graph(["c", "d"]);
+
+    // the two graphs share every single id before relabeling
+    assert!(!right.is_id_disjoint_from(&left));
+
+    right.make_disjoint_from(&left).unwrap();
+
+    assert!(right.is_id_disjoint_from(&left));
+    right.sanity_check().unwrap();
+
+    // the left graph is untouched, and the right graph's genomes follow it
+    assert_eq!(left.path_ids().collect_vec(), vec![PathId(0), PathId(1)]);
+    assert_eq!(right.path_ids().collect_vec(), vec![PathId(2), PathId(3)]);
+
+    // joining the two no longer conflicts
+    let joined = crate::pangraph::graph_merging::graph_join(&left, &right);
+    joined.sanity_check().unwrap();
+    assert_eq!(joined.paths.len(), 4);
+    assert_eq!(joined.blocks.len(), 4);
+    assert_eq!(joined.nodes.len(), 4);
   }
 }

@@ -1,5 +1,5 @@
+use crate::align::alignment_args::GraphMergeParams;
 use crate::align::map_variations::{BandParameters, map_variations};
-use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::io::fasta::FastaRecord;
 use crate::io::json::{JsonPretty, json_write_str};
 use crate::io::seq::reverse_complement;
@@ -58,6 +58,11 @@ impl PangraphBlock {
       consensus,
       alignments,
     }
+  }
+
+  /// Returns this block with a different id, leaving consensus and alignments untouched.
+  pub fn with_id(self, id: BlockId) -> Self {
+    Self { id, ..self }
   }
 
   pub fn reverse_complement(&self) -> Result<Self, Report> {
@@ -292,7 +297,7 @@ impl PangraphBlock {
 
   /// Applies a set of edits to the block's consensus sequence and re-aligns the sequences
   /// to the new consensus. Returns a new `PangraphBlock` object with the same BlockId.
-  pub fn edit_consensus_and_realign(self, edits: &Edit, args: &PangraphBuildArgs) -> Result<Self, Report> {
+  pub fn edit_consensus_and_realign(self, edits: &Edit, args: &GraphMergeParams) -> Result<Self, Report> {
     // apply the edits to the consensus
     let new_consensus = edits.apply(&self.consensus)?;
     debug_assert!(!new_consensus.is_empty(), "Consensus cannot be empty");
@@ -342,7 +347,7 @@ pub enum RecordNaming {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use crate::commands::build::build_args::PangraphBuildArgs;
+  use crate::align::alignment_args::GraphMergeParams;
   use crate::pangraph::edits::{Del, Edit, Ins, Sub};
   use crate::pangraph::pangraph_node::NodeId;
   use maplit::btreemap;
@@ -820,7 +825,7 @@ mod tests {
     );
 
     // Create build args with default values for testing
-    let args = PangraphBuildArgs::default();
+    let args = GraphMergeParams::default();
     // Apply the edits and realign
     let result_block = block.edit_consensus_and_realign(&edits, &args).unwrap();
 

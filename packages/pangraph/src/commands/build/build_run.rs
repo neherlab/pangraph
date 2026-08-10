@@ -1,4 +1,5 @@
-use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
+use crate::align::alignment_args::check_alignment_backend_available;
+use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::commands::reconstruct::reconstruct_run::{compare_sequences, reconstruct};
 use crate::io::fasta::{FastaReader, FastaRecord};
 use crate::io::json::{JsonPretty, json_write_file};
@@ -10,29 +11,9 @@ use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
 use crate::tree::newick::build_tree_from_newick;
 use crate::utils::progress_bar::ProgressBar;
 use crate::{make_internal_error, make_internal_report};
-use color_eyre::owo_colors::{AnsiColors, OwoColorize};
-use color_eyre::{Help, SectionExt};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use log::info;
-
-pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Report> {
-  // alignment kernel checks
-  if args.alignment_kernel == AlignmentBackend::Mmseqs {
-    // check that mmseqs is available in PATH
-    std::process::Command::new("mmseqs")
-      .arg("--help")
-      .output()
-      .wrap_err("When executing `mmseqs --help`")
-      .section(
-        "Please make sure that `mmseqs` is installed, available in PATH and is functional outside of pangraph. For more details, refer to mmseqs documentation at https://github.com/soedinglab/MMseqs2"
-          .color(AnsiColors::Cyan)
-          .header("Suggestion:"),
-      )?;
-  }
-
-  Ok(())
-}
 
 pub fn reconstruct_and_compare_graph_seqs(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(), Report> {
   // Reconstruct sequences from the given graph.
@@ -71,7 +52,8 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   // TODO: adjust fasta letter case if `upper_case` is set
   // TODO: check for duplicate fasta names
 
-  build_cmd_preliminary_checks(args).wrap_err("When performing preliminary checks before building the pangraph.")?;
+  check_alignment_backend_available(&args.merge_params)
+    .wrap_err("When performing preliminary checks before building the pangraph.")?;
 
   let pangraph = build(fastas, args, args.verify)?;
 
@@ -125,7 +107,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -
               right.paths.len()
             );
 
-            clade.data = Some(merge_graphs(left, right, args).wrap_err("When merging graphs")?);
+            clade.data = Some(merge_graphs(left, right, &args.merge_params).wrap_err("When merging graphs")?);
 
             // increase progress bar
             pb.inc(1);

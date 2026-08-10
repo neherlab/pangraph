@@ -1,6 +1,6 @@
 # Graph merging — design manifesto
 
-Status: **design accepted, implementation not started**
+Status: **`pangraph merge` implemented; verification and `build`-side name checks still pending (see §6)**
 Integration branch: `feat/merge` (merged into `master` last, after all phase branches below)
 
 This document describes the design for a new `pangraph merge` command, which combines two
@@ -357,17 +357,27 @@ explicitly in the user documentation.
 Each phase is its own branch and PR, targeting the integration branch `feat/merge`. `feat/merge` is
 merged into `master` last, once all phases have landed.
 
-| # | Branch | Scope | Depends on |
+| # | Branch | Scope | Status |
 |---|---|---|---|
-| 1 | `feat/merge-single-seq-build` | §4.1 — NJ tree for 1 and 0 input graphs | — |
-| 2 | `feat/merge-params` | §4.2 — extract `GraphMergeParams`, no behaviour change | — |
-| 3 | `feat/merge-unique-names` | §4.3 — duplicate path names are an error in `build` | — |
-| 4 | `feat/merge-relabel` | §3.4 — `relabel_in_place` / `make_disjoint` | — |
-| 5 | `feat/merge-verify` | §4.4 — name-keyed verification, `compare_sequences` | 3 |
-| 6 | `feat/merge-cmd` | §4.5 — the command, integration tests, docs, CHANGELOG | 2, 4, 5 |
+| 1 | `feat/merge-single-seq-build` | §4.1 — NJ tree for 1 and 0 input graphs | landed |
+| 2 | `feat/merge-cmd` | §4.2 — extract `GraphMergeParams`, no behaviour change | landed |
+| 3 | `feat/merge-cmd` | §3.4 — `relabel_in_place` / `make_disjoint_from` | landed |
+| 4 | `feat/merge-cmd` | §4.5 — the command itself, plus integration tests | landed |
+| 5 | `feat/merge-unique-names` | §4.3 — duplicate path names are an error in `build` too | todo |
+| 6 | `feat/merge-verify` | §4.4 — name-keyed verification shared with `build` | todo |
+| 7 | `feat/merge-docs` | §9 — tutorial, `reconstruct` docs, CHANGELOG | todo |
 
-Phases 1–4 are mutually independent and can proceed in parallel. Phase 1 is not a strict dependency
-of phase 6, but the single-genome integration test in phase 6 requires it.
+Phases 2–4 were implemented together, since a `merge` command without §3.4 panics on the first
+identifier collision and would not be testable.
+
+Two pieces of §4.3 and §4.4 are therefore only half-done, and phases 5 and 6 finish them:
+
+- Duplicate path names are rejected by `merge` (across and within its two inputs), but `build` still
+  accepts duplicate FASTA names except when `--guide-tree` is used.
+- Name-keyed verification exists as `verify_merged_sequences` inside `merge_run`, private to the
+  merge command. `build` still verifies against input FASTA records by index, and
+  `compare_sequences` still compares whole `FastaRecord`s (including `index`). Phase 6 unifies the
+  two behind a single `BTreeMap<String, Seq>`-based helper.
 
 ---
 

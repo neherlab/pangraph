@@ -2,6 +2,7 @@
 
 use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::commands::export::export_args::PangraphExportArgs;
+use crate::commands::merge::merge_args::PangraphMergeArgs;
 use crate::commands::reconstruct::reconstruct_args::PangraphReconstructArgs;
 use crate::commands::schema::generate_schema::PangraphGenerateSchemaArgs;
 use crate::commands::simplify::simplify_args::PangraphSimplifyArgs;
@@ -61,6 +62,9 @@ pub struct PangraphArgs {
 pub enum PangraphCommands {
   /// Align genomes into a multiple sequence alignment graph
   Build(PangraphBuildArgs),
+
+  /// Merge two pangenome graphs into a single one
+  Merge(PangraphMergeArgs),
 
   /// Export a pangraph to a chosen file format(s)
   Export {
