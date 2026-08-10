@@ -370,9 +370,9 @@ Reconstruct all input fasta sequences from graph
 
 * `<INPUT_GRAPH>` — Path to a pangenome graph file in JSON format.
 
-   Accepts plain or compressed FASTA files. If a compressed fasta file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension. If there's multiple input files, then different files can have different compression formats.
+   Accepts plain or compressed files. If a compressed file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension.
 
-   If no input files provided, the plain fasta input is read from standard input (stdin).
+   If no input file is provided, the plain JSON input is read from standard input (stdin).
 
 ###### **Options:**
 
@@ -380,10 +380,16 @@ Reconstruct all input fasta sequences from graph
 
    If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
 
-   Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided. See: https://en.wikipedia.org/wiki/FASTA_format
+   Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
+
+   Records are written in order of path id, which reproduces the order of the original input FASTA only for graphs produced directly by `pangraph build`. A graph produced by `pangraph merge` renumbers its path ids, so consumers should match records by genome name rather than by position.
+
+   See: https://en.wikipedia.org/wiki/FASTA_format
 
   Default value: `-`
-* `-f`, `--verify <VERIFY>` — Path to the FASTA file with sequences to check the reconstructed sequences against. If this argument is provided, then the sequences are not being printed to standard output (stdout) as usual. Instead, if any differences are detected, a diff will be printed between the expected (original) sequence and reconstructed sequence.
+* `-f`, `--verify <VERIFY>` — Path to the FASTA file with sequences to check the reconstructed sequences against. If this argument is provided, then the sequences are not written out as usual: nothing is produced on success, and the first difference found is reported as an error.
+
+   Genomes are matched by name, so the order of the records is irrelevant. The file must contain exactly the genomes of the graph: a record the graph does not contain, a genome missing from the file, or a repeated name are all errors. Every path of the graph must be named.
 
    Accepts plain or compressed FASTA files. If a compressed fasta file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension. If there's multiple input files, then different files can have different compression formats.
 
