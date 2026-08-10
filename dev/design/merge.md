@@ -1,6 +1,6 @@
 # Graph merging — design manifesto
 
-Status: **`pangraph merge` implemented; verification and `build`-side name checks still pending (see §6)**
+Status: **`pangraph merge` implemented and verified; only user docs remain (see §6)**
 Integration branch: `feat/merge` (merged into `master` last, after all phase branches below)
 
 This document describes the design for a new `pangraph merge` command, which combines two
@@ -301,21 +301,39 @@ Reconstruction itself remains fully supported — every sequence comes back byte
 
 This has three consequences:
 
-1. **`compare_sequences` must stop comparing whole records.** It currently tests
-   `left != right` on `FastaRecord` (`reconstruct_run.rs:45-54`), and `FastaRecord` derives
-   `PartialEq` over all fields *including `index`* (`io/fasta.rs:17-24`) — despite an error message
-   that only mentions length. It should compare sequence contents and report the path name.
+1. **`compare_sequences` must stop comparing whole records.** It tested `left != right` on
+   `FastaRecord`, which derives `PartialEq` over all fields *including `index`* (`io/fasta.rs:17-24`)
+   — despite an error message that only mentioned length. It is now deleted; `verify_genome` compares
+   sequence contents and reports the genome name and the first differing position.
+
+   This was not only cosmetic. Two bugs followed from index/position pairing:
+   - `build --verify` indexed `&fastas[actual.index]`, which **panicked out of bounds** whenever the
+     input records' indices were not exactly `0..n-1` — as they are not for any programmatically
+     assembled record set, including the repo's own test helper.
+   - `reconstruct --verify` paired records positionally, so surplus records in the verification file
+     were silently ignored (exit 0), too few gave a misleading `expected length 0 but got N`, and a
+     merged graph failed spuriously with `expected length N but got N` at identical lengths.
 
 2. **Verification is keyed by path name, not by index or position.**
 
    ```rust
-   fn verify_graph_sequences(graph: &Pangraph, expected: &BTreeMap<String, Seq>) -> Result<(), Report>
+   pub fn verify_graph_sequences(graph: &Pangraph, expected: &BTreeMap<String, Seq>,
+                                 coverage: GenomeCoverage) -> Result<(), Report>
    ```
 
+   The third parameter was not in the original sketch: `build`'s intermediate clade graphs hold only
+   the genomes of their own clade, so they need `GenomeCoverage::Partial`, while the final graph of a
+   build, a merged graph and `reconstruct --verify` all require `Complete`. Making the *final* build
+   check `Complete` is a small gain — nothing previously noticed a genome going missing.
+
    `build` fills the map from the input FASTA records; `merge` fills it by reconstructing each
-   input graph *before* merging. Both are now sound because names are unique (§4.3). The map form
-   also keeps working for the intermediate graphs checked inside the build loop, which contain only
-   a subset of the paths.
+   input graph *before* merging. Both are sound because names are unique (§4.3). `reconstruct
+   --verify` does **not** build the map: it is the only one of the three that does not otherwise
+   need every genome resident, so it streams the verification file against a name → path id index
+   and reconstructs one genome at a time, sharing `verify_genome` and its error formatting.
+
+   Reconstruction itself moved out of the command module into `pangraph/reconstruct.rs`, since it is
+   a graph operation — `pangraph/pangraph.rs` was reaching up into `commands::`.
 
 3. **`pangraph reconstruct` documentation must state** that record order matches the original input
    FASTA order only for graphs produced directly by `build`, and that consumers should match records
@@ -378,16 +396,13 @@ merged into `master` last, once all phases have landed.
 | 3 | `feat/merge-cmd` | §3.4 — `relabel` / `make_disjoint_from` | landed |
 | 4 | `feat/merge-cmd` | §4.5 — the command itself, plus integration tests | landed |
 | 5 | `feat/merge-cmd` | §4.3 — duplicate genome names are an error in `build` and `merge` | landed |
-| 6 | `feat/merge-verify` | §4.4 — name-keyed verification shared with `build` | todo |
+| 6 | `feat/merge-verify` | §4.4 — name-keyed verification shared with `build` | landed |
 | 7 | `feat/merge-docs` | §9 — tutorial, `reconstruct` docs, CHANGELOG | todo |
 
 Phases 2–5 were implemented together, since a `merge` command without §3.4 panics on the first
 identifier collision and would not be testable.
 
-§4.4 is therefore the only piece left half-done: name-keyed verification exists as
-`verify_merged_sequences` inside `merge_run`, private to the merge command. `build` still verifies
-against input FASTA records by index, and `compare_sequences` still compares whole `FastaRecord`s
-(including `index`). Phase 6 unifies the two behind a single `BTreeMap<String, Seq>`-based helper.
+Phase 6 turned out to fix two latent bugs rather than merely unify style, both recorded in §4.4.
 
 ---
 

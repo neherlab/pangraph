@@ -36,7 +36,7 @@ mod tests {
       circular: false,
       ..PangraphBuildArgs::default()
     };
-    let graph = build(fastas, &args, false)?;
+    let graph = build(fastas, &args, true)?;
     let path = dir.path().join(name);
     json_write_file(&path, &graph, JsonPretty(false))?;
     Ok(path)
@@ -79,6 +79,7 @@ mod tests {
     merge_run(&merge_args(left.clone(), right.clone(), output.clone()))?;
 
     let merged = read_graph(&output)?;
+    #[cfg(debug_assertions)]
     merged.sanity_check()?;
 
     // all genomes of both inputs are present, exactly once
@@ -130,6 +131,7 @@ mod tests {
     merge_run(&merge_args(left, right, output.clone()))?;
 
     let merged = read_graph(&output)?;
+    #[cfg(debug_assertions)]
     merged.sanity_check()?;
     assert_eq!(merged.paths.len(), 4);
 
@@ -151,6 +153,23 @@ mod tests {
       error.contains("Duplicate genome names"),
       "unexpected error message: {error}"
     );
+
+    Ok(())
+  }
+
+  /// `build --verify` used to pair reconstructed genomes with input records by `FastaRecord::index`,
+  /// which is only valid when the records' indices happen to be exactly `0..n-1`. Here they are
+  /// `[3, 4, 5]` for a 3-record slice, which panicked with an out-of-bounds index before genomes
+  /// were matched by name.
+  ///
+  /// Note that the intermediate-clade half of this check only runs in debug builds.
+  #[rstest]
+  fn itest_build_verify_with_nonzero_record_indices() -> Result<(), Report> {
+    let (_, right_fastas) = read_and_split("../../data/ges-1.fa", 3, 6)?;
+    assert_eq!(right_fastas.iter().map(|f| f.index).collect_vec(), vec![3, 4, 5]);
+
+    let graph = build(right_fastas, &PangraphBuildArgs::default(), true)?;
+    assert_eq!(graph.paths.len(), 3);
 
     Ok(())
   }
