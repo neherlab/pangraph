@@ -185,12 +185,17 @@ preserved either way.
   `PangraphNode::{block_id, path_id}`, and `PangraphPath::nodes`.
 - **Assert injectivity.** After relabeling, the three maps must have the same lengths as before (a
   hash collision inside one graph would silently drop entities) and the resulting id sets must be
-  disjoint from the left graph's. `make_disjoint` bumps the salt and retries if not; this is
-  astronomically unlikely with `XxHash64`, but the check is cheap.
+  disjoint from the left graph's. Both are hard errors: at ~2^-64 per pair neither happens in
+  practice, but the alternative is one graph silently overwriting a block of the other during the
+  join. There is deliberately no retry-with-another-salt path — it would be unreachable code
+  guarding against an event that cannot realistically occur.
 - Path ids are assigned as `path_id_offset + rank`, where `rank` is the position in the graph's
   existing (sorted) path key order, and `path_id_offset` is `max(left path ids) + 1`. This keeps
   ids contiguous and keeps the right graph's genomes in their original relative order, after all of
-  the left graph's.
+  the left graph's. It also means **path ids cannot collide at all** — every one of them is
+  strictly greater than every path id of the left graph — so only block and node ids are at risk.
+  Since the assignment is by rank rather than derived from the previous id, relabeling the same
+  graph twice does not shift its path ids any further.
 - Relabeling is deterministic: `utils::id::id` uses `XxHash64` with a fixed seed.
 
 ---

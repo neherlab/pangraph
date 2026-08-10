@@ -12,7 +12,6 @@ use crate::utils::id::id;
 use crate::utils::map_merge::{ConflictResolution, map_merge};
 use crate::{make_internal_error, make_internal_report};
 use eyre::{Report, WrapErr};
-use log::warn;
 use maplit::btreemap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -73,6 +72,9 @@ impl Pangraph {
   /// Block and node ids become `id((salt, old_id))`; path ids are renumbered contiguously from
   /// `path_id_offset`, preserving their relative order (path ids double as the ordering index of
   /// the genomes, so they are kept small and sequential rather than hashed).
+  ///
+  /// Path ids are assigned from the offset by rank rather than derived from the previous id, so
+  /// relabeling the same graph twice does not shift them any further.
   ///
   /// Consensuses, edits, names, descriptions, strands and positions are left untouched: the
   /// relabeled graph describes exactly the same sequences as the original one.
@@ -158,23 +160,24 @@ impl Pangraph {
   /// the way to the final graph. Merging therefore requires namespacing one of the two graphs
   /// first.
   pub fn make_disjoint_from(&mut self, other: &Self) -> Result<(), Report> {
-    const MAX_ATTEMPTS: usize = 16;
+    // Namespace under which the ids of this graph are re-derived.
+    const SALT: usize = 1;
 
+    // Path ids are assigned above every path id of `other`, so they cannot collide by construction.
     let path_id_offset = other.paths.keys().map(|pid| pid.0 + 1).max().unwrap_or(0);
 
-    for salt in 1..=MAX_ATTEMPTS {
-      self.relabel_in_place(salt, path_id_offset)?;
-      if self.is_id_disjoint_from(other) {
-        return Ok(());
-      }
-      // Relabeling is a composition of injective maps, so retrying on top of the previous attempt
-      // is safe. Reaching this point at all is astronomically unlikely.
-      warn!("Hash collision when relabeling graph ids with salt {salt}; retrying");
+    self.relabel_in_place(SALT, path_id_offset)?;
+
+    // Block and node ids are hashes, so a collision with `other` is possible in principle. At
+    // ~2^-64 per pair it does not happen in practice, but the check is cheap and the alternative is
+    // one graph silently overwriting a block of the other during the join.
+    if !self.is_id_disjoint_from(other) {
+      return make_internal_error!(
+        "When making graphs id-disjoint: the relabeled graph still shares block or node ids with the other graph. This requires a 64-bit hash collision and should never happen."
+      );
     }
 
-    make_internal_error!(
-      "When making graphs id-disjoint: no collision-free relabeling found after {MAX_ATTEMPTS} attempts"
-    )
+    Ok(())
   }
 
   pub fn update(&mut self, u: &GraphUpdate) {
@@ -618,6 +621,24 @@ mod tests {
     };
 
     assert_eq!(seqs(&original), seqs(&relabeled));
+  }
+
+  /// Path ids are assigned from the offset by rank, not derived from the previous id, so relabeling
+  /// twice leaves them where they are instead of shifting them by the offset again.
+  #[rstest]
+  fn test_repeated_relabel_does_not_shift_path_ids() {
+    let mut graph = colliding_graph(["a", "b"]);
+
+    graph.relabel_in_place(1, 5).unwrap();
+    let path_ids = graph.path_ids().collect_vec();
+    let block_ids = graph.block_ids().collect_vec();
+    assert_eq!(path_ids, vec![PathId(5), PathId(6)]);
+
+    graph.relabel_in_place(2, 5).unwrap();
+
+    assert_eq!(graph.path_ids().collect_vec(), path_ids);
+    assert_ne!(graph.block_ids().collect_vec(), block_ids);
+    graph.sanity_check().unwrap();
   }
 
   #[rstest]
