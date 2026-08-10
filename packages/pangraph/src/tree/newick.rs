@@ -311,6 +311,18 @@ mod tests {
   }
 
   #[rstest]
+  fn build_tree_from_newick_single_leaf() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("tree.nwk");
+    std::fs::write(&path, "A;").unwrap();
+
+    let tree = build_tree_from_newick(&path, vec![singleton("A", 0)]).unwrap();
+
+    assert!(tree.read().is_leaf());
+    assert_eq!(collect_leaf_names(&tree), vec!["A"]);
+  }
+
+  #[rstest]
   fn build_tree_from_newick_attaches_graphs() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("tree.nwk");
