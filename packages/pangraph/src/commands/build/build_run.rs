@@ -9,8 +9,9 @@ use crate::pangraph::strand::Strand::Forward;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
 use crate::tree::newick::build_tree_from_newick;
+use crate::utils::collections::find_duplicates;
 use crate::utils::progress_bar::ProgressBar;
-use crate::{make_internal_error, make_internal_report};
+use crate::{make_error, make_internal_error, make_internal_report};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use log::info;
@@ -50,7 +51,6 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   let fastas = FastaReader::from_paths(input_fastas)?.read_many()?;
 
   // TODO: adjust fasta letter case if `upper_case` is set
-  // TODO: check for duplicate fasta names
 
   check_alignment_backend_available(&args.merge_params)
     .wrap_err("When performing preliminary checks before building the pangraph.")?;
@@ -62,7 +62,22 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   Ok(())
 }
 
+/// Sequence names identify genomes throughout pangraph: they are what `export` and `simplify`
+/// resolve genomes by, and the only handle that survives a graph merger. They must be unique.
+pub fn check_unique_sequence_names(fastas: &[FastaRecord]) -> Result<(), Report> {
+  let duplicates = find_duplicates(fastas.iter().map(|fasta| fasta.seq_name.as_str()));
+  if !duplicates.is_empty() {
+    return make_error!(
+      "Duplicate sequence names found in the input: [{}]. Sequence names must be unique, because they identify genomes in the resulting pangraph.",
+      duplicates.join(", ")
+    );
+  }
+  Ok(())
+}
+
 pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -> Result<Pangraph, Report> {
+  check_unique_sequence_names(&fastas).wrap_err("When checking the names of the input sequences")?;
+
   // If verification is requested, we need to keep a copy of the original FASTA records
   // to compare them with the sequences reconstructed from the graph.
   let fasta_copy = verify.then(|| fastas.clone());

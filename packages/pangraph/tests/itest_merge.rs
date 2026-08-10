@@ -136,38 +136,6 @@ mod tests {
     Ok(())
   }
 
-  /// Genomes with no homology at all: the merger degenerates to a plain join. This is the case in
-  /// which the small sequential ids assigned by `Pangraph::singleton` survive into the final
-  /// graphs and collide, so it exercises the relabeling most sharply.
-  #[rstest]
-  fn itest_merge_unrelated_graphs() -> Result<(), Report> {
-    let dir = tempdir()?;
-    let (flu, _) = read_and_split("../../data/flu-h1.fa", 1, 1)?;
-    let (mpox, _) = read_and_split("../../data/mpox.fa", 1, 1)?;
-
-    let left = build_graph_file(&dir, "left.json", flu)?;
-    let right = build_graph_file(&dir, "right.json", mpox)?;
-
-    // both graphs are made of untouched singleton blocks, with identical ids
-    let left_graph = read_graph(&left)?;
-    let right_graph = read_graph(&right)?;
-    assert!(!right_graph.is_id_disjoint_from(&left_graph));
-
-    let output = dir.path().join("merged.json");
-    merge_run(&merge_args(left, right, output.clone()))?;
-
-    let merged = read_graph(&output)?;
-    merged.sanity_check()?;
-    assert_eq!(merged.paths.len(), 2);
-    assert_eq!(merged.blocks.len(), 2);
-
-    let mut expected = sequences(&left_graph)?;
-    expected.extend(sequences(&right_graph)?);
-    assert_eq!(sequences(&merged)?, expected);
-
-    Ok(())
-  }
-
   /// Merging a graph with itself duplicates every genome name, and must be rejected.
   #[rstest]
   fn itest_merge_rejects_duplicate_genome_names() -> Result<(), Report> {
@@ -181,6 +149,24 @@ mod tests {
     let error = report_to_string(&result.unwrap_err());
     assert!(
       error.contains("Duplicate genome names"),
+      "unexpected error message: {error}"
+    );
+
+    Ok(())
+  }
+
+  /// `build` enforces the same uniqueness invariant on its input FASTA records, so that a graph
+  /// can never carry duplicate genome names into a later merge.
+  #[rstest]
+  fn itest_build_rejects_duplicate_sequence_names() -> Result<(), Report> {
+    let (mut fastas, _) = read_and_split("../../data/ges-1.fa", 2, 2)?;
+    fastas[1].seq_name = fastas[0].seq_name.clone();
+
+    let result = build(fastas, &PangraphBuildArgs::default(), false);
+
+    let error = report_to_string(&result.unwrap_err());
+    assert!(
+      error.contains("Duplicate sequence names"),
       "unexpected error message: {error}"
     );
 

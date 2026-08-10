@@ -260,14 +260,21 @@ used.
 
 Decision: **duplicate path names are a hard error, in both `build` and `merge`.**
 
-- `build`: after reading the input FASTA records, error if two records share a name. This makes the
-  existing `--guide-tree` behaviour unconditional and fills the TODO.
+- `build`: error if two input FASTA records share a name. The check lives in `build()` rather than
+  `build_run()`, so that it applies to every caller of the library entry point and not only to the
+  CLI. This makes the existing `--guide-tree` behaviour unconditional and fills the TODO.
 - `merge`: error if a name occurs more than once within either input graph or across the two.
   This is what catches the common mistakes of merging a graph with itself, or re-adding a genome
   that is already present in the base graph — which would otherwise silently produce two
   identically named paths and break `export` and `simplify` downstream.
 
-Error messages should list the offending names, not just the first one.
+Error messages list all offending names, not just the first one.
+
+The two commands share the primitive, `utils::collections::find_duplicates`, but not the check
+itself: the surrounding messages differ (input FASTA records versus genomes of two graphs, with the
+merge one hinting at the self-merge mistake), and each is two lines around the shared call. Sharing
+a single `check_unique_names(names, context)` would only trade those two lines for a context
+parameter threaded through to the message.
 
 Paths with no name at all are left alone by the duplicate check (multiple unnamed paths are not an
 error), but `--verify` requires every path to be named, because names are the verification key
@@ -363,21 +370,17 @@ merged into `master` last, once all phases have landed.
 | 2 | `feat/merge-cmd` | §4.2 — extract `GraphMergeParams`, no behaviour change | landed |
 | 3 | `feat/merge-cmd` | §3.4 — `relabel_in_place` / `make_disjoint_from` | landed |
 | 4 | `feat/merge-cmd` | §4.5 — the command itself, plus integration tests | landed |
-| 5 | `feat/merge-unique-names` | §4.3 — duplicate path names are an error in `build` too | todo |
+| 5 | `feat/merge-cmd` | §4.3 — duplicate genome names are an error in `build` and `merge` | landed |
 | 6 | `feat/merge-verify` | §4.4 — name-keyed verification shared with `build` | todo |
 | 7 | `feat/merge-docs` | §9 — tutorial, `reconstruct` docs, CHANGELOG | todo |
 
-Phases 2–4 were implemented together, since a `merge` command without §3.4 panics on the first
+Phases 2–5 were implemented together, since a `merge` command without §3.4 panics on the first
 identifier collision and would not be testable.
 
-Two pieces of §4.3 and §4.4 are therefore only half-done, and phases 5 and 6 finish them:
-
-- Duplicate path names are rejected by `merge` (across and within its two inputs), but `build` still
-  accepts duplicate FASTA names except when `--guide-tree` is used.
-- Name-keyed verification exists as `verify_merged_sequences` inside `merge_run`, private to the
-  merge command. `build` still verifies against input FASTA records by index, and
-  `compare_sequences` still compares whole `FastaRecord`s (including `index`). Phase 6 unifies the
-  two behind a single `BTreeMap<String, Seq>`-based helper.
+§4.4 is therefore the only piece left half-done: name-keyed verification exists as
+`verify_merged_sequences` inside `merge_run`, private to the merge command. `build` still verifies
+against input FASTA records by index, and `compare_sequences` still compares whole `FastaRecord`s
+(including `index`). Phase 6 unifies the two behind a single `BTreeMap<String, Seq>`-based helper.
 
 ---
 
@@ -416,9 +419,15 @@ Two pieces of §4.3 and §4.4 are therefore only half-done, and phases 5 and 6 f
   sequence is reconstructed byte-identically (matched **by name**, not by order); `sanity_check`
   passes; the path count is `nA + nB`; all path names are preserved.
 - A single-genome right graph (exercises phase 1).
-- Two graphs with no shared homology — the merge degenerates to a pure join, and this is also the
-  case that produces surviving small integer ids, so it is the sharpest test of §3.
-- Merging a graph with itself must fail with a duplicate-name error.
+- Merging a graph with itself must fail with a duplicate-name error, and `build` must reject
+  duplicate names in its input FASTA records.
+
+Deliberately **not** tested at the integration level: two graphs with no shared homology, as a way
+to exercise the surviving small integer ids of §3.2. Whether two genomes have *no* detectable
+homology is a property of the aligner and its parameters, not something a test can pin down — even
+distant genomes may share a short segment. The colliding-id case is covered directly and
+deterministically by the `make_disjoint_from` unit tests, which construct graphs with ids `0..2` by
+hand.
 
 ---
 

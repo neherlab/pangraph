@@ -7,6 +7,7 @@ use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_path::PangraphPath;
 use crate::representation::seq::Seq;
+use crate::utils::collections::find_duplicates;
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use log::{info, warn};
@@ -80,9 +81,9 @@ fn merge_cmd_preliminary_checks(args: &PangraphMergeArgs, left: &Pangraph, right
     }
   }
 
-  // Path names are the identity of a genome throughout pangraph: they are what `export` and
-  // `simplify` resolve genomes by, and the only handle that survives a merge unchanged.
-  let duplicates = duplicate_path_names(&[left, right]);
+  // Genome names are the identity of a genome throughout pangraph, and the only handle that
+  // survives a merge unchanged. `build` enforces the same invariant on its input FASTA records.
+  let duplicates = find_duplicates([left, right].into_iter().flat_map(|graph| graph.path_names().flatten()));
   if !duplicates.is_empty() {
     return make_error!(
       "Duplicate genome names found in the input graphs: [{}]. Genome names must be unique across the two graphs: merging a graph with itself, or re-adding a genome that is already present, is not supported.",
@@ -110,19 +111,6 @@ fn merge_cmd_preliminary_checks(args: &PangraphMergeArgs, left: &Pangraph, right
   }
 
   Ok(())
-}
-
-/// Returns the sorted path names that occur more than once across the given graphs.
-fn duplicate_path_names(graphs: &[&Pangraph]) -> Vec<String> {
-  graphs
-    .iter()
-    .flat_map(|graph| graph.path_names().flatten())
-    .counts()
-    .into_iter()
-    .filter(|(_, count)| *count > 1)
-    .map(|(name, _)| name.to_owned())
-    .sorted()
-    .collect()
 }
 
 /// Returns the set of circularity flags used by the paths of a graph.
