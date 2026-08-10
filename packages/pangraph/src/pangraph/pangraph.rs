@@ -409,11 +409,11 @@ mod tests {
   #![allow(non_snake_case, clippy::redundant_clone)]
 
   use super::*;
-  use crate::commands::reconstruct::reconstruct_run::reconstruct;
   use crate::o;
   use crate::pangraph::edits::Edit;
   use crate::pangraph::pangraph_node::PangraphNode;
   use crate::pangraph::pangraph_path::PangraphPath;
+  use crate::pangraph::reconstruct::reconstruct;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use itertools::Itertools;
   use maplit::btreemap;

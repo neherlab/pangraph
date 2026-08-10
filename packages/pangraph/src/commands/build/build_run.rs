@@ -1,10 +1,11 @@
 use crate::align::alignment_args::check_alignment_backend_available;
 use crate::commands::build::build_args::PangraphBuildArgs;
-use crate::commands::reconstruct::reconstruct_run::{compare_sequences, reconstruct};
+use crate::commands::reconstruct::reconstruct_run::compare_sequences;
 use crate::io::fasta::{FastaReader, FastaRecord};
 use crate::io::json::{JsonPretty, json_write_file};
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
+use crate::pangraph::reconstruct::reconstruct;
 use crate::pangraph::strand::Strand::Forward;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;

@@ -1,11 +1,11 @@
 use crate::align::alignment_args::check_alignment_backend_available;
 use crate::commands::merge::merge_args::PangraphMergeArgs;
-use crate::commands::reconstruct::reconstruct_run::reconstruct;
 use crate::io::json::{JsonPretty, json_write_file};
 use crate::make_error;
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_path::PangraphPath;
+use crate::pangraph::reconstruct::reconstruct;
 use crate::representation::seq::Seq;
 use crate::utils::collections::find_duplicates;
 use eyre::{Report, WrapErr};

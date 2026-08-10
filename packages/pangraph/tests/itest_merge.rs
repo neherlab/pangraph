@@ -9,10 +9,10 @@ mod tests {
   use pangraph::commands::build::build_run::build;
   use pangraph::commands::merge::merge_args::PangraphMergeArgs;
   use pangraph::commands::merge::merge_run::merge_run;
-  use pangraph::commands::reconstruct::reconstruct_run::reconstruct;
   use pangraph::io::fasta::{FastaReader, FastaRecord};
   use pangraph::io::json::{JsonPretty, json_write_file};
   use pangraph::pangraph::pangraph::Pangraph;
+  use pangraph::pangraph::reconstruct::reconstruct;
   use pangraph::representation::seq::Seq;
   use pangraph::utils::error::report_to_string;
   use pretty_assertions::assert_eq;
