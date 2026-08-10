@@ -16,7 +16,6 @@ use maplit::btreemap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
-use std::mem::take;
 use std::path::Path;
 use std::str::FromStr;
 
@@ -67,47 +66,39 @@ impl Pangraph {
     self.blocks.values().map(|block| block.consensus())
   }
 
-  /// Re-derives every block, node and path id of this graph, in place.
+  /// Returns this graph with every block, node and path id re-derived.
   ///
   /// Block and node ids become `id((salt, old_id))`; path ids are renumbered contiguously from
   /// `path_id_offset`, preserving their relative order (path ids double as the ordering index of
   /// the genomes, so they are kept small and sequential rather than hashed).
   ///
-  /// Path ids are assigned from the offset by rank rather than derived from the previous id, so
-  /// relabeling the same graph twice does not shift them any further.
-  ///
-  /// Consensuses, edits, names, descriptions, strands and positions are left untouched: the
-  /// relabeled graph describes exactly the same sequences as the original one.
-  pub fn relabel_in_place(&mut self, salt: usize, path_id_offset: usize) -> Result<(), Report> {
-    let (n_blocks, n_nodes, n_paths) = (self.blocks.len(), self.nodes.len(), self.paths.len());
+  /// Consensuses, edits, names, descriptions, strands and positions are moved over untouched: the
+  /// relabeled graph describes exactly the same sequences as the original one. The graph is taken
+  /// by value so that the sequences can be moved rather than copied.
+  pub fn relabel(self, salt: usize, path_id_offset: usize) -> Result<Self, Report> {
+    let Self { paths, blocks, nodes } = self;
+    let (n_blocks, n_nodes, n_paths) = (blocks.len(), nodes.len(), paths.len());
 
-    let block_map: BTreeMap<BlockId, BlockId> =
-      self.blocks.keys().map(|&bid| (bid, BlockId(id((salt, bid))))).collect();
+    let block_map: BTreeMap<BlockId, BlockId> = blocks.keys().map(|&bid| (bid, BlockId(id((salt, bid))))).collect();
 
-    let node_map: BTreeMap<NodeId, NodeId> = self.nodes.keys().map(|&nid| (nid, NodeId(id((salt, nid))))).collect();
+    let node_map: BTreeMap<NodeId, NodeId> = nodes.keys().map(|&nid| (nid, NodeId(id((salt, nid))))).collect();
 
-    let path_map: BTreeMap<PathId, PathId> = self
-      .paths
+    let path_map: BTreeMap<PathId, PathId> = paths
       .keys()
       .enumerate()
       .map(|(rank, &pid)| (pid, PathId(path_id_offset + rank)))
       .collect();
 
-    self.blocks = take(&mut self.blocks)
+    let blocks: BTreeMap<BlockId, PangraphBlock> = blocks
       .into_values()
       .map(|block| {
         let new_block_id = block_map[&block.id()];
-        let mut block = block.with_id(new_block_id);
-        let alignments = take(block.alignments_mut())
-          .into_iter()
-          .map(|(nid, edit)| (node_map[&nid], edit))
-          .collect();
-        *block.alignments_mut() = alignments;
+        let block = block.relabel(new_block_id, &node_map);
         (block.id(), block)
       })
       .collect();
 
-    self.nodes = take(&mut self.nodes)
+    let nodes: BTreeMap<NodeId, PangraphNode> = nodes
       .into_iter()
       .map(|(nid, node)| {
         let node = PangraphNode::new(
@@ -121,7 +112,7 @@ impl Pangraph {
       })
       .collect();
 
-    self.paths = take(&mut self.paths)
+    let paths: BTreeMap<PathId, PangraphPath> = paths
       .into_values()
       .map(|mut path| {
         path.id = path_map[&path.id];
@@ -134,16 +125,16 @@ impl Pangraph {
 
     // An injective relabeling cannot change the number of entities. If it did, two distinct ids
     // were mapped onto the same one and entities were silently dropped.
-    if (self.blocks.len(), self.nodes.len(), self.paths.len()) != (n_blocks, n_nodes, n_paths) {
+    if (blocks.len(), nodes.len(), paths.len()) != (n_blocks, n_nodes, n_paths) {
       return make_internal_error!(
         "When relabeling graph ids: expected {n_blocks} blocks, {n_nodes} nodes and {n_paths} paths, but got {} blocks, {} nodes and {} paths",
-        self.blocks.len(),
-        self.nodes.len(),
-        self.paths.len(),
+        blocks.len(),
+        nodes.len(),
+        paths.len(),
       );
     }
 
-    Ok(())
+    Ok(Self { paths, blocks, nodes })
   }
 
   /// Returns true if this graph shares no block, node or path id with `other`.
@@ -159,25 +150,25 @@ impl Pangraph {
   /// of every build with path, block and node id `0`, and blocks that never merge keep that id all
   /// the way to the final graph. Merging therefore requires namespacing one of the two graphs
   /// first.
-  pub fn make_disjoint_from(&mut self, other: &Self) -> Result<(), Report> {
+  pub fn make_disjoint_from(self, other: &Self) -> Result<Self, Report> {
     // Namespace under which the ids of this graph are re-derived.
     const SALT: usize = 1;
 
     // Path ids are assigned above every path id of `other`, so they cannot collide by construction.
     let path_id_offset = other.paths.keys().map(|pid| pid.0 + 1).max().unwrap_or(0);
 
-    self.relabel_in_place(SALT, path_id_offset)?;
+    let relabeled = self.relabel(SALT, path_id_offset)?;
 
     // Block and node ids are hashes, so a collision with `other` is possible in principle. At
     // ~2^-64 per pair it does not happen in practice, but the check is cheap and the alternative is
     // one graph silently overwriting a block of the other during the join.
-    if !self.is_id_disjoint_from(other) {
+    if !relabeled.is_id_disjoint_from(other) {
       return make_internal_error!(
         "When making graphs id-disjoint: the relabeled graph still shares block or node ids with the other graph. This requires a 64-bit hash collision and should never happen."
       );
     }
 
-    Ok(())
+    Ok(relabeled)
   }
 
   pub fn update(&mut self, u: &GraphUpdate) {
@@ -587,8 +578,7 @@ mod tests {
 
   #[rstest]
   fn test_relabel_keeps_graph_consistent() {
-    let mut graph = colliding_graph(["a", "b"]);
-    graph.relabel_in_place(1, 7).unwrap();
+    let graph = colliding_graph(["a", "b"]).relabel(1, 7).unwrap();
 
     graph.sanity_check().unwrap();
     assert_eq!(graph.blocks.len(), 2);
@@ -610,8 +600,7 @@ mod tests {
   #[rstest]
   fn test_relabel_preserves_sequences() {
     let original = colliding_graph(["a", "b"]);
-    let mut relabeled = original.clone();
-    relabeled.relabel_in_place(3, 0).unwrap();
+    let relabeled = original.clone().relabel(3, 0).unwrap();
 
     let seqs = |g: &Pangraph| {
       reconstruct(g)
@@ -623,42 +612,22 @@ mod tests {
     assert_eq!(seqs(&original), seqs(&relabeled));
   }
 
-  /// Path ids are assigned from the offset by rank, not derived from the previous id, so relabeling
-  /// twice leaves them where they are instead of shifting them by the offset again.
-  #[rstest]
-  fn test_repeated_relabel_does_not_shift_path_ids() {
-    let mut graph = colliding_graph(["a", "b"]);
-
-    graph.relabel_in_place(1, 5).unwrap();
-    let path_ids = graph.path_ids().collect_vec();
-    let block_ids = graph.block_ids().collect_vec();
-    assert_eq!(path_ids, vec![PathId(5), PathId(6)]);
-
-    graph.relabel_in_place(2, 5).unwrap();
-
-    assert_eq!(graph.path_ids().collect_vec(), path_ids);
-    assert_ne!(graph.block_ids().collect_vec(), block_ids);
-    graph.sanity_check().unwrap();
-  }
-
   #[rstest]
   fn test_relabel_is_deterministic() {
-    let mut first = colliding_graph(["a", "b"]);
-    let mut second = colliding_graph(["a", "b"]);
-    first.relabel_in_place(2, 5).unwrap();
-    second.relabel_in_place(2, 5).unwrap();
+    let first = colliding_graph(["a", "b"]).relabel(2, 5).unwrap();
+    let second = colliding_graph(["a", "b"]).relabel(2, 5).unwrap();
     assert_eq!(first, second);
   }
 
   #[rstest]
   fn test_make_disjoint_from() {
     let left = colliding_graph(["a", "b"]);
-    let mut right = colliding_graph(["c", "d"]);
+    let right = colliding_graph(["c", "d"]);
 
     // the two graphs share every single id before relabeling
     assert!(!right.is_id_disjoint_from(&left));
 
-    right.make_disjoint_from(&left).unwrap();
+    let right = right.make_disjoint_from(&left).unwrap();
 
     assert!(right.is_id_disjoint_from(&left));
     right.sanity_check().unwrap();

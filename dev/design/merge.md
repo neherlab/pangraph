@@ -155,10 +155,10 @@ the left-hand one. The **left graph is never modified**.
 /// `id((salt, old_id))`; path ids are renumbered contiguously from `path_id_offset`,
 /// preserving their relative order. Consensuses, edits, names, descriptions, strands
 /// and positions are unchanged.
-fn relabel_in_place(&mut self, salt: usize, path_id_offset: usize)
+pub fn relabel(self, salt: usize, path_id_offset: usize) -> Result<Self, Report>
 
-/// Makes `right` id-disjoint from `left`. `left` is left untouched.
-pub fn make_disjoint(left: &Pangraph, right: &mut Pangraph) -> Result<(), Report>
+/// Relabels this graph so that it shares no identifier with `other`, which is untouched.
+pub fn make_disjoint_from(self, other: &Pangraph) -> Result<Self, Report>
 ```
 
 Rationale for relabeling *all* of the right graph's block and node ids, rather than only the ones
@@ -176,11 +176,13 @@ preserved either way.
 
 ### 3.5 Implementation notes
 
-- **Relabel in place.** Block consensuses are the bulk of a graph's memory; building a relabeled
-  copy would double peak usage on a large base graph. Use `std::mem::take` on the three maps and
-  rebuild them in place.
-- No new constructors are needed: `PangraphBlock::new`, `PangraphNode::new(Some(id), …)` and
-  `PangraphPath::new(Some(id), …)` all accept an explicit id.
+- **Move, don't clone.** Block consensuses are the bulk of a graph's memory; relabeling a cloned
+  copy would double peak usage on a large base graph. `relabel` therefore takes the graph by value
+  and destructures it (`let Self { paths, blocks, nodes } = self;`), so each map can be drained
+  into its replacement and the sequences are moved rather than copied.
+- `PangraphNode::new(Some(id), …)` and `PangraphPath::new(Some(id), …)` already accept an explicit
+  id. Blocks own their consensus behind private fields, so `PangraphBlock::relabel(self, id,
+  node_map)` does the equivalent from inside the type, moving the consensus and the edits across.
 - References to rewrite: the three map keys, `PangraphBlock::alignments` keys,
   `PangraphNode::{block_id, path_id}`, and `PangraphPath::nodes`.
 - **Assert injectivity.** After relabeling, the three maps must have the same lengths as before (a
@@ -373,7 +375,7 @@ merged into `master` last, once all phases have landed.
 |---|---|---|---|
 | 1 | `feat/merge-single-seq-build` | §4.1 — NJ tree for 1 and 0 input graphs | landed |
 | 2 | `feat/merge-cmd` | §4.2 — extract `GraphMergeParams`, no behaviour change | landed |
-| 3 | `feat/merge-cmd` | §3.4 — `relabel_in_place` / `make_disjoint_from` | landed |
+| 3 | `feat/merge-cmd` | §3.4 — `relabel` / `make_disjoint_from` | landed |
 | 4 | `feat/merge-cmd` | §4.5 — the command itself, plus integration tests | landed |
 | 5 | `feat/merge-cmd` | §4.3 — duplicate genome names are an error in `build` and `merge` | landed |
 | 6 | `feat/merge-verify` | §4.4 — name-keyed verification shared with `build` | todo |
@@ -410,7 +412,7 @@ against input FASTA records by index, and `compare_sequences` still compares who
 
 **Unit**
 
-- `relabel_in_place` / `make_disjoint`: two hand-built graphs with identical ids `0..2` become
+- `relabel` / `make_disjoint_from`: two hand-built graphs with identical ids `0..2` become
   joinable, and `sanity_check` passes on the join.
 - Relabeling is an isomorphism: sequences reconstructed from the graph, keyed by path name, are
   unchanged by relabeling.

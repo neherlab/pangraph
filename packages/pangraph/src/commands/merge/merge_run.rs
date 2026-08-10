@@ -16,13 +16,13 @@ use std::path::Path;
 
 pub fn merge_run(args: &PangraphMergeArgs) -> Result<(), Report> {
   let left = read_graph(&args.left_graph).wrap_err("When reading the first input graph")?;
-  let mut right = read_graph(&args.right_graph).wrap_err("When reading the second input graph")?;
+  let right = read_graph(&args.right_graph).wrap_err("When reading the second input graph")?;
 
   merge_cmd_preliminary_checks(args, &left, &right).wrap_err("When performing preliminary checks before merging")?;
 
   // The two graphs were built independently, so their identifiers almost certainly collide.
   // Namespace the second graph before joining them.
-  right
+  let right = right
     .make_disjoint_from(&left)
     .wrap_err("When making the identifiers of the two input graphs disjoint")?;
 

@@ -60,9 +60,18 @@ impl PangraphBlock {
     }
   }
 
-  /// Returns this block with a different id, leaving consensus and alignments untouched.
-  pub fn with_id(self, id: BlockId) -> Self {
-    Self { id, ..self }
+  /// Returns this block with a new id and its alignment keys rewritten through `node_map`.
+  /// The consensus and the edits are moved over unchanged.
+  pub fn relabel(self, id: BlockId, node_map: &BTreeMap<NodeId, NodeId>) -> Self {
+    Self {
+      id,
+      consensus: self.consensus,
+      alignments: self
+        .alignments
+        .into_iter()
+        .map(|(nid, edit)| (node_map[&nid], edit))
+        .collect(),
+    }
   }
 
   pub fn reverse_complement(&self) -> Result<Self, Report> {
