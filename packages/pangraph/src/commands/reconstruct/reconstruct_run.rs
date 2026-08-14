@@ -52,7 +52,7 @@ fn verify_against_fasta(graph: &Pangraph, verify: &Path) -> Result<usize, Report
   let mut reader = FastaReader::from_path(verify)?;
   let mut record = FastaRecord::new();
   loop {
-    record.clear();
+    // `FastaReader::read` clears the record before filling it, so it is not reset here.
     reader.read(&mut record)?;
     if record.is_empty() {
       break;
