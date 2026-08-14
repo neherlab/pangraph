@@ -1,3 +1,9 @@
+## Unreleased
+
+- added `pangraph merge` command, to combine two existing pangenome graphs into a single one.
+- `pangraph build` now accepts a single input sequence, and rejects inputs with duplicate genome names.
+- `pangraph reconstruct --verify` now matches sequences by genome name rather than by position.
+
 ## 1.3.0
 
 - added `--guide-tree` option to `pangraph build` command to allow users to provide a custom guide tree in Newick format, see #180.
