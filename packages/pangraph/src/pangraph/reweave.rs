@@ -1,7 +1,7 @@
 use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
+use crate::align::alignment_args::GraphMergeParams;
 use crate::align::bam::cigar::{Side, add_flanking_indel, cigar_switch_ref_qry, invert_cigar};
 use crate::align::map_variations::{BandParameters, map_variations};
-use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_error;
 use crate::pangraph::edits::Edit;
@@ -37,7 +37,7 @@ impl MergePromise {
     }
   }
 
-  pub fn solve_promise(&mut self, args: &PangraphBuildArgs) -> Result<PangraphBlock, Report> {
+  pub fn solve_promise(&mut self, args: &GraphMergeParams) -> Result<PangraphBlock, Report> {
     // TODO: avoid re-aligning if cigar is only a single match (no indels)
 
     // calculate the mean shift and bandwidth of the alignment due to the displacement

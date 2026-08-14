@@ -1,15 +1,14 @@
 use crate::commands::reconstruct::reconstruct_args::PangraphReconstructArgs;
 use crate::io::fasta::{FastaReader, FastaRecord, FastaWriter};
 use crate::io::json::json_read_file;
-use crate::io::seq::reverse_complement;
+use crate::make_error;
 use crate::pangraph::pangraph::Pangraph;
-use crate::pangraph::pangraph_node::NodeId;
-use crate::pangraph::pangraph_path::PangraphPath;
-use crate::representation::seq::Seq;
-use crate::{make_error, make_internal_report};
-use eyre::Report;
+use crate::pangraph::reconstruct::{path_ids_by_name, reconstruct, reconstruct_genome, verify_genome};
+use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use log::info;
+use std::collections::BTreeSet;
+use std::path::Path;
 
 pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
   let PangraphReconstructArgs {
@@ -19,21 +18,18 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
   } = &args;
 
   let graph: Pangraph = json_read_file(input_graph)?;
-  let mut results = reconstruct(&graph);
 
   if let Some(verify) = verify {
     info!("Verifying sequences reconstructed from pangenome graph");
-    let mut reader = FastaReader::from_path(verify)?;
-    results.try_for_each(|actual| -> Result<(), Report> {
-      let actual = actual?;
-      let mut expected = FastaRecord::new();
-      reader.read(&mut expected)?;
-      compare_sequences(&expected, &actual)?;
-      Ok(())
-    })?;
+    let n_verified = verify_against_fasta(&graph, verify)
+      .wrap_err_with(|| format!("When verifying reconstructed sequences against '{}'", verify.display()))?;
+    info!(
+      "Graph reconstructs all {n_verified} genomes of '{}' exactly",
+      verify.display()
+    );
   } else {
     let mut writer = FastaWriter::from_path(output_fasta)?;
-    results.try_for_each(|fasta| {
+    reconstruct(&graph).try_for_each(|fasta| {
       let fasta = fasta?;
       writer.write(fasta.seq_name, &fasta.desc, &fasta.seq)
     })?;
@@ -42,86 +38,52 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
   Ok(())
 }
 
-pub fn compare_sequences(left: &FastaRecord, right: &FastaRecord) -> Result<bool, Report> {
-  if left != right {
-    return make_error!(
-      "Sequence mismatch detected: expected length {} but got {}",
-      left.seq.len(),
-      right.seq.len()
-    );
-  }
-  Ok(true)
-}
+/// Checks that the graph reconstructs exactly the genomes of the given FASTA file, and returns how
+/// many were verified.
+///
+/// Genomes are matched by name, so the order of the FASTA records is irrelevant: a merged graph
+/// renumbers its path ids and reconstructs its genomes in an order that matches no input file.
+/// The file is streamed and genomes are reconstructed one at a time, so only a single genome is
+/// held in memory at once.
+fn verify_against_fasta(graph: &Pangraph, verify: &Path) -> Result<usize, Report> {
+  let path_ids = path_ids_by_name(graph)?;
+  let mut remaining: BTreeSet<&str> = path_ids.keys().copied().collect();
 
-pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord, Report>> + use<'_> {
-  graph
-    .paths
-    .iter()
-    .sorted_by_key(|(path_id, _)| **path_id)
-    .map(|(path_id, path)| {
-      let index = path_id.0;
-      let seq = reconstruct_path_sequence(graph, path)?;
-      let seq_name = path
-        .name()
-        .clone()
-        .unwrap_or_else(|| format!("Unknown sequence #{path_id}"));
-      let desc = path.desc().clone();
-      Ok(FastaRecord {
-        seq_name,
-        desc,
-        seq,
-        index,
-      })
-    })
-}
+  let mut reader = FastaReader::from_path(verify)?;
+  let mut record = FastaRecord::new();
+  loop {
+    record.clear();
+    reader.read(&mut record)?;
+    if record.is_empty() {
+      break;
+    }
 
-fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<Seq, Report> {
-  if let Some(first_node_id) = path.nodes.first() {
-    let first_node_pos = graph.nodes[first_node_id].position().0;
-
-    let mut genome: Seq = path
-      .nodes
-      .iter()
-      .map(|node_id| reconstruct_block_sequence(graph, *node_id))
-      .collect::<Result<Seq, Report>>()?;
-
-    let genome_len = path.tot_len();
-    if genome.len() != genome_len {
+    let Some(path_id) = path_ids.get(record.seq_name.as_str()) else {
       return make_error!(
-        "When reconstructing sequences, genome length mismatch: computed length {} expected {}",
-        genome.len(),
-        genome_len
+        "Verification file contains genome '{}', which the graph does not contain",
+        record.seq_name
+      );
+    };
+
+    if !remaining.remove(record.seq_name.as_str()) {
+      return make_error!(
+        "Verification file contains genome '{}' more than once. Genome names must be unique, because they identify genomes.",
+        record.seq_name
       );
     }
 
-    genome.rotate_right(first_node_pos);
-
-    Ok(genome)
-  } else {
-    Ok(Seq::new())
+    let actual = reconstruct_genome(graph, *path_id)
+      .wrap_err_with(|| format!("When reconstructing genome '{}'", record.seq_name))?;
+    verify_genome(&record.seq_name, &record.seq, &actual)?;
   }
-}
 
-fn reconstruct_block_sequence(graph: &Pangraph, node_id: NodeId) -> Result<Seq, Report> {
-  let node = graph
-    .nodes
-    .get(&node_id)
-    .ok_or_else(|| make_internal_report!("Node {node_id} not found in graph"))?;
-
-  let block_id = node.block_id();
-  let block = graph
-    .blocks
-    .get(&block_id)
-    .ok_or_else(|| make_internal_report!("Block {block_id} not found in graph"))?;
-
-  // Get edits and apply them to the consensus sequence
-  let edits = block.alignment(node_id);
-
-  let mut s = edits.apply(block.consensus())?;
-
-  // Reverse-complement if on opposite strand
-  if node.strand().is_reverse() {
-    s = reverse_complement(&s)?;
+  if !remaining.is_empty() {
+    return make_error!(
+      "Verification file is missing {} genome(s) that the graph contains: [{}]",
+      remaining.len(),
+      remaining.iter().join(", ")
+    );
   }
-  Ok(s)
+
+  Ok(path_ids.len())
 }

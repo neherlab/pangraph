@@ -1,4 +1,4 @@
-use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::align::alignment_args::GraphMergeParams;
 use crate::make_report;
 use crate::pangraph::detach_unaligned::detach_unaligned_nodes;
 use crate::pangraph::edits::Edit;
@@ -32,7 +32,7 @@ struct BlockAnalysis {
 pub fn reconsensus_graph(
   graph: &mut Pangraph,
   ids_updated_blocks: &[BlockId],
-  args: &PangraphBuildArgs,
+  args: &GraphMergeParams,
 ) -> Result<(), Report> {
   // there should be no empty nodes in the graph
   debug_assert!(
@@ -406,7 +406,7 @@ mod tests {
     let majority_edits = block.find_majority_edits();
     assert!(majority_edits.has_indels()); // This block has indels requiring re-alignment
     let block = block
-      .edit_consensus_and_realign(&majority_edits, &PangraphBuildArgs::default())
+      .edit_consensus_and_realign(&majority_edits, &GraphMergeParams::default())
       .unwrap();
 
     // Check that the re-alignment produced the expected result
@@ -422,7 +422,7 @@ mod tests {
     let majority_edits = block.find_majority_edits();
     assert!(majority_edits.has_indels()); // This block has indels requiring re-alignment
     let block = block
-      .edit_consensus_and_realign(&majority_edits, &PangraphBuildArgs::default())
+      .edit_consensus_and_realign(&majority_edits, &GraphMergeParams::default())
       .unwrap();
 
     // Check that the re-alignment produced the expected result
@@ -457,7 +457,7 @@ mod tests {
       paths,
     };
 
-    let result = reconsensus_graph(&mut graph, &[block_id], &PangraphBuildArgs::default());
+    let result = reconsensus_graph(&mut graph, &[block_id], &GraphMergeParams::default());
     result.unwrap();
 
     assert_eq!(graph.blocks[&block_id], expected_block);
@@ -535,7 +535,7 @@ mod tests {
     let mut graph = Pangraph { paths, blocks, nodes };
 
     // Apply reconsensus_graph
-    let result = reconsensus_graph(&mut graph, &[initial_block.id()], &PangraphBuildArgs::default());
+    let result = reconsensus_graph(&mut graph, &[initial_block.id()], &GraphMergeParams::default());
 
     // Check that the operation succeeded
     result.unwrap();

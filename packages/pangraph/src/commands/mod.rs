@@ -2,6 +2,7 @@ pub mod build;
 pub mod export;
 pub mod main;
 pub mod md_help;
+pub mod merge;
 pub mod reconstruct;
 pub mod root_args;
 pub mod schema;

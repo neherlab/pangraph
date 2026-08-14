@@ -1,6 +1,6 @@
+use crate::align::alignment_args::GraphMergeParams;
 use crate::align::nextclade::align_with_nextclade::{AlignWithNextcladeOutput, NextalignParams, align_with_nextclade};
 use crate::align::nextclade::alphabet::nuc::{from_nuc, from_nuc_seq};
-use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::make_internal_report;
 use crate::pangraph::edits::{Del, Edit, Ins, Sub};
 use crate::representation::seq::Seq;
@@ -40,7 +40,7 @@ pub fn map_variations(
   ref_seq: &Seq,
   qry_seq: &Seq,
   mut band_params: BandParameters,
-  args: &PangraphBuildArgs,
+  args: &GraphMergeParams,
 ) -> Result<Edit, Report> {
   let params = NextalignParams {
     min_length: 1,
@@ -204,7 +204,7 @@ mod tests {
         mean_shift,
         band_width: bandwidth,
       },
-      &PangraphBuildArgs::default(),
+      &GraphMergeParams::default(),
     )
     .unwrap();
 
@@ -249,7 +249,7 @@ mod tests {
         mean_shift,
         band_width: bandwidth,
       },
-      &PangraphBuildArgs::default(),
+      &GraphMergeParams::default(),
     )
     .unwrap();
 
@@ -294,7 +294,7 @@ mod tests {
         mean_shift,
         band_width: bandwidth,
       },
-      &PangraphBuildArgs::default(),
+      &GraphMergeParams::default(),
     )
     .unwrap();
 
@@ -338,7 +338,7 @@ mod tests {
         mean_shift,
         band_width: bandwidth,
       },
-      &PangraphBuildArgs::default(),
+      &GraphMergeParams::default(),
     )
     .unwrap();
 

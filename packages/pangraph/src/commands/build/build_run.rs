@@ -1,63 +1,38 @@
-use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
-use crate::commands::reconstruct::reconstruct_run::{compare_sequences, reconstruct};
+use crate::align::alignment_args::check_alignment_backend_available;
+use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::io::fasta::{FastaReader, FastaRecord};
 use crate::io::json::{JsonPretty, json_write_file};
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
+use crate::pangraph::reconstruct::{GenomeCoverage, sequences_by_name, verify_graph_sequences};
 use crate::pangraph::strand::Strand::Forward;
+use crate::representation::seq::Seq;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
 use crate::tree::newick::build_tree_from_newick;
+use crate::utils::collections::find_duplicates;
 use crate::utils::progress_bar::ProgressBar;
-use crate::{make_internal_error, make_internal_report};
-use color_eyre::owo_colors::{AnsiColors, OwoColorize};
-use color_eyre::{Help, SectionExt};
+use crate::{make_error, make_internal_error, make_internal_report};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use log::info;
+use std::collections::BTreeMap;
 
-pub fn build_cmd_preliminary_checks(args: &PangraphBuildArgs) -> Result<(), Report> {
-  // alignment kernel checks
-  if args.alignment_kernel == AlignmentBackend::Mmseqs {
-    // check that mmseqs is available in PATH
-    std::process::Command::new("mmseqs")
-      .arg("--help")
-      .output()
-      .wrap_err("When executing `mmseqs --help`")
-      .section(
-        "Please make sure that `mmseqs` is installed, available in PATH and is functional outside of pangraph. For more details, refer to mmseqs documentation at https://github.com/soedinglab/MMseqs2"
-          .color(AnsiColors::Cyan)
-          .header("Suggestion:"),
-      )?;
-  }
-
-  Ok(())
-}
-
-pub fn reconstruct_and_compare_graph_seqs(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(), Report> {
-  // Reconstruct sequences from the given graph.
-  let mut results = reconstruct(graph);
-
-  // Check that the reconstructed sequences match the original FASTA records.
-  results.try_for_each(|actual| -> Result<(), Report> {
-    let actual = actual?;
-    let expected = &fastas[actual.index];
-    compare_sequences(expected, &actual)?;
-    Ok(())
-  })?;
-
-  Ok(())
-}
-
-pub fn graph_sanity_checks(graph: &Pangraph, fastas: &[FastaRecord]) -> Result<(), Report> {
+/// Checks that the graph is internally consistent and reconstructs the genomes it should.
+fn graph_sanity_checks(
+  graph: &Pangraph,
+  expected: &BTreeMap<String, Seq>,
+  coverage: GenomeCoverage,
+) -> Result<(), Report> {
   // check that graph internal structure (blocks, paths, nodes, edits...) is valid
   #[cfg(debug_assertions)]
   graph
     .sanity_check()
     .wrap_err("When performing sanity check on the pangraph")?;
 
-  // Reconstruct sequences from the graph and compare them with the original FASTA records.
-  reconstruct_and_compare_graph_seqs(graph, fastas)
+  // Reconstruct the genomes from the graph and compare them with the input sequences. Genomes are
+  // matched by name: path ids do not survive a merge, so they cannot pair sequences up.
+  verify_graph_sequences(graph, expected, coverage)
     .wrap_err("When comparing reconstructed sequences with original FASTA records")?;
 
   Ok(())
@@ -69,9 +44,9 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   let fastas = FastaReader::from_paths(input_fastas)?.read_many()?;
 
   // TODO: adjust fasta letter case if `upper_case` is set
-  // TODO: check for duplicate fasta names
 
-  build_cmd_preliminary_checks(args).wrap_err("When performing preliminary checks before building the pangraph.")?;
+  check_alignment_backend_available(&args.merge_params)
+    .wrap_err("When performing preliminary checks before building the pangraph.")?;
 
   let pangraph = build(fastas, args, args.verify)?;
 
@@ -80,10 +55,28 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   Ok(())
 }
 
+/// Sequence names identify genomes throughout pangraph: they are what `export` and `simplify`
+/// resolve genomes by, and the only handle that survives a graph merger. They must be unique.
+pub fn check_unique_sequence_names(fastas: &[FastaRecord]) -> Result<(), Report> {
+  let duplicates = find_duplicates(fastas.iter().map(|fasta| fasta.seq_name.as_str()));
+  if !duplicates.is_empty() {
+    return make_error!(
+      "Duplicate sequence names found in the input: [{}]. Sequence names must be unique, because they identify genomes in the resulting pangraph.",
+      duplicates.join(", ")
+    );
+  }
+  Ok(())
+}
+
 pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -> Result<Pangraph, Report> {
-  // If verification is requested, we need to keep a copy of the original FASTA records
-  // to compare them with the sequences reconstructed from the graph.
-  let fasta_copy = verify.then(|| fastas.clone());
+  check_unique_sequence_names(&fastas).wrap_err("When checking the names of the input sequences")?;
+
+  // If verification is requested, keep the input sequences, keyed by genome name, to compare them
+  // with the sequences reconstructed from the graph.
+  let expected = verify
+    .then(|| sequences_by_name(&fastas))
+    .transpose()
+    .wrap_err("When collecting the input sequences for verification")?;
 
   // Build singleton graphs from input sequences
   // TODO: initial graphs can potentially be constructed when initializing tree clades. This could avoid a lot of boilerplate code.
@@ -125,7 +118,7 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -
               right.paths.len()
             );
 
-            clade.data = Some(merge_graphs(left, right, args).wrap_err("When merging graphs")?);
+            clade.data = Some(merge_graphs(left, right, &args.merge_params).wrap_err("When merging graphs")?);
 
             // increase progress bar
             pb.inc(1);
@@ -137,14 +130,12 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -
               clade.data.as_ref().unwrap().paths.len()
             );
 
-            // perform checks only in debug mode and if requested
+            // perform checks only in debug mode and if requested. An intermediate graph holds
+            // only the genomes of its own clade, hence `Partial`.
             #[cfg(debug_assertions)]
-            {
-              if verify {
-                // verify the graph if requested
-                graph_sanity_checks(clade.data.as_ref().unwrap(), fasta_copy.as_ref().unwrap())
-                  .wrap_err("When performing sanity checks on the merged graph")?;
-              }
+            if let Some(expected) = expected.as_ref() {
+              graph_sanity_checks(clade.data.as_ref().unwrap(), expected, GenomeCoverage::Partial)
+                .wrap_err("When performing sanity checks on the merged graph")?;
             }
 
             Ok(())
@@ -171,10 +162,11 @@ pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -
     .take()
     .ok_or_else(|| make_internal_report!("Root clade of the guide tree contains no graph after graph alignment"))?;
 
-  // verify the final graph if requested
-  if verify {
-    graph_sanity_checks(&graph, fasta_copy.as_ref().unwrap())
+  // verify the final graph if requested. It must hold every input genome, hence `Complete`.
+  if let Some(expected) = &expected {
+    graph_sanity_checks(&graph, expected, GenomeCoverage::Complete)
       .wrap_err("When performing sanity checks on the final pangraph")?;
+    info!("Pangraph reconstructs all {} input genomes exactly", expected.len());
   }
 
   Ok(graph)
