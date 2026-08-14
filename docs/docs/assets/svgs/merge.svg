@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="120.67mm"
+   height="42.81mm"
+   viewBox="3.36 1.37 120.67 42.81"
+   version="1.1"
+   id="svg1"
+   inkscape:version="1.4.4 (1:1.4.4+202605061436+dcaf3e7d9e)"
+   sodipodi:docname="merge.svg"
+   inkscape:export-filename="../t5_merge.png"
+   inkscape:export-xdpi="300"
+   inkscape:export-ydpi="300"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="1"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:document-units="mm"
+     inkscape:zoom="2.8284271"
+     inkscape:cx="284.96403"
+     inkscape:cy="87.150911"
+     inkscape:window-width="2494"
+     inkscape:window-height="1371"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1" />
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <!-- ================= graph A ================= -->
+    <text
+       xml:space="preserve"
+       style="font-size:2.8px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:center;text-anchor:middle;fill:#1a5fb4;stroke:none"
+       x="18"
+       y="5.5"
+       id="text-label-a"><tspan
+         sodipodi:role="line"
+         id="tspan-label-a"
+         style="text-align:center;text-anchor:middle;fill:#1a5fb4"
+         x="18"
+         y="5.5">graph A</tspan></text>
+    <path
+       style="fill:none;stroke:#1a5fb4;stroke-width:1.3;stroke-linecap:round"
+       d="M 30,24 A 12,12 0 0 1 27.193,31.713"
+       id="a-core1" />
+    <path
+       style="fill:none;stroke:#1a5fb4;stroke-width:1.3;stroke-linecap:round"
+       d="M 18,36 A 12,12 0 0 1 11.117,33.83"
+       id="a-core2" />
+    <path
+       style="fill:none;stroke:#1a5fb4;stroke-width:1.3;stroke-linecap:round"
+       d="M 11.117,33.83 A 12,12 0 0 1 11.117,14.17"
+       id="a-core3" />
+    <path
+       style="fill:none;stroke:#1a5fb4;stroke-width:1.3;stroke-linecap:round"
+       d="M 21.106,12.409 A 12,12 0 0 1 30,24"
+       id="a-core4" />
+    <path
+       style="fill:none;stroke:#3584e4;stroke-width:1.3;stroke-linecap:round"
+       d="M 27.193,31.713 A 5.084,5.084 0 0 1 18,36"
+       id="a-bubble1-out" />
+    <path
+       style="fill:none;stroke:#99c1f1;stroke-width:1.3;stroke-linecap:round"
+       d="M 27.193,31.713 C 22.462907,31.509348 19.415895,33.458674 18,36"
+       id="a-bubble1-in"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#3584e4;stroke-width:1.3;stroke-linecap:round"
+       d="M 11.117,14.17 A 5.084,5.084 0 0 1 21.106,12.409"
+       id="a-bubble2-out" />
+    <path
+       style="fill:none;stroke:#99c1f1;stroke-width:1.3;stroke-linecap:round"
+       d="m 11.117,14.17 c 5.102437,2.200649 7.840661,-0.21538 9.989,-1.761"
+       id="a-bubble2-in"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#3584e4;stroke-width:1.3;stroke-linecap:round"
+       d="m 11.117,33.83 c 1.726109,2.655884 -0.7093,6.531992 -3.3013246,4.718454 C 5.2236506,36.734916 8.0303981,33.11862 11.117,33.83"
+       id="a-loop1"
+       sodipodi:nodetypes="csc" />
+    <!-- ================= plus ================= -->
+    <rect
+       style="fill:#77767b;stroke:none"
+       id="plus-h"
+       x="35.5"
+       y="23.5"
+       width="5"
+       height="1" />
+    <rect
+       style="fill:#77767b;stroke:none"
+       id="plus-v"
+       x="37.5"
+       y="21.5"
+       width="1"
+       height="5" />
+    <!-- ================= graph B ================= -->
+    <text
+       xml:space="preserve"
+       style="font-size:2.8px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:center;text-anchor:middle;fill:#a51d2d;stroke:none"
+       x="58"
+       y="5.5"
+       id="text-label-b"><tspan
+         sodipodi:role="line"
+         id="tspan-label-b"
+         style="text-align:center;text-anchor:middle;fill:#a51d2d"
+         x="58"
+         y="5.5">graph B</tspan></text>
+    <path
+       style="fill:none;stroke:#a51d2d;stroke-width:1.3;stroke-linecap:round"
+       d="M 70,24 A 12,12 0 0 1 55.916,35.818"
+       id="b-core1" />
+    <path
+       style="fill:none;stroke:#a51d2d;stroke-width:1.3;stroke-linecap:round"
+       d="M 55.916,35.818 A 12,12 0 0 1 46.724,19.896"
+       id="b-core2" />
+    <path
+       style="fill:none;stroke:#a51d2d;stroke-width:1.3;stroke-linecap:round"
+       d="M 46.724,19.896 A 12,12 0 0 1 60.084,12.182"
+       id="b-core3" />
+    <path
+       style="fill:none;stroke:#a51d2d;stroke-width:1.3;stroke-linecap:round"
+       d="M 68.392,18 A 12,12 0 0 1 70,24"
+       id="b-core4" />
+    <path
+       style="fill:none;stroke:#e01b24;stroke-width:1.3;stroke-linecap:round"
+       d="M 60.084,12.182 A 5.084,5.084 0 0 1 68.392,18"
+       id="b-bubble1-out" />
+    <path
+       style="fill:none;stroke:#faa79f;stroke-width:1.3;stroke-linecap:round;stroke-opacity:1"
+       d="m 60.084,12.182 c 1.546801,3.396575 4.778776,5.254471 8.308,5.818"
+       id="b-bubble1-in"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#f66151;stroke-width:1.3;stroke-linecap:round"
+       d="m 55.916,35.818 c 2.685927,1.678944 2.114412,6.221187 -1.000899,5.671426 C 51.79979,40.939665 52.817638,36.476187 55.916,35.818"
+       id="b-loop1"
+       sodipodi:nodetypes="csc" />
+    <!-- ================= arrow ================= -->
+    <path
+       style="fill:#77767b;stroke:none"
+       d="M 76,23.25 H 82 V 21.75 L 85.5,24 82,26.25 V 24.75 H 76 Z"
+       id="arrow" />
+    <!-- ================= merged graph ================= -->
+    <text
+       xml:space="preserve"
+       style="font-size:2.8px;font-family:sans-serif;-inkscape-font-specification:'sans-serif, Normal';text-align:center;text-anchor:middle;fill:#613583;stroke:none"
+       x="106"
+       y="5.5"
+       id="text-label-m"><tspan
+         sodipodi:role="line"
+         id="tspan-label-m"
+         style="text-align:center;text-anchor:middle;fill:#613583"
+         x="106"
+         y="5.5">merged graph</tspan></text>
+    <path
+       style="fill:none;stroke:#613583;stroke-width:1.3;stroke-linecap:round"
+       d="M 120,24 A 14,14 0 0 1 114.999,34.725"
+       id="m-core1" />
+    <path
+       style="fill:none;stroke:#613583;stroke-width:1.3;stroke-linecap:round"
+       d="M 114.999,34.725 A 14,14 0 0 1 102.377,37.523"
+       id="m-core2" />
+    <path
+       style="fill:none;stroke:#613583;stroke-width:1.3;stroke-linecap:round"
+       d="M 93.312,29.917 A 14,14 0 0 1 92.213,21.569"
+       id="m-core3" />
+    <path
+       style="fill:none;stroke:#613583;stroke-width:1.3;stroke-linecap:round"
+       d="M 92.213,21.569 A 14,14 0 0 1 96.101,14.101"
+       id="m-core4" />
+    <path
+       style="fill:none;stroke:#613583;stroke-width:1.3;stroke-linecap:round"
+       d="M 96.101,14.101 A 14,14 0 0 1 104.78,10.053"
+       id="m-core5" />
+    <path
+       style="fill:none;stroke:#613583;stroke-width:1.3;stroke-linecap:round"
+       d="M 104.78,10.053 A 14,14 0 0 1 111.917,11.312"
+       id="m-core6" />
+    <path
+       style="fill:none;stroke:#613583;stroke-width:1.3;stroke-linecap:round"
+       d="M 119.523,20.377 A 14,14 0 0 1 120,24"
+       id="m-core7" />
+    <path
+       style="fill:none;stroke:#3584e4;stroke-width:1.3;stroke-linecap:round;stroke-opacity:1"
+       d="M 111.917,11.312 A 5.932,5.932 0 0 1 119.523,20.377"
+       id="m-bubble1-out" />
+    <path
+       style="fill:none;stroke:#dc8add;stroke-width:1.3;stroke-linecap:round"
+       d="M 111.917,11.312 A 14,14 0 0 1 119.523,20.377"
+       id="m-bubble1-in" />
+    <path
+       style="fill:none;stroke:#3584e4;stroke-width:1.3;stroke-linecap:round"
+       d="M 102.377,37.523 A 5.932,5.932 0 0 1 93.312,29.917"
+       id="m-bubble2-out" />
+    <path
+       style="fill:none;stroke:#e01b24;stroke-width:1.3;stroke-linecap:round;stroke-opacity:1"
+       d="m 93.312,29.917 a 5.932,5.932 0 0 1 9.065,7.606"
+       id="m-bubble2-out-3" />
+    <path
+       style="fill:none;stroke:#99c1f1;stroke-width:1.3;stroke-linecap:round;stroke-opacity:1"
+       d="M 102.377,37.523 A 14,14 0 0 1 93.312,29.917"
+       id="m-bubble2-in" />
+    <path
+       style="fill:none;stroke:#faa79f;stroke-width:1.3;stroke-linecap:round;stroke-opacity:1"
+       d="m 102.377,37.523 c -1.23177,-4.842131 -4.593632,-7.567791 -9.065,-7.606"
+       id="m-bubble2-in-3"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:none;stroke:#f66151;stroke-width:1.3;stroke-linecap:round"
+       d="m 114.999,34.725 c 3.51455,-1.142447 7.14616,2.773765 4.31897,5.146378 -2.82719,2.372613 -6.05393,-1.883377 -4.31897,-5.146378"
+       id="m-loop1"
+       sodipodi:nodetypes="csc" />
+    <path
+       style="fill:none;stroke:#3584e4;stroke-width:1.3;stroke-linecap:round;stroke-opacity:1"
+       d="M 96.101,14.101 C 92.699384,15.544025 88.740234,11.95913 91.349682,9.3496818 93.95913,6.7402335 97.544025,10.699384 96.101,14.101"
+       id="m-loop2"
+       sodipodi:nodetypes="csc" />
+    <!-- ================= legend ================= -->
+  </g>
+</svg>
