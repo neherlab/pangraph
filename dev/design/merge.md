@@ -1,14 +1,12 @@
 # Graph merging — design manifesto
 
-Status: **`pangraph merge` implemented and verified; only user docs remain (see §6)**
+Status: **complete — `pangraph merge` implemented, verified and documented (see §6)**
 Integration branch: `feat/merge` (merged into `master` last, after all phase branches below)
 
 This document describes the design for a new `pangraph merge` command, which combines two
 pre-existing pangenome graphs into one. It covers the motivation, the identifier model, the
-required changes to existing code, and the phased roadmap.
-
-An accompanying `dev/design/merge-implementation-notes.md` will record as-built decisions and
-gotchas as the phases land; this file describes the *intent*.
+required changes to existing code, and the phased roadmap. As-built decisions and gotchas are
+recorded inline in the sections they belong to, rather than in a separate notes file.
 
 ---
 
@@ -397,7 +395,7 @@ merged into `master` last, once all phases have landed.
 | 4 | `feat/merge-cmd` | §4.5 — the command itself, plus integration tests | landed |
 | 5 | `feat/merge-cmd` | §4.3 — duplicate genome names are an error in `build` and `merge` | landed |
 | 6 | `feat/merge-verify` | §4.4 — name-keyed verification shared with `build` | landed |
-| 7 | `feat/merge-docs` | §9 — tutorial, `reconstruct` docs, CHANGELOG | todo |
+| 7 | `feat/merge-docs` | §9 — tutorial, `reconstruct` docs, CHANGELOG | landed |
 
 Phases 2–5 were implemented together, since a `merge` command without §3.4 panics on the first
 identifier collision and would not be testable.
@@ -455,10 +453,20 @@ hand.
 
 ## 9. Documentation
 
-- This document, plus `dev/design/merge-implementation-notes.md` for as-built decisions.
-- A user-facing tutorial section on extending an existing graph, stating the cost model (§5), the
-  base-graph-first convention (§3.4), and that `merge(build(A), build(B)) != build(A ∪ B)` (§1).
+All of the following have landed:
+
+- This document, which also records the as-built decisions inline.
+- A user-facing tutorial page on extending an existing graph:
+  `docs/docs/tutorial/t04b-merging-two-graphs.md`, at `sidebar_position: 5`. It states the cost
+  model (§5), the base-graph-first convention (§3.4), the duplicate-name and `--circular`
+  constraints (§4.3), and that `merge(build(A), build(B)) != build(A ∪ B)` (§1). Its scheme is
+  `docs/docs/assets/svgs/merge.svg`, exported to `docs/docs/assets/t5_merge.png` at 300 dpi.
+  The two pages that follow it had their `sidebar_position` bumped to 6 and 7; their filenames
+  were deliberately *not* renamed, since the docs site configures no redirects and renaming would
+  break the published URLs.
 - `pangraph reconstruct` docs: record order and `index` are only meaningful for graphs produced
-  directly by `build` (§4.4).
-- Regenerate `docs/docs/reference.md` via `docs/generate-reference-docs` after the CLI changes.
-- CHANGELOG entry.
+  directly by `build` (§4.4). This lives in the `reconstruct_args.rs` doc comments, and hence in
+  the generated reference; no tutorial page documents `reconstruct`.
+- `docs/docs/reference.md`, regenerated via `docs/generate-reference-docs`.
+- CHANGELOG entry, under `## Unreleased` (the version bump to 1.4.0 happens in the release commit,
+  per repo convention).
