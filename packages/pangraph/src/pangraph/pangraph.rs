@@ -10,7 +10,7 @@ use crate::representation::seq::Seq;
 use crate::tree::clade::WithNewickName;
 use crate::utils::id::id;
 use crate::utils::map_merge::{ConflictResolution, map_merge};
-use crate::{make_internal_error, make_internal_report};
+use crate::{make_internal_error, make_internal_report, make_report};
 use eyre::{Report, WrapErr};
 use log::warn;
 use maplit::btreemap;
@@ -90,39 +90,52 @@ impl Pangraph {
       .map(|(rank, &pid)| (pid, PathId(path_id_offset + rank)))
       .collect();
 
+    // The three maps above are keyed by the *map keys* of this graph, so looking an entity's own new
+    // id up by its key cannot miss. Ids taken from an entity's *contents* are a different matter:
+    // they can dangle, or disagree with the key they are stored under, in a graph that pangraph did
+    // not write, so those lookups are fallible.
     let blocks: BTreeMap<BlockId, PangraphBlock> = blocks
-      .into_values()
-      .map(|block| {
-        let new_block_id = block_map[&block.id()];
-        let block = block.relabel(new_block_id, &node_map);
-        (block.id(), block)
+      .into_iter()
+      .map(|(bid, block)| {
+        let block = block.relabel(block_map[&bid], &node_map)?;
+        Ok((block.id(), block))
       })
-      .collect();
+      .collect::<Result<_, Report>>()?;
 
     let nodes: BTreeMap<NodeId, PangraphNode> = nodes
       .into_iter()
       .map(|(nid, node)| {
-        let node = PangraphNode::new(
-          Some(node_map[&nid]),
-          block_map[&node.block_id()],
-          path_map[&node.path_id()],
-          node.strand(),
-          node.position(),
-        );
-        (node.id(), node)
+        let block_id = *block_map.get(&node.block_id()).ok_or_else(|| {
+          make_report!(
+            "Node {nid} refers to block {}, which the graph does not contain",
+            node.block_id()
+          )
+        })?;
+        let path_id = *path_map.get(&node.path_id()).ok_or_else(|| {
+          make_report!(
+            "Node {nid} refers to path {}, which the graph does not contain",
+            node.path_id()
+          )
+        })?;
+
+        let node = PangraphNode::new(Some(node_map[&nid]), block_id, path_id, node.strand(), node.position());
+        Ok((node.id(), node))
       })
-      .collect();
+      .collect::<Result<_, Report>>()?;
 
     let paths: BTreeMap<PathId, PangraphPath> = paths
-      .into_values()
-      .map(|mut path| {
-        path.id = path_map[&path.id];
+      .into_iter()
+      .map(|(pid, mut path)| {
+        path.id = path_map[&pid];
         for nid in &mut path.nodes {
-          *nid = node_map[nid];
+          let old = *nid;
+          *nid = *node_map
+            .get(&old)
+            .ok_or_else(|| make_report!("Path {pid} refers to node {old}, which the graph does not contain"))?;
         }
-        (path.id, path)
+        Ok((path.id, path))
       })
-      .collect();
+      .collect::<Result<_, Report>>()?;
 
     // An injective relabeling cannot change the number of entities. If it did, two distinct ids
     // were mapped onto the same one and entities were silently dropped.
@@ -251,6 +264,37 @@ impl Pangraph {
 
   #[cfg(any(test, debug_assertions))]
   pub fn sanity_check(&self) -> Result<(), Report> {
+    // Each entity is stored under a map key *and* carries its own id. Serde keys the maps by the
+    // JSON object key, so the two can disagree in a graph that pangraph did not write. Everything
+    // that resolves an entity by key while reading its id off the entity itself depends on them
+    // agreeing, so check it first. One integer comparison per entity.
+    for (block_id, block) in &self.blocks {
+      if block.id() != *block_id {
+        return Err(eyre::eyre!(
+          "Block is stored under id {block_id} but reports id {}",
+          block.id()
+        ));
+      }
+    }
+
+    for (node_id, node) in &self.nodes {
+      if node.id() != *node_id {
+        return Err(eyre::eyre!(
+          "Node is stored under id {node_id} but reports id {}",
+          node.id()
+        ));
+      }
+    }
+
+    for (path_id, path) in &self.paths {
+      if path.id() != *path_id {
+        return Err(eyre::eyre!(
+          "Path is stored under id {path_id} but reports id {}",
+          path.id()
+        ));
+      }
+    }
+
     for (node_id, node) in &self.nodes {
       if !self.blocks.contains_key(&node.block_id()) {
         return Err(eyre::eyre!("Block {} not found in graph", node.block_id()));
@@ -427,6 +471,7 @@ mod tests {
   use crate::pangraph::pangraph_path::PangraphPath;
   use crate::pangraph::reconstruct::reconstruct;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use crate::utils::error::report_to_string;
   use itertools::Itertools;
   use maplit::btreemap;
   use rstest::rstest;
@@ -586,6 +631,56 @@ mod tests {
       PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 8, false, Some(names[1].to_owned()), None),
     };
     Pangraph { paths, blocks, nodes }
+  }
+
+  /// A graph read from JSON is keyed by the object key, while each entity also stores its own id;
+  /// serde never checks that the two agree. `relabel` resolves entities by key, so a disagreement
+  /// used to abort the process with a bare "no entry found for key" panic and no indication of
+  /// which file was at fault. It must be a reportable error instead.
+  #[rstest]
+  fn test_relabel_reports_block_stored_under_a_mismatched_id() {
+    let mut graph = colliding_graph(["a", "b"]);
+    let block = graph.blocks.remove(&BlockId(0)).unwrap();
+    graph.blocks.insert(BlockId(42), block); // key 42, but the block still reports id 0
+
+    let err = report_to_string(&graph.clone().relabel(1, 7).unwrap_err());
+    assert!(err.contains("does not contain"), "unexpected error: {err}");
+
+    // `sanity_check` never compared key against stored id, so it used to pass this graph through.
+    let err = report_to_string(&graph.sanity_check().unwrap_err());
+    assert!(err.contains("stored under id 42"), "unexpected error: {err}");
+    assert!(err.contains("reports id 0"), "unexpected error: {err}");
+  }
+
+  #[rstest]
+  fn test_relabel_reports_path_referring_to_a_missing_node() {
+    let mut graph = colliding_graph(["a", "b"]);
+    graph.paths.get_mut(&PathId(0)).unwrap().nodes = vec![NodeId(99)];
+
+    let err = report_to_string(&graph.relabel(1, 7).unwrap_err());
+    assert!(
+      err.contains("Path 0 refers to node 99, which the graph does not contain"),
+      "unexpected error: {err}"
+    );
+  }
+
+  #[rstest]
+  fn test_relabel_reports_node_referring_to_a_missing_block() {
+    let mut graph = colliding_graph(["a", "b"]);
+    let node = graph.nodes.get_mut(&NodeId(0)).unwrap();
+    *node = PangraphNode::new(
+      Some(NodeId(0)),
+      BlockId(99),
+      node.path_id(),
+      node.strand(),
+      node.position(),
+    );
+
+    let err = report_to_string(&graph.relabel(1, 7).unwrap_err());
+    assert!(
+      err.contains("Node 0 refers to block 99, which the graph does not contain"),
+      "unexpected error: {err}"
+    );
   }
 
   #[rstest]

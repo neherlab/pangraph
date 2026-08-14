@@ -3,7 +3,6 @@ use crate::align::map_variations::{BandParameters, map_variations};
 use crate::io::fasta::FastaRecord;
 use crate::io::json::{JsonPretty, json_write_str};
 use crate::io::seq::reverse_complement;
-use crate::make_internal_error;
 use crate::pangraph::edits::{Del, Edit, Ins, Sub};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_node::NodeId;
@@ -11,6 +10,7 @@ use crate::pangraph::pangraph_path::PathId;
 use crate::representation::seq::Seq;
 use crate::utils::collections::has_duplicates;
 use crate::utils::interval::positions_to_intervals;
+use crate::{make_internal_error, make_report};
 use derive_more::{Display, From};
 use eyre::{Report, WrapErr};
 use getset::{CopyGetters, Getters};
@@ -62,16 +62,26 @@ impl PangraphBlock {
 
   /// Returns this block with a new id and its alignment keys rewritten through `node_map`.
   /// The consensus and the edits are moved over unchanged.
-  pub fn relabel(self, id: BlockId, node_map: &BTreeMap<NodeId, NodeId>) -> Self {
-    Self {
+  ///
+  /// Errors if an alignment is keyed by a node the graph does not contain, which can only happen in
+  /// a graph that pangraph did not write.
+  pub fn relabel(self, id: BlockId, node_map: &BTreeMap<NodeId, NodeId>) -> Result<Self, Report> {
+    let alignments = self
+      .alignments
+      .into_iter()
+      .map(|(nid, edit)| {
+        let new_nid = *node_map
+          .get(&nid)
+          .ok_or_else(|| make_report!("Block {id} aligns node {nid}, which the graph does not contain"))?;
+        Ok((new_nid, edit))
+      })
+      .collect::<Result<_, Report>>()?;
+
+    Ok(Self {
       id,
       consensus: self.consensus,
-      alignments: self
-        .alignments
-        .into_iter()
-        .map(|(nid, edit)| (node_map[&nid], edit))
-        .collect(),
-    }
+      alignments,
+    })
   }
 
   pub fn reverse_complement(&self) -> Result<Self, Report> {
