@@ -172,8 +172,6 @@ fn compile() {
   }
 
   if cfg!(feature = "static") {
-    cc.static_flag(true);
-
     let libz_include = env::var_os("DEP_Z_INCLUDE").unwrap();
     cc.include(libz_include);
 
