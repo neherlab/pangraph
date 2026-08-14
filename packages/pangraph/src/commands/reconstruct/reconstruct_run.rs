@@ -3,7 +3,7 @@ use crate::io::fasta::{FastaReader, FastaRecord, FastaWriter};
 use crate::io::json::json_read_file;
 use crate::make_error;
 use crate::pangraph::pangraph::Pangraph;
-use crate::pangraph::reconstruct::{path_ids_by_name, reconstruct, reconstruct_genome, verify_genome};
+use crate::pangraph::reconstruct::{format_names, path_ids_by_name, reconstruct, reconstruct_genome, verify_genome};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use log::info;
@@ -79,9 +79,9 @@ fn verify_against_fasta(graph: &Pangraph, verify: &Path) -> Result<usize, Report
 
   if !remaining.is_empty() {
     return make_error!(
-      "Verification file is missing {} genome(s) that the graph contains: [{}]",
+      "Verification file is missing {} genome(s) that the graph contains: {}",
       remaining.len(),
-      remaining.iter().join(", ")
+      format_names(&remaining.iter().copied().collect_vec())
     );
   }
 

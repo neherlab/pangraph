@@ -276,7 +276,7 @@ pub fn verify_graph_against_graphs(graph: &Pangraph, sources: &[&Pangraph]) -> R
 }
 
 /// Formats a list of genome names for an error message, eliding all but the first few.
-fn format_names<S: AsRef<str>>(names: &[S]) -> String {
+pub(crate) fn format_names<S: AsRef<str>>(names: &[S]) -> String {
   let shown = names.iter().take(MAX_NAMES_IN_ERROR).map(AsRef::as_ref).join(", ");
   if names.len() > MAX_NAMES_IN_ERROR {
     format!("[{shown}, ... and {} more]", names.len() - MAX_NAMES_IN_ERROR)
