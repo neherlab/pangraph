@@ -32,29 +32,28 @@ pub enum GenomeCoverage {
 
 /// Reconstructs every genome of the graph as a FASTA record, ordered by path id.
 ///
+/// The ordering comes for free: `paths` is a `BTreeMap` keyed by [`PathId`], so iterating it
+/// already yields ascending ids and the records stay lazy.
+///
 /// Record order and `index` reproduce the order of the original input FASTA only for graphs
 /// produced directly by `build`. A merged graph renumbers its path ids, so consumers must match
 /// records by genome name.
 pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord, Report>> + use<'_> {
-  graph
-    .paths
-    .iter()
-    .sorted_by_key(|(path_id, _)| **path_id)
-    .map(|(path_id, path)| {
-      let index = path_id.0;
-      let seq = reconstruct_path_sequence(graph, path)?;
-      let seq_name = path
-        .name()
-        .clone()
-        .unwrap_or_else(|| format!("Unknown sequence #{path_id}"));
-      let desc = path.desc().clone();
-      Ok(FastaRecord {
-        seq_name,
-        desc,
-        seq,
-        index,
-      })
+  graph.paths.iter().map(|(path_id, path)| {
+    let index = path_id.0;
+    let seq = reconstruct_path_sequence(graph, path)?;
+    let seq_name = path
+      .name()
+      .clone()
+      .unwrap_or_else(|| format!("Unknown sequence #{path_id}"));
+    let desc = path.desc().clone();
+    Ok(FastaRecord {
+      seq_name,
+      desc,
+      seq,
+      index,
     })
+  })
 }
 
 /// Checks that every path of `graphs` carries a name, and that no name occurs more than once
