@@ -12,6 +12,7 @@ use crate::utils::id::id;
 use crate::utils::map_merge::{ConflictResolution, map_merge};
 use crate::{make_internal_error, make_internal_report};
 use eyre::{Report, WrapErr};
+use log::warn;
 use maplit::btreemap;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -151,24 +152,35 @@ impl Pangraph {
   /// the way to the final graph. Merging therefore requires namespacing one of the two graphs
   /// first.
   pub fn make_disjoint_from(self, other: &Self) -> Result<Self, Report> {
-    // Namespace under which the ids of this graph are re-derived.
-    const SALT: usize = 1;
+    const MAX_ATTEMPTS: usize = 8;
 
     // Path ids are assigned above every path id of `other`, so they cannot collide by construction.
     let path_id_offset = other.paths.keys().map(|pid| pid.0 + 1).max().unwrap_or(0);
 
-    let relabeled = self.relabel(SALT, path_id_offset)?;
+    // The salt must differ from the one used by any earlier merge whose relabeled ids survive into
+    // `other`, otherwise those ids get re-derived a second time and land on themselves. The path id
+    // offset provides that: a merger salted with `offset(P)` produces a graph with at least one more
+    // genome than `P`, so a later merge with that graph on the left uses a strictly larger offset.
+    let mut relabeled = self;
+    for attempt in 0..MAX_ATTEMPTS {
+      relabeled = relabeled.relabel(id((path_id_offset, attempt)), path_id_offset)?;
 
-    // Block and node ids are hashes, so a collision with `other` is possible in principle. At
-    // ~2^-64 per pair it does not happen in practice, but the check is cheap and the alternative is
-    // one graph silently overwriting a block of the other during the join.
-    if !relabeled.is_id_disjoint_from(other) {
-      return make_internal_error!(
-        "When making graphs id-disjoint: the relabeled graph still shares block or node ids with the other graph. This requires a 64-bit hash collision and should never happen."
-      );
+      if relabeled.is_id_disjoint_from(other) {
+        return Ok(relabeled);
+      }
+
+      // Relabeling is a composition of injective maps, so retrying on top of the previous attempt is
+      // safe, and path ids are assigned by rank rather than derived from the previous id, so they do
+      // not drift. Reaching this point needs either a genuine hash collision, or an operation that
+      // breaks the monotonicity of the offset: `simplify` drops paths without renumbering, so
+      // `build -> merge -> merge -> simplify -> merge` can bring the offset back to a value already
+      // used as a salt.
+      warn!("Identifier collision when relabeling graph ids (attempt {attempt}); retrying");
     }
 
-    Ok(relabeled)
+    make_internal_error!(
+      "When making graphs id-disjoint: no collision-free relabeling of block and node ids found after {MAX_ATTEMPTS} attempts"
+    )
   }
 
   pub fn update(&mut self, u: &GraphUpdate) {
@@ -642,5 +654,29 @@ mod tests {
     assert_eq!(joined.paths.len(), 4);
     assert_eq!(joined.blocks.len(), 4);
     assert_eq!(joined.nodes.len(), 4);
+  }
+
+  /// Appending to a graph that already absorbed a relabeled graph. With a constant salt the ids of
+  /// the third graph were re-derived exactly onto those the second one left behind, so the second
+  /// append always failed. Every graph here carries the same small ids, which is what `build`
+  /// assigns to blocks and nodes that never merge.
+  #[rstest]
+  fn test_make_disjoint_from_after_a_previous_merge() {
+    let first = colliding_graph(["a", "b"]);
+    let second = colliding_graph(["c", "d"]).make_disjoint_from(&first).unwrap();
+    let joined = crate::pangraph::graph_merging::graph_join(&first, &second);
+
+    let third = colliding_graph(["e", "f"]).make_disjoint_from(&joined).unwrap();
+
+    assert!(third.is_id_disjoint_from(&joined));
+    third.sanity_check().unwrap();
+    assert_eq!(third.path_ids().collect_vec(), vec![PathId(4), PathId(5)]);
+
+    // and the three of them can be joined without conflicts
+    let joined = crate::pangraph::graph_merging::graph_join(&joined, &third);
+    joined.sanity_check().unwrap();
+    assert_eq!(joined.paths.len(), 6);
+    assert_eq!(joined.blocks.len(), 6);
+    assert_eq!(joined.nodes.len(), 6);
   }
 }

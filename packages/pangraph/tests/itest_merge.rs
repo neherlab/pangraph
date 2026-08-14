@@ -30,6 +30,13 @@ mod tests {
     Ok((fastas, right))
   }
 
+  /// Reads the first `n` records of a FASTA file.
+  fn read_records(path: &str, n: usize) -> Result<Vec<FastaRecord>, Report> {
+    let mut fastas = FastaReader::from_paths(&[PathBuf::from(path)])?.read_many()?;
+    fastas.truncate(n);
+    Ok(fastas)
+  }
+
   /// Builds a graph out of the given records and writes it to a JSON file in `dir`.
   fn build_graph_file(dir: &TempDir, name: &str, fastas: Vec<FastaRecord>) -> Result<PathBuf, Report> {
     let args = PangraphBuildArgs {
@@ -129,6 +136,32 @@ mod tests {
     merge_run(&merge_args(left, right, output.clone()))?;
 
     let merged = read_graph(&output)?;
+    assert_eq!(merged.paths.len(), 4);
+
+    Ok(())
+  }
+
+  /// Appending to a graph that is itself the result of an earlier merge. Identifiers relabeled by
+  /// the first merge survive into its output whenever a block or node finds no homologue, and a
+  /// constant relabeling salt then re-derived the third graph's identifiers onto exactly those
+  /// values, so the second append always failed. The three genomes here are mutually unrelated, so
+  /// nothing aligns and every identifier survives; homologous appends never hit this.
+  #[rstest]
+  fn itest_merge_appends_to_an_already_merged_graph() -> Result<(), Report> {
+    let dir = tempdir()?;
+
+    let first = build_graph_file(&dir, "first.json", read_records("../../data/flu-h1.fa", 2)?)?;
+    let second = build_graph_file(&dir, "second.json", read_records("../../data/sc2.fa", 1)?)?;
+    let third = build_graph_file(&dir, "third.json", read_records("../../data/mpox.fa", 1)?)?;
+
+    let merged_once = dir.path().join("merged-once.json");
+    merge_run(&merge_args(first, second, merged_once.clone()))?;
+    assert_eq!(read_graph(&merged_once)?.paths.len(), 3);
+
+    let merged_twice = dir.path().join("merged-twice.json");
+    merge_run(&merge_args(merged_once, third, merged_twice.clone()))?;
+
+    let merged = read_graph(&merged_twice)?;
     assert_eq!(merged.paths.len(), 4);
 
     Ok(())
