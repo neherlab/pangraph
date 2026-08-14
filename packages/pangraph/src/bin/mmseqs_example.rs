@@ -43,7 +43,7 @@ fn main() -> Result<(), Report> {
     .collect();
 
   let result = align_with_mmseqs(&blocks, &params)?;
-  println!("{:#?}", &result);
+  println!("{result:#?}");
 
   Ok(())
 }

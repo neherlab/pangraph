@@ -222,7 +222,7 @@ impl Pangraph {
       let old_idx = path.nodes.iter().position(|node_id| node_id == old_node_id).unwrap();
 
       // only one such nodes
-      debug_assert!(path.nodes.iter().filter(|node_id| *node_id == old_node_id).count() == 1);
+      debug_assert_eq!(path.nodes.iter().filter(|node_id| *node_id == old_node_id).count(), 1);
 
       path.nodes.remove(old_idx);
 

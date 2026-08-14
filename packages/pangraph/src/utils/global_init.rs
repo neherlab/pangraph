@@ -17,7 +17,7 @@ fn get_current_exe_filename() -> Option<String> {
 fn get_file_line(record: &Record) -> String {
   let file = record.file().and_then(filename_maybe);
   match (file, record.line()) {
-    (Some(file), None) => format!("{file}:",),
+    (Some(file), None) => format!("{file}:"),
     (Some(file), Some(line)) => format!("{file}:{line:}:"),
     _ => "".to_owned(),
   }

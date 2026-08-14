@@ -12,7 +12,7 @@ use interval::interval_set::{IntervalSet, ToIntervalSet};
 use itertools::Itertools;
 use log::warn;
 use std::borrow::Cow;
-use std::cmp::{max, min};
+use std::cmp::{Reverse, max, min};
 use std::collections::{BTreeMap, VecDeque};
 
 /// Copied from https://stackoverflow.com/a/75084739/7483211
@@ -363,7 +363,7 @@ fn chain_seeds(matches: &[SeedMatch2]) -> Vec<SeedMatch2> {
     });
   }
 
-  endpoints.sort_by(|a, b| a.qry_pos.cmp(&b.qry_pos));
+  endpoints.sort_by_key(|a| a.qry_pos);
 
   // Triplets contains the best possible chains, with decreasing ref_end
   // Small ref_end means more matches can still come after, hence for equal score, this is better
@@ -413,7 +413,7 @@ fn chain_seeds(matches: &[SeedMatch2]) -> Vec<SeedMatch2> {
           };
           triplets.push(added_triplet);
           // Sort descending by ref_end
-          triplets.sort_by(|b, a| a.ref_end.cmp(&b.ref_end));
+          triplets.sort_by_key(|a| Reverse(a.ref_end));
           triplets.retain(|triplet| triplet.ref_end < added_triplet.ref_end || triplet.score >= added_triplet.score);
         }
       },
