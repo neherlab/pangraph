@@ -1,8 +1,8 @@
 ## Unreleased
 
-- added `pangraph merge` command, to combine two existing pangenome graphs into a single one.
+- added `pangraph merge` command, to combine two existing pangenome graphs into a single one, see #192.
 - `pangraph build` now accepts a single input sequence, and rejects inputs with duplicate genome names.
-- `pangraph reconstruct --verify` now matches sequences by genome name rather than by position.
+- `pangraph reconstruct --verify` now matches sequences by genome name rather than by position, see #193.
 
 ## 1.3.0
 
