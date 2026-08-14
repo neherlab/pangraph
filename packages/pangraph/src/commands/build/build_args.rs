@@ -29,9 +29,6 @@ pub struct PangraphBuildArgs {
   #[clap(value_hint = ValueHint::AnyPath)]
   pub output_json: PathBuf,
 
-  #[clap(flatten)]
-  pub merge_params: GraphMergeParams,
-
   /// Toggle if input genomes are circular
   #[clap(long, short = 'c')]
   pub circular: bool,
@@ -52,4 +49,9 @@ pub struct PangraphBuildArgs {
   /// are ignored. Accepts plain or compressed files (gz, bz2, xz, zst).
   #[clap(long, value_hint = ValueHint::FilePath)]
   pub guide_tree: Option<PathBuf>,
+
+  // Declared last: it opens the "Alignment" help section, and `next_help_heading` applies to every
+  // argument declared after it.
+  #[clap(flatten)]
+  pub merge_params: GraphMergeParams,
 }

@@ -104,6 +104,12 @@ Align genomes into a multiple sequence alignment graph
    Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
 
   Default value: `-`
+* `-c`, `--circular` — Toggle if input genomes are circular
+* `-f`, `--verify` — Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise
+* `--no-progress-bar` — Toggle to disable progress bar. Notice that the progress bar is only displayed if the output is specified via the `-o` argument
+* `--guide-tree <GUIDE_TREE>` — Path to a Newick-format guide tree to use instead of the default neighbor-joining tree.
+
+   When provided, the tree's topology drives the bottom-up graph-merging order. Each input FASTA sequence must appear exactly once as a leaf (matched by sequence name), and every internal node must be strictly bifurcating. Branch lengths and internal labels, if present, are ignored. Accepts plain or compressed files (gz, bz2, xz, zst).
 * `-l`, `--len <INDEL_LEN_THRESHOLD>` — Minimum block size for alignment graph (in nucleotides)
 
   Default value: `100`
@@ -134,12 +140,6 @@ Align genomes into a multiple sequence alignment graph
 * `--max-alignment-attempts <MAX_ALIGNMENT_ATTEMPTS>` — For within-block alignment: number of times Nextclade will retry alignment with more relaxed results if alignment band boundaries are hit
 
   Default value: `4`
-* `-c`, `--circular` — Toggle if input genomes are circular
-* `-f`, `--verify` — Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise
-* `--no-progress-bar` — Toggle to disable progress bar. Notice that the progress bar is only displayed if the output is specified via the `-o` argument
-* `--guide-tree <GUIDE_TREE>` — Path to a Newick-format guide tree to use instead of the default neighbor-joining tree.
-
-   When provided, the tree's topology drives the bottom-up graph-merging order. Each input FASTA sequence must appear exactly once as a leaf (matched by sequence name), and every internal node must be strictly bifurcating. Branch lengths and internal labels, if present, are ignored. Accepts plain or compressed files (gz, bz2, xz, zst).
 
 
 
@@ -169,6 +169,7 @@ Merge two pangenome graphs into a single one
    Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
 
   Default value: `-`
+* `-f`, `--verify` — Sanity check: after merging verifies that every genome of the two input graphs can still be reconstructed exactly from the merged graph. Raises an error otherwise
 * `-l`, `--len <INDEL_LEN_THRESHOLD>` — Minimum block size for alignment graph (in nucleotides)
 
   Default value: `100`
@@ -199,7 +200,6 @@ Merge two pangenome graphs into a single one
 * `--max-alignment-attempts <MAX_ALIGNMENT_ATTEMPTS>` — For within-block alignment: number of times Nextclade will retry alignment with more relaxed results if alignment band boundaries are hit
 
   Default value: `4`
-* `-f`, `--verify` — Sanity check: after merging verifies that every genome of the two input graphs can still be reconstructed exactly from the merged graph. Raises an error otherwise
 
 
 

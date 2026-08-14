@@ -36,11 +36,13 @@ pub struct PangraphMergeArgs {
   #[clap(value_hint = ValueHint::AnyPath)]
   pub output_json: PathBuf,
 
-  #[clap(flatten)]
-  pub merge_params: GraphMergeParams,
-
   /// Sanity check: after merging verifies that every genome of the two input graphs can still be
   /// reconstructed exactly from the merged graph. Raises an error otherwise.
   #[clap(long, short = 'f')]
   pub verify: bool,
+
+  // Declared last: it opens the "Alignment" help section, and `next_help_heading` applies to every
+  // argument declared after it.
+  #[clap(flatten)]
+  pub merge_params: GraphMergeParams,
 }
