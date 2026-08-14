@@ -186,6 +186,35 @@ mod tests {
     Ok(())
   }
 
+  /// Unnamed paths used to slip past the duplicate-name guard entirely: it scanned
+  /// `path_names().flatten()`, which drops `None`, and the check that would have caught them ran
+  /// only under `--verify`. Merging such a graph with itself therefore succeeded and silently
+  /// emitted every genome twice. `verify: false` is the whole point of this test.
+  #[rstest]
+  fn itest_merge_rejects_unnamed_genomes_without_verify() -> Result<(), Report> {
+    let dir = tempdir()?;
+    let (fastas, _) = read_and_split("../../data/ges-1.fa", 3, 3)?;
+
+    let mut graph = read_graph(&build_graph_file(&dir, "named.json", fastas)?)?;
+    for path in graph.paths.values_mut() {
+      path.name = None;
+    }
+    let anonymous = dir.path().join("anonymous.json");
+    json_write_file(&anonymous, &graph, JsonPretty(false))?;
+
+    let output = dir.path().join("merged.json");
+    let result = merge_run(&PangraphMergeArgs {
+      verify: false,
+      ..merge_args(anonymous.clone(), anonymous, output.clone())
+    });
+
+    let error = report_to_string(&result.unwrap_err());
+    assert!(error.contains("without a name"), "unexpected error message: {error}");
+    assert!(!output.exists(), "a rejected merge must not write an output graph");
+
+    Ok(())
+  }
+
   /// `build --verify` used to pair reconstructed genomes with input records by `FastaRecord::index`,
   /// which is only valid when the records' indices happen to be exactly `0..n-1`. Here they are
   /// `[3, 4, 5]` for a 3-record slice, which panicked with an out-of-bounds index before genomes

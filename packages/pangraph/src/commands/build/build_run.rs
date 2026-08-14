@@ -4,15 +4,16 @@ use crate::io::fasta::{FastaReader, FastaRecord};
 use crate::io::json::{JsonPretty, json_write_file};
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
-use crate::pangraph::reconstruct::{GenomeCoverage, sequences_by_name, verify_graph_sequences};
+use crate::pangraph::reconstruct::{
+  GenomeCoverage, check_unique_sequence_names, sequences_by_name, verify_graph_sequences,
+};
 use crate::pangraph::strand::Strand::Forward;
 use crate::representation::seq::Seq;
 use crate::tree::clade::postorder;
 use crate::tree::neighbor_joining::build_tree_using_neighbor_joining;
 use crate::tree::newick::build_tree_from_newick;
-use crate::utils::collections::find_duplicates;
 use crate::utils::progress_bar::ProgressBar;
-use crate::{make_error, make_internal_error, make_internal_report};
+use crate::{make_internal_error, make_internal_report};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use log::info;
@@ -55,28 +56,13 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
   Ok(())
 }
 
-/// Sequence names identify genomes throughout pangraph: they are what `export` and `simplify`
-/// resolve genomes by, and the only handle that survives a graph merger. They must be unique.
-pub fn check_unique_sequence_names(fastas: &[FastaRecord]) -> Result<(), Report> {
-  let duplicates = find_duplicates(fastas.iter().map(|fasta| fasta.seq_name.as_str()));
-  if !duplicates.is_empty() {
-    return make_error!(
-      "Duplicate sequence names found in the input: [{}]. Sequence names must be unique, because they identify genomes in the resulting pangraph.",
-      duplicates.join(", ")
-    );
-  }
-  Ok(())
-}
-
 pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -> Result<Pangraph, Report> {
   check_unique_sequence_names(&fastas).wrap_err("When checking the names of the input sequences")?;
 
   // If verification is requested, keep the input sequences, keyed by genome name, to compare them
-  // with the sequences reconstructed from the graph.
-  let expected = verify
-    .then(|| sequences_by_name(&fastas))
-    .transpose()
-    .wrap_err("When collecting the input sequences for verification")?;
+  // with the sequences reconstructed from the graph. Names were just checked to be unique, so no
+  // record is lost to a key collision here.
+  let expected = verify.then(|| sequences_by_name(&fastas));
 
   // Build singleton graphs from input sequences
   // TODO: initial graphs can potentially be constructed when initializing tree clades. This could avoid a lot of boilerplate code.

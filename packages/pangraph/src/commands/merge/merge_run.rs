@@ -5,8 +5,7 @@ use crate::make_error;
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_path::PangraphPath;
-use crate::pangraph::reconstruct::{path_ids_by_name, verify_graph_against_graphs};
-use crate::utils::collections::find_duplicates;
+use crate::pangraph::reconstruct::{check_unique_genome_names, verify_graph_against_graphs};
 use color_eyre::owo_colors::{AnsiColors, OwoColorize};
 use color_eyre::{Help, SectionExt};
 use eyre::{Report, WrapErr};
@@ -83,28 +82,20 @@ fn merge_cmd_preliminary_checks(args: &PangraphMergeArgs, left: &Pangraph, right
   }
 
   // Genome names are the identity of a genome throughout pangraph, and the only handle that
-  // survives a merge unchanged. `build` enforces the same invariant on its input FASTA records.
-  let duplicates = find_duplicates([left, right].into_iter().flat_map(|graph| graph.path_names().flatten()));
-  if !duplicates.is_empty() {
-    return make_error!(
-      "Duplicate genome names found in the input graphs: [{}]. Genome names must be unique across the two graphs: merging a graph with itself, or re-adding a genome that is already present, is not supported.",
-      duplicates.join(", ")
-    );
-  }
-
-  // Verification matches genomes by name, so it needs every path of both inputs to carry one.
-  // Checked here rather than at verification time so that it fails before the expensive merge.
-  if args.verify {
-    for (graph, filepath) in [(left, &args.left_graph), (right, &args.right_graph)] {
-      path_ids_by_name(graph)
-        .wrap_err_with(|| format!("When resolving the genome names of graph '{}'", filepath.display()))
-        .with_section(|| {
-          "Verification matches genomes by name. Re-run without `--verify` to skip it."
-            .color(AnsiColors::Cyan)
-            .header("Suggestion:")
-        })?;
-    }
-  }
+  // survives a merge unchanged. Checked unconditionally rather than only under `--verify`: a merge
+  // whose genomes cannot be told apart afterwards is not useful either way. Checked here rather
+  // than at verification time so that it fails before the expensive merge. `build` enforces the
+  // same invariant on its input FASTA records.
+  check_unique_genome_names(&[left, right])
+    .wrap_err("When checking the genome names of the input graphs")
+    .with_section(|| {
+      format!("{}\n{}", args.left_graph.display(), args.right_graph.display()).header("Input graphs:")
+    })
+    .with_section(|| {
+      "Genome names must be unique across the two graphs: merging a graph with itself, or re-adding a genome that is already present, is not supported."
+        .color(AnsiColors::Cyan)
+        .header("Suggestion:")
+    })?;
 
   // Circularity is a per-path property, so mixing is structurally fine. It is however most often a
   // mistake, since `build --circular` applies to all genomes of a graph at once.

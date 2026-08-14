@@ -4,27 +4,31 @@ use crate::io::file::create_file_or_stdout;
 use crate::io::json::{JsonPretty, json_write};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_path::PathId;
-use eyre::Report;
+use crate::pangraph::reconstruct::check_unique_genome_names;
+use eyre::{Report, WrapErr};
 use std::collections::BTreeSet;
 
-#[allow(unused_must_use)]
 pub fn simplify_run(args: PangraphSimplifyArgs) -> Result<(), Report> {
   let PangraphSimplifyArgs { input, output, strains } = args;
 
   let mut graph = Pangraph::from_path(&input)?;
 
   let strain_set = strains.into_iter().collect();
-  simplify(&mut graph, &strain_set);
+  simplify(&mut graph, &strain_set)?;
 
   let f = create_file_or_stdout(&output)?;
   json_write(f, &graph, JsonPretty(true))
 }
 
 fn simplify(graph: &mut Pangraph, focal_paths: &BTreeSet<String>) -> Result<(), Report> {
+  // Genomes are selected by name here, so an unnamed path cannot be resolved either way: without
+  // this check the filter below would silently drop it rather than report it.
+  check_unique_genome_names(&[graph]).wrap_err("When checking the genome names of the input graph")?;
+
   let path_ids_to_remove: Vec<PathId> = graph
     .paths
     .iter()
-    .filter(|(_, path)| !focal_paths.contains(path.name().as_ref().unwrap()))
+    .filter(|(_, path)| !path.name().as_deref().is_some_and(|name| focal_paths.contains(name)))
     .map(|(id, _)| *id)
     .collect();
 
@@ -46,6 +50,7 @@ mod tests {
   use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
   use crate::pangraph::pangraph_path::PangraphPath;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use crate::utils::error::report_to_string;
   use maplit::{btreemap, btreeset};
   use pretty_assertions::assert_eq;
 
@@ -211,5 +216,17 @@ mod tests {
     simplify(&mut graph, &btreeset! {o!("pathA"), o!("pathB")}).unwrap();
     assert_eq!(graph.paths, expected_graph.paths);
     assert_eq!(graph.blocks, expected_graph.blocks);
+  }
+
+  /// An unnamed path cannot be matched against the requested strain names. This used to panic on an
+  /// `unwrap`; the graph must be rejected instead, and in particular the path must not be quietly
+  /// dropped as "not among the focal strains".
+  #[test]
+  fn test_simplify_rejects_unnamed_path() {
+    let mut graph = graph();
+    graph.paths.get_mut(&PathId(3)).unwrap().name = None;
+
+    let err = report_to_string(&simplify(&mut graph, &btreeset! {o!("pathA"), o!("pathB")}).unwrap_err());
+    assert!(err.contains("without a name"), "unexpected error: {err}");
   }
 }
