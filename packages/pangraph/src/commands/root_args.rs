@@ -53,7 +53,11 @@ pub struct PangraphArgs {
   pub verbosity: Verbosity,
 
   /// Number of processing jobs. If not specified, all available CPU threads will be used.
+  // Declared after the `Verbosity` flatten, which opens a help section that would otherwise claim
+  // every argument registered after it. A heading set on the argument itself wins over that
+  // section, and keeps this option in the default one.
   #[clap(global = true, long, short = 'j', default_value_t = num_cpus::get())]
+  #[clap(help_heading = None)]
   pub jobs: usize,
 }
 
