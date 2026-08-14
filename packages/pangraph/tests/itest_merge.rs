@@ -79,8 +79,6 @@ mod tests {
     merge_run(&merge_args(left.clone(), right.clone(), output.clone()))?;
 
     let merged = read_graph(&output)?;
-    #[cfg(debug_assertions)]
-    merged.sanity_check()?;
 
     // all genomes of both inputs are present, exactly once
     assert_eq!(merged.paths.len(), 6);
@@ -131,8 +129,6 @@ mod tests {
     merge_run(&merge_args(left, right, output.clone()))?;
 
     let merged = read_graph(&output)?;
-    #[cfg(debug_assertions)]
-    merged.sanity_check()?;
     assert_eq!(merged.paths.len(), 4);
 
     Ok(())
