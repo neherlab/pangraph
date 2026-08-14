@@ -209,7 +209,10 @@ mod tests {
     });
 
     let error = report_to_string(&result.unwrap_err());
-    assert!(error.contains("without a name"), "unexpected error message: {error}");
+    assert!(
+      error.contains("no name or an empty name"),
+      "unexpected error message: {error}"
+    );
     assert!(!output.exists(), "a rejected merge must not write an output graph");
 
     Ok(())
@@ -246,6 +249,22 @@ mod tests {
       error.contains("Duplicate sequence names"),
       "unexpected error message: {error}"
     );
+
+    Ok(())
+  }
+
+  /// A FASTA header of the form `> id` leaves the record unnamed, with the identifier in the
+  /// description. Such a genome could not be addressed by name afterwards, so `build` rejects it.
+  #[rstest]
+  fn itest_build_rejects_empty_sequence_name() -> Result<(), Report> {
+    let (mut fastas, _) = read_and_split("../../data/ges-1.fa", 2, 2)?;
+    fastas[1].desc = Some(fastas[1].seq_name.clone());
+    fastas[1].seq_name = String::new();
+
+    let result = build(fastas, &PangraphBuildArgs::default(), false);
+
+    let error = report_to_string(&result.unwrap_err());
+    assert!(error.contains("empty name"), "unexpected error message: {error}");
 
     Ok(())
   }

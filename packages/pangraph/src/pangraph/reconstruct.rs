@@ -56,31 +56,33 @@ pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord,
   })
 }
 
-/// Checks that every path of `graphs` carries a name, and that no name occurs more than once
-/// across all `graphs` taken together.
+/// Checks that every path of `graphs` carries a non-empty name, and that no name occurs more than
+/// once across all `graphs` taken together.
 ///
 /// The genome name is the only identifier that survives a merge unchanged: it is the key that
 /// verification matches on, and what `simplify` resolves genomes by. A graph whose genomes cannot
-/// be told apart by name is therefore rejected rather than processed.
+/// be told apart by name is therefore rejected rather than processed. A name that is empty, or made
+/// of whitespace only, identifies a genome no better than a missing one, and is reported the same
+/// way. Names are only tested here, never trimmed: they are stored exactly as given.
 ///
-/// This is the single implementation of that invariant for graphs; [`check_unique_sequence_names`]
-/// is its counterpart for FASTA records. Note that it inspects the paths directly rather than going
+/// This is the single implementation of that invariant for graphs; [`check_sequence_names`] is its
+/// counterpart for FASTA records. Note that it inspects the paths directly rather than going
 /// through [`reconstruct`], which masks unnamed paths behind a placeholder name.
 ///
 /// Path ids are only unique within one graph, so when several graphs are passed the reported ids
 /// are ambiguous on their own. Callers that pass more than one graph are expected to name the
 /// graphs in an error section.
-pub fn check_unique_genome_names(graphs: &[&Pangraph]) -> Result<(), Report> {
+pub fn check_genome_names(graphs: &[&Pangraph]) -> Result<(), Report> {
   let unnamed = graphs
     .iter()
     .flat_map(|graph| graph.paths.iter())
-    .filter(|(_, path)| path.name.is_none())
+    .filter(|(_, path)| path.name.as_deref().is_none_or(|name| name.trim().is_empty()))
     .map(|(path_id, _)| path_id.to_string())
     .collect_vec();
 
   if !unnamed.is_empty() {
     return make_error!(
-      "Found {} genome(s) without a name (path ids: {}). Genomes are identified by name, so every path must be named.",
+      "Found {} genome(s) with no name or an empty name (path ids: {}). Genomes are identified by name, so every path must be named.",
       unnamed.len(),
       format_names(&unnamed)
     );
@@ -99,9 +101,9 @@ pub fn check_unique_genome_names(graphs: &[&Pangraph]) -> Result<(), Report> {
 
 /// Maps each genome name of the graph to the id of the path holding it.
 ///
-/// Errors if any path is unnamed or if two paths share a name, via [`check_unique_genome_names`].
+/// Errors if any path is unnamed or if two paths share a name, via [`check_genome_names`].
 pub fn path_ids_by_name(graph: &Pangraph) -> Result<BTreeMap<&str, PathId>, Report> {
-  check_unique_genome_names(&[graph])?;
+  check_genome_names(&[graph])?;
 
   Ok(
     graph
@@ -121,12 +123,29 @@ pub fn reconstruct_genome(graph: &Pangraph, path_id: PathId) -> Result<Seq, Repo
   reconstruct_path_sequence(graph, path)
 }
 
-/// Checks that no two FASTA records share a sequence name.
+/// Checks that every FASTA record carries a non-empty name, and that no two records share one.
 ///
-/// The FASTA counterpart of [`check_unique_genome_names`]: sequence names become genome names when
-/// the records are built into a graph, so `build` enforces the invariant on its input to guarantee
-/// that a graph can never carry duplicate genome names into a later merge.
-pub fn check_unique_sequence_names(fastas: &[FastaRecord]) -> Result<(), Report> {
+/// The FASTA counterpart of [`check_genome_names`]: sequence names become genome names when the
+/// records are built into a graph, so `build` enforces the invariant on its input to guarantee that
+/// a graph can never carry unusable genome names into a later merge.
+///
+/// Empty names are reported before duplicates, so that a file of headers that are all empty is
+/// reported for the reason it actually has.
+pub fn check_sequence_names(fastas: &[FastaRecord]) -> Result<(), Report> {
+  let empty = fastas
+    .iter()
+    .filter(|fasta| fasta.seq_name.trim().is_empty())
+    .map(|fasta| fasta.index.to_string())
+    .collect_vec();
+
+  if !empty.is_empty() {
+    return make_error!(
+      "Found {} input sequence(s) with an empty name (record indices: {}). Sequences are identified by name, so every record must have one. Note that a space between '>' and the identifier makes the identifier part of the description rather than the name.",
+      empty.len(),
+      format_names(&empty)
+    );
+  }
+
   let duplicates = find_duplicates(fastas.iter().map(|fasta| fasta.seq_name.as_str()));
   if !duplicates.is_empty() {
     return make_error!(
@@ -140,7 +159,7 @@ pub fn check_unique_sequence_names(fastas: &[FastaRecord]) -> Result<(), Report>
 
 /// Collects FASTA records into genome sequences keyed by name.
 ///
-/// Names are assumed to be unique already: pass the records through [`check_unique_sequence_names`]
+/// Names are assumed to be unique already: pass the records through [`check_sequence_names`]
 /// first, or records sharing a name will silently collapse into one entry.
 pub(crate) fn sequences_by_name(fastas: &[FastaRecord]) -> BTreeMap<String, Seq> {
   fastas
@@ -235,7 +254,7 @@ pub fn verify_graph_sequences(
 /// `sources` must have disjoint genome names: a name appearing in two of them means the two graphs
 /// describe overlapping genome sets, and is reported rather than verified twice.
 pub fn verify_graph_against_graphs(graph: &Pangraph, sources: &[&Pangraph]) -> Result<(), Report> {
-  check_unique_genome_names(sources).wrap_err("When checking the genome names of the input graphs")?;
+  check_genome_names(sources).wrap_err("When checking the genome names of the input graphs")?;
 
   let path_ids = path_ids_by_name(graph)?;
   let mut verified: BTreeSet<&str> = BTreeSet::new();
@@ -297,7 +316,7 @@ fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<Se
 
     let genome_len = path.tot_len();
     if genome.len() != genome_len {
-      return crate::make_error!(
+      return make_error!(
         "When reconstructing sequences, genome length mismatch: computed length {} expected {}",
         genome.len(),
         genome_len
@@ -404,7 +423,18 @@ mod tests {
   #[rstest]
   fn test_path_ids_by_name_rejects_unnamed_path() {
     let graph = two_genome_graph([Some("a"), None]);
-    assert!(report_to_string(&path_ids_by_name(&graph).unwrap_err()).contains("without a name"));
+    assert!(report_to_string(&path_ids_by_name(&graph).unwrap_err()).contains("no name or an empty name"));
+  }
+
+  /// A name that is empty, or made of whitespace only, identifies a genome no better than a missing
+  /// one: `--strains` cannot address it, and it round-trips to FASTA as a nameless record.
+  #[rstest]
+  #[case("")]
+  #[case(" ")]
+  fn test_path_ids_by_name_rejects_empty_path_name(#[case] name: &str) {
+    let graph = two_genome_graph([Some("a"), Some(name)]);
+    let err = report_to_string(&path_ids_by_name(&graph).unwrap_err());
+    assert!(err.contains("no name or an empty name"), "unexpected error: {err}");
   }
 
   #[rstest]
@@ -417,18 +447,18 @@ mod tests {
   /// `merge` reject merging a graph with itself, and what stops two overlapping source graphs from
   /// being "verified" against a merged graph that holds their genomes only once.
   #[rstest]
-  fn test_check_unique_genome_names_rejects_name_shared_across_graphs() {
+  fn test_check_genome_names_rejects_name_shared_across_graphs() {
     let (left, _) = sources();
     let other = one_genome_graph("a", "GGGGCCCC", Forward);
 
-    check_unique_genome_names(&[&left]).unwrap();
-    let err = report_to_string(&check_unique_genome_names(&[&left, &other]).unwrap_err());
+    check_genome_names(&[&left]).unwrap();
+    let err = report_to_string(&check_genome_names(&[&left, &other]).unwrap_err());
     assert!(err.contains("Duplicate genome names"), "unexpected error: {err}");
     assert!(err.contains('a'), "unexpected error: {err}");
   }
 
   #[rstest]
-  fn test_check_unique_sequence_names_rejects_duplicate_names() {
+  fn test_check_sequence_names_rejects_duplicate_names() {
     let record = |name: &str| FastaRecord {
       seq_name: name.to_owned(),
       desc: None,
@@ -436,7 +466,26 @@ mod tests {
       index: 0,
     };
     let fastas = [record("a"), record("a")];
-    assert!(report_to_string(&check_unique_sequence_names(&fastas).unwrap_err()).contains("Duplicate sequence names"));
+    assert!(report_to_string(&check_sequence_names(&fastas).unwrap_err()).contains("Duplicate sequence names"));
+  }
+
+  /// `> id` — a space between the '>' and the identifier — parses into an empty name with the
+  /// identifier in the description, so this common header style used to yield a nameless genome.
+  /// The record index is part of the message, since the name cannot point at the offending record.
+  #[rstest]
+  #[case("")]
+  #[case(" ")]
+  fn test_check_sequence_names_rejects_empty_name(#[case] name: &str) {
+    let fastas = [FastaRecord {
+      seq_name: name.to_owned(),
+      desc: Some(o!("NC_000913.3 Escherichia coli")),
+      seq: Seq::from_str("ACGT"),
+      index: 3,
+    }];
+
+    let err = report_to_string(&check_sequence_names(&fastas).unwrap_err());
+    assert!(err.contains("empty name"), "unexpected error: {err}");
+    assert!(err.contains('3'), "unexpected error: {err}");
   }
 
   #[rstest]

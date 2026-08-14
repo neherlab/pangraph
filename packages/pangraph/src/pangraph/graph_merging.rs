@@ -1,6 +1,5 @@
 use crate::align::alignment::Alignment;
-use crate::align::alignment_args::AlignmentArgs;
-use crate::align::alignment_args::{AlignmentBackend, GraphMergeParams};
+use crate::align::alignment_args::{AlignmentArgs, AlignmentBackend, GraphMergeParams};
 use crate::align::energy::alignment_energy2;
 use crate::align::minimap2_lib::align_with_minimap2_lib::align_with_minimap2_lib;
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;

@@ -4,7 +4,7 @@ use crate::io::file::create_file_or_stdout;
 use crate::io::json::{JsonPretty, json_write};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_path::PathId;
-use crate::pangraph::reconstruct::check_unique_genome_names;
+use crate::pangraph::reconstruct::check_genome_names;
 use eyre::{Report, WrapErr};
 use std::collections::BTreeSet;
 
@@ -23,7 +23,7 @@ pub fn simplify_run(args: PangraphSimplifyArgs) -> Result<(), Report> {
 fn simplify(graph: &mut Pangraph, focal_paths: &BTreeSet<String>) -> Result<(), Report> {
   // Genomes are selected by name here, so an unnamed path cannot be resolved either way: without
   // this check the filter below would silently drop it rather than report it.
-  check_unique_genome_names(&[graph]).wrap_err("When checking the genome names of the input graph")?;
+  check_genome_names(&[graph]).wrap_err("When checking the genome names of the input graph")?;
 
   let path_ids_to_remove: Vec<PathId> = graph
     .paths
@@ -227,6 +227,6 @@ mod tests {
     graph.paths.get_mut(&PathId(3)).unwrap().name = None;
 
     let err = report_to_string(&simplify(&mut graph, &btreeset! {o!("pathA"), o!("pathB")}).unwrap_err());
-    assert!(err.contains("without a name"), "unexpected error: {err}");
+    assert!(err.contains("no name or an empty name"), "unexpected error: {err}");
   }
 }

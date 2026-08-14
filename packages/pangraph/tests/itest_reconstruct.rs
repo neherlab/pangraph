@@ -202,7 +202,7 @@ mod tests {
     )?;
 
     let err = report_to_string(&reconstruct_run(&verify_args(&graph, &verify)).unwrap_err());
-    assert!(err.contains("without a name"), "unexpected error: {err}");
+    assert!(err.contains("no name or an empty name"), "unexpected error: {err}");
 
     Ok(())
   }

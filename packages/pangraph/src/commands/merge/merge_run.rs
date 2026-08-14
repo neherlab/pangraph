@@ -5,7 +5,7 @@ use crate::make_error;
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_path::PangraphPath;
-use crate::pangraph::reconstruct::{check_unique_genome_names, verify_graph_against_graphs};
+use crate::pangraph::reconstruct::{check_genome_names, verify_graph_against_graphs};
 use color_eyre::owo_colors::{AnsiColors, OwoColorize};
 use color_eyre::{Help, SectionExt};
 use eyre::{Report, WrapErr};
@@ -86,7 +86,7 @@ fn merge_cmd_preliminary_checks(args: &PangraphMergeArgs, left: &Pangraph, right
   // whose genomes cannot be told apart afterwards is not useful either way. Checked here rather
   // than at verification time so that it fails before the expensive merge. `build` enforces the
   // same invariant on its input FASTA records.
-  check_unique_genome_names(&[left, right])
+  check_genome_names(&[left, right])
     .wrap_err("When checking the genome names of the input graphs")
     .with_section(|| {
       format!("{}\n{}", args.left_graph.display(), args.right_graph.display()).header("Input graphs:")

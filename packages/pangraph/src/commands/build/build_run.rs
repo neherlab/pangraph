@@ -4,9 +4,7 @@ use crate::io::fasta::{FastaReader, FastaRecord};
 use crate::io::json::{JsonPretty, json_write_file};
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
-use crate::pangraph::reconstruct::{
-  GenomeCoverage, check_unique_sequence_names, sequences_by_name, verify_graph_sequences,
-};
+use crate::pangraph::reconstruct::{GenomeCoverage, check_sequence_names, sequences_by_name, verify_graph_sequences};
 use crate::pangraph::strand::Strand::Forward;
 use crate::representation::seq::Seq;
 use crate::tree::clade::postorder;
@@ -57,7 +55,7 @@ pub fn build_run(args: &PangraphBuildArgs) -> Result<(), Report> {
 }
 
 pub fn build(fastas: Vec<FastaRecord>, args: &PangraphBuildArgs, verify: bool) -> Result<Pangraph, Report> {
-  check_unique_sequence_names(&fastas).wrap_err("When checking the names of the input sequences")?;
+  check_sequence_names(&fastas).wrap_err("When checking the names of the input sequences")?;
 
   // If verification is requested, keep the input sequences, keyed by genome name, to compare them
   // with the sequences reconstructed from the graph. Names were just checked to be unique, so no
