@@ -42,8 +42,10 @@ pub struct PangraphMergeArgs {
   #[clap(long, short = 'f')]
   pub verify: bool,
 
-  // Declared last: it opens the "Alignment" help section, and `next_help_heading` applies to every
-  // argument declared after it.
+  // Declared last: it opens the "Alignment" help section, which then applies to every argument
+  // registered after it, including later fields of this struct. To add one anyway, give it its own
+  // `#[clap(help_heading = ...)]`, which wins. Pinned by
+  // `root_args::tests::test_arguments_are_filed_under_the_expected_help_section`.
   #[clap(flatten)]
   pub merge_params: GraphMergeParams,
 }

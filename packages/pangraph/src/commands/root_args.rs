@@ -132,6 +132,7 @@ mod tests {
   use super::*;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
+  use std::collections::BTreeSet;
   use std::path::PathBuf;
 
   /// The `Default` impl and the clap `default_value` must agree. They are declared separately, so a
@@ -162,5 +163,52 @@ mod tests {
     };
     assert_eq!(reconstruct.output_fasta, stdout);
     assert_eq!(PangraphReconstructArgs::default().output_fasta, stdout);
+  }
+
+  /// Returns the ids of the arguments of `cmd` filed under the given help section.
+  fn args_under(cmd: &clap::Command, heading: &str) -> BTreeSet<String> {
+    cmd
+      .get_arguments()
+      .filter(|arg| arg.get_help_heading() == Some(heading))
+      .map(|arg| arg.get_id().to_string())
+      .collect()
+  }
+
+  fn ids(names: &[&str]) -> BTreeSet<String> {
+    names.iter().map(|name| (*name).to_owned()).collect()
+  }
+
+  /// A help section is not a property of a group of arguments: clap keeps a single cursor on the
+  /// `Command` and stamps it onto each argument as it is registered, and `#[clap(flatten)]` shares
+  /// that `Command` with the flattened struct. A flattened group that opens a section therefore
+  /// opens it for every argument registered afterwards, including later fields of the *parent*
+  /// struct. Declaration order is load-bearing, and getting it wrong is invisible outside `--help`.
+  ///
+  /// This pins the assignment so that mistake is a test failure. An argument appended after a
+  /// flattened group shows up in one of these sets; an argument added before it does not, so there
+  /// are no false alarms. The escape hatch, if a trailing argument really is needed, is to set
+  /// `#[clap(help_heading = ...)]` on the argument itself — that wins over the cursor.
+  #[rstest]
+  fn test_arguments_are_filed_under_the_expected_help_section() {
+    // `jobs` is declared after the `Verbosity` flatten and used to be swept into it.
+    assert_eq!(
+      args_under(&PangraphArgs::command(), "Verbosity"),
+      ids(&["verbosity", "silent", "verbose", "quiet"])
+    );
+
+    // Exactly the options of `GraphMergeParams`, which `build` and `merge` both flatten last.
+    let alignment = ids(&[
+      "indel_len_threshold",
+      "alpha",
+      "beta",
+      "sensitivity",
+      "kmer_length",
+      "max_self_map",
+      "alignment_kernel",
+      "extra_band_width",
+      "max_alignment_attempts",
+    ]);
+    assert_eq!(args_under(&PangraphBuildArgs::command(), "Alignment"), alignment);
+    assert_eq!(args_under(&PangraphMergeArgs::command(), "Alignment"), alignment);
   }
 }
