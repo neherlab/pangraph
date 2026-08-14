@@ -5,14 +5,13 @@ use crate::make_error;
 use crate::pangraph::graph_merging::merge_graphs;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_path::PangraphPath;
-use crate::pangraph::reconstruct::{GenomeCoverage, reconstruct_by_name, verify_graph_sequences};
-use crate::representation::seq::Seq;
+use crate::pangraph::reconstruct::{path_ids_by_name, verify_graph_against_graphs};
 use crate::utils::collections::find_duplicates;
 use color_eyre::owo_colors::{AnsiColors, OwoColorize};
 use color_eyre::{Help, SectionExt};
 use eyre::{Report, WrapErr};
 use log::{info, warn};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeSet;
 use std::path::Path;
 
 pub fn merge_run(args: &PangraphMergeArgs) -> Result<(), Report> {
@@ -26,13 +25,6 @@ pub fn merge_run(args: &PangraphMergeArgs) -> Result<(), Report> {
   let right = right
     .make_disjoint_from(&left)
     .wrap_err("When making the identifiers of the two input graphs disjoint")?;
-
-  // Reconstruct the expected genomes from the (relabeled) inputs, before they are consumed by the
-  // merger. Keyed by path name: neither path ids nor record order survive a merge.
-  let expected = args
-    .verify
-    .then(|| expected_sequences(args, &left, &right))
-    .transpose()?;
 
   info!(
     "=== Graph merging start:     graph sizes {} + {}",
@@ -50,13 +42,18 @@ pub fn merge_run(args: &PangraphMergeArgs) -> Result<(), Report> {
     merged.blocks.len()
   );
 
-  if let Some(expected) = expected {
+  if args.verify {
     #[cfg(debug_assertions)]
     merged.sanity_check().wrap_err("When checking the merged graph")?;
 
-    verify_graph_sequences(&merged, &expected, GenomeCoverage::Complete)
+    // Compared against the inputs one genome at a time: reconstructing both graphs up front would
+    // hold their entire sequence content in memory for the duration of the check.
+    verify_graph_against_graphs(&merged, &[&left, &right])
       .wrap_err("When verifying the sequences of the merged graph")?;
-    info!("Merged graph reconstructs all {} input genomes exactly", expected.len());
+    info!(
+      "Merged graph reconstructs all {} input genomes exactly",
+      merged.paths.len()
+    );
   }
 
   json_write_file(&args.output_json, &merged, JsonPretty(true))?;
@@ -95,6 +92,20 @@ fn merge_cmd_preliminary_checks(args: &PangraphMergeArgs, left: &Pangraph, right
     );
   }
 
+  // Verification matches genomes by name, so it needs every path of both inputs to carry one.
+  // Checked here rather than at verification time so that it fails before the expensive merge.
+  if args.verify {
+    for (graph, filepath) in [(left, &args.left_graph), (right, &args.right_graph)] {
+      path_ids_by_name(graph)
+        .wrap_err_with(|| format!("When resolving the genome names of graph '{}'", filepath.display()))
+        .with_section(|| {
+          "Verification matches genomes by name. Re-run without `--verify` to skip it."
+            .color(AnsiColors::Cyan)
+            .header("Suggestion:")
+        })?;
+    }
+  }
+
   // Circularity is a per-path property, so mixing is structurally fine. It is however most often a
   // mistake, since `build --circular` applies to all genomes of a graph at once.
   if circularity(left) != circularity(right) {
@@ -109,27 +120,4 @@ fn merge_cmd_preliminary_checks(args: &PangraphMergeArgs, left: &Pangraph, right
 /// Returns the set of circularity flags used by the paths of a graph.
 fn circularity(graph: &Pangraph) -> BTreeSet<bool> {
   graph.paths().map(PangraphPath::circular).collect()
-}
-
-/// Reconstructs the genomes of both input graphs, keyed by genome name.
-///
-/// Cross-graph name collisions are already rejected by `merge_cmd_preliminary_checks`, so the two
-/// sets cannot overwrite each other here.
-fn expected_sequences(
-  args: &PangraphMergeArgs,
-  left: &Pangraph,
-  right: &Pangraph,
-) -> Result<BTreeMap<String, Seq>, Report> {
-  let mut expected = BTreeMap::new();
-  for (graph, filepath) in [(left, &args.left_graph), (right, &args.right_graph)] {
-    let genomes = reconstruct_by_name(graph)
-      .wrap_err_with(|| format!("When reconstructing the genomes of graph '{}'", filepath.display()))
-      .with_section(|| {
-        "Verification matches genomes by name. Re-run without `--verify` to skip it."
-          .color(AnsiColors::Cyan)
-          .header("Suggestion:")
-      })?;
-    expected.extend(genomes);
-  }
-  Ok(expected)
 }

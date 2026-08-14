@@ -9,7 +9,7 @@ use crate::utils::string::str_slice_safe;
 use crate::{make_error, make_internal_report};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// Number of genome names listed in full in an error message before the rest are elided.
 const MAX_NAMES_IN_ERROR: usize = 10;
@@ -105,20 +105,6 @@ pub fn reconstruct_genome(graph: &Pangraph, path_id: PathId) -> Result<Seq, Repo
   reconstruct_path_sequence(graph, path)
 }
 
-/// Reconstructs every genome of the graph, keyed by genome name.
-///
-/// Errors if any path is unnamed or if two paths share a name.
-pub fn reconstruct_by_name(graph: &Pangraph) -> Result<BTreeMap<String, Seq>, Report> {
-  path_ids_by_name(graph)?
-    .into_iter()
-    .map(|(name, path_id)| {
-      let seq =
-        reconstruct_genome(graph, path_id).wrap_err_with(|| format!("When reconstructing the genome of '{name}'"))?;
-      Ok((name.to_owned(), seq))
-    })
-    .collect()
-}
-
 /// Collects FASTA records into genome sequences keyed by name.
 ///
 /// Errors on duplicate names: the name is the key that verification matches on.
@@ -212,6 +198,63 @@ pub fn verify_graph_sequences(
   Ok(())
 }
 
+/// Checks that `graph` reconstructs exactly the genomes of `sources`, matched by name.
+///
+/// Used to verify a merged graph against the graphs it was built from. Both sides of every
+/// comparison are reconstructed on demand and dropped again, so this holds two genomes at a time
+/// instead of the whole sequence content of `sources`. The saving is proportional to the total
+/// genome length and modest in practice — peak usage during a merge is dominated by the graphs
+/// themselves — but it keeps verification consistent with `reconstruct --verify`, which streams for
+/// the same reason.
+///
+/// Every genome of `sources` must appear in `graph`, and `graph` must contain nothing else. The
+/// `sources` are expected to have disjoint genome names; a name appearing in two of them is
+/// verified twice rather than reported, since the callers reject that case up front.
+pub fn verify_graph_against_graphs(graph: &Pangraph, sources: &[&Pangraph]) -> Result<(), Report> {
+  let path_ids = path_ids_by_name(graph)?;
+  let mut n_expected = 0;
+
+  for source in sources {
+    for (name, source_path_id) in path_ids_by_name(source)? {
+      let Some(path_id) = path_ids.get(name) else {
+        return make_error!("Graph is missing genome '{name}', which is present in the input graphs");
+      };
+
+      let expected = reconstruct_genome(source, source_path_id)
+        .wrap_err_with(|| format!("When reconstructing genome '{name}' from the input graphs"))?;
+      let actual =
+        reconstruct_genome(graph, *path_id).wrap_err_with(|| format!("When reconstructing genome '{name}'"))?;
+
+      verify_genome(name, &expected, &actual)?;
+      n_expected += 1;
+    }
+  }
+
+  if path_ids.len() != n_expected {
+    let expected_names: BTreeSet<&str> = sources
+      .iter()
+      .map(|source| path_ids_by_name(source))
+      .collect::<Result<Vec<_>, Report>>()?
+      .into_iter()
+      .flat_map(|ids| ids.into_keys())
+      .collect();
+
+    let extra = path_ids
+      .keys()
+      .filter(|name| !expected_names.contains(*name))
+      .copied()
+      .collect_vec();
+
+    return make_error!(
+      "Graph contains {} genome(s) that are not present in the input graphs: {}",
+      extra.len(),
+      format_names(&extra)
+    );
+  }
+
+  Ok(())
+}
+
 /// Formats a list of genome names for an error message, eliding all but the first few.
 fn format_names<S: AsRef<str>>(names: &[S]) -> String {
   let shown = names.iter().take(MAX_NAMES_IN_ERROR).map(AsRef::as_ref).join(", ");
@@ -280,6 +323,7 @@ mod tests {
   use crate::pangraph::edits::Edit;
   use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
   use crate::pangraph::pangraph_node::PangraphNode;
+  use crate::pangraph::strand::Strand;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
   use crate::utils::error::report_to_string;
   use maplit::btreemap;
@@ -304,6 +348,31 @@ mod tests {
     Pangraph { paths, blocks, nodes }
   }
 
+  /// A one-genome graph, so that a pair of them stands in for the two inputs of a merge. Every id
+  /// is `0`, exactly as `Pangraph::singleton` assigns them, which is also what makes two of these
+  /// indistinguishable by id.
+  fn one_genome_graph(name: &str, consensus: &str, strand: Strand) -> Pangraph {
+    let len = consensus.len();
+    let blocks = btreemap! {
+      BlockId(0) => PangraphBlock::new(BlockId(0), consensus, btreemap!{ NodeId(0) => Edit::empty() }),
+    };
+    let nodes = btreemap! {
+      NodeId(0) => PangraphNode::new(Some(NodeId(0)), BlockId(0), PathId(0), strand, (0, len)),
+    };
+    let paths = btreemap! {
+      PathId(0) => PangraphPath::new(Some(PathId(0)), [NodeId(0)], len, false, Some(name.to_owned()), None),
+    };
+    Pangraph { paths, blocks, nodes }
+  }
+
+  /// The two single-genome graphs whose merger `graph()` stands for.
+  fn sources() -> (Pangraph, Pangraph) {
+    (
+      one_genome_graph("a", "ACGTACGT", Forward),
+      one_genome_graph("b", "TTTTGGGG", Reverse),
+    )
+  }
+
   fn graph() -> Pangraph {
     two_genome_graph([Some("a"), Some("b")])
   }
@@ -313,15 +382,9 @@ mod tests {
   }
 
   #[rstest]
-  fn test_reconstruct_by_name() {
-    assert_eq!(reconstruct_by_name(&graph()).unwrap(), expected_genomes());
-  }
-
-  #[rstest]
   fn test_path_ids_by_name_rejects_unnamed_path() {
     let graph = two_genome_graph([Some("a"), None]);
     assert!(report_to_string(&path_ids_by_name(&graph).unwrap_err()).contains("without a name"));
-    assert!(report_to_string(&reconstruct_by_name(&graph).unwrap_err()).contains("without a name"));
   }
 
   #[rstest]
@@ -411,6 +474,47 @@ mod tests {
     let err = report_to_string(&verify_graph_sequences(&graph(), &expected, GenomeCoverage::Partial).unwrap_err());
     assert!(
       err.contains("not among the expected genomes"),
+      "unexpected error: {err}"
+    );
+  }
+
+  #[rstest]
+  fn test_verify_graph_against_graphs_accepts_exact_match() {
+    let (left, right) = sources();
+    verify_graph_against_graphs(&graph(), &[&left, &right]).unwrap();
+  }
+
+  #[rstest]
+  fn test_verify_graph_against_graphs_detects_missing_genome() {
+    let (left, right) = sources();
+    let extra = one_genome_graph("c", "GGGGCCCC", Forward);
+
+    let err = report_to_string(&verify_graph_against_graphs(&graph(), &[&left, &right, &extra]).unwrap_err());
+    assert!(err.contains("missing genome 'c'"), "unexpected error: {err}");
+  }
+
+  #[rstest]
+  fn test_verify_graph_against_graphs_detects_extra_genome() {
+    let (left, _) = sources();
+
+    let err = report_to_string(&verify_graph_against_graphs(&graph(), &[&left]).unwrap_err());
+    assert!(
+      err.contains("not present in the input graphs"),
+      "unexpected error: {err}"
+    );
+    assert!(err.contains('b'), "unexpected error: {err}");
+  }
+
+  /// The name matches but the sequence does not: the mismatch is reported against the source graph
+  /// the genome came from, with the position of the first difference.
+  #[rstest]
+  fn test_verify_graph_against_graphs_detects_mutated_genome() {
+    let (_, right) = sources();
+    let mutated = one_genome_graph("a", "ACGTTCGT", Forward);
+
+    let err = report_to_string(&verify_graph_against_graphs(&graph(), &[&mutated, &right]).unwrap_err());
+    assert!(
+      err.contains("Sequence mismatch for genome 'a'"),
       "unexpected error: {err}"
     );
   }
