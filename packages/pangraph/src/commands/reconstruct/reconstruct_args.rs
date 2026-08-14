@@ -29,6 +29,7 @@ pub struct PangraphReconstructArgs {
   /// position.
   ///
   /// See: https://en.wikipedia.org/wiki/FASTA_format
+  #[default(PathBuf::from("-"))]
   #[clap(long, short = 'o', default_value = "-")]
   #[clap(value_hint = ValueHint::AnyPath)]
   pub output_fasta: PathBuf,

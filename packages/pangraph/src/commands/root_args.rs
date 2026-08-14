@@ -122,3 +122,41 @@ pub fn parse_cli_args() -> Result<PangraphArgs, Report> {
   setup_logger(args.verbosity.get_filter_level());
   Ok(args)
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+  use pretty_assertions::assert_eq;
+  use rstest::rstest;
+  use std::path::PathBuf;
+
+  /// The `Default` impl and the clap `default_value` must agree. They are declared separately, so a
+  /// field can easily get one and not the other: an output path then defaults to `""` in code that
+  /// builds args programmatically with `..Default::default()`, and writes to a file literally named
+  /// `""` instead of to stdout.
+  #[rstest]
+  fn test_clap_and_rust_defaults_agree_on_output_paths() {
+    let stdout = PathBuf::from("-");
+
+    let PangraphCommands::Build(build) = PangraphArgs::parse_from(["pangraph", "build"]).command else {
+      panic!("expected the build subcommand");
+    };
+    assert_eq!(build.output_json, stdout);
+    assert_eq!(PangraphBuildArgs::default().output_json, stdout);
+
+    let PangraphCommands::Merge(merge) =
+      PangraphArgs::parse_from(["pangraph", "merge", "left.json", "right.json"]).command
+    else {
+      panic!("expected the merge subcommand");
+    };
+    assert_eq!(merge.output_json, stdout);
+    assert_eq!(PangraphMergeArgs::default().output_json, stdout);
+
+    let PangraphCommands::Reconstruct(reconstruct) = PangraphArgs::parse_from(["pangraph", "reconstruct"]).command
+    else {
+      panic!("expected the reconstruct subcommand");
+    };
+    assert_eq!(reconstruct.output_fasta, stdout);
+    assert_eq!(PangraphReconstructArgs::default().output_fasta, stdout);
+  }
+}
