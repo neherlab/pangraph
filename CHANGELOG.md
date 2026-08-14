@@ -3,7 +3,6 @@
 - added `pangraph merge` command, to combine two existing pangenome graphs into a single one, see #192.
 - `pangraph build` now accepts a single input sequence, and rejects inputs with duplicate genome names.
 - `pangraph reconstruct --verify` now matches sequences by genome name rather than by position, see #193.
-- in `pangraph build --help`, the `--circular`, `--verify`, `--no-progress-bar` and `--guide-tree` options are no longer listed under the "Alignment" section.
 
 ## 1.3.0
 
