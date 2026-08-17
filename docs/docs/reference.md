@@ -151,14 +151,14 @@ Merge two pangenome graphs into a single one
 
 ###### **Arguments:**
 
-* `<LEFT_GRAPH>` — Path to the first input graph, in pangraph JSON format.
-
-   This graph is treated as the base: its identifiers are preserved in the output, and the path identifiers of the second graph are renumbered to follow them. When extending an existing graph with new genomes, pass the existing graph here.
+* `<LEFT_GRAPH>` — Path to the first input graph, in pangraph JSON format. This graph is treated as the base.
 
    Accepts plain or compressed files. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. The decompressor is chosen based on the file extension.
 * `<RIGHT_GRAPH>` — Path to the second input graph, in pangraph JSON format.
 
-   Its path identifiers are renumbered to follow those of the first graph, so its genomes appear after them in the output. Block and node identifiers are left alone: they are derived from genome names, which must be distinct across the two graphs, so they cannot clash.
+   Its path identifiers are renumbered to follow those of the first graph, so its genomes appear after them in the output.
+
+   Accepts plain or compressed files. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. The decompressor is chosen based on the file extension.
 
 ###### **Options:**
 
