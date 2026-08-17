@@ -51,7 +51,7 @@ fn orient_merging_edge(graph: &Pangraph, edge: &Edge) -> Edge {
 fn find_node_pairings(graph: &Pangraph, edge: &Edge) -> (BTreeMap<NodeId, NodeId>, BTreeMap<NodeId, PangraphNode>) {
   let mut node_pairings = btreemap! {};
   let mut new_nodes = btreemap! {};
-  for (&path_id, path) in &graph.paths {
+  for path in graph.paths.values() {
     let n = path.nodes.len();
     let i = if path.circular { n } else { n - 1 };
     for idx in 0..i {
@@ -79,7 +79,7 @@ fn find_node_pairings(graph: &Pangraph, edge: &Edge) -> (BTreeMap<NodeId, NodeId
           "nodes should be adjacent:\nn1: {n1:?},\nn2: {n2:?}"
         );
 
-        let new_node = PangraphNode::new(None, edge.n1.bid, path_id, new_strand, (new_s, new_e));
+        let new_node = PangraphNode::with_derived_id(edge.n1.bid, path, new_strand, (new_s, new_e));
         new_nodes.insert(nid1, new_node.clone());
         new_nodes.insert(nid2, new_node);
       }

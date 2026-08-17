@@ -9,9 +9,9 @@ use std::path::PathBuf;
 pub struct PangraphMergeArgs {
   /// Path to the first input graph, in pangraph JSON format.
   ///
-  /// This graph is treated as the base: its block, node and path identifiers are preserved in the
-  /// output, while those of the second graph are renumbered. When extending an existing graph with
-  /// new genomes, pass the existing graph here.
+  /// This graph is treated as the base: its identifiers are preserved in the output, and the path
+  /// identifiers of the second graph are renumbered to follow them. When extending an existing
+  /// graph with new genomes, pass the existing graph here.
   ///
   /// Accepts plain or compressed files. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`.
   /// The decompressor is chosen based on the file extension.
@@ -21,8 +21,9 @@ pub struct PangraphMergeArgs {
 
   /// Path to the second input graph, in pangraph JSON format.
   ///
-  /// Its identifiers are renumbered so that they do not clash with those of the first graph. Its
-  /// genomes appear after those of the first graph in the output.
+  /// Its path identifiers are renumbered to follow those of the first graph, so its genomes appear
+  /// after them in the output. Block and node identifiers are left alone: they are derived from
+  /// genome names, which must be distinct across the two graphs, so they cannot clash.
   #[clap(value_hint = ValueHint::FilePath)]
   #[clap(display_order = 2)]
   pub right_graph: PathBuf,

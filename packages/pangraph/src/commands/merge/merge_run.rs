@@ -19,11 +19,19 @@ pub fn merge_run(args: &PangraphMergeArgs) -> Result<(), Report> {
 
   merge_cmd_preliminary_checks(args, &left, &right).wrap_err("When performing preliminary checks before merging")?;
 
-  // The two graphs were built independently, so their identifiers almost certainly collide.
-  // Namespace the second graph before joining them.
+  // Block and node ids are derived from genome names, which the checks above established are
+  // distinct across the two graphs, so they cannot collide. Path ids are sequential within each
+  // graph, so the appended graph is lifted above the first one.
   let right = right
-    .make_disjoint_from(&left)
-    .wrap_err("When making the identifiers of the two input graphs disjoint")?;
+    .renumber_paths(left.path_id_upper_bound())
+    .wrap_err("When renumbering the path ids of the second input graph")?;
+
+  // Cheap, and the alternative is `graph_join` panicking on the conflicting key.
+  if !right.is_id_disjoint_from(&left) {
+    return make_error!(
+      "The two input graphs share block or node identifiers, so they cannot be joined. Identifiers are derived from genome names since version 1.4; graphs written by earlier versions derive them from the order of the input sequences instead, and two such graphs collide. Rebuild the input graphs with the current version of pangraph."
+    );
+  }
 
   info!(
     "=== Graph merging start:     graph sizes {} + {}",

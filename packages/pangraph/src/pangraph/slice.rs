@@ -167,16 +167,17 @@ pub fn block_slice(
       old_strandedness
     };
 
-    let path_L = G.paths[&old_node.path_id()].tot_len;
+    let path = &G.paths[&old_node.path_id()];
+    let path_L = path.tot_len;
     let node_coords = interval_node_coords(i, edits, block_L);
-    let circular = G.paths[&old_node.path_id()].circular();
+    let circular = path.circular();
     let new_pos = if circular {
       new_position_circular(old_node.position(), node_coords, path_L, old_strandedness)
     } else {
       new_position_non_circular(old_node.position(), node_coords, old_strandedness)
     };
 
-    let new_node = PangraphNode::new(None, i.new_block_id, old_node.path_id(), new_strand, new_pos);
+    let new_node = PangraphNode::with_derived_id(i.new_block_id, path, new_strand, new_pos);
 
     // extract edits for the slice
     let new_edits = slice_edits(i, edits, block_L);

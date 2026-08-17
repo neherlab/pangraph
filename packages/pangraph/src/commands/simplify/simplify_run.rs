@@ -54,8 +54,11 @@ mod tests {
   use maplit::{btreemap, btreeset};
   use pretty_assertions::assert_eq;
 
-  const NID11: NodeId = NodeId(13172209629052542373);
-  const NID12: NodeId = NodeId(16864511183100055928);
+  /// Ids of the two nodes that concatenating the blocks of each path produces, as minted by
+  /// [`PangraphNode::with_derived_id`]. They are hashes of the new block id, the genome's seed and
+  /// the node's strand and position, so renaming `pathA`/`pathB` below changes them.
+  const NID11: NodeId = NodeId(7517044205545980976);
+  const NID12: NodeId = NodeId(8586529204744949647);
 
   fn block_a() -> PangraphBlock {
     //          0         1         2         3

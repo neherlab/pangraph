@@ -61,8 +61,13 @@ fn align_with_minimap2_lib_impl(
 
   let idx = Minimap2Index::new(&seqs, &names, &args)?;
 
+  // Collected into a `Vec` first so that the parallel iterator is *indexed*: `par_bridge` hands
+  // work out in whatever order threads ask for it and collects in that order, which made the hit
+  // list vary between runs. `filter_matches` then broke equal-energy ties differently, so the same
+  // input could build different graphs. `Vec::into_par_iter` restores input order.
   let results: Vec<Minimap2Result> = izip!(&seqs, &names)
-    .par_bridge()
+    .collect_vec()
+    .into_par_iter()
     .map_init(
       || Minimap2Mapper::new(&idx).unwrap(),
       move |mapper, (seq, name)| {

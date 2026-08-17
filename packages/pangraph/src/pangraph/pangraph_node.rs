@@ -1,5 +1,5 @@
 use crate::pangraph::pangraph_block::BlockId;
-use crate::pangraph::pangraph_path::PathId;
+use crate::pangraph::pangraph_path::{PangraphPath, PathId};
 use crate::pangraph::strand::Strand;
 use crate::utils::id::id;
 use derive_more::{Display, From};
@@ -47,6 +47,21 @@ impl PangraphNode {
       id,
       block_id,
       path_id,
+      strand,
+      position,
+    }
+  }
+
+  /// Creates a node placing `block_id` on `path`, with an id derived from its contents.
+  ///
+  /// Genomes are discriminated by [`PangraphPath::seed`] rather than by their path id, so the
+  /// resulting id does not depend on the order in which the input sequences were read. The path id
+  /// is still what the node stores.
+  pub fn with_derived_id(block_id: BlockId, path: &PangraphPath, strand: Strand, position: (usize, usize)) -> Self {
+    Self {
+      id: id((&block_id, &path.seed(), &strand, &position)),
+      block_id,
+      path_id: path.id(),
       strand,
       position,
     }

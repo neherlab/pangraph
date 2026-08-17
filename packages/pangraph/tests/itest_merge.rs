@@ -12,7 +12,11 @@ mod tests {
   use pangraph::io::fasta::{FastaReader, FastaRecord};
   use pangraph::io::json::{JsonPretty, json_write_file};
   use pangraph::pangraph::pangraph::Pangraph;
+  use pangraph::pangraph::pangraph_block::{BlockId, PangraphBlock};
+  use pangraph::pangraph::pangraph_node::{NodeId, PangraphNode};
+  use pangraph::pangraph::pangraph_path::{PangraphPath, PathId};
   use pangraph::pangraph::reconstruct::reconstruct;
+  use pangraph::pangraph::strand::Strand::Forward;
   use pangraph::representation::seq::Seq;
   use pangraph::utils::error::report_to_string;
   use pretty_assertions::assert_eq;
@@ -141,11 +145,12 @@ mod tests {
     Ok(())
   }
 
-  /// Appending to a graph that is itself the result of an earlier merge. Identifiers relabeled by
-  /// the first merge survive into its output whenever a block or node finds no homologue, and a
-  /// constant relabeling salt then re-derived the third graph's identifiers onto exactly those
-  /// values, so the second append always failed. The three genomes here are mutually unrelated, so
-  /// nothing aligns and every identifier survives; homologous appends never hit this.
+  /// Appending to a graph that is itself the result of an earlier merge. Identifiers minted by the
+  /// first merge survive into its output whenever a block or node finds no homologue, so this is
+  /// the case that used to need a varying relabeling salt to keep the third graph's identifiers off
+  /// them. Deriving identifiers from genome names removes the problem at the source. The three
+  /// genomes here are mutually unrelated, so nothing aligns and every identifier survives;
+  /// homologous appends never exercised this.
   #[rstest]
   fn itest_merge_appends_to_an_already_merged_graph() -> Result<(), Report> {
     let dir = tempdir()?;
@@ -163,6 +168,109 @@ mod tests {
 
     let merged = read_graph(&merged_twice)?;
     assert_eq!(merged.paths.len(), 4);
+
+    Ok(())
+  }
+
+  /// Maps each genome name to the ids of the blocks its path walks through, in order. Comparing the
+  /// id *sets* of two graphs would not do: `build` used to label singleton blocks `0, 1, 2, ...`
+  /// whatever the genome, so the sets matched even when every genome held a different block.
+  fn blocks_by_genome(graph: &Pangraph) -> BTreeMap<String, Vec<BlockId>> {
+    graph
+      .paths
+      .values()
+      .map(|path| {
+        let blocks = path.nodes().iter().map(|nid| graph.nodes[nid].block_id()).collect_vec();
+        (path.name().clone().unwrap_or_default(), blocks)
+      })
+      .collect()
+  }
+
+  /// Block and node identifiers are derived from genome names rather than from the order the input
+  /// sequences were read in, so the same genomes under the same guide tree produce the same graph
+  /// whichever order they arrive in. Only path ids, which deliberately record the input order, are
+  /// expected to differ.
+  #[rstest]
+  fn itest_build_ids_do_not_depend_on_input_order() -> Result<(), Report> {
+    let dir = tempdir()?;
+    let fastas = read_records("../../data/ges-1.fa", 4)?;
+    let names = fastas.iter().map(|f| f.seq_name.clone()).collect_vec();
+
+    // Pinned, so that the input order is the only thing that varies between the two builds.
+    let newick = dir.path().join("guide.nwk");
+    std::fs::write(
+      &newick,
+      format!("(({},{}),({},{}));", names[0], names[1], names[2], names[3]),
+    )?;
+
+    let build_in_order = |fastas: Vec<FastaRecord>| -> Result<Pangraph, Report> {
+      let args = PangraphBuildArgs {
+        circular: false,
+        guide_tree: Some(newick.clone()),
+        ..PangraphBuildArgs::default()
+      };
+      build(fastas, &args, true)
+    };
+
+    // Reversed *and* re-indexed, which is what reading the same genomes from a reordered file does.
+    let mut backwards = fastas.clone();
+    backwards.reverse();
+    for (index, record) in backwards.iter_mut().enumerate() {
+      record.index = index;
+    }
+
+    let forward = build_in_order(fastas)?;
+    let reversed = build_in_order(backwards)?;
+
+    assert_eq!(blocks_by_genome(&forward), blocks_by_genome(&reversed));
+    assert_eq!(
+      forward.node_ids().collect::<BTreeSet<_>>(),
+      reversed.node_ids().collect::<BTreeSet<_>>()
+    );
+    assert_eq!(sequences(&forward)?, sequences(&reversed)?);
+
+    // path ids still record the input order, so the genomes come back in the order they were read
+    assert_eq!(forward.path_names().flatten().collect_vec(), names);
+    assert_eq!(
+      reversed.path_names().flatten().collect_vec(),
+      names.iter().rev().collect_vec()
+    );
+
+    Ok(())
+  }
+
+  /// A graph written by pangraph 1.3 or earlier labels its first genome with block, node and path
+  /// id `0`, whatever that genome is called, so two of them collide even though their names differ.
+  /// `merge` has to say so: without the check, `graph_join` panics on the conflicting key.
+  #[rstest]
+  fn itest_merge_rejects_graphs_with_colliding_identifiers() -> Result<(), Report> {
+    let dir = tempdir()?;
+
+    // A singleton graph in the pre-1.4 identifier scheme, where ids came from the record index.
+    let legacy_graph = |name: &str, seq: &str| {
+      let (bid, nid, pid) = (BlockId(0), NodeId(0), PathId(0));
+      Pangraph {
+        blocks: BTreeMap::from([(bid, PangraphBlock::from_consensus(seq, bid, nid))]),
+        nodes: BTreeMap::from([(nid, PangraphNode::new(Some(nid), bid, pid, Forward, (0, seq.len())))]),
+        paths: BTreeMap::from([(
+          pid,
+          PangraphPath::new(Some(pid), [nid], seq.len(), false, Some(name.to_owned()), None),
+        )]),
+      }
+    };
+
+    let left = dir.path().join("left.json");
+    let right = dir.path().join("right.json");
+    json_write_file(&left, &legacy_graph("genome_a", "ACGTACGTAC"), JsonPretty(false))?;
+    json_write_file(&right, &legacy_graph("genome_b", "TTTTGGGGCC"), JsonPretty(false))?;
+
+    let result = merge_run(&merge_args(left, right, dir.path().join("out.json")));
+
+    let error = report_to_string(&result.unwrap_err());
+    assert!(
+      error.contains("share block or node identifiers"),
+      "unexpected error message: {error}"
+    );
 
     Ok(())
   }
