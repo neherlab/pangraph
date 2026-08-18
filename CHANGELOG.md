@@ -2,7 +2,7 @@
 
 - added `pangraph merge` command, to combine two existing pangenome graphs into a single one, see #197.
 - `pangraph build` now accepts a single input sequence, and rejects inputs with duplicate genome names.
-- more strict checks on input sequences ids: duplicated or empty ids are now rejected. The `--verify` options compare the input sequence by id and not by order.
+- more strict checks on input sequence ids: duplicated or empty ids are now rejected. The `--verify` options compare the input sequences by id and not by order.
 - added more graph validation at loading.
 - block and node identifiers are now derived from genome names instead of the order the input sequences are read in, enforcing order-independence.
 - fixed a race condition in `pangraph build` that could produce slightly different graphs on repeated runs over the same input.

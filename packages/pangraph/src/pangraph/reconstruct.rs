@@ -279,8 +279,8 @@ pub fn verify_graph_sequences(
 /// Used to verify a merged graph against the graphs it was built from. Both sides of every
 /// comparison are reconstructed on demand and dropped again, so this holds two genomes at a time
 /// instead of the whole sequence content of `sources`. The saving is proportional to the total
-/// genome length and modest in practice — peak usage during a merge is dominated by the graphs
-/// themselves — but it keeps verification consistent with `reconstruct --verify`, which streams for
+/// genome length and modest in practice (peak usage during a merge is dominated by the graphs
+/// themselves), but it keeps verification consistent with `reconstruct --verify`, which streams for
 /// the same reason.
 ///
 /// Every genome of `sources` must appear in `graph`, and `graph` must contain nothing else. The
@@ -547,7 +547,7 @@ mod tests {
     assert!(report_to_string(&check_sequence_names(&fastas).unwrap_err()).contains("Duplicate sequence names"));
   }
 
-  /// `> id` — a space between the '>' and the identifier — parses into an empty name with the
+  /// `> id`, with a space between the '>' and the identifier, parses into an empty name with the
   /// identifier in the description, so this common header style used to yield a nameless genome.
   /// The record index is part of the message, since the name cannot point at the offending record.
   #[rstest]
@@ -566,8 +566,8 @@ mod tests {
     assert!(err.contains('3'), "unexpected error: {err}");
   }
 
-  /// A header indented with anything other than a plain space — `>\tid` — keeps the whitespace in
-  /// the name, which is invisible in every place the name is later shown.
+  /// A header indented with anything other than a plain space, such as `>\tid`, keeps the whitespace
+  /// in the name, which is invisible in every place the name is later shown.
   #[rstest]
   #[case(" a")]
   #[case("a ")]

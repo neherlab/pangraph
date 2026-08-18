@@ -239,7 +239,7 @@ mod tests {
   /// A graph read from a file was not necessarily written by pangraph, so nothing guarantees its
   /// cross-references resolve. `reconstruct` used to index the node map directly, so a path naming
   /// a node the graph does not contain aborted the process with a bare "no entry found for key"
-  /// panic — and in a release build, where `sanity_check` is compiled out, with no indication of
+  /// panic, and in a release build, where `sanity_check` is compiled out, with no indication of
   /// which file was at fault. Validation now happens where the file name is still known.
   #[rstest]
   fn itest_reconstruct_rejects_malformed_graph_naming_the_file() -> Result<(), Report> {

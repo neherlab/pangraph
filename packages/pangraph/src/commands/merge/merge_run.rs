@@ -71,9 +71,9 @@ pub fn merge_run(args: &PangraphMergeArgs) -> Result<(), Report> {
 /// Reads a pangraph from a JSON file.
 ///
 /// `from_path` already rejects a graph whose ids do not resolve or whose offsets are out of range,
-/// in release builds too. The extra `sanity_check` here adds the semantic invariants on top — that
-/// node positions tile the genome — which indicate a bug rather than a bad file, and so are only
-/// worth paying for in debug builds.
+/// in release builds too. The extra `sanity_check` here adds the semantic invariants on top, such
+/// as node positions tiling the genome. Those indicate a bug rather than a bad file, and so are
+/// only worth paying for in debug builds.
 fn read_graph(filepath: &Path) -> Result<Pangraph, Report> {
   let graph = Pangraph::from_path(&Some(filepath))?;
 
@@ -110,7 +110,7 @@ fn merge_cmd_preliminary_checks(args: &PangraphMergeArgs, left: &Pangraph, right
         .header("Suggestion:")
     })?;
 
-  // Circularity is a per-path property, so mixing is structurally fine. It is however most often a
+  // Circularity is a per-path property, so mixing is structurally fine, but it is most often a
   // mistake, since `build --circular` applies to all genomes of a graph at once.
   if circularity(left) != circularity(right) {
     warn!(

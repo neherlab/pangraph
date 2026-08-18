@@ -38,8 +38,8 @@ impl PangraphNode {
   /// Creates a node with an explicit id.
   ///
   /// Node ids are content-derived, and [`PangraphNode::with_derived_id`] is the one place that
-  /// derives them. This constructor takes the id it is given, so a caller that has an id already —
-  /// because the node is being rewritten rather than created — cannot accidentally seed a second,
+  /// derives them. This constructor takes the id it is given, so a caller that already has an id
+  /// (because the node is being rewritten rather than created) cannot accidentally seed a second,
   /// divergent derivation scheme.
   pub fn new(id: NodeId, block_id: BlockId, path_id: PathId, strand: Strand, position: (usize, usize)) -> Self {
     Self {

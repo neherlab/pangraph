@@ -234,7 +234,7 @@ impl Pangraph {
   /// index the maps directly and treat a lookup that fails anyway as an internal error.
   ///
   /// Deliberately limited to what a bad file can break. It does *not* check that the graph is
-  /// semantically coherent — that node positions tile the genome, that edits do not overlap — since
+  /// semantically coherent (that node positions tile the genome, that edits do not overlap), since
   /// those are symptoms of a bug in pangraph rather than of a bad input, and are covered by
   /// [`Self::sanity_check`] in debug builds. Errors are reported as ordinary user-facing errors for
   /// the same reason: the offending graph came from the user.
