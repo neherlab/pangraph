@@ -444,21 +444,17 @@ mod tests {
     Pangraph { paths, blocks, nodes }
   }
 
-  /// A one-genome graph, so that a pair of them stands in for the two inputs of a merge. Every id
-  /// is `0`, exactly as `Pangraph::singleton` assigns them, which is also what makes two of these
-  /// indistinguishable by id.
+  /// A one-genome graph, so that a pair of them stands in for the two inputs of a merge. Built
+  /// through `Pangraph::singleton`, so these are exactly the graphs `build` starts from and they
+  /// track its id derivation instead of restating it.
   fn one_genome_graph(name: &str, consensus: &str, strand: Strand) -> Pangraph {
-    let len = consensus.len();
-    let blocks = btreemap! {
-      BlockId(0) => PangraphBlock::new(BlockId(0), consensus, btreemap!{ NodeId(0) => Edit::empty() }),
+    let fasta = FastaRecord {
+      seq_name: name.to_owned(),
+      desc: None,
+      seq: Seq::from_str(consensus),
+      index: 0,
     };
-    let nodes = btreemap! {
-      NodeId(0) => PangraphNode::new(NodeId(0), BlockId(0), PathId(0), strand, (0, len)),
-    };
-    let paths = btreemap! {
-      PathId(0) => PangraphPath::new(PathId(0), [NodeId(0)], len, false, Some(name.to_owned()), None),
-    };
-    Pangraph { paths, blocks, nodes }
+    Pangraph::singleton(fasta, strand, false)
   }
 
   /// The two single-genome graphs whose merger `graph()` stands for.
