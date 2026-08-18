@@ -394,8 +394,8 @@ mod tests {
       BlockId(1) => PangraphBlock::new(BlockId(1), "TTTTGGGG", btreemap!{ NodeId(1) => Edit::empty() }),
     };
     let nodes = btreemap! {
-      NodeId(0) => PangraphNode::new(Some(NodeId(0)), BlockId(0), PathId(0), Forward, (0, 8)),
-      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(1), PathId(1), Reverse, (0, 8)),
+      NodeId(0) => PangraphNode::new(NodeId(0), BlockId(0), PathId(0), Forward, (0, 8)),
+      NodeId(1) => PangraphNode::new(NodeId(1), BlockId(1), PathId(1), Reverse, (0, 8)),
     };
     let paths = btreemap! {
       PathId(0) => PangraphPath::new(Some(PathId(0)), [NodeId(0)], 8, false, names[0].map(String::from), None),
@@ -413,7 +413,7 @@ mod tests {
       BlockId(0) => PangraphBlock::new(BlockId(0), consensus, btreemap!{ NodeId(0) => Edit::empty() }),
     };
     let nodes = btreemap! {
-      NodeId(0) => PangraphNode::new(Some(NodeId(0)), BlockId(0), PathId(0), strand, (0, len)),
+      NodeId(0) => PangraphNode::new(NodeId(0), BlockId(0), PathId(0), strand, (0, len)),
     };
     let paths = btreemap! {
       PathId(0) => PangraphPath::new(Some(PathId(0)), [NodeId(0)], len, false, Some(name.to_owned()), None),
@@ -678,13 +678,7 @@ mod tests {
     let node = &graph.nodes[&NodeId(0)];
     graph.nodes.insert(
       NodeId(0),
-      PangraphNode::new(
-        Some(NodeId(0)),
-        node.block_id(),
-        node.path_id(),
-        node.strand(),
-        (100, 8),
-      ),
+      PangraphNode::new(NodeId(0), node.block_id(), node.path_id(), node.strand(), (100, 8)),
     );
 
     let err = report_to_string(&reconstruct_genome(&graph, PathId(0)).unwrap_err());

@@ -42,7 +42,7 @@ impl Pangraph {
     let block = PangraphBlock::from_consensus(fasta.seq, block_id, node_id);
     let path_id = PathId(fasta.index);
     let node_position = if circular { (0, 0) } else { (0, tot_len) }; // path wraps around if circular
-    let node = PangraphNode::new(Some(node_id), block.id(), path_id, strand, node_position);
+    let node = PangraphNode::new(node_id, block.id(), path_id, strand, node_position);
     let path = PangraphPath::new(
       Some(path_id),
       [node.id()],
@@ -121,7 +121,7 @@ impl Pangraph {
           )
         })?;
 
-        let node = PangraphNode::new(Some(nid), node.block_id(), path_id, node.strand(), node.position());
+        let node = PangraphNode::new(nid, node.block_id(), path_id, node.strand(), node.position());
         Ok((nid, node))
       })
       .collect::<Result<_, Report>>()?;
@@ -493,14 +493,14 @@ mod tests {
     // b2+ -> [b4+, b5-]
 
     let nodes = btreemap! {
-      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(1), PathId(1), Forward,  (0, 0)), // FIXME
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(1), PathId(3), Forward,  (0, 0)), // FIXME
-      NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(2), PathId(1), Forward,  (0, 0)), // FIXME
-      NodeId(4) => PangraphNode::new(Some(NodeId(4)), BlockId(2), PathId(2), Forward,  (0, 0)), // FIXME
-      NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(2), PathId(3), Reverse, (0, 0)), // FIXME
-      NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(3), PathId(1), Forward,  (0, 0)), // FIXME
-      NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(3), PathId(2), Forward,  (0, 0)), // FIXME
-      NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(3), Forward,  (0, 0)) // FIXME
+      NodeId(1) => PangraphNode::new(NodeId(1), BlockId(1), PathId(1), Forward,  (0, 0)), // FIXME
+      NodeId(2) => PangraphNode::new(NodeId(2), BlockId(1), PathId(3), Forward,  (0, 0)), // FIXME
+      NodeId(3) => PangraphNode::new(NodeId(3), BlockId(2), PathId(1), Forward,  (0, 0)), // FIXME
+      NodeId(4) => PangraphNode::new(NodeId(4), BlockId(2), PathId(2), Forward,  (0, 0)), // FIXME
+      NodeId(5) => PangraphNode::new(NodeId(5), BlockId(2), PathId(3), Reverse, (0, 0)), // FIXME
+      NodeId(6) => PangraphNode::new(NodeId(6), BlockId(3), PathId(1), Forward,  (0, 0)), // FIXME
+      NodeId(7) => PangraphNode::new(NodeId(7), BlockId(3), PathId(2), Forward,  (0, 0)), // FIXME
+      NodeId(8) => PangraphNode::new(NodeId(8), BlockId(3), PathId(3), Forward,  (0, 0)) // FIXME
     };
 
     let blocks = btreemap! {
@@ -525,12 +525,12 @@ mod tests {
     };
 
     let new_nodes = btreemap! {
-      NodeId(9)  => PangraphNode::new(Some(NodeId(9)),  BlockId(4), PathId(1), Forward,  (0, 0)),
-      NodeId(10) => PangraphNode::new(Some(NodeId(10)), BlockId(5), PathId(1), Reverse, (0, 0)),
-      NodeId(11) => PangraphNode::new(Some(NodeId(11)), BlockId(4), PathId(2), Forward,  (0, 0)),
-      NodeId(12) => PangraphNode::new(Some(NodeId(12)), BlockId(5), PathId(2), Reverse, (0, 0)),
-      NodeId(13) => PangraphNode::new(Some(NodeId(13)), BlockId(4), PathId(3), Reverse, (0, 0)),
-      NodeId(14) => PangraphNode::new(Some(NodeId(14)), BlockId(5), PathId(3), Forward,  (0, 0)),
+      NodeId(9)  => PangraphNode::new(NodeId(9),  BlockId(4), PathId(1), Forward,  (0, 0)),
+      NodeId(10) => PangraphNode::new(NodeId(10), BlockId(5), PathId(1), Reverse, (0, 0)),
+      NodeId(11) => PangraphNode::new(NodeId(11), BlockId(4), PathId(2), Forward,  (0, 0)),
+      NodeId(12) => PangraphNode::new(NodeId(12), BlockId(5), PathId(2), Reverse, (0, 0)),
+      NodeId(13) => PangraphNode::new(NodeId(13), BlockId(4), PathId(3), Reverse, (0, 0)),
+      NodeId(14) => PangraphNode::new(NodeId(14), BlockId(5), PathId(3), Forward,  (0, 0)),
     };
 
     let new_blocks = btreemap! {
@@ -634,8 +634,8 @@ mod tests {
       b1 => PangraphBlock::new(b1, "TTTTGGGG", btreemap!{ n1 => Edit::empty() }),
     };
     let nodes = btreemap! {
-      n0 => PangraphNode::new(Some(n0), b0, PathId(0), Forward, (0, 8)),
-      n1 => PangraphNode::new(Some(n1), b1, PathId(1), Reverse, (0, 8)),
+      n0 => PangraphNode::new(n0, b0, PathId(0), Forward, (0, 8)),
+      n1 => PangraphNode::new(n1, b1, PathId(1), Reverse, (0, 8)),
     };
     let paths = btreemap! {
       PathId(0) => PangraphPath::new(Some(PathId(0)), [n0], 8, false, Some(names[0].to_owned()), None),
@@ -653,7 +653,7 @@ mod tests {
     let mut graph = two_genome_graph(["a", "b"]);
     let nid = graph.node_ids().next().unwrap();
     let node = &graph.nodes[&nid];
-    let detached = PangraphNode::new(Some(nid), node.block_id(), PathId(99), node.strand(), node.position());
+    let detached = PangraphNode::new(nid, node.block_id(), PathId(99), node.strand(), node.position());
     graph.nodes.insert(nid, detached);
 
     let err = report_to_string(&graph.renumber_paths(7).unwrap_err());
@@ -849,7 +849,7 @@ mod tests {
     let node = &graph.nodes[&nid];
     graph.nodes.insert(
       nid,
-      PangraphNode::new(Some(nid), BlockId(99), node.path_id(), node.strand(), node.position()),
+      PangraphNode::new(nid, BlockId(99), node.path_id(), node.strand(), node.position()),
     );
 
     let err = report_to_string(&graph.validate().unwrap_err());
@@ -866,7 +866,7 @@ mod tests {
     let node = &graph.nodes[&nid];
     graph.nodes.insert(
       nid,
-      PangraphNode::new(Some(nid), node.block_id(), PathId(99), node.strand(), node.position()),
+      PangraphNode::new(nid, node.block_id(), PathId(99), node.strand(), node.position()),
     );
 
     let err = report_to_string(&graph.validate().unwrap_err());
@@ -931,7 +931,7 @@ mod tests {
     let node = &graph.nodes[&nid];
     graph.nodes.insert(
       nid,
-      PangraphNode::new(Some(nid), node.block_id(), node.path_id(), node.strand(), (100, 8)),
+      PangraphNode::new(nid, node.block_id(), node.path_id(), node.strand(), (100, 8)),
     );
 
     let err = report_to_string(&graph.validate().unwrap_err());

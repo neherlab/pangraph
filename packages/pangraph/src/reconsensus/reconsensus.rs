@@ -436,11 +436,11 @@ mod tests {
     let expected_block = block_1_reconsensus();
 
     let nodes = btreemap! {
-      NodeId(1) => PangraphNode::new(Some(NodeId(1)), block.id(), PathId(1), Forward, (0, 23)),
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), block.id(), PathId(2), Forward, (0, 23)),
-      NodeId(3) => PangraphNode::new(Some(NodeId(3)), block.id(), PathId(3), Forward, (0, 23)),
-      NodeId(4) => PangraphNode::new(Some(NodeId(4)), block.id(), PathId(4), Forward, (0, 23)),
-      NodeId(5) => PangraphNode::new(Some(NodeId(5)), block.id(), PathId(5), Forward, (0, 23)),
+      NodeId(1) => PangraphNode::new(NodeId(1), block.id(), PathId(1), Forward, (0, 23)),
+      NodeId(2) => PangraphNode::new(NodeId(2), block.id(), PathId(2), Forward, (0, 23)),
+      NodeId(3) => PangraphNode::new(NodeId(3), block.id(), PathId(3), Forward, (0, 23)),
+      NodeId(4) => PangraphNode::new(NodeId(4), block.id(), PathId(4), Forward, (0, 23)),
+      NodeId(5) => PangraphNode::new(NodeId(5), block.id(), PathId(5), Forward, (0, 23)),
     };
     let paths = btreemap! {
       PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 23, false, None, None),
@@ -510,11 +510,11 @@ mod tests {
 
     // Create nodes for the block with lengths reflecting actual sequence lengths
     let nodes = btreemap! {
-      NodeId(1) => PangraphNode::new(Some(NodeId(1)), initial_block.id(), PathId(1), Reverse, (0, 10)),   // 50 - 40 = 9 (deletes positions 0-39)
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), initial_block.id(), PathId(2), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
-      NodeId(3) => PangraphNode::new(Some(NodeId(3)), initial_block.id(), PathId(3), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
-      NodeId(4) => PangraphNode::new(Some(NodeId(4)), initial_block.id(), PathId(4), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
-      NodeId(5) => PangraphNode::new(Some(NodeId(5)), initial_block.id(), PathId(5), Forward, (0, 49)),  // no deletions
+      NodeId(1) => PangraphNode::new(NodeId(1), initial_block.id(), PathId(1), Reverse, (0, 10)),   // 50 - 40 = 9 (deletes positions 0-39)
+      NodeId(2) => PangraphNode::new(NodeId(2), initial_block.id(), PathId(2), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(3) => PangraphNode::new(NodeId(3), initial_block.id(), PathId(3), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(4) => PangraphNode::new(NodeId(4), initial_block.id(), PathId(4), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(5) => PangraphNode::new(NodeId(5), initial_block.id(), PathId(5), Forward, (0, 49)),  // no deletions
     };
 
     // Create paths
@@ -554,7 +554,7 @@ mod tests {
 
     // check that the node was updated correctly, flipping the strandedness
     let new_node1 = &graph.nodes[&NodeId(1)];
-    let expected_node1 = PangraphNode::new(Some(NodeId(1)), singleton_block_exp.id(), PathId(1), Forward, (0, 10));
+    let expected_node1 = PangraphNode::new(NodeId(1), singleton_block_exp.id(), PathId(1), Forward, (0, 10));
     assert_eq!(new_node1, &expected_node1);
   }
 }

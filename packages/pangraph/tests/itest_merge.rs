@@ -251,7 +251,7 @@ mod tests {
       let (bid, nid, pid) = (BlockId(0), NodeId(0), PathId(0));
       Pangraph {
         blocks: BTreeMap::from([(bid, PangraphBlock::from_consensus(seq, bid, nid))]),
-        nodes: BTreeMap::from([(nid, PangraphNode::new(Some(nid), bid, pid, Forward, (0, seq.len())))]),
+        nodes: BTreeMap::from([(nid, PangraphNode::new(nid, bid, pid, Forward, (0, seq.len())))]),
         paths: BTreeMap::from([(
           pid,
           PangraphPath::new(Some(pid), [nid], seq.len(), false, Some(name.to_owned()), None),

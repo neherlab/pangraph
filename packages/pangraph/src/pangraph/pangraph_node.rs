@@ -35,14 +35,13 @@ impl NodeId {
 }
 
 impl PangraphNode {
-  pub fn new(
-    node_id: Option<NodeId>,
-    block_id: BlockId,
-    path_id: PathId,
-    strand: Strand,
-    position: (usize, usize),
-  ) -> Self {
-    let id = node_id.unwrap_or_else(|| id((&block_id, &path_id, &strand, &position)));
+  /// Creates a node with an explicit id.
+  ///
+  /// Node ids are content-derived, and [`PangraphNode::with_derived_id`] is the one place that
+  /// derives them. This constructor takes the id it is given, so a caller that has an id already —
+  /// because the node is being rewritten rather than created — cannot accidentally seed a second,
+  /// divergent derivation scheme.
+  pub fn new(id: NodeId, block_id: BlockId, path_id: PathId, strand: Strand, position: (usize, usize)) -> Self {
     Self {
       id,
       block_id,
@@ -54,9 +53,9 @@ impl PangraphNode {
 
   /// Creates a node placing `block_id` on `path`, with an id derived from its contents.
   ///
-  /// Genomes are discriminated by [`PangraphPath::seed`] rather than by their path id, so the
-  /// resulting id does not depend on the order in which the input sequences were read. The path id
-  /// is still what the node stores.
+  /// This is the only place a node id is derived. Genomes are discriminated by
+  /// [`PangraphPath::seed`] rather than by their path id, so the resulting id does not depend on
+  /// the order in which the input sequences were read. The path id is still what the node stores.
   pub fn with_derived_id(block_id: BlockId, path: &PangraphPath, strand: Strand, position: (usize, usize)) -> Self {
     Self {
       id: id((&block_id, &path.seed(), &strand, &position)),

@@ -182,7 +182,7 @@ mod tests {
         BlockId(0) => PangraphBlock::new(BlockId(0), "ACGTACGT", btreemap!{ NodeId(0) => Edit::empty() }),
       },
       nodes: btreemap! {
-        NodeId(0) => PangraphNode::new(Some(NodeId(0)), BlockId(0), PathId(0), Forward, (0, 8)),
+        NodeId(0) => PangraphNode::new(NodeId(0), BlockId(0), PathId(0), Forward, (0, 8)),
       },
       paths: btreemap! {
         PathId(0) => PangraphPath::new(Some(PathId(0)), [NodeId(0)], 8, false, None, None),
@@ -250,7 +250,7 @@ mod tests {
         BlockId(0) => PangraphBlock::new(BlockId(0), "ACGTACGT", btreemap! { NodeId(0) => Edit::empty() }),
       },
       nodes: btreemap! {
-        NodeId(0) => PangraphNode::new(Some(NodeId(0)), BlockId(0), PathId(0), Forward, (0, 8)),
+        NodeId(0) => PangraphNode::new(NodeId(0), BlockId(0), PathId(0), Forward, (0, 8)),
       },
       paths: btreemap! {
         PathId(0) => PangraphPath::new(Some(PathId(0)), [NodeId(0)], 8, false, Some("a".to_owned()), None),
