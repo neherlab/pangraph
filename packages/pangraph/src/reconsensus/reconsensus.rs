@@ -443,11 +443,11 @@ mod tests {
       NodeId(5) => PangraphNode::new(NodeId(5), block.id(), PathId(5), Forward, (0, 23)),
     };
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 23, false, None, None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(2)], 23, false, None, None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(3)], 23, false, None, None),
-      PathId(4) => PangraphPath::new(Some(PathId(4)), [NodeId(4)], 23, false, None, None),
-      PathId(5) => PangraphPath::new(Some(PathId(5)), [NodeId(5)], 23, false, None, None),
+      PathId(1) => PangraphPath::new(PathId(1), [NodeId(1)], 23, false, None, None),
+      PathId(2) => PangraphPath::new(PathId(2), [NodeId(2)], 23, false, None, None),
+      PathId(3) => PangraphPath::new(PathId(3), [NodeId(3)], 23, false, None, None),
+      PathId(4) => PangraphPath::new(PathId(4), [NodeId(4)], 23, false, None, None),
+      PathId(5) => PangraphPath::new(PathId(5), [NodeId(5)], 23, false, None, None),
     };
     let mut graph = Pangraph {
       blocks: btreemap! {
@@ -519,11 +519,11 @@ mod tests {
 
     // Create paths
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 49, false, None, None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(2)], 49, false, None, None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(3)], 49, false, None, None),
-      PathId(4) => PangraphPath::new(Some(PathId(4)), [NodeId(4)], 49, false, None, None),
-      PathId(5) => PangraphPath::new(Some(PathId(5)), [NodeId(5)], 49, false, None, None),
+      PathId(1) => PangraphPath::new(PathId(1), [NodeId(1)], 49, false, None, None),
+      PathId(2) => PangraphPath::new(PathId(2), [NodeId(2)], 49, false, None, None),
+      PathId(3) => PangraphPath::new(PathId(3), [NodeId(3)], 49, false, None, None),
+      PathId(4) => PangraphPath::new(PathId(4), [NodeId(4)], 49, false, None, None),
+      PathId(5) => PangraphPath::new(PathId(5), [NodeId(5)], 49, false, None, None),
     };
 
     // Create blocks map

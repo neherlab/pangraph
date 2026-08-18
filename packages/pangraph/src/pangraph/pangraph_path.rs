@@ -32,19 +32,23 @@ pub struct PangraphPath {
 }
 
 impl PangraphPath {
+  /// Creates a path with an explicit id.
+  ///
+  /// Path ids are sequential rather than content-derived: they double as the ordering index of the
+  /// genomes, so `build` assigns them from the input order and `renumber_paths` shifts them during
+  /// a merge. The id is therefore always the caller's to supply, and there is no fallback that
+  /// could seed a second, divergent numbering.
   pub fn new(
-    path_id: Option<PathId>,
+    id: PathId,
     nodes: impl Into<Vec<NodeId>>,
     tot_len: usize,
     circular: bool,
     name: Option<String>,
     desc: Option<String>,
   ) -> Self {
-    let nodes = nodes.into();
-    let id = path_id.unwrap_or_else(|| id((&nodes, &tot_len, &circular, &desc, &name)));
     Self {
       id,
-      nodes,
+      nodes: nodes.into(),
       tot_len,
       circular,
       name,

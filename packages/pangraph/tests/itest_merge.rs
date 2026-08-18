@@ -254,7 +254,7 @@ mod tests {
         nodes: BTreeMap::from([(nid, PangraphNode::new(nid, bid, pid, Forward, (0, seq.len())))]),
         paths: BTreeMap::from([(
           pid,
-          PangraphPath::new(Some(pid), [nid], seq.len(), false, Some(name.to_owned()), None),
+          PangraphPath::new(pid, [nid], seq.len(), false, Some(name.to_owned()), None),
         )]),
       }
     };

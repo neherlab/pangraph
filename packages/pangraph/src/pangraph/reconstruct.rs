@@ -431,8 +431,8 @@ mod tests {
       NodeId(1) => PangraphNode::new(NodeId(1), BlockId(1), PathId(1), Reverse, (0, 8)),
     };
     let paths = btreemap! {
-      PathId(0) => PangraphPath::new(Some(PathId(0)), [NodeId(0)], 8, false, names[0].map(String::from), None),
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 8, false, names[1].map(String::from), None),
+      PathId(0) => PangraphPath::new(PathId(0), [NodeId(0)], 8, false, names[0].map(String::from), None),
+      PathId(1) => PangraphPath::new(PathId(1), [NodeId(1)], 8, false, names[1].map(String::from), None),
     };
     Pangraph { paths, blocks, nodes }
   }
@@ -449,7 +449,7 @@ mod tests {
       NodeId(0) => PangraphNode::new(NodeId(0), BlockId(0), PathId(0), strand, (0, len)),
     };
     let paths = btreemap! {
-      PathId(0) => PangraphPath::new(Some(PathId(0)), [NodeId(0)], len, false, Some(name.to_owned()), None),
+      PathId(0) => PangraphPath::new(PathId(0), [NodeId(0)], len, false, Some(name.to_owned()), None),
     };
     Pangraph { paths, blocks, nodes }
   }

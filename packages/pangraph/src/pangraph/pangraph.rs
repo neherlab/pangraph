@@ -44,7 +44,7 @@ impl Pangraph {
     let node_position = if circular { (0, 0) } else { (0, tot_len) }; // path wraps around if circular
     let node = PangraphNode::new(node_id, block.id(), path_id, strand, node_position);
     let path = PangraphPath::new(
-      Some(path_id),
+      path_id,
       [node.id()],
       tot_len,
       circular,
@@ -513,9 +513,9 @@ mod tests {
     };
 
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1), NodeId(3), NodeId(6)], 0, false, None, None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(4), NodeId(7)           ], 0, false, None, None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2), NodeId(5), NodeId(8)], 0, false, None, None),
+      PathId(1) => PangraphPath::new(PathId(1), [NodeId(1), NodeId(3), NodeId(6)], 0, false, None, None),
+      PathId(2) => PangraphPath::new(PathId(2), [NodeId(4), NodeId(7)           ], 0, false, None, None),
+      PathId(3) => PangraphPath::new(PathId(3), [NodeId(2), NodeId(5), NodeId(8)], 0, false, None, None),
     };
 
     let mut G = Pangraph {
@@ -559,9 +559,9 @@ mod tests {
     assert_eq!(G.blocks, expected_blocks);
 
     let expected_paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1),  NodeId(9),  NodeId(10),  NodeId(6)], 0, false, None, None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(11), NodeId(12), NodeId(7)             ], 0, false, None, None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(2),  NodeId(14), NodeId(13),  NodeId(8)], 0, false, None, None),
+      PathId(1) => PangraphPath::new(PathId(1), [NodeId(1),  NodeId(9),  NodeId(10),  NodeId(6)], 0, false, None, None),
+      PathId(2) => PangraphPath::new(PathId(2), [NodeId(11), NodeId(12), NodeId(7)             ], 0, false, None, None),
+      PathId(3) => PangraphPath::new(PathId(3), [NodeId(2),  NodeId(14), NodeId(13),  NodeId(8)], 0, false, None, None),
     };
     assert_eq!(G.paths, expected_paths);
 
@@ -588,14 +588,7 @@ mod tests {
       .iter()
       .enumerate()
       .map(|(i, name)| {
-        let path = PangraphPath::new(
-          Some(PathId(i)),
-          Vec::<NodeId>::new(),
-          0,
-          false,
-          name.map(String::from),
-          None,
-        );
+        let path = PangraphPath::new(PathId(i), Vec::<NodeId>::new(), 0, false, name.map(String::from), None);
         (path.id, path)
       })
       .collect::<BTreeMap<_, _>>();
@@ -638,8 +631,8 @@ mod tests {
       n1 => PangraphNode::new(n1, b1, PathId(1), Reverse, (0, 8)),
     };
     let paths = btreemap! {
-      PathId(0) => PangraphPath::new(Some(PathId(0)), [n0], 8, false, Some(names[0].to_owned()), None),
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [n1], 8, false, Some(names[1].to_owned()), None),
+      PathId(0) => PangraphPath::new(PathId(0), [n0], 8, false, Some(names[0].to_owned()), None),
+      PathId(1) => PangraphPath::new(PathId(1), [n1], 8, false, Some(names[1].to_owned()), None),
     };
     Pangraph { paths, blocks, nodes }
   }

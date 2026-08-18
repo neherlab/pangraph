@@ -185,7 +185,7 @@ mod tests {
         NodeId(0) => PangraphNode::new(NodeId(0), BlockId(0), PathId(0), Forward, (0, 8)),
       },
       paths: btreemap! {
-        PathId(0) => PangraphPath::new(Some(PathId(0)), [NodeId(0)], 8, false, None, None),
+        PathId(0) => PangraphPath::new(PathId(0), [NodeId(0)], 8, false, None, None),
       },
     };
 
@@ -253,7 +253,7 @@ mod tests {
         NodeId(0) => PangraphNode::new(NodeId(0), BlockId(0), PathId(0), Forward, (0, 8)),
       },
       paths: btreemap! {
-        PathId(0) => PangraphPath::new(Some(PathId(0)), [NodeId(0)], 8, false, Some("a".to_owned()), None),
+        PathId(0) => PangraphPath::new(PathId(0), [NodeId(0)], 8, false, Some("a".to_owned()), None),
       },
     };
     graph.paths.get_mut(&PathId(0)).unwrap().nodes = vec![NodeId(99)];
