@@ -45,7 +45,7 @@ Finds homology amongst large collections of closely related genomes. The core of
 
 Publication: "PanGraph: scalable bacterial pan-genome graph construction." Nicholas Noll, Marco Molari, Richard Neher. Microbial Genomics 9.6 (2023): 001034.; doi: https://doi.org/10.1099/mgen.0.001034
 
-Documentation: https://pangraph.readthedocs.io/en/stable/
+Documentation: https://docs.pangraph.org/
 
 Source code: https://github.com/neherlab/pangraph
 

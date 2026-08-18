@@ -10,7 +10,7 @@ use crate::representation::seq::Seq;
 use crate::tree::clade::WithNewickName;
 use crate::utils::id::id;
 use crate::utils::map_merge::{ConflictResolution, map_merge};
-use crate::{make_internal_report, make_report};
+use crate::{make_error, make_internal_report, make_report};
 use eyre::{Report, WrapErr};
 use maplit::btreemap;
 use schemars::JsonSchema;
@@ -58,10 +58,21 @@ impl Pangraph {
     }
   }
 
+  /// Reads a graph from a JSON file, or from stdin when no path is given, and validates it.
+  ///
+  /// The single entry point through which every command reads a graph, and therefore the one place
+  /// that has both the graph and the name of the file it came from. [`Self::validate`] runs here so
+  /// that a malformed file is rejected up front, named, and before any work is done on it, rather
+  /// than surfacing much later as a failed lookup deep inside an algorithm.
   pub fn from_path<P: AsRef<Path>>(filepath: &Option<P>) -> Result<Self, Report> {
     let reader = open_file_or_stdin(filepath)?;
     let data = read_reader_to_string(reader).wrap_err("When reading Pangraph JSON")?;
-    Self::from_str(&data).wrap_err("When parsing Pangraph JSON")
+    let graph = Self::from_str(&data).wrap_err("When parsing Pangraph JSON")?;
+    graph.validate().wrap_err_with(|| match filepath {
+      Some(filepath) => format!("When validating the graph read from '{}'", filepath.as_ref().display()),
+      None => "When validating the graph read from standard input".to_owned(),
+    })?;
+    Ok(graph)
   }
 
   pub fn to_string_pretty(&self) -> Result<String, Report> {
@@ -213,78 +224,123 @@ impl Pangraph {
     }
   }
 
-  #[cfg(any(test, debug_assertions))]
-  pub fn sanity_check(&self) -> Result<(), Report> {
+  /// Checks the invariants that let the rest of pangraph resolve graph entities by id without
+  /// error handling, and that keep sequence reconstruction inside array bounds.
+  ///
+  /// Unlike [`Self::sanity_check`] this runs in release builds, because it guards against a
+  /// malformed *input*: a graph read from a file was not necessarily written by pangraph, so
+  /// nothing guarantees that its cross-references resolve or that its offsets are in range. Every
+  /// graph read through [`Self::from_path`] is validated, and that is what lets the code downstream
+  /// index the maps directly and treat a lookup that fails anyway as an internal error.
+  ///
+  /// Deliberately limited to what a bad file can break. It does *not* check that the graph is
+  /// semantically coherent — that node positions tile the genome, that edits do not overlap — since
+  /// those are symptoms of a bug in pangraph rather than of a bad input, and are covered by
+  /// [`Self::sanity_check`] in debug builds. Errors are reported as ordinary user-facing errors for
+  /// the same reason: the offending graph came from the user.
+  ///
+  /// Costs roughly a tenth of the JSON parse it follows, so it is always worth running.
+  pub fn validate(&self) -> Result<(), Report> {
     // Each entity is stored under a map key *and* carries its own id. Serde keys the maps by the
     // JSON object key, so the two can disagree in a graph that pangraph did not write. Everything
     // that resolves an entity by key while reading its id off the entity itself depends on them
     // agreeing, so check it first. One integer comparison per entity.
     for (block_id, block) in &self.blocks {
       if block.id() != *block_id {
-        return Err(eyre::eyre!(
-          "Block is stored under id {block_id} but reports id {}",
-          block.id()
-        ));
+        return make_error!("Block is stored under id {block_id} but reports id {}", block.id());
       }
     }
 
     for (node_id, node) in &self.nodes {
       if node.id() != *node_id {
-        return Err(eyre::eyre!(
-          "Node is stored under id {node_id} but reports id {}",
-          node.id()
-        ));
+        return make_error!("Node is stored under id {node_id} but reports id {}", node.id());
       }
     }
 
     for (path_id, path) in &self.paths {
       if path.id() != *path_id {
-        return Err(eyre::eyre!(
-          "Path is stored under id {path_id} but reports id {}",
-          path.id()
-        ));
+        return make_error!("Path is stored under id {path_id} but reports id {}", path.id());
+      }
+    }
+
+    // Which path walks each node, as claimed by the paths. Collected in one pass because
+    // `path.nodes` is a `Vec`: scanning it per node would re-read a genome's entire walk once for
+    // every node of that genome.
+    let mut walked_by: BTreeMap<NodeId, PathId> = BTreeMap::new();
+    for (path_id, path) in &self.paths {
+      for node_id in &path.nodes {
+        if !self.nodes.contains_key(node_id) {
+          return make_error!("Node {node_id} from path {path_id} not found in graph");
+        }
+        // A node id may repeat within the walk of one path, which happens for empty nodes, but two
+        // paths sharing a node would make the node's own `path_id` ambiguous.
+        if let Some(previous) = walked_by.insert(*node_id, *path_id) {
+          if previous != *path_id {
+            return make_error!("Node {node_id} is walked by both path {previous} and path {path_id}");
+          }
+        }
       }
     }
 
     for (node_id, node) in &self.nodes {
-      if !self.blocks.contains_key(&node.block_id()) {
-        return Err(eyre::eyre!("Block {} not found in graph", node.block_id()));
-      }
-      let block = &self.blocks[&node.block_id()];
-
-      if !self.paths.contains_key(&node.path_id()) {
-        return Err(eyre::eyre!("Path {} not found in graph", node.path_id()));
-      }
-      let path = &self.paths[&node.path_id()];
-
+      let Some(block) = self.blocks.get(&node.block_id()) else {
+        return make_error!("Block {} of node {node_id} not found in graph", node.block_id());
+      };
       if !block.alignments().contains_key(node_id) {
-        return Err(eyre::eyre!("Node {} not found in block {}", node_id, block.id()));
+        return make_error!("Node {node_id} not found in block {}", block.id());
       }
 
-      if !path.nodes.contains(node_id) {
-        return Err(eyre::eyre!("Node {} not found in path {}", node_id, path.id()));
+      let Some(path) = self.paths.get(&node.path_id()) else {
+        return make_error!("Path {} of node {node_id} not found in graph", node.path_id());
+      };
+      if walked_by.get(node_id) != Some(&node.path_id()) {
+        return make_error!("Node {node_id} is not in the walk of its path {}", node.path_id());
+      }
+
+      // Reconstruction rotates a genome by the offset of its first node, so an offset reaching past
+      // the end of that genome would rotate by more than the genome's length. Both ends are
+      // compared, and `tot_len` itself is a valid offset: the last node of a circular path ends
+      // where the genome does.
+      let (start, end) = node.position();
+      if start > path.tot_len() || end > path.tot_len() {
+        return make_error!(
+          "Node {node_id} has position ({start}, {end}), outside its path {} of total length {}",
+          path.id(),
+          path.tot_len()
+        );
       }
     }
+
+    for (block_id, block) in &self.blocks {
+      let consensus_len = block.consensus().len();
+      for (node_id, edits) in block.alignments() {
+        if !self.nodes.contains_key(node_id) {
+          return make_error!("Node {node_id} of block {block_id} not found in graph");
+        }
+        // `Edit::apply` indexes the consensus by edit position while reconstructing this node.
+        edits
+          .check_bounds(consensus_len)
+          .wrap_err_with(|| format!("When checking the alignment of node {node_id} against block {block_id}"))?;
+      }
+    }
+
+    Ok(())
+  }
+
+  #[cfg(any(test, debug_assertions))]
+  pub fn sanity_check(&self) -> Result<(), Report> {
+    // Referential integrity and the bounds that keep reconstruction in range. Shared with the
+    // release-build validation of graphs read from a file, since a graph that pangraph just built
+    // must satisfy at least as much as one it is willing to load.
+    self.validate()?;
 
     for (block_id, block) in &self.blocks {
       if block.alignments().is_empty() {
         return Err(eyre::eyre!("Block {} has no nodes", block_id));
       }
-
-      for node_id in block.alignments().keys() {
-        if !self.nodes.contains_key(node_id) {
-          return Err(eyre::eyre!("Node {} not found in graph", node_id));
-        }
-      }
     }
 
     for (path_id, path) in &self.paths {
-      for node_id in &path.nodes {
-        if !self.nodes.contains_key(node_id) {
-          return Err(eyre::eyre!("Node {node_id} from path {path_id} not found in graph"));
-        }
-      }
-
       // // check that there are no duplicated node ids
       // // currently disabled because this could rarely happen for empty nodes
       // let mut seen = BTreeSet::new();
@@ -417,7 +473,7 @@ mod tests {
 
   use super::*;
   use crate::o;
-  use crate::pangraph::edits::Edit;
+  use crate::pangraph::edits::{Edit, Sub};
   use crate::pangraph::pangraph_node::PangraphNode;
   use crate::pangraph::pangraph_path::PangraphPath;
   use crate::pangraph::reconstruct::reconstruct;
@@ -763,5 +819,154 @@ mod tests {
     let other = singleton("b", 0);
     assert_ne!(first.block_ids().collect_vec(), other.block_ids().collect_vec());
     assert_ne!(first.node_ids().collect_vec(), other.node_ids().collect_vec());
+  }
+
+  /// `validate` is the contract every graph read from a file must satisfy, and the reason the code
+  /// downstream is allowed to resolve ids by direct indexing. Each case below is a malformation
+  /// that a hand-edited or third-party JSON graph can carry, and that used to reach an indexing
+  /// panic in a release build, where `sanity_check` is compiled out.
+  #[rstest]
+  fn test_validate_accepts_a_well_formed_graph() {
+    two_genome_graph(["a", "b"]).validate().unwrap();
+  }
+
+  #[rstest]
+  fn test_validate_rejects_path_referring_to_a_missing_node() {
+    let mut graph = two_genome_graph(["a", "b"]);
+    graph.paths.get_mut(&PathId(0)).unwrap().nodes = vec![NodeId(99)];
+
+    let err = report_to_string(&graph.validate().unwrap_err());
+    assert!(
+      err.contains("Node 99 from path 0 not found in graph"),
+      "unexpected error: {err}"
+    );
+  }
+
+  #[rstest]
+  fn test_validate_rejects_node_referring_to_a_missing_block() {
+    let mut graph = two_genome_graph(["a", "b"]);
+    let nid = graph.paths[&PathId(0)].nodes[0];
+    let node = &graph.nodes[&nid];
+    graph.nodes.insert(
+      nid,
+      PangraphNode::new(Some(nid), BlockId(99), node.path_id(), node.strand(), node.position()),
+    );
+
+    let err = report_to_string(&graph.validate().unwrap_err());
+    assert!(
+      err.contains(&format!("Block 99 of node {nid} not found in graph")),
+      "unexpected error: {err}"
+    );
+  }
+
+  #[rstest]
+  fn test_validate_rejects_node_referring_to_a_missing_path() {
+    let mut graph = two_genome_graph(["a", "b"]);
+    let nid = graph.paths[&PathId(0)].nodes[0];
+    let node = &graph.nodes[&nid];
+    graph.nodes.insert(
+      nid,
+      PangraphNode::new(Some(nid), node.block_id(), PathId(99), node.strand(), node.position()),
+    );
+
+    let err = report_to_string(&graph.validate().unwrap_err());
+    assert!(
+      err.contains(&format!("Path 99 of node {nid} not found in graph")),
+      "unexpected error: {err}"
+    );
+  }
+
+  /// A node whose path exists but does not walk it: reconstruction would never emit this node, and
+  /// its `path_id` claims a genome it is not part of.
+  #[rstest]
+  fn test_validate_rejects_node_missing_from_the_walk_of_its_path() {
+    let mut graph = two_genome_graph(["a", "b"]);
+    let nid = graph.paths[&PathId(0)].nodes[0];
+    graph.paths.get_mut(&PathId(0)).unwrap().nodes = vec![];
+
+    let err = report_to_string(&graph.validate().unwrap_err());
+    assert!(
+      err.contains(&format!("Node {nid} is not in the walk of its path 0")),
+      "unexpected error: {err}"
+    );
+  }
+
+  /// Node ids are unique across the graph, so a node claimed by two walks makes its own `path_id`
+  /// meaningless, and would have the node reconstructed into two different genomes.
+  #[rstest]
+  fn test_validate_rejects_node_walked_by_two_paths() {
+    let mut graph = two_genome_graph(["a", "b"]);
+    let (first, second) = (graph.paths[&PathId(0)].nodes[0], graph.paths[&PathId(1)].nodes[0]);
+    graph.paths.get_mut(&PathId(1)).unwrap().nodes = vec![first, second];
+
+    let err = report_to_string(&graph.validate().unwrap_err());
+    assert!(
+      err.contains(&format!("Node {first} is walked by both path 0 and path 1")),
+      "unexpected error: {err}"
+    );
+  }
+
+  #[rstest]
+  fn test_validate_rejects_node_missing_from_the_alignments_of_its_block() {
+    let mut graph = two_genome_graph(["a", "b"]);
+    let nid = graph.paths[&PathId(0)].nodes[0];
+    let bid = graph.nodes[&nid].block_id();
+    graph
+      .blocks
+      .insert(bid, PangraphBlock::new(bid, "ACGTACGT", btreemap! {}));
+
+    let err = report_to_string(&graph.validate().unwrap_err());
+    assert!(
+      err.contains(&format!("Node {nid} not found in block {bid}")),
+      "unexpected error: {err}"
+    );
+  }
+
+  /// Reconstruction rotates a genome by the offset of its first node. An offset past the end of the
+  /// genome used to reach `rotate_right`, which panics rather than reporting.
+  #[rstest]
+  fn test_validate_rejects_node_position_beyond_the_length_of_its_path() {
+    let mut graph = two_genome_graph(["a", "b"]);
+    let nid = graph.paths[&PathId(0)].nodes[0];
+    let node = &graph.nodes[&nid];
+    graph.nodes.insert(
+      nid,
+      PangraphNode::new(Some(nid), node.block_id(), node.path_id(), node.strand(), (100, 8)),
+    );
+
+    let err = report_to_string(&graph.validate().unwrap_err());
+    assert!(
+      err.contains(&format!(
+        "Node {nid} has position (100, 8), outside its path 0 of total length 8"
+      )),
+      "unexpected error: {err}"
+    );
+  }
+
+  /// `Edit::apply` indexes the consensus by edit position, so an out-of-range edit used to panic
+  /// while reconstructing the block, even though `apply` returns a `Result`.
+  #[rstest]
+  fn test_validate_rejects_edit_beyond_the_consensus_of_its_block() {
+    let mut graph = two_genome_graph(["a", "b"]);
+    let nid = graph.paths[&PathId(0)].nodes[0];
+    let bid = graph.nodes[&nid].block_id();
+    let edit = Edit {
+      subs: vec![Sub::new(99, 'T')],
+      dels: vec![],
+      inss: vec![],
+    };
+    graph
+      .blocks
+      .insert(bid, PangraphBlock::new(bid, "ACGTACGT", btreemap! { nid => edit }));
+
+    let err = report_to_string(&graph.validate().unwrap_err());
+    assert!(
+      err.contains("Substitution position 99 is out of bounds for sequence of length 8"),
+      "unexpected error: {err}"
+    );
+    assert!(
+      err.contains(&format!("alignment of node {nid} against block {bid}")),
+      "unexpected error: {err}"
+    );
   }
 }

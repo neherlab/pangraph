@@ -1,6 +1,5 @@
 use crate::commands::reconstruct::reconstruct_args::PangraphReconstructArgs;
 use crate::io::fasta::{FastaReader, FastaRecord, FastaWriter};
-use crate::io::json::json_read_file;
 use crate::make_error;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::reconstruct::{format_names, path_ids_by_name, reconstruct, reconstruct_genome, verify_genome};
@@ -17,7 +16,7 @@ pub fn reconstruct_run(args: &PangraphReconstructArgs) -> Result<(), Report> {
     verify,
   } = &args;
 
-  let graph: Pangraph = json_read_file(input_graph)?;
+  let graph = Pangraph::from_path(input_graph)?;
 
   if let Some(verify) = verify {
     info!("Verifying sequences reconstructed from pangenome graph");

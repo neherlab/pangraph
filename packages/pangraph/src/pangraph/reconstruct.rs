@@ -6,7 +6,7 @@ use crate::pangraph::pangraph_path::{PangraphPath, PathId};
 use crate::representation::seq::Seq;
 use crate::utils::collections::find_duplicates;
 use crate::utils::string::str_slice_safe;
-use crate::{make_error, make_internal_report};
+use crate::{make_error, make_internal_error, make_internal_report};
 use eyre::{Report, WrapErr};
 use itertools::Itertools;
 use std::collections::{BTreeMap, BTreeSet};
@@ -304,9 +304,20 @@ pub(crate) fn format_names<S: AsRef<str>>(names: &[S]) -> String {
   }
 }
 
+/// Reconstructs the genome of a path, by concatenating the sequences of its nodes and rotating the
+/// result so that it starts where the genome does.
+///
+/// Both lookups here are guaranteed by [`Pangraph::validate`], which every graph read from a file
+/// passes and every graph pangraph builds satisfies, so a failure is a bug rather than bad input.
+/// They are still checked, because reporting beats aborting: indexing the node map and rotating by
+/// an out-of-range offset both panic.
 fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<Seq, Report> {
   if let Some(first_node_id) = path.nodes.first() {
-    let first_node_pos = graph.nodes[first_node_id].position().0;
+    let first_node = graph
+      .nodes
+      .get(first_node_id)
+      .ok_or_else(|| make_internal_report!("Node {first_node_id} not found in graph"))?;
+    let first_node_pos = first_node.position().0;
 
     let mut genome: Seq = path
       .nodes
@@ -323,6 +334,12 @@ fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<Se
       );
     }
 
+    if first_node_pos > genome.len() {
+      return make_internal_error!(
+        "When reconstructing sequences, the first node of the genome starts at position {first_node_pos}, past the end of a genome of length {}",
+        genome.len()
+      );
+    }
     genome.rotate_right(first_node_pos);
 
     Ok(genome)
@@ -640,5 +657,40 @@ mod tests {
       "[g0, g1, g2, g3, g4, g5, g6, g7, g8, g9, ... and 2 more]"
     );
     assert_eq!(format_names(&names[..2]), "[g0, g1]");
+  }
+
+  /// `Pangraph::validate` rejects both of these before reconstruction is ever reached, so they
+  /// stand for a graph assembled in-process rather than read from a file. They are still worth
+  /// pinning: both used to be indexing panics, which abort the process instead of being reported,
+  /// and `sanity_check` is compiled out of release builds.
+  #[rstest]
+  fn test_reconstruct_reports_path_referring_to_a_missing_node() {
+    let mut graph = graph();
+    graph.paths.get_mut(&PathId(0)).unwrap().nodes = vec![NodeId(99)];
+
+    let err = report_to_string(&reconstruct_genome(&graph, PathId(0)).unwrap_err());
+    assert!(err.contains("Node 99 not found in graph"), "unexpected error: {err}");
+  }
+
+  #[rstest]
+  fn test_reconstruct_reports_first_node_starting_past_the_end_of_the_genome() {
+    let mut graph = graph();
+    let node = &graph.nodes[&NodeId(0)];
+    graph.nodes.insert(
+      NodeId(0),
+      PangraphNode::new(
+        Some(NodeId(0)),
+        node.block_id(),
+        node.path_id(),
+        node.strand(),
+        (100, 8),
+      ),
+    );
+
+    let err = report_to_string(&reconstruct_genome(&graph, PathId(0)).unwrap_err());
+    assert!(
+      err.contains("starts at position 100, past the end of a genome of length 8"),
+      "unexpected error: {err}"
+    );
   }
 }
