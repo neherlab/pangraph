@@ -66,6 +66,15 @@ impl PangraphNode {
     }
   }
 
+  /// Moves this node onto a different path.
+  ///
+  /// The node id derives from the block, the genome *seed*, the strand and the position, none of
+  /// which this touches, so renumbering a path leaves every node id intact. That is why this is the
+  /// one field a node may have rewritten in place; everything else goes through a constructor.
+  pub(crate) fn set_path_id(&mut self, path_id: PathId) {
+    self.path_id = path_id;
+  }
+
   // this is almost equivalent to checking if the node is empty
   // except for an edge case: when a circular path contains only
   // one node. In this case even if the node is not empty, the

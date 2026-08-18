@@ -99,7 +99,11 @@ impl Pangraph {
   /// Errors if a node refers to a path the graph does not contain, which can only happen in a graph
   /// that pangraph did not write.
   pub fn renumber_paths(self, offset: usize) -> Result<Self, Report> {
-    let Self { paths, blocks, nodes } = self;
+    let Self {
+      paths,
+      blocks,
+      mut nodes,
+    } = self;
 
     let path_map: BTreeMap<PathId, PathId> = paths
       .keys()
@@ -107,23 +111,21 @@ impl Pangraph {
       .map(|(rank, &pid)| (pid, PathId(offset + rank)))
       .collect();
 
+    // Node ids do not change, so the map is updated in place rather than rebuilt: only the path a
+    // node points at moves.
+    //
     // `path_map` is keyed by the map keys of this graph, so looking a path's own new id up by its
     // key cannot miss. The path id read off a node's *contents* is a different matter: it can
     // dangle in a graph that pangraph did not write, so that lookup is fallible.
-    let nodes: BTreeMap<NodeId, PangraphNode> = nodes
-      .into_iter()
-      .map(|(nid, node)| {
-        let path_id = *path_map.get(&node.path_id()).ok_or_else(|| {
-          make_report!(
-            "Node {nid} refers to path {}, which the graph does not contain",
-            node.path_id()
-          )
-        })?;
-
-        let node = PangraphNode::new(nid, node.block_id(), path_id, node.strand(), node.position());
-        Ok((nid, node))
-      })
-      .collect::<Result<_, Report>>()?;
+    for (nid, node) in &mut nodes {
+      let path_id = *path_map.get(&node.path_id()).ok_or_else(|| {
+        make_report!(
+          "Node {nid} refers to path {}, which the graph does not contain",
+          node.path_id()
+        )
+      })?;
+      node.set_path_id(path_id);
+    }
 
     let paths: BTreeMap<PathId, PangraphPath> = paths
       .into_iter()
