@@ -50,11 +50,10 @@ pub fn merge_run(args: &PangraphMergeArgs) -> Result<(), Report> {
   );
 
   if args.verify {
-    #[cfg(debug_assertions)]
-    merged.sanity_check().wrap_err("When checking the merged graph")?;
-
-    // Compared against the inputs one genome at a time: reconstructing both graphs up front would
-    // hold their entire sequence content in memory for the duration of the check.
+    // `merge_graphs` already sanity-checks the graph it returns in debug builds, so only the
+    // sequences are compared here. Compared against the inputs one genome at a time: reconstructing
+    // both graphs up front would hold their entire sequence content in memory for the duration of
+    // the check.
     verify_graph_against_graphs(&merged, &[&left, &right])
       .wrap_err("When verifying the sequences of the merged graph")?;
     info!(
