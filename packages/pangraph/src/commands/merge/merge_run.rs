@@ -29,7 +29,7 @@ pub fn merge_run(args: &PangraphMergeArgs) -> Result<(), Report> {
   // Cheap, and the alternative is `graph_join` panicking on the conflicting key.
   if !right.is_id_disjoint_from(&left) {
     return make_error!(
-      "The two input graphs share block or node identifiers, so they cannot be joined. Identifiers are derived from genome names since version 1.4; graphs written by earlier versions derive them from the order of the input sequences instead, and two such graphs collide. Rebuild the input graphs with the current version of pangraph."
+      "The two input graphs share block or node identifiers, so they cannot be joined. Identifier collision avoidance is implemented since v1.4.0. If you built your graphs with a previous version of pangraph try rebuilding them. If the error persists please submit an issue."
     );
   }
 
