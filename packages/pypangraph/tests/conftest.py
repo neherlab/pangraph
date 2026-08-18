@@ -408,3 +408,12 @@ def inversion_pangraph():
 def plasmid_pangraph():
     """The real plasmids dataset, used by smoke tests."""
     return pp.Pangraph.from_json("tests/data/plasmids.json")
+
+
+@pytest.fixture
+def junction_pangraph_json():
+    """Raw dict form of the junction pangraph, for loader and validation tests.
+
+    Function-scoped, so each test receives a fresh, independently mutable copy.
+    """
+    return build_junction_pangraph_json()
