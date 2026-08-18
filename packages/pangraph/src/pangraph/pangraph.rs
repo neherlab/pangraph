@@ -4,11 +4,10 @@ use crate::io::fs::read_reader_to_string;
 use crate::io::json::json_read_str;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
-use crate::pangraph::pangraph_path::{PangraphPath, PathId};
+use crate::pangraph::pangraph_path::{PangraphPath, PathId, genome_seed};
 use crate::pangraph::strand::Strand;
 use crate::representation::seq::Seq;
 use crate::tree::clade::WithNewickName;
-use crate::utils::id::id;
 use crate::utils::map_merge::{ConflictResolution, map_merge};
 use crate::{make_error, make_internal_report, make_report};
 use eyre::{Report, WrapErr};
@@ -36,7 +35,7 @@ impl Pangraph {
     //
     // Path ids stay sequential: they double as the ordering index of the genomes, and keying the
     // `paths` map by a hash would scramble genome order in every output.
-    let seed = id(&fasta.seq_name);
+    let seed = genome_seed(&fasta.seq_name);
     let node_id = NodeId(seed);
     let block_id = BlockId(seed);
     let block = PangraphBlock::from_consensus(fasta.seq, block_id, node_id);
@@ -618,7 +617,7 @@ mod tests {
   /// Builds a two-genome graph the way `build` would, with block and node ids seeded from the
   /// genome names. Two such graphs collide only on their path ids.
   fn two_genome_graph(names: [&str; 2]) -> Pangraph {
-    let seeds = names.map(|name| id(name.to_owned()));
+    let seeds = names.map(genome_seed);
     let (b0, b1) = (BlockId(seeds[0]), BlockId(seeds[1]));
     let (n0, n1) = (NodeId(seeds[0]), NodeId(seeds[1]));
 

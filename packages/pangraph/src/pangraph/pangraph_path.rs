@@ -68,6 +68,14 @@ impl PangraphPath {
   /// and then recomputed on load anyway, and silently defaults to the same value for every path if
   /// that is forgotten. Falls back to the path id for unnamed paths, which pangraph never writes.
   pub fn seed(&self) -> usize {
-    self.name.as_ref().map_or(self.id.0, id)
+    self.name.as_deref().map_or(self.id.0, genome_seed)
   }
+}
+
+/// Derives the identifier seed of a genome from its name.
+///
+/// The single definition of the seeding rule, so that [`PangraphPath::seed`] and
+/// `Pangraph::singleton`, which needs the seed before it has a path to ask, cannot drift apart.
+pub fn genome_seed(name: &str) -> usize {
+  id(name)
 }
