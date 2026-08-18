@@ -352,40 +352,40 @@ pub(crate) fn format_names<S: AsRef<str>>(names: &[S]) -> String {
 /// They are still checked, because reporting beats aborting: indexing the node map and rotating by
 /// an out-of-range offset both panic.
 fn reconstruct_path_sequence(graph: &Pangraph, path: &PangraphPath) -> Result<Seq, Report> {
-  if let Some(first_node_id) = path.nodes.first() {
-    let first_node = graph
-      .nodes
-      .get(first_node_id)
-      .ok_or_else(|| make_internal_report!("Node {first_node_id} not found in graph"))?;
-    let first_node_pos = first_node.position().0;
+  let Some(first_node_id) = path.nodes.first() else {
+    return Ok(Seq::new());
+  };
 
-    let mut genome: Seq = path
-      .nodes
-      .iter()
-      .map(|node_id| reconstruct_block_sequence(graph, *node_id))
-      .collect::<Result<Seq, Report>>()?;
+  let first_node = graph
+    .nodes
+    .get(first_node_id)
+    .ok_or_else(|| make_internal_report!("Node {first_node_id} not found in graph"))?;
+  let first_node_pos = first_node.position().0;
 
-    let genome_len = path.tot_len();
-    if genome.len() != genome_len {
-      return make_error!(
-        "When reconstructing sequences, genome length mismatch: computed length {} expected {}",
-        genome.len(),
-        genome_len
-      );
-    }
+  let mut genome: Seq = path
+    .nodes
+    .iter()
+    .map(|node_id| reconstruct_block_sequence(graph, *node_id))
+    .collect::<Result<Seq, Report>>()?;
 
-    if first_node_pos > genome.len() {
-      return make_internal_error!(
-        "When reconstructing sequences, the first node of the genome starts at position {first_node_pos}, past the end of a genome of length {}",
-        genome.len()
-      );
-    }
-    genome.rotate_right(first_node_pos);
-
-    Ok(genome)
-  } else {
-    Ok(Seq::new())
+  let genome_len = path.tot_len();
+  if genome.len() != genome_len {
+    return make_error!(
+      "When reconstructing sequences, genome length mismatch: computed length {} expected {}",
+      genome.len(),
+      genome_len
+    );
   }
+
+  if first_node_pos > genome.len() {
+    return make_internal_error!(
+      "When reconstructing sequences, the first node of the genome starts at position {first_node_pos}, past the end of a genome of length {}",
+      genome.len()
+    );
+  }
+  genome.rotate_right(first_node_pos);
+
+  Ok(genome)
 }
 
 fn reconstruct_block_sequence(graph: &Pangraph, node_id: NodeId) -> Result<Seq, Report> {
