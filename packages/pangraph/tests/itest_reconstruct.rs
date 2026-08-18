@@ -235,4 +235,43 @@ mod tests {
 
     Ok(())
   }
+
+  /// A graph read from a file was not necessarily written by pangraph, so nothing guarantees its
+  /// cross-references resolve. `reconstruct` used to index the node map directly, so a path naming
+  /// a node the graph does not contain aborted the process with a bare "no entry found for key"
+  /// panic — and in a release build, where `sanity_check` is compiled out, with no indication of
+  /// which file was at fault. Validation now happens where the file name is still known.
+  #[rstest]
+  fn itest_reconstruct_rejects_malformed_graph_naming_the_file() -> Result<(), Report> {
+    let dir = tempdir()?;
+
+    let mut graph = Pangraph {
+      blocks: btreemap! {
+        BlockId(0) => PangraphBlock::new(BlockId(0), "ACGTACGT", btreemap! { NodeId(0) => Edit::empty() }),
+      },
+      nodes: btreemap! {
+        NodeId(0) => PangraphNode::new(Some(NodeId(0)), BlockId(0), PathId(0), Forward, (0, 8)),
+      },
+      paths: btreemap! {
+        PathId(0) => PangraphPath::new(Some(PathId(0)), [NodeId(0)], 8, false, Some("a".to_owned()), None),
+      },
+    };
+    graph.paths.get_mut(&PathId(0)).unwrap().nodes = vec![NodeId(99)];
+    let graph = write_graph(&dir, "malformed.json", &graph)?;
+
+    let args = PangraphReconstructArgs {
+      input_graph: Some(graph),
+      output_fasta: PathBuf::from("-"),
+      verify: None,
+    };
+    let err = report_to_string(&reconstruct_run(&args).unwrap_err());
+
+    assert!(
+      err.contains("Node 99 from path 0 not found in graph"),
+      "unexpected error: {err}"
+    );
+    assert!(err.contains("malformed.json"), "unexpected error: {err}");
+
+    Ok(())
+  }
 }

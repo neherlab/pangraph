@@ -3,6 +3,7 @@
 - added `pangraph merge` command, to combine two existing pangenome graphs into a single one, see #197.
 - `pangraph build` now accepts a single input sequence, and rejects inputs with duplicate genome names.
 - more strict checks on input sequences ids: duplicated or empty ids are now rejected. The `--verify` options compare the input sequence by id and not by order.
+- graphs read from a JSON file are now validated before use, in release builds too. A graph whose block, node or path references do not resolve, or whose node positions or alignment edits fall outside the sequences they index, is reported as an error naming the offending file, instead of aborting the process with a panic.
 
 ## 1.3.0
 
