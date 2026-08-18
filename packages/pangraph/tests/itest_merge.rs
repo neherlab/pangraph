@@ -25,20 +25,19 @@ mod tests {
   use std::path::{Path, PathBuf};
   use tempfile::{TempDir, tempdir};
 
-  /// Reads the first `n_total` records of a FASTA file and splits them in two groups, so that the
-  /// two resulting graphs are built from disjoint but homologous sets of genomes.
-  fn read_and_split(path: &str, n_left: usize, n_total: usize) -> Result<(Vec<FastaRecord>, Vec<FastaRecord>), Report> {
-    let mut fastas = FastaReader::from_paths(&[PathBuf::from(path)])?.read_many()?;
-    fastas.truncate(n_total);
-    let right = fastas.split_off(n_left);
-    Ok((fastas, right))
-  }
-
   /// Reads the first `n` records of a FASTA file.
   fn read_records(path: &str, n: usize) -> Result<Vec<FastaRecord>, Report> {
     let mut fastas = FastaReader::from_paths(&[PathBuf::from(path)])?.read_many()?;
     fastas.truncate(n);
     Ok(fastas)
+  }
+
+  /// Reads the first `n_total` records of a FASTA file and splits them in two groups, so that the
+  /// two resulting graphs are built from disjoint but homologous sets of genomes.
+  fn read_and_split(path: &str, n_left: usize, n_total: usize) -> Result<(Vec<FastaRecord>, Vec<FastaRecord>), Report> {
+    let mut left = read_records(path, n_total)?;
+    let right = left.split_off(n_left);
+    Ok((left, right))
   }
 
   /// Builds a graph out of the given records and writes it to a JSON file in `dir`.
@@ -279,7 +278,7 @@ mod tests {
   #[rstest]
   fn itest_merge_rejects_duplicate_genome_names() -> Result<(), Report> {
     let dir = tempdir()?;
-    let (fastas, _) = read_and_split("../../data/ges-1.fa", 3, 3)?;
+    let fastas = read_records("../../data/ges-1.fa", 3)?;
     let graph = build_graph_file(&dir, "graph.json", fastas)?;
     let output = dir.path().join("merged.json");
 
@@ -301,7 +300,7 @@ mod tests {
   #[rstest]
   fn itest_merge_rejects_unnamed_genomes_without_verify() -> Result<(), Report> {
     let dir = tempdir()?;
-    let (fastas, _) = read_and_split("../../data/ges-1.fa", 3, 3)?;
+    let fastas = read_records("../../data/ges-1.fa", 3)?;
 
     let mut graph = read_graph(&build_graph_file(&dir, "named.json", fastas)?)?;
     for path in graph.paths.values_mut() {
@@ -347,7 +346,7 @@ mod tests {
   /// can never carry duplicate genome names into a later merge.
   #[rstest]
   fn itest_build_rejects_duplicate_sequence_names() -> Result<(), Report> {
-    let (mut fastas, _) = read_and_split("../../data/ges-1.fa", 2, 2)?;
+    let mut fastas = read_records("../../data/ges-1.fa", 2)?;
     fastas[1].seq_name = fastas[0].seq_name.clone();
 
     let result = build(fastas, &PangraphBuildArgs::default(), false);
@@ -365,7 +364,7 @@ mod tests {
   /// description. Such a genome could not be addressed by name afterwards, so `build` rejects it.
   #[rstest]
   fn itest_build_rejects_empty_sequence_name() -> Result<(), Report> {
-    let (mut fastas, _) = read_and_split("../../data/ges-1.fa", 2, 2)?;
+    let mut fastas = read_records("../../data/ges-1.fa", 2)?;
     fastas[1].desc = Some(fastas[1].seq_name.clone());
     fastas[1].seq_name = String::new();
 
