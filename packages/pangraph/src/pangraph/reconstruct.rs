@@ -91,12 +91,7 @@ pub fn check_genome_names(graphs: &[&Pangraph]) -> Result<(), Report> {
     );
   }
 
-  let padded = graphs
-    .iter()
-    .flat_map(|graph| graph.path_names().flatten())
-    .filter(|name| name.trim() != *name)
-    .map(|name| format!("{name:?}"))
-    .collect_vec();
+  let padded = padded_names(graphs.iter().flat_map(|graph| graph.path_names().flatten()));
 
   if !padded.is_empty() {
     return make_error!(
@@ -165,11 +160,7 @@ pub fn check_sequence_names(fastas: &[FastaRecord]) -> Result<(), Report> {
     );
   }
 
-  let padded = fastas
-    .iter()
-    .filter(|fasta| fasta.seq_name.trim() != fasta.seq_name)
-    .map(|fasta| format!("{:?}", fasta.seq_name))
-    .collect_vec();
+  let padded = padded_names(fastas.iter().map(|fasta| fasta.seq_name.as_str()));
 
   if !padded.is_empty() {
     return make_error!(
@@ -325,6 +316,22 @@ pub fn verify_graph_against_graphs(graph: &Pangraph, sources: &[&Pangraph]) -> R
   }
 
   Ok(())
+}
+
+/// Collects the names that carry leading or trailing whitespace, quoted so that the padding is
+/// visible in an error message.
+///
+/// Shared by [`check_genome_names`] and [`check_sequence_names`]: both reject a padded name for the
+/// same reason, so what counts as padding is decided in one place. The two keep their own error
+/// messages, which name the container the offending records came from.
+fn padded_names<S: AsRef<str>>(names: impl Iterator<Item = S>) -> Vec<String> {
+  names
+    .filter(|name| {
+      let name = name.as_ref();
+      name.trim() != name
+    })
+    .map(|name| format!("{:?}", name.as_ref()))
+    .collect_vec()
 }
 
 /// Formats a list of genome names for an error message, eliding all but the first few.
