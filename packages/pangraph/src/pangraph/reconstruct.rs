@@ -63,7 +63,10 @@ pub fn reconstruct(graph: &Pangraph) -> impl Iterator<Item = Result<FastaRecord,
 /// verification matches on, and what `simplify` resolves genomes by. A graph whose genomes cannot
 /// be told apart by name is therefore rejected rather than processed. A name that is empty, or made
 /// of whitespace only, identifies a genome no better than a missing one, and is reported the same
-/// way. Names are only tested here, never trimmed: they are stored exactly as given.
+/// way. A name padded with whitespace is rejected for the same reason: every comparison pangraph
+/// makes on names is exact, so " a" would be a genome that cannot be addressed by the name it
+/// appears to have, and that does not collide with the "a" of another graph. Names are only tested
+/// here, never trimmed: they are stored exactly as given.
 ///
 /// This is the single implementation of that invariant for graphs; [`check_sequence_names`] is its
 /// counterpart for FASTA records. Note that it inspects the paths directly rather than going
@@ -85,6 +88,21 @@ pub fn check_genome_names(graphs: &[&Pangraph]) -> Result<(), Report> {
       "Found {} genome(s) with no name or an empty name (path ids: {}). Genomes are identified by name, so every path must be named.",
       unnamed.len(),
       format_names(&unnamed)
+    );
+  }
+
+  let padded = graphs
+    .iter()
+    .flat_map(|graph| graph.path_names().flatten())
+    .filter(|name| name.trim() != *name)
+    .map(|name| format!("{name:?}"))
+    .collect_vec();
+
+  if !padded.is_empty() {
+    return make_error!(
+      "Found {} genome name(s) with leading or trailing whitespace: {}. Genome names are compared exactly, so surrounding whitespace makes a genome impossible to tell apart from, and impossible to address as, the name it appears to have.",
+      padded.len(),
+      format_names(&padded)
     );
   }
 
@@ -130,7 +148,8 @@ pub fn reconstruct_genome(graph: &Pangraph, path_id: PathId) -> Result<Seq, Repo
 /// a graph can never carry unusable genome names into a later merge.
 ///
 /// Empty names are reported before duplicates, so that a file of headers that are all empty is
-/// reported for the reason it actually has.
+/// reported for the reason it actually has. Names padded with whitespace are rejected too, so that
+/// two records whose headers look alike cannot become two genomes.
 pub fn check_sequence_names(fastas: &[FastaRecord]) -> Result<(), Report> {
   let empty = fastas
     .iter()
@@ -143,6 +162,20 @@ pub fn check_sequence_names(fastas: &[FastaRecord]) -> Result<(), Report> {
       "Found {} input sequence(s) with an empty name (record indices: {}). Sequences are identified by name, so every record must have one. Note that a space between '>' and the identifier makes the identifier part of the description rather than the name.",
       empty.len(),
       format_names(&empty)
+    );
+  }
+
+  let padded = fastas
+    .iter()
+    .filter(|fasta| fasta.seq_name.trim() != fasta.seq_name)
+    .map(|fasta| format!("{:?}", fasta.seq_name))
+    .collect_vec();
+
+  if !padded.is_empty() {
+    return make_error!(
+      "Found {} input sequence(s) whose name has leading or trailing whitespace: {}. Sequence names are compared exactly, so surrounding whitespace makes a genome impossible to tell apart from the name it appears to have. Note that whitespace between '>' and the identifier becomes part of the name, unless it is a plain space, which makes the identifier part of the description instead.",
+      padded.len(),
+      format_names(&padded)
     );
   }
 
@@ -454,6 +487,34 @@ mod tests {
     assert!(err.contains("no name or an empty name"), "unexpected error: {err}");
   }
 
+  /// Every comparison on genome names is exact, so " a" would be a genome that `--strains a`
+  /// cannot address, that does not collide with the "a" of the graph it is merged with, and that
+  /// round-trips to a FASTA header with an invisible space in it.
+  #[rstest]
+  #[case(" a")]
+  #[case("a ")]
+  #[case("\ta")]
+  fn test_path_ids_by_name_rejects_padded_path_name(#[case] name: &str) {
+    let graph = two_genome_graph([Some("b"), Some(name)]);
+    let err = report_to_string(&path_ids_by_name(&graph).unwrap_err());
+    assert!(
+      err.contains("leading or trailing whitespace"),
+      "unexpected error: {err}"
+    );
+  }
+
+  /// The pair a padded name is most likely to be mistaken for: without the check they are two
+  /// distinct genomes, since duplicates are detected on the name as given.
+  #[rstest]
+  fn test_path_ids_by_name_rejects_a_name_that_differs_only_by_padding() {
+    let graph = two_genome_graph([Some("a"), Some("a ")]);
+    let err = report_to_string(&path_ids_by_name(&graph).unwrap_err());
+    assert!(
+      err.contains("leading or trailing whitespace"),
+      "unexpected error: {err}"
+    );
+  }
+
   #[rstest]
   fn test_path_ids_by_name_rejects_duplicate_names() {
     let graph = two_genome_graph([Some("a"), Some("a")]);
@@ -503,6 +564,27 @@ mod tests {
     let err = report_to_string(&check_sequence_names(&fastas).unwrap_err());
     assert!(err.contains("empty name"), "unexpected error: {err}");
     assert!(err.contains('3'), "unexpected error: {err}");
+  }
+
+  /// A header indented with anything other than a plain space — `>\tid` — keeps the whitespace in
+  /// the name, which is invisible in every place the name is later shown.
+  #[rstest]
+  #[case(" a")]
+  #[case("a ")]
+  #[case("\ta")]
+  fn test_check_sequence_names_rejects_padded_name(#[case] name: &str) {
+    let fastas = [FastaRecord {
+      seq_name: name.to_owned(),
+      desc: None,
+      seq: Seq::from_str("ACGT"),
+      index: 3,
+    }];
+
+    let err = report_to_string(&check_sequence_names(&fastas).unwrap_err());
+    assert!(
+      err.contains("leading or trailing whitespace"),
+      "unexpected error: {err}"
+    );
   }
 
   #[rstest]
