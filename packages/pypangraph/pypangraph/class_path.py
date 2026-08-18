@@ -11,12 +11,12 @@ class Path:
     """
 
     def __init__(self, pan_path):
-        self.name = pan_path["name"]
-        self.id = pan_path["id"]
-        self.circular = pan_path["circular"]
-        self.nodes = pan_path["nodes"]
-        self.nuc_len = pan_path["tot_len"]
-        self.desc = pan_path.get("desc", None)
+        self.name = pan_path.name
+        self.id = pan_path.id
+        self.circular = pan_path.circular
+        self.nodes = pan_path.nodes
+        self.nuc_len = pan_path.tot_len
+        self.desc = pan_path.desc
 
     def __len__(self):
         """Returns the number of nodes in the path"""
@@ -35,7 +35,7 @@ class PathCollection(IndexedCollection):
     """
 
     def __init__(self, pan_paths):
-        ids = [path["name"] for path in pan_paths.values()]
+        ids = [path.name for path in pan_paths.values()]
         # raise an error if there are duplicated path names
         if len(ids) != len(set(ids)):
             raise ValueError("Duplicated path names found in the input json file.")

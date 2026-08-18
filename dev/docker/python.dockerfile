@@ -97,6 +97,7 @@ RUN set -euxo pipefail >/dev/null \
   'jupyterlab' \
   'jupyterlab_widgets' \
   'matplotlib-base' \
+  'msgspec=0.21.1' \
   'notebook' \
   'numpy' \
   'pandas' \

@@ -16,12 +16,12 @@ class Block:
         self.alignment = alignment
 
     @staticmethod
-    def from_dict(block: dict) -> "Block":
+    def from_model(block) -> "Block":
         # Block ids are u64 hashes; keep them as strings internally so they never get
         # coerced to float when used as a pandas index/column (which silently corrupts
         # values above 2**53).
-        block_id = str(block["id"])
-        alignment = pga.Alignment.from_dict(block)
+        block_id = str(block.id)
+        alignment = pga.Alignment.from_model(block)
         return Block(block_id, alignment)
 
     def __len__(self):
@@ -66,6 +66,6 @@ class BlockCollection(IndexedCollection):
     """
 
     def __init__(self, pan_blocks):
-        ids = [str(block["id"]) for block in pan_blocks.values()]
-        items = [Block.from_dict(block) for block in pan_blocks.values()]
+        ids = [str(block.id) for block in pan_blocks.values()]
+        items = [Block.from_model(block) for block in pan_blocks.values()]
         IndexedCollection.__init__(self, ids, items)
