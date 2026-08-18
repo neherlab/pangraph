@@ -30,7 +30,7 @@ The two graphs can then be merged:
 pangraph merge graph.json k12.json -o graph_11.json
 ```
 
-The resulting `graph_11.json` contains 11 paths: the 10 genomes of `graph.json`, in their original order, followed by K-12. Adding the eleventh chromosome created comparatively few new blocks (2896 → 2943): most of it was absorbed into blocks that already existed.
+The resulting `graph_11.json` contains 11 paths: the 10 genomes of `graph.json`, in their original order, followed by K-12. Adding the eleventh chromosome created comparatively few new blocks (2896 -> 2943): most of it was absorbed into blocks that already existed.
 
 On a consumer laptop the merge takes around 20 seconds, against the roughly 3.5 minutes needed to build the 10-genome graph in the first place.
 

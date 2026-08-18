@@ -187,7 +187,7 @@ mod tests {
   /// This pins the assignment so that mistake is a test failure. An argument appended after a
   /// flattened group shows up in one of these sets; an argument added before it does not, so there
   /// are no false alarms. The escape hatch, if a trailing argument really is needed, is to set
-  /// `#[clap(help_heading = ...)]` on the argument itself — that wins over the cursor.
+  /// `#[clap(help_heading = ...)]` on the argument itself, which wins over the cursor.
   #[rstest]
   fn test_arguments_are_filed_under_the_expected_help_section() {
     // `jobs` is declared after the `Verbosity` flatten and used to be swept into it.

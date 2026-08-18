@@ -103,7 +103,7 @@ fn create_new_node_and_block(
 
   // Create a new PangraphNode for the unaligned node
   let new_node = PangraphNode::new(
-    Some(node_id),
+    node_id,
     new_block_id,
     old_node.path_id(),  // same path ID as the old node
     Forward,             // assuming the new node is always on the forward strand
@@ -132,11 +132,11 @@ mod tests {
     let seq = Seq::from_str("ATGTTGATAG");
     let old_block_id = BlockId(0);
     let old_path_id = PathId(0);
-    let old_node = PangraphNode::new(Some(node_id), old_block_id, old_path_id, Forward, (10, 20));
+    let old_node = PangraphNode::new(node_id, old_block_id, old_path_id, Forward, (10, 20));
 
     let (new_node, new_block) = create_new_node_and_block(node_id, seq.clone(), &old_node)?;
 
-    let expected_new_node = PangraphNode::new(Some(node_id), new_block.id(), old_path_id, Forward, (10, 20));
+    let expected_new_node = PangraphNode::new(node_id, new_block.id(), old_path_id, Forward, (10, 20));
     let expected_new_block = PangraphBlock::from_consensus(seq, new_block.id(), node_id);
 
     assert_eq!(new_node, expected_new_node);
@@ -151,11 +151,11 @@ mod tests {
     let seq = Seq::from_str("ATGTTGATAG");
     let old_block_id = BlockId(0);
     let old_path_id = PathId(1);
-    let old_node = PangraphNode::new(Some(node_id), old_block_id, old_path_id, Reverse, (5, 15));
+    let old_node = PangraphNode::new(node_id, old_block_id, old_path_id, Reverse, (5, 15));
 
     let (new_node, new_block) = create_new_node_and_block(node_id, seq.clone(), &old_node)?;
 
-    let expected_new_node = PangraphNode::new(Some(node_id), new_block.id(), old_path_id, Forward, (5, 15));
+    let expected_new_node = PangraphNode::new(node_id, new_block.id(), old_path_id, Forward, (5, 15));
     let expected_new_block = PangraphBlock::from_consensus(reverse_complement(&seq)?, new_block.id(), node_id);
 
     assert_eq!(new_node, expected_new_node);
@@ -211,8 +211,8 @@ mod tests {
       },
     );
     let mut blocks = vec![block];
-    let node1 = PangraphNode::new(Some(NodeId(1)), BlockId(0), PathId(0), Forward, (0, 16));
-    let node2 = PangraphNode::new(Some(NodeId(2)), BlockId(0), PathId(1), Reverse, (0, 8));
+    let node1 = PangraphNode::new(NodeId(1), BlockId(0), PathId(0), Forward, (0, 16));
+    let node2 = PangraphNode::new(NodeId(2), BlockId(0), PathId(1), Reverse, (0, 8));
     let mut nodes = btreemap! {
       NodeId(1) => node1,
       NodeId(2) => node2,
@@ -231,8 +231,8 @@ mod tests {
     assert_eq!(blocks[1], expected_block2);
 
     let expected_node_dict = btreemap! {
-      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(0), PathId(0), Forward, (0, 16)),
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), new_block_id, PathId(1), Forward, (0, 8)),
+      NodeId(1) => PangraphNode::new(NodeId(1), BlockId(0), PathId(0), Forward, (0, 16)),
+      NodeId(2) => PangraphNode::new(NodeId(2), new_block_id, PathId(1), Forward, (0, 8)),
     };
     assert_eq!(nodes, expected_node_dict);
     Ok(())

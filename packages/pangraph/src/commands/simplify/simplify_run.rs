@@ -54,8 +54,11 @@ mod tests {
   use maplit::{btreemap, btreeset};
   use pretty_assertions::assert_eq;
 
-  const NID11: NodeId = NodeId(13172209629052542373);
-  const NID12: NodeId = NodeId(16864511183100055928);
+  /// Ids of the two nodes that concatenating the blocks of each path produces, as minted by
+  /// [`PangraphNode::with_derived_id`]. They are hashes of the new block id, the genome's seed and
+  /// the node's strand and position, so renaming `pathA`/`pathB` below changes them.
+  const NID11: NodeId = NodeId(7517044205545980976);
+  const NID12: NodeId = NodeId(8586529204744949647);
 
   fn block_a() -> PangraphBlock {
     //          0         1         2         3
@@ -130,14 +133,14 @@ mod tests {
     // n2+ -> n5+ -> n8-
     // n3+ -> n6-
     let nodes = btreemap! {
-      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(1), PathId(1), Forward, (0, 32)),
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(1), PathId(2), Forward, (0, 31)),
-      NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(1), PathId(3), Forward, (0, 35)),
-      NodeId(4) => PangraphNode::new(Some(NodeId(4)), BlockId(2), PathId(1), Forward, (32, 64)),
-      NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(2), PathId(2), Forward, (31, 60)),
-      NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(2), PathId(3), Forward, (35, 0)),
-      NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(3), PathId(1), Forward, (64, 0)),
-      NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(2), Reverse, (60, 0)),
+      NodeId(1) => PangraphNode::new(NodeId(1), BlockId(1), PathId(1), Forward, (0, 32)),
+      NodeId(2) => PangraphNode::new(NodeId(2), BlockId(1), PathId(2), Forward, (0, 31)),
+      NodeId(3) => PangraphNode::new(NodeId(3), BlockId(1), PathId(3), Forward, (0, 35)),
+      NodeId(4) => PangraphNode::new(NodeId(4), BlockId(2), PathId(1), Forward, (32, 64)),
+      NodeId(5) => PangraphNode::new(NodeId(5), BlockId(2), PathId(2), Forward, (31, 60)),
+      NodeId(6) => PangraphNode::new(NodeId(6), BlockId(2), PathId(3), Forward, (35, 0)),
+      NodeId(7) => PangraphNode::new(NodeId(7), BlockId(3), PathId(1), Forward, (64, 0)),
+      NodeId(8) => PangraphNode::new(NodeId(8), BlockId(3), PathId(2), Reverse, (60, 0)),
     };
     let blocks = btreemap! {
       BlockId(1) => block_a(),
@@ -154,10 +157,10 @@ mod tests {
 
   fn expected_graph() -> Pangraph {
     let nodes = btreemap! {
-      NID11 =>     PangraphNode::new(Some(NodeId(11)), BlockId(1), PathId(1), Forward, (0, 64)),
-      NID12 =>     PangraphNode::new(Some(NodeId(12)), BlockId(1), PathId(2), Forward, (0, 60)),
-      NodeId(7) => PangraphNode::new(Some(NodeId(7)),  BlockId(3), PathId(1), Forward, (64, 0)),
-      NodeId(8) => PangraphNode::new(Some(NodeId(8)),  BlockId(3), PathId(2), Reverse, (60, 0)),
+      NID11 =>     PangraphNode::new(NodeId(11), BlockId(1), PathId(1), Forward, (0, 64)),
+      NID12 =>     PangraphNode::new(NodeId(12), BlockId(1), PathId(2), Forward, (0, 60)),
+      NodeId(7) => PangraphNode::new(NodeId(7),  BlockId(3), PathId(1), Forward, (64, 0)),
+      NodeId(8) => PangraphNode::new(NodeId(8),  BlockId(3), PathId(2), Reverse, (60, 0)),
     };
     let blocks = btreemap! {
         BlockId(1) => block_ab(),
@@ -183,11 +186,11 @@ mod tests {
     };
 
     let expected_nodes = btreemap! {
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(1), PathId(2), Forward, (0, 31)),
-      NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(1), PathId(3), Forward, (0, 35)),
-      NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(2), PathId(2), Forward, (31, 60)),
-      NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(2), PathId(3), Forward, (35, 0)),
-      NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(2), Reverse, (60, 0)),
+      NodeId(2) => PangraphNode::new(NodeId(2), BlockId(1), PathId(2), Forward, (0, 31)),
+      NodeId(3) => PangraphNode::new(NodeId(3), BlockId(1), PathId(3), Forward, (0, 35)),
+      NodeId(5) => PangraphNode::new(NodeId(5), BlockId(2), PathId(2), Forward, (31, 60)),
+      NodeId(6) => PangraphNode::new(NodeId(6), BlockId(2), PathId(3), Forward, (35, 0)),
+      NodeId(8) => PangraphNode::new(NodeId(8), BlockId(3), PathId(2), Reverse, (60, 0)),
     };
 
     let expected_blocks = btreemap! {

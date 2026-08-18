@@ -704,9 +704,9 @@ mod tests {
       let nid2 = NodeId(2000);
       let nid3 = NodeId(3000);
 
-      let n1 = PangraphNode::new(Some(nid1), bid, PathId(100), Forward, (100, 230));
-      let n2 = PangraphNode::new(Some(nid2), bid, PathId(200), Reverse, (1000, 1130));
-      let n3 = PangraphNode::new(Some(nid3), bid, PathId(300), Reverse, (180, 110));
+      let n1 = PangraphNode::new(nid1, bid, PathId(100), Forward, (100, 230));
+      let n2 = PangraphNode::new(nid2, bid, PathId(200), Reverse, (1000, 1130));
+      let n3 = PangraphNode::new(nid3, bid, PathId(300), Reverse, (180, 110));
 
       let b1 = PangraphBlock::new(
         bid,
@@ -885,14 +885,14 @@ mod tests {
 
     fn generate_example() -> (Pangraph, Vec<Alignment>) {
       let nodes = btreemap! {
-        NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(10), PathId(100), Forward, (700, 885)),
-        NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(30), PathId(100), Forward, (885, 988)),
-        NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(30), PathId(200), Reverse, (100, 180)),
-        NodeId(4) => PangraphNode::new(Some(NodeId(4)), BlockId(20), PathId(200), Reverse, (180, 555)),
-        NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(10), PathId(200), Reverse, (555, 735)),
-        NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(40), PathId(300), Forward, (600, 100)),
-        NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(50), PathId(300), Forward, (100, 325)),
-        NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(50), PathId(300), Reverse, (325, 580)),
+        NodeId(1) => PangraphNode::new(NodeId(1), BlockId(10), PathId(100), Forward, (700, 885)),
+        NodeId(2) => PangraphNode::new(NodeId(2), BlockId(30), PathId(100), Forward, (885, 988)),
+        NodeId(3) => PangraphNode::new(NodeId(3), BlockId(30), PathId(200), Reverse, (100, 180)),
+        NodeId(4) => PangraphNode::new(NodeId(4), BlockId(20), PathId(200), Reverse, (180, 555)),
+        NodeId(5) => PangraphNode::new(NodeId(5), BlockId(10), PathId(200), Reverse, (555, 735)),
+        NodeId(6) => PangraphNode::new(NodeId(6), BlockId(40), PathId(300), Forward, (600, 100)),
+        NodeId(7) => PangraphNode::new(NodeId(7), BlockId(50), PathId(300), Forward, (100, 325)),
+        NodeId(8) => PangraphNode::new(NodeId(8), BlockId(50), PathId(300), Reverse, (325, 580)),
       };
 
       let paths = btreemap! {

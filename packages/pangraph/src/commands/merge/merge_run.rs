@@ -19,11 +19,19 @@ pub fn merge_run(args: &PangraphMergeArgs) -> Result<(), Report> {
 
   merge_cmd_preliminary_checks(args, &left, &right).wrap_err("When performing preliminary checks before merging")?;
 
-  // The two graphs were built independently, so their identifiers almost certainly collide.
-  // Namespace the second graph before joining them.
+  // Block and node ids are derived from genome names, which the checks above established are
+  // distinct across the two graphs, so they cannot collide. Path ids are sequential within each
+  // graph, so the appended graph is lifted above the first one.
   let right = right
-    .make_disjoint_from(&left)
-    .wrap_err("When making the identifiers of the two input graphs disjoint")?;
+    .renumber_paths(left.path_id_upper_bound())
+    .wrap_err("When renumbering the path ids of the second input graph")?;
+
+  // Cheap, and the alternative is `graph_join` panicking on the conflicting key.
+  if !right.is_id_disjoint_from(&left) {
+    return make_error!(
+      "The two input graphs share block or node identifiers, so they cannot be joined. Identifier collision avoidance is implemented since v1.4.0. If you built your graphs with a previous version of pangraph try rebuilding them. If the error persists please submit an issue."
+    );
+  }
 
   info!(
     "=== Graph merging start:     graph sizes {} + {}",
@@ -63,9 +71,9 @@ pub fn merge_run(args: &PangraphMergeArgs) -> Result<(), Report> {
 /// Reads a pangraph from a JSON file.
 ///
 /// `from_path` already rejects a graph whose ids do not resolve or whose offsets are out of range,
-/// in release builds too. The extra `sanity_check` here adds the semantic invariants on top — that
-/// node positions tile the genome — which indicate a bug rather than a bad file, and so are only
-/// worth paying for in debug builds.
+/// in release builds too. The extra `sanity_check` here adds the semantic invariants on top, such
+/// as node positions tiling the genome. Those indicate a bug rather than a bad file, and so are
+/// only worth paying for in debug builds.
 fn read_graph(filepath: &Path) -> Result<Pangraph, Report> {
   let graph = Pangraph::from_path(&Some(filepath))?;
 
@@ -102,7 +110,7 @@ fn merge_cmd_preliminary_checks(args: &PangraphMergeArgs, left: &Pangraph, right
         .header("Suggestion:")
     })?;
 
-  // Circularity is a per-path property, so mixing is structurally fine. It is however most often a
+  // Circularity is a per-path property, so mixing is structurally fine, but it is most often a
   // mistake, since `build --circular` applies to all genomes of a graph at once.
   if circularity(left) != circularity(right) {
     warn!(

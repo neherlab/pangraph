@@ -51,4 +51,19 @@ impl PangraphPath {
       desc,
     }
   }
+
+  /// Order-independent identity of the genome on this path, used as the discriminator when deriving
+  /// node ids.
+  ///
+  /// Taken from the genome name rather than from the path id, so that node ids do not depend on the
+  /// order in which the input sequences were read, and do not change when `renumber_paths` shifts
+  /// path ids during a merge. Genome names are unique within a graph, and `merge` rejects graphs
+  /// that share one, so the seed identifies a genome as well as the path id does.
+  ///
+  /// Recomputed on demand rather than stored: a stored field would have to be kept out of the JSON
+  /// and then recomputed on load anyway, and silently defaults to the same value for every path if
+  /// that is forgotten. Falls back to the path id for unnamed paths, which pangraph never writes.
+  pub fn seed(&self) -> usize {
+    self.name.as_ref().map_or(self.id.0, id)
+  }
 }
