@@ -250,7 +250,7 @@ pub fn verify_graph_sequences(
     let missing = expected
       .keys()
       .filter(|name| !path_ids.contains_key(name.as_str()))
-      .cloned()
+      .map(String::as_str)
       .collect_vec();
 
     if !missing.is_empty() {
