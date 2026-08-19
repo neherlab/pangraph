@@ -1,7 +1,7 @@
 use crate::align::alignment::{Alignment, AnchorBlock, ExtractedHit};
+use crate::align::alignment_args::GraphMergeParams;
 use crate::align::bam::cigar::{Side, add_flanking_indel, cigar_switch_ref_qry, invert_cigar};
 use crate::align::map_variations::{BandParameters, map_variations};
-use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::io::seq::reverse_complement;
 use crate::make_internal_error;
 use crate::pangraph::edits::Edit;
@@ -37,7 +37,7 @@ impl MergePromise {
     }
   }
 
-  pub fn solve_promise(&mut self, args: &PangraphBuildArgs) -> Result<PangraphBlock, Report> {
+  pub fn solve_promise(&mut self, args: &GraphMergeParams) -> Result<PangraphBlock, Report> {
     // TODO: avoid re-aligning if cigar is only a single match (no indels)
 
     // calculate the mean shift and bandwidth of the alignment due to the displacement
@@ -704,9 +704,9 @@ mod tests {
       let nid2 = NodeId(2000);
       let nid3 = NodeId(3000);
 
-      let n1 = PangraphNode::new(Some(nid1), bid, PathId(100), Forward, (100, 230));
-      let n2 = PangraphNode::new(Some(nid2), bid, PathId(200), Reverse, (1000, 1130));
-      let n3 = PangraphNode::new(Some(nid3), bid, PathId(300), Reverse, (180, 110));
+      let n1 = PangraphNode::new(nid1, bid, PathId(100), Forward, (100, 230));
+      let n2 = PangraphNode::new(nid2, bid, PathId(200), Reverse, (1000, 1130));
+      let n3 = PangraphNode::new(nid3, bid, PathId(300), Reverse, (180, 110));
 
       let b1 = PangraphBlock::new(
         bid,
@@ -718,9 +718,9 @@ mod tests {
         },
       );
 
-      let p1 = PangraphPath::new(Some(PathId(100)), [nid1], 2000, true, None, None);
-      let p2 = PangraphPath::new(Some(PathId(200)), [nid2], 2000, true, None, None);
-      let p3 = PangraphPath::new(Some(PathId(300)), [nid3], 200, true, None, None);
+      let p1 = PangraphPath::new(PathId(100), [nid1], 2000, true, None, None);
+      let p2 = PangraphPath::new(PathId(200), [nid2], 2000, true, None, None);
+      let p3 = PangraphPath::new(PathId(300), [nid3], 200, true, None, None);
 
       let G = Pangraph {
         paths: btreemap! {
@@ -885,20 +885,20 @@ mod tests {
 
     fn generate_example() -> (Pangraph, Vec<Alignment>) {
       let nodes = btreemap! {
-        NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(10), PathId(100), Forward, (700, 885)),
-        NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(30), PathId(100), Forward, (885, 988)),
-        NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(30), PathId(200), Reverse, (100, 180)),
-        NodeId(4) => PangraphNode::new(Some(NodeId(4)), BlockId(20), PathId(200), Reverse, (180, 555)),
-        NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(10), PathId(200), Reverse, (555, 735)),
-        NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(40), PathId(300), Forward, (600, 100)),
-        NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(50), PathId(300), Forward, (100, 325)),
-        NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(50), PathId(300), Reverse, (325, 580)),
+        NodeId(1) => PangraphNode::new(NodeId(1), BlockId(10), PathId(100), Forward, (700, 885)),
+        NodeId(2) => PangraphNode::new(NodeId(2), BlockId(30), PathId(100), Forward, (885, 988)),
+        NodeId(3) => PangraphNode::new(NodeId(3), BlockId(30), PathId(200), Reverse, (100, 180)),
+        NodeId(4) => PangraphNode::new(NodeId(4), BlockId(20), PathId(200), Reverse, (180, 555)),
+        NodeId(5) => PangraphNode::new(NodeId(5), BlockId(10), PathId(200), Reverse, (555, 735)),
+        NodeId(6) => PangraphNode::new(NodeId(6), BlockId(40), PathId(300), Forward, (600, 100)),
+        NodeId(7) => PangraphNode::new(NodeId(7), BlockId(50), PathId(300), Forward, (100, 325)),
+        NodeId(8) => PangraphNode::new(NodeId(8), BlockId(50), PathId(300), Reverse, (325, 580)),
       };
 
       let paths = btreemap! {
-        PathId(100) => PangraphPath::new(Some(PathId(100)), [NodeId(1), NodeId(2)], 1000, true, None, None),
-        PathId(200) => PangraphPath::new(Some(PathId(200)), [NodeId(3), NodeId(4), NodeId(5)], 1000, true, None, None),
-        PathId(300) => PangraphPath::new(Some(PathId(300)), [NodeId(6), NodeId(7), NodeId(8)], 1000, true, None, None),
+        PathId(100) => PangraphPath::new(PathId(100), [NodeId(1), NodeId(2)], 1000, true, None, None),
+        PathId(200) => PangraphPath::new(PathId(200), [NodeId(3), NodeId(4), NodeId(5)], 1000, true, None, None),
+        PathId(300) => PangraphPath::new(PathId(300), [NodeId(6), NodeId(7), NodeId(8)], 1000, true, None, None),
       };
 
       #[rustfmt::skip]

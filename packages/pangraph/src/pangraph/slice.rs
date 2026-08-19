@@ -167,16 +167,17 @@ pub fn block_slice(
       old_strandedness
     };
 
-    let path_L = G.paths[&old_node.path_id()].tot_len;
+    let path = &G.paths[&old_node.path_id()];
+    let path_L = path.tot_len;
     let node_coords = interval_node_coords(i, edits, block_L);
-    let circular = G.paths[&old_node.path_id()].circular();
+    let circular = path.circular();
     let new_pos = if circular {
       new_position_circular(old_node.position(), node_coords, path_L, old_strandedness)
     } else {
       new_position_non_circular(old_node.position(), node_coords, old_strandedness)
     };
 
-    let new_node = PangraphNode::new(None, i.new_block_id, old_node.path_id(), new_strand, new_pos);
+    let new_node = PangraphNode::with_derived_id(i.new_block_id, path, new_strand, new_pos);
 
     // extract edits for the slice
     let new_edits = slice_edits(i, edits, block_L);
@@ -467,15 +468,15 @@ mod tests {
     let (new_b, new_nodes) = block_slice(&b, &i, &G);
     assert_eq!(new_b.consensus(), "TATATTTATC");
 
-    let nn1 = PangraphNode::new(None, new_bid, PathId(1), Forward, (111, 120));
+    let nn1 = PangraphNode::with_derived_id(new_bid, &G.paths[&PathId(1)], Forward, (111, 120));
     let nn1_slice = new_nodes[&NodeId(1)].as_ref().unwrap();
     assert_eq!(nn1, *nn1_slice);
 
-    let nn2 = PangraphNode::new(None, new_bid, PathId(2), Reverse, (1008, 1017));
+    let nn2 = PangraphNode::with_derived_id(new_bid, &G.paths[&PathId(2)], Reverse, (1008, 1017));
     let nn2_slice = new_nodes[&NodeId(2)].as_ref().unwrap();
     assert_eq!(nn2, *nn2_slice);
 
-    let nn3 = PangraphNode::new(None, new_bid, PathId(3), Reverse, (96, 4));
+    let nn3 = PangraphNode::with_derived_id(new_bid, &G.paths[&PathId(3)], Reverse, (96, 4));
     let nn3_slice = new_nodes[&NodeId(3)].as_ref().unwrap();
     assert_eq!(nn3, *nn3_slice);
 
@@ -532,34 +533,13 @@ mod tests {
       inss: vec![Ins::new(20, "T")],
     };
 
-    let n1 = PangraphNode::new(Some(NodeId(1)), bid, PathId(1), Forward, (100, 125));
-    let n2 = PangraphNode::new(Some(NodeId(2)), bid, PathId(2), Reverse, (1000, 1025));
-    let n3 = PangraphNode::new(Some(NodeId(3)), bid, PathId(3), Reverse, (90, 9));
+    let n1 = PangraphNode::new(NodeId(1), bid, PathId(1), Forward, (100, 125));
+    let n2 = PangraphNode::new(NodeId(2), bid, PathId(2), Reverse, (1000, 1025));
+    let n3 = PangraphNode::new(NodeId(3), bid, PathId(3), Reverse, (90, 9));
 
-    let p1 = PangraphPath::new(
-      Some(PathId(1)),
-      /*"p1"*/ [NodeId(1), NodeId(4)],
-      2000,
-      true,
-      None,
-      None,
-    );
-    let p2 = PangraphPath::new(
-      Some(PathId(2)),
-      /*"p2"*/ [NodeId(2), NodeId(5)],
-      2000,
-      true,
-      None,
-      None,
-    );
-    let p3 = PangraphPath::new(
-      Some(PathId(3)),
-      /*"p3"*/ [NodeId(3), NodeId(6)],
-      100,
-      true,
-      None,
-      None,
-    );
+    let p1 = PangraphPath::new(PathId(1), /*"p1"*/ [NodeId(1), NodeId(4)], 2000, true, None, None);
+    let p2 = PangraphPath::new(PathId(2), /*"p2"*/ [NodeId(2), NodeId(5)], 2000, true, None, None);
+    let p3 = PangraphPath::new(PathId(3), /*"p3"*/ [NodeId(3), NodeId(6)], 100, true, None, None);
 
     let b1 = PangraphBlock::new(
       bid,
@@ -609,15 +589,15 @@ mod tests {
 
     assert_eq!(new_b.consensus(), "TATATTTATC");
 
-    let nn1 = PangraphNode::new(None, new_bid, PathId(1), Reverse, (111, 120));
+    let nn1 = PangraphNode::with_derived_id(new_bid, &G.paths[&PathId(1)], Reverse, (111, 120));
     let nn1_slice = new_nodes[&NodeId(1)].as_ref().unwrap();
     assert_eq!(nn1, *nn1_slice);
 
-    let nn2 = PangraphNode::new(None, new_bid, PathId(2), Forward, (1008, 1017));
+    let nn2 = PangraphNode::with_derived_id(new_bid, &G.paths[&PathId(2)], Forward, (1008, 1017));
     let nn2_slice = new_nodes[&NodeId(2)].as_ref().unwrap();
     assert_eq!(nn2, *nn2_slice);
 
-    let nn3 = PangraphNode::new(None, new_bid, PathId(3), Forward, (96, 4));
+    let nn3 = PangraphNode::with_derived_id(new_bid, &G.paths[&PathId(3)], Forward, (96, 4));
     let nn3_slice = new_nodes[&NodeId(3)].as_ref().unwrap();
     assert_eq!(nn3, *nn3_slice);
 

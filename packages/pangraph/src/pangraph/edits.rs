@@ -565,18 +565,54 @@ impl Edit {
     }
   }
 
+  /// Checks that every edit addresses a position inside a reference sequence of length `len`.
+  ///
+  /// This is the subset of [`Self::sanity_check`] that [`Self::apply`] depends on to stay inside
+  /// array bounds: it indexes the reference by substitution and deletion position, and
+  /// `Seq::insert_seq` asserts on its index, so an out-of-range edit read from a graph file aborts
+  /// the process instead of being reported. Kept apart from `sanity_check`, and available in
+  /// release builds, so that `Pangraph::validate` can run it on every loaded graph: it is linear in
+  /// the number of edits, whereas `sanity_check` also compares them pairwise.
+  pub fn check_bounds(&self, len: usize) -> Result<(), Report> {
+    for sub in &self.subs {
+      if sub.pos >= len {
+        return make_error!(
+          "Substitution position {} is out of bounds for sequence of length {len}",
+          sub.pos
+        );
+      }
+    }
+
+    for del in &self.dels {
+      // `end()` adds the two, which can overflow on values read from a file rather than computed.
+      let Some(end) = del.pos.checked_add(del.len) else {
+        return make_error!("Deletion {del:?} has a position and length whose sum overflows");
+      };
+      if end > len {
+        return make_error!("Deletion {del:?} is out of bounds for sequence of length {len}");
+      }
+    }
+
+    for ins in &self.inss {
+      if ins.pos > len {
+        return make_error!(
+          "Insertion position {} is out of bounds for sequence of length {len}",
+          ins.pos
+        );
+      }
+    }
+
+    Ok(())
+  }
+
   #[cfg(any(test, debug_assertions))]
   pub fn sanity_check(&self, len: usize) -> Result<(), Report> {
-    let block_interval = Interval::new(0, len);
+    // Every edit is in range. Shared with `Pangraph::validate`, which checks it in release builds
+    // too, since it is what keeps `apply` inside the reference sequence.
+    self.check_bounds(len)?;
+
     // === substitution checks ===
     for sub in &self.subs {
-      if !block_interval.contains(sub.pos) {
-        return Err(eyre!(
-          "Substitution position {} is out of bounds for sequence of length {}",
-          sub.pos,
-          len
-        ));
-      }
       if sub.alt == AsciiChar(b'-') {
         return Err(eyre!("Substitution with deletion character '-' is not allowed"));
       }
@@ -609,22 +645,6 @@ impl Edit {
       if del.len == 0 {
         return Err(eyre!("Deletion {:?} has length 0", del));
       }
-
-      if !block_interval.contains(del.pos) {
-        return Err(eyre!(
-          "Deletion {:?} is out of bounds for sequence of length {}",
-          del,
-          len
-        ));
-      }
-
-      if del.end() > len {
-        return Err(eyre!(
-          "Deletion {:?} is out of bounds for sequence of length {}",
-          del,
-          len
-        ));
-      }
     }
 
     // check that deletions are non-overlapping
@@ -636,17 +656,6 @@ impl Edit {
         if del_i.interval().has_overlap_with(&del_j.interval()) {
           return Err(eyre!("Deletion {:?} overlaps with deletion {:?}", del_i, del_j));
         }
-      }
-    }
-
-    // === insertion checks ===
-    for ins in &self.inss {
-      if ins.pos > len {
-        return Err(eyre!(
-          "Insertion position {} is out of bounds for sequence of length {}",
-          ins.pos,
-          len
-        ));
       }
     }
 

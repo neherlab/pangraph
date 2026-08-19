@@ -24,6 +24,7 @@ If you have Pangraph CLI installed, you can type `pangraph --help` to read the l
 
 * [`pangraph`↴](#pangraph)
 * [`pangraph build`↴](#pangraph-build)
+* [`pangraph merge`↴](#pangraph-merge)
 * [`pangraph export`↴](#pangraph-export)
 * [`pangraph export gfa`↴](#pangraph-export-gfa)
 * [`pangraph export block-consensus`↴](#pangraph-export-block-consensus)
@@ -44,7 +45,7 @@ Finds homology amongst large collections of closely related genomes. The core of
 
 Publication: "PanGraph: scalable bacterial pan-genome graph construction." Nicholas Noll, Marco Molari, Richard Neher. Microbial Genomics 9.6 (2023): 001034.; doi: https://doi.org/10.1099/mgen.0.001034
 
-Documentation: https://pangraph.readthedocs.io/en/stable/
+Documentation: https://docs.pangraph.org/
 
 Source code: https://github.com/neherlab/pangraph
 
@@ -55,6 +56,7 @@ Questions, ideas, bug reports: https://github.com/neherlab/pangraph/issues
 ###### **Subcommands:**
 
 * `build` — Align genomes into a multiple sequence alignment graph
+* `merge` — Merge two pangenome graphs into a single one
 * `export` — Export a pangraph to a chosen file format(s)
 * `simplify` — Generates a simplified graph that only contains a subset of the input genomes
 * `reconstruct` — Reconstruct all input fasta sequences from graph
@@ -102,6 +104,12 @@ Align genomes into a multiple sequence alignment graph
    Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
 
   Default value: `-`
+* `-c`, `--circular` — Toggle if input genomes are circular
+* `-f`, `--verify` — Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise
+* `--no-progress-bar` — Toggle to disable progress bar. Notice that the progress bar is only displayed if the output is specified via the `-o` argument
+* `--guide-tree <GUIDE_TREE>` — Path to a Newick-format guide tree to use instead of the default neighbor-joining tree.
+
+   When provided, the tree's topology drives the bottom-up graph-merging order. Each input FASTA sequence must appear exactly once as a leaf (matched by sequence name), and every internal node must be strictly bifurcating. Branch lengths and internal labels, if present, are ignored. Accepts plain or compressed files (gz, bz2, xz, zst).
 * `-l`, `--len <INDEL_LEN_THRESHOLD>` — Minimum block size for alignment graph (in nucleotides)
 
   Default value: `100`
@@ -115,7 +123,6 @@ Align genomes into a multiple sequence alignment graph
 
   Default value: `10`
 * `-K`, `--kmer-length <KMER_LENGTH>` — Sets kmer length for mmseqs2 aligner
-* `-c`, `--circular` — Toggle if input genomes are circular
 * `-x`, `--max-self-map <MAX_SELF_MAP>` — Maximum number of alignment rounds to consider per pairwise graph merger
 
   Default value: `100`
@@ -127,17 +134,72 @@ Align genomes into a multiple sequence alignment graph
 
   Possible values: `minimap2`, `mmseqs`
 
-* `-f`, `--verify` — Sanity check: after construction verifies that the original sequences can be reconstructed exactly from the resulting pangraph. Raises an error otherwise
-* `--no-progress-bar` — Toggle to disable progress bar. Notice that the progress bar is only displayed if the output is specified via the `-o` argument
 * `--extra-band-width <EXTRA_BAND_WIDTH>` — For within-block alignment: excess bandwidth for internal stripes. Can be increased to improve block alignment quality, at the cost of computation time and memory usage
 
   Default value: `5`
 * `--max-alignment-attempts <MAX_ALIGNMENT_ATTEMPTS>` — For within-block alignment: number of times Nextclade will retry alignment with more relaxed results if alignment band boundaries are hit
 
   Default value: `4`
-* `--guide-tree <GUIDE_TREE>` — Path to a Newick-format guide tree to use instead of the default neighbor-joining tree.
 
-   When provided, the tree's topology drives the bottom-up graph-merging order. Each input FASTA sequence must appear exactly once as a leaf (matched by sequence name), and every internal node must be strictly bifurcating. Branch lengths and internal labels, if present, are ignored. Accepts plain or compressed files (gz, bz2, xz, zst).
+
+
+## `pangraph merge`
+
+Merge two pangenome graphs into a single one
+
+**Usage:** `pangraph merge [OPTIONS] <LEFT_GRAPH> <RIGHT_GRAPH>`
+
+###### **Arguments:**
+
+* `<LEFT_GRAPH>` — Path to the first input graph, in pangraph JSON format. This graph is treated as the base.
+
+   Accepts plain or compressed files. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. The decompressor is chosen based on the file extension.
+* `<RIGHT_GRAPH>` — Path to the second input graph, in pangraph JSON format.
+
+   Its path identifiers are renumbered to follow those of the first graph, so its genomes appear after them in the output.
+
+   Accepts plain or compressed files. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. The decompressor is chosen based on the file extension.
+
+###### **Options:**
+
+* `-o`, `--output-json <OUTPUT_JSON>` — Path to output JSON file with the merged pangraph.
+
+   If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
+
+   Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
+
+  Default value: `-`
+* `-f`, `--verify` — Sanity check: after merging verifies that every genome of the two input graphs can still be reconstructed exactly from the merged graph. Raises an error otherwise
+* `-l`, `--len <INDEL_LEN_THRESHOLD>` — Minimum block size for alignment graph (in nucleotides)
+
+  Default value: `100`
+* `-a`, `--alpha <ALPHA>` — Energy cost for splitting a block during alignment merger. Controls graph fragmentation, see documentation
+
+  Default value: `100`
+* `-b`, `--beta <BETA>` — Energy cost for diversity in the alignment. A high value prevents merging of distantly-related sequences in the same block, see documentation
+
+  Default value: `10`
+* `-s`, `--sensitivity <SENSITIVITY>` — Used to set pairwise alignment sensitivity for minimap aligner. Corresponds to option -x asm5/asm10/asm20 in minimap2
+
+  Default value: `10`
+* `-K`, `--kmer-length <KMER_LENGTH>` — Sets kmer length for mmseqs2 aligner
+* `-x`, `--max-self-map <MAX_SELF_MAP>` — Maximum number of alignment rounds to consider per pairwise graph merger
+
+  Default value: `100`
+* `-k`, `--alignment-kernel <ALIGNMENT_KERNEL>` — Backend to use for pairwise genome alignment
+
+   Nb: `mmseqs` is more sensitive to highly-diverged sequences, but slower and requires more memory. It is not provided with Pangraph, so you need to install it separately (see: https://github.com/soedinglab/MMseqs2)
+
+  Default value: `minimap2`
+
+  Possible values: `minimap2`, `mmseqs`
+
+* `--extra-band-width <EXTRA_BAND_WIDTH>` — For within-block alignment: excess bandwidth for internal stripes. Can be increased to improve block alignment quality, at the cost of computation time and memory usage
+
+  Default value: `5`
+* `--max-alignment-attempts <MAX_ALIGNMENT_ATTEMPTS>` — For within-block alignment: number of times Nextclade will retry alignment with more relaxed results if alignment band boundaries are hit
+
+  Default value: `4`
 
 
 
@@ -308,9 +370,9 @@ Reconstruct all input fasta sequences from graph
 
 * `<INPUT_GRAPH>` — Path to a pangenome graph file in JSON format.
 
-   Accepts plain or compressed FASTA files. If a compressed fasta file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension. If there's multiple input files, then different files can have different compression formats.
+   Accepts plain or compressed files. If a compressed file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension.
 
-   If no input files provided, the plain fasta input is read from standard input (stdin).
+   If no input file is provided, the plain JSON input is read from standard input (stdin).
 
 ###### **Options:**
 
@@ -318,10 +380,16 @@ Reconstruct all input fasta sequences from graph
 
    If the provided file path ends with one of the supported extensions: "gz", "bz2", "xz", "zst", then the file will be written compressed. If the required directory tree does not exist, it will be created.
 
-   Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided. See: https://en.wikipedia.org/wiki/FASTA_format
+   Use "-" to write the uncompressed data to standard output (stdout). This is the default, if the argument is not provided.
+
+   Records are written in order of path id, which reproduces the order of the original input FASTA only for graphs produced directly by `pangraph build`. A graph produced by `pangraph merge` renumbers its path ids, so consumers should match records by genome name rather than by position.
+
+   See: https://en.wikipedia.org/wiki/FASTA_format
 
   Default value: `-`
-* `-f`, `--verify <VERIFY>` — Path to the FASTA file with sequences to check the reconstructed sequences against. If this argument is provided, then the sequences are not being printed to standard output (stdout) as usual. Instead, if any differences are detected, a diff will be printed between the expected (original) sequence and reconstructed sequence.
+* `-f`, `--verify <VERIFY>` — Path to the FASTA file with sequences to check the reconstructed sequences against. If this argument is provided, then the sequences are not written out as usual: nothing is produced on success, and the first difference found is reported as an error.
+
+   Genomes are matched by name, so the order of the records is irrelevant. The file must contain exactly the genomes of the graph: a record the graph does not contain, a genome missing from the file, or a repeated name are all errors. Every path of the graph must be named.
 
    Accepts plain or compressed FASTA files. If a compressed fasta file is provided, it will be transparently decompressed. Supported compression formats: `gz`, `bz2`, `xz`, `zstd`. Decompressor is chosen based on file extension. If there's multiple input files, then different files can have different compression formats.
 

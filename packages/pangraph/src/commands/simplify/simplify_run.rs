@@ -4,27 +4,31 @@ use crate::io::file::create_file_or_stdout;
 use crate::io::json::{JsonPretty, json_write};
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_path::PathId;
-use eyre::Report;
+use crate::pangraph::reconstruct::check_genome_names;
+use eyre::{Report, WrapErr};
 use std::collections::BTreeSet;
 
-#[allow(unused_must_use)]
 pub fn simplify_run(args: PangraphSimplifyArgs) -> Result<(), Report> {
   let PangraphSimplifyArgs { input, output, strains } = args;
 
   let mut graph = Pangraph::from_path(&input)?;
 
   let strain_set = strains.into_iter().collect();
-  simplify(&mut graph, &strain_set);
+  simplify(&mut graph, &strain_set)?;
 
   let f = create_file_or_stdout(&output)?;
   json_write(f, &graph, JsonPretty(true))
 }
 
 fn simplify(graph: &mut Pangraph, focal_paths: &BTreeSet<String>) -> Result<(), Report> {
+  // Genomes are selected by name here, so an unnamed path cannot be resolved either way: without
+  // this check the filter below would silently drop it rather than report it.
+  check_genome_names(&[graph]).wrap_err("When checking the genome names of the input graph")?;
+
   let path_ids_to_remove: Vec<PathId> = graph
     .paths
     .iter()
-    .filter(|(_, path)| !focal_paths.contains(path.name().as_ref().unwrap()))
+    .filter(|(_, path)| !path.name().as_deref().is_some_and(|name| focal_paths.contains(name)))
     .map(|(id, _)| *id)
     .collect();
 
@@ -46,11 +50,15 @@ mod tests {
   use crate::pangraph::pangraph_node::{NodeId, PangraphNode};
   use crate::pangraph::pangraph_path::PangraphPath;
   use crate::pangraph::strand::Strand::{Forward, Reverse};
+  use crate::utils::error::report_to_string;
   use maplit::{btreemap, btreeset};
   use pretty_assertions::assert_eq;
 
-  const NID11: NodeId = NodeId(13172209629052542373);
-  const NID12: NodeId = NodeId(16864511183100055928);
+  /// Ids of the two nodes that concatenating the blocks of each path produces, as minted by
+  /// [`PangraphNode::with_derived_id`]. They are hashes of the new block id, the genome's seed and
+  /// the node's strand and position, so renaming `pathA`/`pathB` below changes them.
+  const NID11: NodeId = NodeId(7517044205545980976);
+  const NID12: NodeId = NodeId(8586529204744949647);
 
   fn block_a() -> PangraphBlock {
     //          0         1         2         3
@@ -125,14 +133,14 @@ mod tests {
     // n2+ -> n5+ -> n8-
     // n3+ -> n6-
     let nodes = btreemap! {
-      NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(1), PathId(1), Forward, (0, 32)),
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(1), PathId(2), Forward, (0, 31)),
-      NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(1), PathId(3), Forward, (0, 35)),
-      NodeId(4) => PangraphNode::new(Some(NodeId(4)), BlockId(2), PathId(1), Forward, (32, 64)),
-      NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(2), PathId(2), Forward, (31, 60)),
-      NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(2), PathId(3), Forward, (35, 0)),
-      NodeId(7) => PangraphNode::new(Some(NodeId(7)), BlockId(3), PathId(1), Forward, (64, 0)),
-      NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(2), Reverse, (60, 0)),
+      NodeId(1) => PangraphNode::new(NodeId(1), BlockId(1), PathId(1), Forward, (0, 32)),
+      NodeId(2) => PangraphNode::new(NodeId(2), BlockId(1), PathId(2), Forward, (0, 31)),
+      NodeId(3) => PangraphNode::new(NodeId(3), BlockId(1), PathId(3), Forward, (0, 35)),
+      NodeId(4) => PangraphNode::new(NodeId(4), BlockId(2), PathId(1), Forward, (32, 64)),
+      NodeId(5) => PangraphNode::new(NodeId(5), BlockId(2), PathId(2), Forward, (31, 60)),
+      NodeId(6) => PangraphNode::new(NodeId(6), BlockId(2), PathId(3), Forward, (35, 0)),
+      NodeId(7) => PangraphNode::new(NodeId(7), BlockId(3), PathId(1), Forward, (64, 0)),
+      NodeId(8) => PangraphNode::new(NodeId(8), BlockId(3), PathId(2), Reverse, (60, 0)),
     };
     let blocks = btreemap! {
       BlockId(1) => block_a(),
@@ -140,27 +148,27 @@ mod tests {
       BlockId(3) => block_c(),
     };
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), vec![NodeId(1), NodeId(4), NodeId(7)], 81, true, Some(o!("pathA")), None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), vec![NodeId(2), NodeId(5), NodeId(8)], 77, true, Some(o!("pathB")), None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), vec![NodeId(3), NodeId(6)],            70, true, Some(o!("pathC")), None),
+      PathId(1) => PangraphPath::new(PathId(1), vec![NodeId(1), NodeId(4), NodeId(7)], 81, true, Some(o!("pathA")), None),
+      PathId(2) => PangraphPath::new(PathId(2), vec![NodeId(2), NodeId(5), NodeId(8)], 77, true, Some(o!("pathB")), None),
+      PathId(3) => PangraphPath::new(PathId(3), vec![NodeId(3), NodeId(6)],            70, true, Some(o!("pathC")), None),
     };
     Pangraph { paths, blocks, nodes }
   }
 
   fn expected_graph() -> Pangraph {
     let nodes = btreemap! {
-      NID11 =>     PangraphNode::new(Some(NodeId(11)), BlockId(1), PathId(1), Forward, (0, 64)),
-      NID12 =>     PangraphNode::new(Some(NodeId(12)), BlockId(1), PathId(2), Forward, (0, 60)),
-      NodeId(7) => PangraphNode::new(Some(NodeId(7)),  BlockId(3), PathId(1), Forward, (64, 0)),
-      NodeId(8) => PangraphNode::new(Some(NodeId(8)),  BlockId(3), PathId(2), Reverse, (60, 0)),
+      NID11 =>     PangraphNode::new(NodeId(11), BlockId(1), PathId(1), Forward, (0, 64)),
+      NID12 =>     PangraphNode::new(NodeId(12), BlockId(1), PathId(2), Forward, (0, 60)),
+      NodeId(7) => PangraphNode::new(NodeId(7),  BlockId(3), PathId(1), Forward, (64, 0)),
+      NodeId(8) => PangraphNode::new(NodeId(8),  BlockId(3), PathId(2), Reverse, (60, 0)),
     };
     let blocks = btreemap! {
         BlockId(1) => block_ab(),
         BlockId(3) => block_c(),
     };
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), vec![NID11, NodeId(7)], 81, true, Some(o!("pathA")), None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), vec![NID12, NodeId(8)], 77, true, Some(o!("pathB")), None),
+      PathId(1) => PangraphPath::new(PathId(1), vec![NID11, NodeId(7)], 81, true, Some(o!("pathA")), None),
+      PathId(2) => PangraphPath::new(PathId(2), vec![NID12, NodeId(8)], 77, true, Some(o!("pathB")), None),
     };
 
     Pangraph { paths, blocks, nodes }
@@ -173,16 +181,16 @@ mod tests {
     graph.remove_path(PathId(1));
 
     let expected_paths = btreemap! {
-      PathId(2) => PangraphPath::new(Some(PathId(2)), vec![NodeId(2), NodeId(5), NodeId(8)], 77, true, Some(o!("pathB")), None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), vec![NodeId(3), NodeId(6)], 70, true, Some(o!("pathC")), None),
+      PathId(2) => PangraphPath::new(PathId(2), vec![NodeId(2), NodeId(5), NodeId(8)], 77, true, Some(o!("pathB")), None),
+      PathId(3) => PangraphPath::new(PathId(3), vec![NodeId(3), NodeId(6)], 70, true, Some(o!("pathC")), None),
     };
 
     let expected_nodes = btreemap! {
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(1), PathId(2), Forward, (0, 31)),
-      NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(1), PathId(3), Forward, (0, 35)),
-      NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(2), PathId(2), Forward, (31, 60)),
-      NodeId(6) => PangraphNode::new(Some(NodeId(6)), BlockId(2), PathId(3), Forward, (35, 0)),
-      NodeId(8) => PangraphNode::new(Some(NodeId(8)), BlockId(3), PathId(2), Reverse, (60, 0)),
+      NodeId(2) => PangraphNode::new(NodeId(2), BlockId(1), PathId(2), Forward, (0, 31)),
+      NodeId(3) => PangraphNode::new(NodeId(3), BlockId(1), PathId(3), Forward, (0, 35)),
+      NodeId(5) => PangraphNode::new(NodeId(5), BlockId(2), PathId(2), Forward, (31, 60)),
+      NodeId(6) => PangraphNode::new(NodeId(6), BlockId(2), PathId(3), Forward, (35, 0)),
+      NodeId(8) => PangraphNode::new(NodeId(8), BlockId(3), PathId(2), Reverse, (60, 0)),
     };
 
     let expected_blocks = btreemap! {
@@ -211,5 +219,17 @@ mod tests {
     simplify(&mut graph, &btreeset! {o!("pathA"), o!("pathB")}).unwrap();
     assert_eq!(graph.paths, expected_graph.paths);
     assert_eq!(graph.blocks, expected_graph.blocks);
+  }
+
+  /// An unnamed path cannot be matched against the requested strain names. This used to panic on an
+  /// `unwrap`; the graph must be rejected instead, and in particular the path must not be quietly
+  /// dropped as "not among the focal strains".
+  #[test]
+  fn test_simplify_rejects_unnamed_path() {
+    let mut graph = graph();
+    graph.paths.get_mut(&PathId(3)).unwrap().name = None;
+
+    let err = report_to_string(&simplify(&mut graph, &btreeset! {o!("pathA"), o!("pathB")}).unwrap_err());
+    assert!(err.contains("no name or an empty name"), "unexpected error: {err}");
   }
 }

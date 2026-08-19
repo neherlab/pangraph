@@ -87,17 +87,17 @@ mod tests {
 
   fn create_input_graph() -> Pangraph {
     let nodes = btreemap! {
-        NodeId(1) => PangraphNode::new(Some(NodeId(1)), BlockId(1), PathId(0), Forward, (0, 10)),
-        NodeId(2) => PangraphNode::new(Some(NodeId(2)), BlockId(1), PathId(1), Forward, (0, 10)),
-        NodeId(3) => PangraphNode::new(Some(NodeId(3)), BlockId(1), PathId(2), Reverse, (0, 0)),
-        NodeId(4) => PangraphNode::new(Some(NodeId(4)), BlockId(2), PathId(0), Forward, (10, 20)),
-        NodeId(5) => PangraphNode::new(Some(NodeId(5)), BlockId(2), PathId(2), Forward, (0, 10)),
+        NodeId(1) => PangraphNode::new(NodeId(1), BlockId(1), PathId(0), Forward, (0, 10)),
+        NodeId(2) => PangraphNode::new(NodeId(2), BlockId(1), PathId(1), Forward, (0, 10)),
+        NodeId(3) => PangraphNode::new(NodeId(3), BlockId(1), PathId(2), Reverse, (0, 0)),
+        NodeId(4) => PangraphNode::new(NodeId(4), BlockId(2), PathId(0), Forward, (10, 20)),
+        NodeId(5) => PangraphNode::new(NodeId(5), BlockId(2), PathId(2), Forward, (0, 10)),
     };
 
     let paths = btreemap! {
-        PathId(0) => PangraphPath::new(Some(PathId(1)), vec![NodeId(1), NodeId(4)], 20, false, None, None),
-        PathId(1) => PangraphPath::new(Some(PathId(2)), vec![NodeId(2)],            10, false, None, None),
-        PathId(2) => PangraphPath::new(Some(PathId(3)), vec![NodeId(3), NodeId(5)], 10, false, None, None),
+        PathId(0) => PangraphPath::new(PathId(1), vec![NodeId(1), NodeId(4)], 20, false, None, None),
+        PathId(1) => PangraphPath::new(PathId(2), vec![NodeId(2)],            10, false, None, None),
+        PathId(2) => PangraphPath::new(PathId(3), vec![NodeId(3), NodeId(5)], 10, false, None, None),
     };
 
     let blocks = btreemap! {

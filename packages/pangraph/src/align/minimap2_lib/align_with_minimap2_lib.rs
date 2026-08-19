@@ -4,7 +4,7 @@ use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
 use crate::pangraph::strand::Strand;
 use crate::{make_error, make_internal_error};
 use eyre::{Report, WrapErr};
-use itertools::{Itertools, izip};
+use itertools::Itertools;
 use minimap2::{Minimap2Args, Minimap2Index, Minimap2Mapper, Minimap2Preset, Minimap2Result};
 use noodles::sam::record::Cigar;
 use num_traits::clamp_min;
@@ -61,8 +61,14 @@ fn align_with_minimap2_lib_impl(
 
   let idx = Minimap2Index::new(&seqs, &names, &args)?;
 
-  let results: Vec<Minimap2Result> = izip!(&seqs, &names)
-    .par_bridge()
+  // Driven by an *indexed* parallel iterator: `par_bridge` hands work out in whatever order threads
+  // ask for it and collects in that order, which made the hit list vary between runs.
+  // `filter_matches` then broke equal-energy ties differently, so the same input could build
+  // different graphs. `par_iter` over a slice is indexed and `zip` preserves that, so input order
+  // is restored without materializing the pairs first.
+  let results: Vec<Minimap2Result> = seqs
+    .par_iter()
+    .zip(names.par_iter())
     .map_init(
       || Minimap2Mapper::new(&idx).unwrap(),
       move |mapper, (seq, name)| {

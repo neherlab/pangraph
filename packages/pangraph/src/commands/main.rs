@@ -1,6 +1,7 @@
 use crate::commands::build::build_run::build_run;
 use crate::commands::export::export_run::export_run;
 use crate::commands::md_help::print_help_markdown::print_help_markdown;
+use crate::commands::merge::merge_run::merge_run;
 use crate::commands::reconstruct::reconstruct_run::reconstruct_run;
 use crate::commands::root_args::{PangraphCommands, generate_shell_completions, parse_cli_args};
 use crate::commands::schema::generate_schema::generate_schema;
@@ -17,6 +18,7 @@ pub fn pangraph_main() -> Result<(), Report> {
 
   match args.command {
     PangraphCommands::Build(args) => build_run(&args),
+    PangraphCommands::Merge(args) => merge_run(&args),
     PangraphCommands::Export { args } => export_run(args),
     PangraphCommands::Simplify(args) => simplify_run(args),
     PangraphCommands::Reconstruct(args) => reconstruct_run(&args),

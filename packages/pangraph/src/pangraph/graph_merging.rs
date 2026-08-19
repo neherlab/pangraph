@@ -1,10 +1,9 @@
 use crate::align::alignment::Alignment;
-use crate::align::alignment_args::AlignmentArgs;
+use crate::align::alignment_args::{AlignmentArgs, AlignmentBackend, GraphMergeParams};
 use crate::align::energy::alignment_energy2;
 use crate::align::minimap2_lib::align_with_minimap2_lib::align_with_minimap2_lib;
 use crate::align::mmseqs::align_with_mmseqs::align_with_mmseqs;
 use crate::circularize::circularize::remove_transitive_edges;
-use crate::commands::build::build_args::{AlignmentBackend, PangraphBuildArgs};
 use crate::pangraph::detach_unaligned::detach_unaligned_nodes;
 use crate::pangraph::pangraph::Pangraph;
 use crate::pangraph::pangraph_block::{BlockId, PangraphBlock};
@@ -26,7 +25,7 @@ use std::collections::BTreeMap;
 pub fn merge_graphs(
   left_graph: &Pangraph,
   right_graph: &Pangraph,
-  args: &PangraphBuildArgs,
+  args: &GraphMergeParams,
 ) -> Result<Pangraph, Report> {
   // put the two graphs in a single one, by simply joining
   // the two sets of blocks and paths. No merging is performed
@@ -92,7 +91,7 @@ pub fn graph_join(left_graph: &Pangraph, right_graph: &Pangraph) -> Pangraph {
   }
 }
 
-pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph, bool), Report> {
+pub fn self_merge(graph: Pangraph, args: &GraphMergeParams) -> Result<(Pangraph, bool), Report> {
   // use minimap2 or other aligners to find matches between the consensus
   // sequences of the blocks
   let matches = find_matches(&graph.blocks, args)?;
@@ -175,7 +174,7 @@ pub fn self_merge(graph: Pangraph, args: &PangraphBuildArgs) -> Result<(Pangraph
 // Returns a list of alignment objects.
 pub fn find_matches(
   blocks: &BTreeMap<BlockId, PangraphBlock>,
-  args: &PangraphBuildArgs,
+  args: &GraphMergeParams,
 ) -> Result<Vec<Alignment>, Report> {
   match args.alignment_kernel {
     AlignmentBackend::Minimap2 => align_with_minimap2_lib(blocks, &args.aln_args),

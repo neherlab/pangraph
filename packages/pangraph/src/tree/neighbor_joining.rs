@@ -2,6 +2,7 @@
 
 use crate::distance::mash::mash_distance::mash_distance;
 use crate::distance::mash::minimizer::MinimizersParams;
+use crate::make_error;
 use crate::pangraph::pangraph::Pangraph;
 // use crate::tree::balance::balance;
 use crate::tree::clade::Clade;
@@ -13,7 +14,17 @@ use ndarray::{Array1, Array2, Axis, s};
 use ndarray_stats::QuantileExt;
 
 /// Generate guide tree using neighbor joining method.
-pub fn build_tree_using_neighbor_joining(graphs: Vec<Pangraph>) -> Result<Lock<Clade<Option<Pangraph>>>, Report> {
+pub fn build_tree_using_neighbor_joining(mut graphs: Vec<Pangraph>) -> Result<Lock<Clade<Option<Pangraph>>>, Report> {
+  match graphs.len() {
+    0 => {
+      return make_error!("When building the guide tree: expected at least one input genome, but none were provided");
+    },
+    // A single genome needs no joining: the guide tree is that genome's leaf. Handled here, before
+    // computing pairwise distances, which would be wasted work. `pop` yields exactly the `Some` we need.
+    1 => return Ok(Lock::new(Clade::new(graphs.pop()))),
+    _ => {},
+  }
+
   let mut distances = calculate_distances(&graphs);
 
   let mut nodes = graphs
@@ -102,11 +113,55 @@ fn join_in_place<T: Default>(D: &mut Array2<f64>, nodes: &mut Vec<Lock<Clade<T>>
 #[cfg(test)]
 mod tests {
   use super::*;
+  use crate::assert_error;
+  use crate::io::fasta::FastaRecord;
+  use crate::pangraph::strand::Strand::Forward;
+  use crate::representation::seq::Seq;
   use ndarray::array;
   use pretty_assertions::assert_eq;
   use rstest::rstest;
 
   const INF: f64 = f64::INFINITY;
+
+  /// Builds a singleton graph for one named sequence, as `build` does for each input FASTA record.
+  fn singleton(name: &str, index: usize) -> Pangraph {
+    Pangraph::singleton(
+      FastaRecord {
+        seq_name: name.to_owned(),
+        desc: None,
+        seq: Seq::from_str("ACGTACGTACGTACGT"),
+        index,
+      },
+      Forward,
+      false,
+    )
+  }
+
+  #[rstest]
+  fn test_build_tree_rejects_no_graphs() {
+    assert_error!(
+      build_tree_using_neighbor_joining(vec![]),
+      "When building the guide tree: expected at least one input genome, but none were provided"
+    );
+  }
+
+  #[rstest]
+  fn test_build_tree_single_graph_is_a_leaf() {
+    let tree = build_tree_using_neighbor_joining(vec![singleton("A", 0)]).unwrap();
+    let root = tree.read();
+    assert!(root.is_leaf());
+    assert!(root.data.is_some());
+    assert_eq!(root.to_newick(), "A;");
+  }
+
+  #[rstest]
+  fn test_build_tree_two_graphs() {
+    let tree = build_tree_using_neighbor_joining(vec![singleton("A", 0), singleton("B", 1)]).unwrap();
+    let root = tree.read();
+    assert!(!root.is_leaf());
+    assert!(root.data.is_none());
+    assert_eq!(root.to_newick(), "(A,B);");
+  }
 
   #[rstest]
   fn test_create_Q_matrix() {

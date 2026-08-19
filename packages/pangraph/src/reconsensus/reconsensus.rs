@@ -1,4 +1,4 @@
-use crate::commands::build::build_args::PangraphBuildArgs;
+use crate::align::alignment_args::GraphMergeParams;
 use crate::make_report;
 use crate::pangraph::detach_unaligned::detach_unaligned_nodes;
 use crate::pangraph::edits::Edit;
@@ -32,7 +32,7 @@ struct BlockAnalysis {
 pub fn reconsensus_graph(
   graph: &mut Pangraph,
   ids_updated_blocks: &[BlockId],
-  args: &PangraphBuildArgs,
+  args: &GraphMergeParams,
 ) -> Result<(), Report> {
   // there should be no empty nodes in the graph
   debug_assert!(
@@ -406,7 +406,7 @@ mod tests {
     let majority_edits = block.find_majority_edits();
     assert!(majority_edits.has_indels()); // This block has indels requiring re-alignment
     let block = block
-      .edit_consensus_and_realign(&majority_edits, &PangraphBuildArgs::default())
+      .edit_consensus_and_realign(&majority_edits, &GraphMergeParams::default())
       .unwrap();
 
     // Check that the re-alignment produced the expected result
@@ -422,7 +422,7 @@ mod tests {
     let majority_edits = block.find_majority_edits();
     assert!(majority_edits.has_indels()); // This block has indels requiring re-alignment
     let block = block
-      .edit_consensus_and_realign(&majority_edits, &PangraphBuildArgs::default())
+      .edit_consensus_and_realign(&majority_edits, &GraphMergeParams::default())
       .unwrap();
 
     // Check that the re-alignment produced the expected result
@@ -436,18 +436,18 @@ mod tests {
     let expected_block = block_1_reconsensus();
 
     let nodes = btreemap! {
-      NodeId(1) => PangraphNode::new(Some(NodeId(1)), block.id(), PathId(1), Forward, (0, 23)),
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), block.id(), PathId(2), Forward, (0, 23)),
-      NodeId(3) => PangraphNode::new(Some(NodeId(3)), block.id(), PathId(3), Forward, (0, 23)),
-      NodeId(4) => PangraphNode::new(Some(NodeId(4)), block.id(), PathId(4), Forward, (0, 23)),
-      NodeId(5) => PangraphNode::new(Some(NodeId(5)), block.id(), PathId(5), Forward, (0, 23)),
+      NodeId(1) => PangraphNode::new(NodeId(1), block.id(), PathId(1), Forward, (0, 23)),
+      NodeId(2) => PangraphNode::new(NodeId(2), block.id(), PathId(2), Forward, (0, 23)),
+      NodeId(3) => PangraphNode::new(NodeId(3), block.id(), PathId(3), Forward, (0, 23)),
+      NodeId(4) => PangraphNode::new(NodeId(4), block.id(), PathId(4), Forward, (0, 23)),
+      NodeId(5) => PangraphNode::new(NodeId(5), block.id(), PathId(5), Forward, (0, 23)),
     };
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 23, false, None, None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(2)], 23, false, None, None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(3)], 23, false, None, None),
-      PathId(4) => PangraphPath::new(Some(PathId(4)), [NodeId(4)], 23, false, None, None),
-      PathId(5) => PangraphPath::new(Some(PathId(5)), [NodeId(5)], 23, false, None, None),
+      PathId(1) => PangraphPath::new(PathId(1), [NodeId(1)], 23, false, None, None),
+      PathId(2) => PangraphPath::new(PathId(2), [NodeId(2)], 23, false, None, None),
+      PathId(3) => PangraphPath::new(PathId(3), [NodeId(3)], 23, false, None, None),
+      PathId(4) => PangraphPath::new(PathId(4), [NodeId(4)], 23, false, None, None),
+      PathId(5) => PangraphPath::new(PathId(5), [NodeId(5)], 23, false, None, None),
     };
     let mut graph = Pangraph {
       blocks: btreemap! {
@@ -457,7 +457,7 @@ mod tests {
       paths,
     };
 
-    let result = reconsensus_graph(&mut graph, &[block_id], &PangraphBuildArgs::default());
+    let result = reconsensus_graph(&mut graph, &[block_id], &GraphMergeParams::default());
     result.unwrap();
 
     assert_eq!(graph.blocks[&block_id], expected_block);
@@ -510,20 +510,20 @@ mod tests {
 
     // Create nodes for the block with lengths reflecting actual sequence lengths
     let nodes = btreemap! {
-      NodeId(1) => PangraphNode::new(Some(NodeId(1)), initial_block.id(), PathId(1), Reverse, (0, 10)),   // 50 - 40 = 9 (deletes positions 0-39)
-      NodeId(2) => PangraphNode::new(Some(NodeId(2)), initial_block.id(), PathId(2), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
-      NodeId(3) => PangraphNode::new(Some(NodeId(3)), initial_block.id(), PathId(3), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
-      NodeId(4) => PangraphNode::new(Some(NodeId(4)), initial_block.id(), PathId(4), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
-      NodeId(5) => PangraphNode::new(Some(NodeId(5)), initial_block.id(), PathId(5), Forward, (0, 49)),  // no deletions
+      NodeId(1) => PangraphNode::new(NodeId(1), initial_block.id(), PathId(1), Reverse, (0, 10)),   // 50 - 40 = 9 (deletes positions 0-39)
+      NodeId(2) => PangraphNode::new(NodeId(2), initial_block.id(), PathId(2), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(3) => PangraphNode::new(NodeId(3), initial_block.id(), PathId(3), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(4) => PangraphNode::new(NodeId(4), initial_block.id(), PathId(4), Forward, (0, 35)),  // 50 - 15 = 35 (deletes positions 35-49)
+      NodeId(5) => PangraphNode::new(NodeId(5), initial_block.id(), PathId(5), Forward, (0, 49)),  // no deletions
     };
 
     // Create paths
     let paths = btreemap! {
-      PathId(1) => PangraphPath::new(Some(PathId(1)), [NodeId(1)], 49, false, None, None),
-      PathId(2) => PangraphPath::new(Some(PathId(2)), [NodeId(2)], 49, false, None, None),
-      PathId(3) => PangraphPath::new(Some(PathId(3)), [NodeId(3)], 49, false, None, None),
-      PathId(4) => PangraphPath::new(Some(PathId(4)), [NodeId(4)], 49, false, None, None),
-      PathId(5) => PangraphPath::new(Some(PathId(5)), [NodeId(5)], 49, false, None, None),
+      PathId(1) => PangraphPath::new(PathId(1), [NodeId(1)], 49, false, None, None),
+      PathId(2) => PangraphPath::new(PathId(2), [NodeId(2)], 49, false, None, None),
+      PathId(3) => PangraphPath::new(PathId(3), [NodeId(3)], 49, false, None, None),
+      PathId(4) => PangraphPath::new(PathId(4), [NodeId(4)], 49, false, None, None),
+      PathId(5) => PangraphPath::new(PathId(5), [NodeId(5)], 49, false, None, None),
     };
 
     // Create blocks map
@@ -535,7 +535,7 @@ mod tests {
     let mut graph = Pangraph { paths, blocks, nodes };
 
     // Apply reconsensus_graph
-    let result = reconsensus_graph(&mut graph, &[initial_block.id()], &PangraphBuildArgs::default());
+    let result = reconsensus_graph(&mut graph, &[initial_block.id()], &GraphMergeParams::default());
 
     // Check that the operation succeeded
     result.unwrap();
@@ -554,7 +554,7 @@ mod tests {
 
     // check that the node was updated correctly, flipping the strandedness
     let new_node1 = &graph.nodes[&NodeId(1)];
-    let expected_node1 = PangraphNode::new(Some(NodeId(1)), singleton_block_exp.id(), PathId(1), Forward, (0, 10));
+    let expected_node1 = PangraphNode::new(NodeId(1), singleton_block_exp.id(), PathId(1), Forward, (0, 10));
     assert_eq!(new_node1, &expected_node1);
   }
 }
