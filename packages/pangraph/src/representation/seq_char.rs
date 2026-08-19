@@ -16,7 +16,7 @@ impl AsciiChar {
 
   pub fn from_str(s: &str) -> Self {
     debug_assert!(s.is_ascii());
-    debug_assert!(s.len() == 1);
+    debug_assert_eq!(s.len(), 1);
     Self(s.as_bytes()[0])
   }
 }

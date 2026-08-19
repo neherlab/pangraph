@@ -19,7 +19,6 @@ crate-type = ["lib"]
 
 [dependencies]
 approx = { workspace = true }
-atty = { workspace = true }
 auto_ops = { workspace = true }
 bio = { workspace = true }
 bzip2 = { workspace = true }
