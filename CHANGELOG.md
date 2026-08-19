@@ -1,4 +1,4 @@
-## Unreleased
+## 1.4.0
 
 - added `pangraph merge` command, to combine two existing pangenome graphs into a single one, see #197.
 - `pangraph build` now accepts a single input sequence.
