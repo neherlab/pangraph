@@ -103,6 +103,7 @@ RUN set -euxo pipefail >/dev/null \
   'pathos' \
   'plotly' \
   'polars' \
+  'pydantic=2.13.4' \
   'scikit-learn' \
   'scipy' \
   'seaborn' \
