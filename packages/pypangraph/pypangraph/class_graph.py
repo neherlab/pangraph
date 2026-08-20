@@ -1,7 +1,7 @@
 # Wrapper class to load a Pangraph object from a .json file.
 
 import json
-import jsonschema
+import jsonschema_rs
 import itertools
 import gzip
 import pandas as pd
@@ -13,6 +13,11 @@ from .class_path import PathCollection
 from .class_block import BlockCollection
 from .class_node import Nodes
 from .pangraph_schema import schema
+
+# Compile the schema once at import time. jsonschema-rs spends all its per-call
+# cost in the validation traversal, so the validator is built here and reused
+# for every load rather than recompiled on each call.
+_VALIDATOR = jsonschema_rs.validator_for(schema)
 
 
 class PangraphLoadError(ValueError):
@@ -75,10 +80,10 @@ class Pangraph:
 
         try:
             graph = {"pangraph": pan_json}
-            jsonschema.validate(instance=graph, schema=schema)
-        except jsonschema.exceptions.ValidationError as ex:
+            _VALIDATOR.validate(graph)
+        except jsonschema_rs.ValidationError as ex:
             raise PangraphLoadError(
-                f"invalid pangraph JSON in {filename}: {ex.message}"
+                f"invalid pangraph JSON in {filename}: {ex}"
             ) from ex
 
         pan = Pangraph(pan_json)
