@@ -2,5 +2,6 @@ build
 dacite
 datamodel-code-generator
 jsonschema
+msgspec
 pydantic
 setuptools[core]
