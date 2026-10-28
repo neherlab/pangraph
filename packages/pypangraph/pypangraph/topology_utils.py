@@ -153,6 +153,10 @@ class Edge:
         """
         return self._natural_str_id() <= self.invert()._natural_str_id()
 
+    def to_canonical(self) -> "Edge":
+        """Return this edge in its canonical orientation (see ``is_canonical``)."""
+        return self if self.is_canonical() else self.invert()
+
     def to_str_id(self) -> str:
         return (
             self._natural_str_id()

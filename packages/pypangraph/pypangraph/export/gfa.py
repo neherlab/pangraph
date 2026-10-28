@@ -36,8 +36,9 @@ class GFA:
         Args:
             segments: dict mapping segment name (str) -> length in bp (int).
             links: iterable of (from_name, from_strand, to_name, to_strand) tuples,
-                where the strands are booleans (True -> '+', False -> '-'). A set
-                collapses duplicate links automatically.
+                where the strands are booleans (True -> '+', False -> '-'). Each
+                link should be passed once, in a single orientation: a link and its
+                reverse complement (``b, not sb, a, not sa``) are the same GFA link.
             depths: optional dict mapping segment name -> coverage depth, emitted
                 as a ``DP:f:`` tag (read by Bandage as node depth).
         """
