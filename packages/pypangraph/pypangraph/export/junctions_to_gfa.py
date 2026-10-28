@@ -18,6 +18,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 
 from ..minimal_synteny_units import core_paths
+from ..topology_utils import Edge, OrientedBlock, Walk
 from .gfa import GFA
 
 
@@ -117,7 +118,7 @@ def junction_context_gfa(bj, scaffold: str = "consensus") -> tuple[GFA, dict[str
             # Capture the two flanking core blocks
             core_ids = {jc.left.id, jc.right.id}
 
-            # Build a list of (segment name, orientation)
+            # Build the walk of oriented segments
             segment_walk = []
             for ob in jc.oriented_blocks():
                 if ob.id in core_ids:
@@ -130,11 +131,12 @@ def junction_context_gfa(bj, scaffold: str = "consensus") -> tuple[GFA, dict[str
 
                 # save segment with its length, and add it to the walk
                 segments[name] = len_map[ob.id]
-                segment_walk.append((name, ob.strand))
+                segment_walk.append(OrientedBlock(name, ob.strand))
 
-            # Link consecutive segments, carrying each block's strand into the GFA link.
-            for (n1, s1), (n2, s2) in zip(segment_walk, segment_walk[1:]):
-                links.add((n1, s1, n2, s2))
+            # Link consecutive segments. Edge equality is reverse-complement symmetric,
+            # so a link read on both strands (e.g. accessory content inverted in some
+            # isolates) is stored only once.
+            links.update(Walk(segment_walk).edges())
 
     # Depth of anchor (core) blocks is given by the graph count (equal to number of isolates)
     # while for accessory blocks is the number of occurrences in the specific junction.
@@ -142,4 +144,9 @@ def junction_context_gfa(bj, scaffold: str = "consensus") -> tuple[GFA, dict[str
         name: acc_depth[name] if name in acc_depth else count_map[name]
         for name in segments
     }
+    # Emit each link once in canonical orientation, sorted for a reproducible output.
+    links = sorted(
+        (e.left.id, e.left.strand, e.right.id, e.right.strand)
+        for e in map(Edge.to_canonical, links)
+    )
     return GFA(segments, links, depths), prefix_map

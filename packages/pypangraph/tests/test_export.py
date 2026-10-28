@@ -152,6 +152,33 @@ def test_accessory_depth_counts_repeats_on_same_path(tandem_accessory_pangraph):
     assert gfa.depths[a] == 3
 
 
+def _rc_duplicated_links(links):
+    """Links whose reverse complement (b, not sb, a, not sa) is also present."""
+    link_set = set(links)
+    return [
+        (a, sa, b, sb)
+        for a, sa, b, sb in link_set
+        if (b, not sb, a, not sa) != (a, sa, b, sb)
+        and (b, not sb, a, not sa) in link_set
+    ]
+
+
+def test_inverted_accessory_link_written_once(inverted_accessory_pangraph):
+    """A link read on both strands (accessory content inverted on one path) is
+    exported once, in a single orientation, and links come out sorted."""
+    bj = BackboneJunctions(inverted_accessory_pangraph, L_thr=500)
+    gfa, _ = junction_context_gfa(bj, scaffold="all")
+
+    ab_links = [
+        (a, sa, b, sb)
+        for a, sa, b, sb in gfa.links
+        if {a.split("__")[-1], b.split("__")[-1]} == {"500", "600"}
+    ]
+    assert len(ab_links) == 1
+    assert _rc_duplicated_links(gfa.links) == []
+    assert list(gfa.links) == sorted(gfa.links)
+
+
 def test_junction_context_gfa_runs_on_real_graph(plasmid_pangraph):
     """Smoke test on a real plasmid graph: non-empty, all links valid."""
     bj = BackboneJunctions(plasmid_pangraph, L_thr=500)
@@ -159,3 +186,4 @@ def test_junction_context_gfa_runs_on_real_graph(plasmid_pangraph):
     assert gfa.segments and gfa.links and prefix_map
     for a, _, b, _ in gfa.links:
         assert a in gfa.segments and b in gfa.segments
+    assert _rc_duplicated_links(gfa.links) == []

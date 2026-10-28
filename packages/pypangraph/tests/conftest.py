@@ -189,6 +189,50 @@ def build_tandem_accessory_pangraph_json():
     return {"paths": paths, "blocks": blocks, "nodes": nodes}
 
 
+def build_inverted_accessory_pangraph_json():
+    """Pangraph where the accessory content of a junction is inverted on one path.
+
+    Two circular strains; backbone blocks C1, C2 flank a single junction whose
+    accessory content is the pair A B, read on opposite strands by the two strains:
+      s1: C1+ A+ B+ C2+
+      s2: C1+ B- A- C2+   (A B inverted relative to the flanks)
+
+    The A-B adjacency is therefore traversed as A+ B+ in s1 and as its reverse
+    complement B- A- in s2: the same link, which must be exported once.
+
+    Backbone blocks (core AND >=500bp): C1=100 (1000bp), C2=200 (800bp).
+    Accessory blocks (<500bp): A=500 (200bp), B=600 (150bp).
+    """
+    # s1 (path 0): C1+(1) A+(2) B+(3) C2+(4)
+    # s2 (path 1): C1+(5) B-(6) A-(7) C2+(8)
+    nodes = {
+        # s1
+        "1": _make_node(1, 100, 0, True, 0, 1000),
+        "2": _make_node(2, 500, 0, True, 1000, 1200),
+        "3": _make_node(3, 600, 0, True, 1200, 1350),
+        "4": _make_node(4, 200, 0, True, 1350, 2150),
+        # s2
+        "5": _make_node(5, 100, 1, True, 0, 1000),
+        "6": _make_node(6, 600, 1, False, 1000, 1150),
+        "7": _make_node(7, 500, 1, False, 1150, 1350),
+        "8": _make_node(8, 200, 1, True, 1350, 2150),
+    }
+
+    blocks = {
+        "100": _make_block(100, 1000, [1, 5]),
+        "200": _make_block(200, 800, [4, 8]),
+        "500": _make_block(500, 200, [2, 7]),
+        "600": _make_block(600, 150, [3, 6]),
+    }
+
+    paths = {
+        "0": _make_path(0, "s1", [1, 2, 3, 4], 2150),
+        "1": _make_path(1, "s2", [5, 6, 7, 8], 2150),
+    }
+
+    return {"paths": paths, "blocks": blocks, "nodes": nodes}
+
+
 def _make_block_with_edits(block_id, consensus, node_edits):
     """Create a block with a custom consensus and per-node edits.
 
@@ -390,6 +434,12 @@ def junction_pangraph():
 def tandem_accessory_pangraph():
     """A Pangraph with an accessory block duplicated on one path inside a junction."""
     return pp.Pangraph(build_tandem_accessory_pangraph_json())
+
+
+@pytest.fixture
+def inverted_accessory_pangraph():
+    """A Pangraph whose junction accessory content is inverted on one path."""
+    return pp.Pangraph(build_inverted_accessory_pangraph_json())
 
 
 @pytest.fixture
