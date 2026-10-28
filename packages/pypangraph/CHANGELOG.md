@@ -1,4 +1,4 @@
-## Unreleased
+## 1.1.1
 
 - Fix duplicated GFA links in `junction_context_gfa`: a link traversed in both orientations within a junction (e.g. accessory content inverted in some isolates) is now written once, and `L` lines are emitted in a deterministic order.
 
