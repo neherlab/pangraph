@@ -46,7 +46,7 @@ gfa, prefix_map = junction_context_gfa(junctions, scaffold="consensus")
 gfa.write("staph_untangled.gfa")
 ```
 
-This emits each block once *per junction context*: a block that occurs in several junctions becomes several segments, each prefixed by a junction tag (`J{n}__{block_id}`), while the core blocks -- the shared anchors -- keep their plain id and are emitted only once. Because blocks are de-duplicated by context, the export actually has **more** segments than the whole-graph GFA (1312 segments, 1742 links here) -- but each one is local to a single junction, so the long-range crossings disappear and the graph reads as a clean chain of bubbles.
+This emits each block once *per junction context*: a block that occurs in several junctions becomes several segments, each prefixed by a junction tag (`J{n}__{block_id}`), while the core blocks -- the shared anchors -- keep their plain id and are emitted only once. Because blocks are de-duplicated by context, the export actually has **more** segments than the whole-graph GFA (1312 segments, 1729 links here) -- but each one is local to a single junction, so the long-range crossings disappear and the graph reads as a clean chain of bubbles.
 
 ![junction-context GFA of the staph pangraph in Bandage, untangled into clean bubbles](../assets/pp_t9_untangled.png)
 
