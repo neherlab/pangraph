@@ -1,8 +1,8 @@
 use crate::utils::global_init::INDICATIF;
-use atty::{Stream, is as is_tty};
 use eyre::Report;
 use indicatif::{ProgressBar as ProgressBarBase, ProgressStyle};
 use std::borrow::Cow;
+use std::io::{IsTerminal, stdout};
 use std::time::Duration;
 
 pub struct ProgressBar {
@@ -14,7 +14,7 @@ impl ProgressBar {
     if deactivate || (n_total <= 1) {
       return Ok(Self { pb: None });
     }
-    let pb = if is_tty(Stream::Stdout) {
+    let pb = if stdout().is_terminal() {
       let pb = ProgressBarBase::new(n_total as u64);
       pb.enable_steady_tick(Duration::from_secs(1));
       let style = ProgressStyle::with_template(

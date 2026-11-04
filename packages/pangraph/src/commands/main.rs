@@ -12,7 +12,7 @@ use log::info;
 pub fn pangraph_main() -> Result<(), Report> {
   let args = parse_cli_args()?;
 
-  info!("{:#?}", &args);
+  info!("{args:#?}");
 
   rayon::ThreadPoolBuilder::new().num_threads(args.jobs).build_global()?;
 

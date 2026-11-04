@@ -7,7 +7,7 @@ use std::path::Path;
 
 use crate::io::compression::{Compressor, Decompressor};
 #[cfg(not(target_arch = "wasm32"))]
-use atty::{Stream, is as is_tty};
+use std::io::IsTerminal;
 
 pub const DEFAULT_FILE_BUF_SIZE: usize = 256 * 1024;
 
@@ -35,7 +35,7 @@ pub fn open_stdin() -> Result<Box<dyn BufRead>, Report> {
   info!("Reading from standard input");
 
   #[cfg(not(target_arch = "wasm32"))]
-  if is_tty(Stream::Stdin) {
+  if stdin().is_terminal() {
     warn!("{TTY_WARNING}");
   }
 

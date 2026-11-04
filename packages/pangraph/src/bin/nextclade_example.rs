@@ -47,7 +47,7 @@ fn main() -> Result<(), Report> {
   let qry_records = FastaReader::from_paths(&input_query_fastas)?.read_many()?;
   for qry_record in qry_records {
     let result = align_with_nextclade(&ref_record.seq, &qry_record.seq, band_params, &params)?;
-    println!("{:#?}", &result);
+    println!("{result:#?}");
   }
 
   Ok(())

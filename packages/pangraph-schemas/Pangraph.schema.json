@@ -17,30 +17,30 @@
       "properties": {
         "paths": {
           "type": "object",
+          "additionalProperties": false,
           "patternProperties": {
             "^\\d+$": {
               "$ref": "#/$defs/PangraphPath"
             }
-          },
-          "additionalProperties": false
+          }
         },
         "blocks": {
           "type": "object",
+          "additionalProperties": false,
           "patternProperties": {
             "^\\d+$": {
               "$ref": "#/$defs/PangraphBlock"
             }
-          },
-          "additionalProperties": false
+          }
         },
         "nodes": {
           "type": "object",
+          "additionalProperties": false,
           "patternProperties": {
             "^\\d+$": {
               "$ref": "#/$defs/PangraphNode"
             }
-          },
-          "additionalProperties": false
+          }
         }
       },
       "required": [
@@ -110,12 +110,12 @@
         },
         "alignments": {
           "type": "object",
+          "additionalProperties": false,
           "patternProperties": {
             "^\\d+$": {
               "$ref": "#/$defs/Edit"
             }
-          },
-          "additionalProperties": false
+          }
         }
       },
       "required": [

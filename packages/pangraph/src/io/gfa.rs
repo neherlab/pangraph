@@ -117,7 +117,7 @@ pub fn gfa_write<W: Write>(mut writer: W, g: &Pangraph, params: &GfaWriteParams)
     let strand1 = edge.n1.strand;
     let bid2 = edge.n2.bid;
     let strand2 = edge.n2.strand;
-    writeln!(writer, "L\t{bid1}\t{strand1}\t{bid2}\t{strand2}\t*\tRC:i:{read_count}",)?;
+    writeln!(writer, "L\t{bid1}\t{strand1}\t{bid2}\t{strand2}\t*\tRC:i:{read_count}")?;
   }
 
   if !gfa.paths.is_empty() {
@@ -131,7 +131,7 @@ pub fn gfa_write<W: Write>(mut writer: W, g: &Pangraph, params: &GfaWriteParams)
       .map(|node| format!("{}{}", node.bid, node.strand))
       .join(",");
     let path_name = &path.path_name;
-    writeln!(writer, "P\t{path_name}\t{segments}\t*{circular_tag}",)?;
+    writeln!(writer, "P\t{path_name}\t{segments}\t*{circular_tag}")?;
   }
   Ok(())
 }

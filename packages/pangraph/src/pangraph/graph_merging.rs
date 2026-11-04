@@ -180,7 +180,7 @@ pub fn find_matches(
     AlignmentBackend::Minimap2 => align_with_minimap2_lib(blocks, &args.aln_args),
     AlignmentBackend::Mmseqs => align_with_mmseqs(blocks, &args.aln_args),
   }
-  .wrap_err_with(|| format!("When trying to align sequences using {}", &args.alignment_kernel))
+  .wrap_err_with(|| format!("When trying to align sequences using {}", args.alignment_kernel))
 }
 
 pub fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment> {
@@ -204,7 +204,7 @@ pub fn filter_matches(alns: &[Alignment], args: &AlignmentArgs) -> Vec<Alignment
   let mut accepted_intervals = btreemap![];
 
   for aln in alns {
-    debug_assert!(aln.qry.name != aln.reff.name);
+    debug_assert_ne!(aln.qry.name, aln.reff.name);
     if is_match_compatible(aln, &accepted_intervals) {
       accepted_alns.push(aln.clone());
       update_intervals(aln, &mut accepted_intervals);
