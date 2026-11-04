@@ -37,16 +37,16 @@ class Edits:
         self.dels = dels
 
     @staticmethod
-    def from_dict(edits: dict) -> "Edits":
+    def from_model(edit) -> "Edits":
         subs = sorted(
-            [Substitution(s["pos"], s["alt"]) for s in edits["subs"]],
+            [Substitution(s.pos, s.alt) for s in edit.subs],
             key=lambda x: x.pos,
         )
         inss = sorted(
-            [Insertion(i["pos"], i["seq"]) for i in edits["inss"]], key=lambda x: x.pos
+            [Insertion(i.pos, i.seq) for i in edit.inss], key=lambda x: x.pos
         )
         dels = sorted(
-            [Deletion(d["pos"], d["len"]) for d in edits["dels"]], key=lambda x: x.pos
+            [Deletion(d.pos, d.len) for d in edit.dels], key=lambda x: x.pos
         )
         return Edits(subs, inss, dels)
 
@@ -90,10 +90,10 @@ class Alignment:
         self.edits = edits
 
     @staticmethod
-    def from_dict(block: dict) -> "Alignment":
-        consensus = block["consensus"]
+    def from_model(block) -> "Alignment":
+        consensus = block.consensus
         edits = {
-            node_id: Edits.from_dict(e) for node_id, e in block["alignments"].items()
+            node_id: Edits.from_model(e) for node_id, e in block.alignments.items()
         }
         return Alignment(consensus, edits)
 

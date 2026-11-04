@@ -1,9 +1,8 @@
 # Wrapper class to load a Pangraph object from a .json file.
 
-import json
-import jsonschema
-import itertools
 import gzip
+import itertools
+import msgspec
 import pandas as pd
 from Bio import SeqRecord, Seq, AlignIO
 
@@ -12,7 +11,10 @@ from collections import defaultdict
 from .class_path import PathCollection
 from .class_block import BlockCollection
 from .class_node import Nodes
-from .pangraph_schema import schema
+from .model import PangraphData
+
+# Build the typed decoder once at import time and reuse it for every load.
+_DECODER = msgspec.json.Decoder(PangraphData)
 
 
 class PangraphLoadError(ValueError):
@@ -27,15 +29,20 @@ class Pangraph:
     - `nodes` : each node represents a particular occurrence of a block on a path.
     """
 
-    def __init__(self, pan_json):
-        """Python calss to load the output of the Pangraph pipeline.
+    def __init__(self, pan):
+        """Build a Pangraph from the typed pangraph model or a raw dict.
 
         Args:
-            pan_json (dict): content of the .json file produced by pangraph.
+            pan: either a `model.PangraphData` (as produced by `from_json`) or a
+                plain dict in the pangraph JSON shape. A dict is validated and
+                converted to the typed model before use, so constructing a
+                Pangraph from an in-memory dict enforces the same schema as
+                loading from a file.
         """
-        self.paths = PathCollection(pan_json["paths"])
-        self.blocks = BlockCollection(pan_json["blocks"])
-        self.nodes = Nodes(pan_json["nodes"])
+        data = pan if isinstance(pan, PangraphData) else msgspec.convert(pan, PangraphData)
+        self.paths = PathCollection(data.paths)
+        self.blocks = BlockCollection(data.blocks)
+        self.nodes = Nodes(data.nodes)
 
     def __repr__(self):
         return f"pangraph object with {len(self.strains())} paths, {len(self.blocks)} blocks and {len(self.nodes)} nodes"
@@ -62,27 +69,26 @@ class Pangraph:
             )
 
         try:
-            if is_gzjson:
-                with gzip.open(filename, "rt") as f:
-                    pan_json = json.load(f)
-            else:
-                with open(filename, "r") as f:
-                    pan_json = json.load(f)
-        except (OSError, gzip.BadGzipFile, json.JSONDecodeError) as ex:
+            opener = gzip.open if is_gzjson else open
+            with opener(filename, "rb") as f:
+                raw = f.read()
+        except (OSError, gzip.BadGzipFile) as ex:
             raise PangraphLoadError(
                 f"failed to load pangraph from {filename}: {ex}"
             ) from ex
 
         try:
-            graph = {"pangraph": pan_json}
-            jsonschema.validate(instance=graph, schema=schema)
-        except jsonschema.exceptions.ValidationError as ex:
+            data = _DECODER.decode(raw)
+        except msgspec.ValidationError as ex:
             raise PangraphLoadError(
-                f"invalid pangraph JSON in {filename}: {ex.message}"
+                f"invalid pangraph JSON in {filename}: {ex}"
+            ) from ex
+        except msgspec.DecodeError as ex:
+            raise PangraphLoadError(
+                f"failed to load pangraph from {filename}: {ex}"
             ) from ex
 
-        pan = Pangraph(pan_json)
-        return pan
+        return Pangraph(data)
 
     def strains(self):
         """Return lists of strain names"""
