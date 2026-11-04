@@ -1,0 +1,318 @@
+#!/usr/bin/env python3
+"""Benchmark JSON load and schema-validation strategies for pypangraph graphs.
+
+Loading a pangraph graph means turning a (optionally gzipped) JSON file into a
+validated in-memory representation. This script measures each phase of that work
+and each candidate validation or decode engine, so the cost of validation can be
+compared against parsing and decompression on a single machine.
+
+The three engines that back the three ``feat/pypangraph-load-*`` branches are
+mutually exclusive in the product, but this benchmark defines self-contained
+models for all of them, so the full comparison reproduces on any branch where the
+libraries happen to be installed. Engines whose library is absent are skipped, not
+failed.
+
+Run::
+
+    python3 benchmarks/bench_load                     # default: tests/data/staph.json.gz
+    python3 benchmarks/bench_load path/to/graph.json  # a specific graph
+    python3 benchmarks/bench_load --runs 9            # more repetitions
+
+To reproduce the complete table install every engine first::
+
+    pip install jsonschema jsonschema-rs msgspec pydantic
+"""
+
+import argparse
+import gzip
+import json
+import statistics
+import time
+from collections.abc import Callable
+from pathlib import Path
+from typing import Annotated, Literal
+
+from pypangraph.pangraph_schema import schema
+
+DEFAULT_FIXTURE = "tests/data/staph.json.gz"
+DEFAULT_RUNS = 5
+
+# A row of the results table: engine label, median milliseconds (None when the
+# engine could not run), and a short note (why it was skipped, or what it is).
+Row = tuple[str, "float | None", str]
+
+
+def main() -> None:
+    args = _parse_args()
+    path = Path(args.fixture)
+    on_disk = path.read_bytes()
+    raw_bytes = gzip.decompress(on_disk) if path.suffix == ".gz" else on_disk
+    raw_str = raw_bytes.decode()
+    obj = json.loads(raw_str)
+    graph = {"pangraph": obj}
+
+    print(f"fixture: {args.fixture}")
+    print(
+        f"compressed {len(on_disk) / 1e6:.2f} MB -> decoded {len(raw_bytes) / 1e6:.2f} MB"
+        f" | blocks={len(obj['blocks'])} nodes={len(obj['nodes'])} paths={len(obj['paths'])}"
+    )
+    print(f"median of {args.runs} runs\n")
+
+    _report(_measure(path.suffix == ".gz", on_disk, raw_bytes, raw_str, graph, args.runs))
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("fixture", nargs="?", default=DEFAULT_FIXTURE)
+    parser.add_argument("--runs", type=int, default=DEFAULT_RUNS)
+    return parser.parse_args()
+
+
+def _measure(
+    gzipped: bool, on_disk: bytes, raw_bytes: bytes, raw_str: str, graph: dict, runs: int
+) -> list[Row]:
+    decompress: Row = (
+        ("gzip decompress", _median_ms(lambda: gzip.decompress(on_disk), runs), "stdlib")
+        if gzipped
+        else ("gzip decompress", None, "input not gzipped")
+    )
+    return [
+        decompress,
+        ("json.loads (parse)", _median_ms(lambda: json.loads(raw_str), runs), "stdlib, baseline"),
+        _row_jsonschema(graph, runs),
+        _row_jsonschema_rs(graph, runs),
+        _row_stdlib(graph, runs),
+        _row_msgspec(raw_bytes, runs),
+        _row_pydantic(raw_str, runs),
+    ]
+
+
+def _report(rows: list[Row]) -> None:
+    baseline = _baseline_ms(rows)
+    width = max(len(label) for label, _, _ in rows)
+    for label, ms, note in rows:
+        if ms is None:
+            print(f"{label:<{width}}  {'skipped':>11}   {note}")
+            continue
+        speedup = f"{baseline / ms:6.1f}x" if baseline else "     -"
+        print(f"{label:<{width}}  {ms:8.1f} ms  {speedup}  {note}")
+    if baseline:
+        print(
+            f"\nbaseline = json.loads + jsonschema (current loader) = {baseline:.1f} ms;"
+            " speedup column is baseline / row."
+        )
+
+
+def _baseline_ms(rows: list[Row]) -> float | None:
+    times = {label: ms for label, ms, _ in rows}
+    parse = times.get("json.loads (parse)")
+    validate = times.get("jsonschema (pure python)")
+    return parse + validate if parse is not None and validate is not None else None
+
+
+def _median_ms(fn: Callable[[], object], runs: int) -> float:
+    samples = [_timed(fn) for _ in range(runs)]
+    return statistics.median(samples) * 1000
+
+
+def _timed(fn: Callable[[], object]) -> float:
+    start = time.perf_counter()
+    fn()
+    return time.perf_counter() - start
+
+
+# --- JSON-schema engines: validate the parsed dict against the shared schema ---
+
+
+def _row_jsonschema(graph: dict, runs: int) -> Row:
+    try:
+        import jsonschema
+    except ImportError:
+        return ("jsonschema (pure python)", None, "not installed")
+    validator = jsonschema.Draft202012Validator(schema)
+    ms = _median_ms(lambda: validator.validate(graph), runs)
+    return ("jsonschema (pure python)", ms, "current loader")
+
+
+def _row_jsonschema_rs(graph: dict, runs: int) -> Row:
+    try:
+        import jsonschema_rs
+    except ImportError:
+        return ("jsonschema-rs (Rust)", None, "not installed")
+    validator = jsonschema_rs.validator_for(schema)
+    ms = _median_ms(lambda: validator.validate(graph), runs)
+    return ("jsonschema-rs (Rust)", ms, "drop-in, keeps dicts")
+
+
+def _row_stdlib(graph: dict, runs: int) -> Row:
+    ms = _median_ms(lambda: _stdlib_validate(graph, schema), runs)
+    return ("stdlib mini-validator", ms, "no dependency")
+
+
+# --- typed decode engines: parse and validate into typed models in one pass ---
+
+
+def _row_msgspec(raw_bytes: bytes, runs: int) -> Row:
+    try:
+        import msgspec
+    except ImportError:
+        return ("msgspec (typed decode)", None, "not installed")
+
+    uint = Annotated[int, msgspec.Meta(ge=0)]
+
+    class Sub(msgspec.Struct):
+        pos: uint
+        alt: Annotated[str, msgspec.Meta(min_length=1, max_length=1)]
+
+    class Del(msgspec.Struct):
+        pos: uint
+        len: uint
+
+    class Ins(msgspec.Struct):
+        pos: uint
+        seq: str
+
+    class Edit(msgspec.Struct):
+        subs: list[Sub]
+        dels: list[Del]
+        inss: list[Ins]
+
+    class Block(msgspec.Struct):
+        id: uint
+        consensus: str
+        alignments: dict[str, Edit]
+
+    class Path(msgspec.Struct):
+        id: uint
+        nodes: list[uint]
+        tot_len: uint
+        circular: bool
+        name: str | None = None
+        desc: str | None = None
+
+    class Node(msgspec.Struct):
+        id: uint
+        block_id: uint
+        path_id: uint
+        strand: Literal["+", "-"]
+        position: tuple[uint, uint]
+
+    class Graph(msgspec.Struct):
+        paths: dict[str, Path]
+        blocks: dict[str, Block]
+        nodes: dict[str, Node]
+
+    decoder = msgspec.json.Decoder(Graph)
+    ms = _median_ms(lambda: decoder.decode(raw_bytes), runs)
+    return ("msgspec (typed decode)", ms, "parse+validate, typed")
+
+
+def _row_pydantic(raw_str: str, runs: int) -> Row:
+    try:
+        import pydantic
+    except ImportError:
+        return ("pydantic (typed decode)", None, "not installed")
+
+    uint = Annotated[int, pydantic.Field(ge=0)]
+
+    class Sub(pydantic.BaseModel):
+        pos: uint
+        alt: Annotated[str, pydantic.Field(min_length=1, max_length=1)]
+
+    class Del(pydantic.BaseModel):
+        pos: uint
+        len: uint
+
+    class Ins(pydantic.BaseModel):
+        pos: uint
+        seq: str
+
+    class Edit(pydantic.BaseModel):
+        subs: list[Sub]
+        dels: list[Del]
+        inss: list[Ins]
+
+    class Block(pydantic.BaseModel):
+        id: uint
+        consensus: str
+        alignments: dict[str, Edit]
+
+    class Path(pydantic.BaseModel):
+        id: uint
+        nodes: list[uint]
+        tot_len: uint
+        circular: bool
+        name: str | None = None
+        desc: str | None = None
+
+    class Node(pydantic.BaseModel):
+        id: uint
+        block_id: uint
+        path_id: uint
+        strand: Literal["+", "-"]
+        position: tuple[uint, uint]
+
+    class Graph(pydantic.BaseModel):
+        paths: dict[str, Path]
+        blocks: dict[str, Block]
+        nodes: dict[str, Node]
+
+    ms = _median_ms(lambda: Graph.model_validate_json(raw_str), runs)
+    return ("pydantic (typed decode)", ms, "parse+validate, typed")
+
+
+def _stdlib_validate(node: object, sch: dict, defs: dict | None = None) -> None:
+    """Validate ``node`` against the subset of JSON Schema that this schema uses.
+
+    Supports ``$ref``, ``type`` (incl. nullable unions), ``required``,
+    ``properties``, ``additionalProperties``, ``items``, ``enum`` and ``minimum``
+    -- the keywords schemars emits for the pangraph types.
+    """
+    if defs is None:
+        defs = sch.get("$defs", {})
+    if "$ref" in sch:
+        _stdlib_validate(node, defs[sch["$ref"].split("/")[-1]], defs)
+        return
+    declared = sch.get("type")
+    if declared is not None:
+        types = declared if isinstance(declared, list) else [declared]
+        if not any(_stdlib_is(node, t) for t in types):
+            raise ValueError(f"expected {types}, got {type(node).__name__}")
+        if node is None:
+            return
+    if "enum" in sch and node not in sch["enum"]:
+        raise ValueError(f"{node!r} not in enum {sch['enum']}")
+    if isinstance(node, dict):
+        for req in sch.get("required", []):
+            if req not in node:
+                raise ValueError(f"missing required {req!r}")
+        props = sch.get("properties", {})
+        additional = sch.get("additionalProperties")
+        for key, value in node.items():
+            if key in props:
+                _stdlib_validate(value, props[key], defs)
+            elif isinstance(additional, dict):
+                _stdlib_validate(value, additional, defs)
+    elif isinstance(node, list) and isinstance(sch.get("items"), dict):
+        for item in node:
+            _stdlib_validate(item, sch["items"], defs)
+    if isinstance(node, (int, float)) and not isinstance(node, bool):
+        minimum = sch.get("minimum")
+        if minimum is not None and node < minimum:
+            raise ValueError(f"{node} < minimum {minimum}")
+
+
+def _stdlib_is(node: object, type_name: str) -> bool:
+    return {
+        "object": isinstance(node, dict),
+        "array": isinstance(node, list),
+        "string": isinstance(node, str),
+        "integer": isinstance(node, int) and not isinstance(node, bool),
+        "number": isinstance(node, (int, float)) and not isinstance(node, bool),
+        "boolean": isinstance(node, bool),
+        "null": node is None,
+    }[type_name]
+
+
+if __name__ == "__main__":
+    main()

@@ -93,6 +93,7 @@ RUN set -euxo pipefail >/dev/null \
   'dill' \
   'ipywidgets' \
   'jsonpickle' \
+  'jsonschema-rs=0.49.9' \
   'jupyter-dash' \
   'jupyterlab' \
   'jupyterlab_widgets' \

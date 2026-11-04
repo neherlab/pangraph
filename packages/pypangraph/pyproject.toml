@@ -4,7 +4,7 @@
 
 [project]
   classifiers = ['Programming Language :: Python :: 3', 'License :: OSI Approved :: MIT License', 'Operating System :: OS Independent']
-  dependencies = ['matplotlib', 'numpy', 'pandas', 'biopython', 'jsonschema']
+  dependencies = ['matplotlib', 'numpy', 'pandas', 'biopython', 'jsonschema-rs']
   description = 'package to manipulate pangenomes produced by PanGraph'
   name = 'pypangraph'
   readme = 'README.md'
