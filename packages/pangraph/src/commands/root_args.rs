@@ -1,5 +1,6 @@
 #![allow(unused_qualifications)]
 
+use crate::commands::annotate::annotate_args::PangraphAnnotateArgs;
 use crate::commands::build::build_args::PangraphBuildArgs;
 use crate::commands::export::export_args::PangraphExportArgs;
 use crate::commands::merge::merge_args::PangraphMergeArgs;
@@ -81,6 +82,9 @@ pub enum PangraphCommands {
 
   /// Reconstruct all input fasta sequences from graph
   Reconstruct(PangraphReconstructArgs),
+
+  /// Lift genome annotations onto the pangenome graph.
+  Annotate(PangraphAnnotateArgs),
 
   /// Generate JSON schema for Pangraph file format
   Schema(PangraphGenerateSchemaArgs),
