@@ -28,11 +28,11 @@ class Nodes:
         self.df = pd.DataFrame.from_dict(
             {
                 node_id: {
-                    "block_id": str(node["block_id"]),
-                    "path_id": node["path_id"],
-                    "strand": parse_strandedness(node["strand"]),
-                    "start": node["position"][0],
-                    "end": node["position"][1],
+                    "block_id": str(node.block_id),
+                    "path_id": node.path_id,
+                    "strand": parse_strandedness(node.strand),
+                    "start": node.position[0],
+                    "end": node.position[1],
                 }
                 for node_id, node in nodes_dict.items()
             }
