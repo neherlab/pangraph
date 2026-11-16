@@ -1,0 +1,97 @@
+# Test deploy of the docs to the new AWS setup, served at https://new-docs.pangraph.org.
+# Runs only on this branch; docs.yml still deploys https://docs.pangraph.org.
+
+on:
+  push:
+    branches: [ "feat/new-aws-account" ]
+
+concurrency:
+  group: "docs-oidc-${{ github.ref }}"
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: "bash -euo pipefail {0}"
+
+permissions: {}
+
+jobs:
+
+  build:
+    name: "build"
+    runs-on: "ubuntu-24.04"
+    permissions:
+      contents: "read"
+
+    steps:
+      - name: "Checkout code"
+        uses: "actions/checkout@11d5960a326750d5838078e36cf38b85af677262" # v4.4.0
+        with:
+          fetch-depth: 1
+          submodules: true
+          lfs: true
+          persist-credentials: false
+
+      - uses: "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020" # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: "Install deps"
+        run: |
+          sudo apt-get install rename --yes -qq >/dev/null
+
+          cd docs/
+          npm install -g bun
+          bun install
+
+      - name: "Build docs"
+        run: |
+          cd docs/
+          bun prod:build
+
+      - name: "Upload the build"
+        uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2
+        with:
+          name: "docs-build"
+          path: "docs/build/"
+          if-no-files-found: "error"
+          include-hidden-files: true
+
+  deploy:
+    name: "deploy"
+    needs: [ "build" ]
+    runs-on: "ubuntu-24.04"
+    permissions:
+      contents: "read"
+      id-token: "write"
+
+    steps:
+      - name: "Checkout the deploy script"
+        uses: "actions/checkout@11d5960a326750d5838078e36cf38b85af677262" # v4.4.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: "docs/deploy"
+          sparse-checkout-cone-mode: false
+
+      - name: "Download the build"
+        uses: "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333" # v8.0.2
+        with:
+          name: "docs-build"
+          path: "docs/build/"
+
+      - name: "Assume the deploy role"
+        uses: "aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd" # v6.3.0
+        with:
+          role-to-assume: "${{ secrets.PANGRAPH_DOCS_AWS_ROLE_ARN }}"
+          role-session-name: "docs-${{ github.run_id }}-${{ github.run_attempt }}"
+          aws-region: "${{ secrets.PANGRAPH_DOCS_AWS_REGION }}"
+          mask-aws-account-id: true
+
+      - name: "Deploy docs"
+        env:
+          AWS_S3_BUCKET: "${{ secrets.PANGRAPH_DOCS_AWS_S3_BUCKET }}"
+          AWS_CLOUDFRONT_DISTRIBUTION_ID: "${{ secrets.PANGRAPH_DOCS_AWS_CLOUDFRONT_DISTRIBUTION_ID }}"
+        run: |
+          cd docs/
+          ./deploy
