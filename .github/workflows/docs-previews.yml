@@ -1,0 +1,121 @@
+# Test previews of the docs on the new AWS setup: each push deploys the commit, then the branch, such as
+# https://branch-feat-new-aws-account.new-docs.previews.pangraph.org; a pull request would deploy pr-<number>.
+
+on:
+  push:
+    branches: [ "feat/new-aws-account" ]
+
+concurrency:
+  group: "docs-previews-${{ github.ref }}"
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: "bash -euo pipefail {0}"
+
+permissions: {}
+
+jobs:
+
+  build:
+    name: "build"
+    runs-on: "ubuntu-24.04"
+    permissions:
+      contents: "read"
+
+    steps:
+      - name: "Checkout code"
+        uses: "actions/checkout@11d5960a326750d5838078e36cf38b85af677262" # v4.4.0
+        with:
+          fetch-depth: 1
+          submodules: true
+          lfs: true
+          persist-credentials: false
+
+      - uses: "actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020" # v4.4.0
+        with:
+          node-version: "22"
+
+      - name: "Install deps"
+        run: |
+          sudo apt-get install rename --yes -qq >/dev/null
+
+          cd docs/
+          npm install -g bun
+          bun install
+
+      - name: "Build docs"
+        run: |
+          cd docs/
+          bun prod:build
+
+      - name: "Upload the build"
+        uses: "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9" # v7.0.2
+        with:
+          name: "docs-build"
+          path: "docs/build/"
+          if-no-files-found: "error"
+          include-hidden-files: true
+
+  deploy:
+    name: "deploy"
+    needs: [ "build" ]
+    runs-on: "ubuntu-24.04"
+    permissions:
+      contents: "read"
+      id-token: "write"
+
+    steps:
+      - name: "Name the preview sites"
+        id: "sites"
+        env:
+          EVENT: "${{ github.event_name }}"
+          NUMBER: "${{ github.event.pull_request.number }}"
+          BRANCH: "${{ github.head_ref || github.ref_name }}"
+          SHA: "${{ github.event.pull_request.head.sha || github.sha }}"
+        run: |
+          if [[ "${EVENT}" == "pull_request" ]]; then
+            sites="pr-${NUMBER}"
+          else
+            slug="$(tr '[:upper:]' '[:lower:]' <<<"${BRANCH}" | sed -E 's/[^a-z0-9]+/-/g; s/^-+//' | cut -c1-56 | sed -E 's/-+$//')"
+            sites="commit-${SHA::7} branch-${slug}"
+          fi
+          echo "sites=${sites}" >>"${GITHUB_OUTPUT}"
+
+      - name: "Checkout the deploy script"
+        uses: "actions/checkout@11d5960a326750d5838078e36cf38b85af677262" # v4.4.0
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: "docs/deploy"
+          sparse-checkout-cone-mode: false
+
+      - name: "Download the build"
+        uses: "actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333" # v8.0.2
+        with:
+          name: "docs-build"
+          path: "docs/build/"
+
+      - name: "Assume the preview deploy role"
+        uses: "aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd" # v6.3.0
+        with:
+          role-to-assume: "${{ secrets.PANGRAPH_DOCS_PREVIEWS_AWS_ROLE_ARN }}"
+          role-session-name: "docs-previews-${{ github.run_id }}-${{ github.run_attempt }}"
+          aws-region: "${{ secrets.PANGRAPH_DOCS_PREVIEWS_AWS_REGION }}"
+          mask-aws-account-id: true
+
+      # The deploy script deletes the non-HTML files of the build after their upload, so each site gets its own copy.
+      - name: "Deploy the previews"
+        env:
+          SITES: "${{ steps.sites.outputs.sites }}"
+          BUCKET: "${{ secrets.PANGRAPH_DOCS_PREVIEWS_AWS_S3_BUCKET }}"
+          AWS_CLOUDFRONT_DISTRIBUTION_ID: "${{ secrets.PANGRAPH_DOCS_PREVIEWS_AWS_CLOUDFRONT_DISTRIBUTION_ID }}"
+        run: |
+          cd docs/
+          mv build build-all
+          for site in ${SITES}; do
+            rm -rf build
+            cp -r build-all build
+            AWS_S3_BUCKET="${BUCKET}/docs.previews.pangraph.org/${site}" ./deploy
+            echo "https://${site}.new-docs.previews.pangraph.org" >>"${GITHUB_STEP_SUMMARY}"
+          done
